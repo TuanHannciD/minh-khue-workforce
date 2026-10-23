@@ -32,6 +32,6 @@ Chỉ hỏi khi thiếu dữ kiện/quyền thực sự chặn tính đúng ho�
 
 Sửa diễn đạt, link, trạng thái thực tế và evidence trong task tài liệu đã giao không cần xin lại. Đổi chính sách quyền, ngưỡng review hoặc yêu cầu sản phẩm phải bám quyết định rõ của người dùng.
 
-## Quyền của task tài liệu hiện tại
+## Quyền bootstrap hiện tại
 
-[MKW-AGENT-001](../tasks/MKW-AGENT-001/INDEX.md) được viết/kiểm tra tài liệu và template. Chưa giao cài skill/tool, init Git, dispatch reviewer, tạo scheduler hoặc dựng ứng dụng. Ghi thiếu ở readiness, không biến thành blocker của việc bàn giao tài liệu.
+[MKW-AGENT-001](../tasks/MKW-AGENT-001/INDEX.md) chỉ viết tài liệu. Người dùng đã duyệt [MKW-AGENT-002](../tasks/MKW-AGENT-002/approved/requirements.md): cài skill/dependency project-local, Git baseline/commit/worktree đã chọn, pilot server/browser/data giả, child/reviewer độc lập và tích hợp local fast-forward cuối khi sạch. Không tạo thêm worktree trong task này; primary chỉ đọc đến tích hợp cuối. Không push/remote/deploy/scheduler/global config hoặc dữ liệu/hệ thống nhân sự thật. Không hỏi lại các bước đã được quyền này bao phủ.

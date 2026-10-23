@@ -22,7 +22,7 @@
 | Sandbox | Web/API/DB seed riêng, owner task/run | Dựng target đúng, xác minh identity, chạy luồng và giải phóng tài nguyên |
 | Evidence/resume | Dossier bền vững, ledger/report theo task/run | Phiên mới tiếp tục đúng next action; file giữ lại không mất khi cleanup |
 
-Hiện Node/terminal dùng để kiểm tra tài liệu. Workspace chưa có Git baseline, app script, Playwright setup hay sandbox; không có lệnh test sản phẩm hợp lệ để chạy.
+MKW-AGENT-002 đã tạo Git baseline và worktree riêng, tooling Node 22/npm theo lockfile, ESLint, test SQLite thật và Playwright Test. Lệnh cụ thể tại [LOCAL_RUN](LOCAL_RUN.md), kết quả tại [validation](../tasks/MKW-AGENT-002/validation.md). Không có type-check/build sản phẩm: pilot dùng JavaScript và asset tĩnh. T3 Browser do runtime cung cấp; chưa cài thêm Playwright MCP/plugin.
 
 ## T3 và model
 
@@ -37,7 +37,7 @@ Khi dùng T3: child task khác top-level conversation; lưu task ID, dùng statu
 | Playwright MCP | Cần browser workflow khác hoặc môi trường không có T3 Browser; phải theo quy tắc fallback | Chưa cài/xác minh |
 | Context7/công cụ tài liệu chính thức | Cần tài liệu thư viện đúng phiên bản | Chưa chọn kết nối/cài |
 | Figma MCP | Có thiết kế Figma và quyền đọc tài nguyên cần thiết | Chưa cài/xác minh |
-| GitHub CLI/MCP | Có repo/issue/PR và quyền cần thiết | Chưa xác minh; workspace chưa có Git |
+| GitHub CLI/MCP | Có repo/issue/PR và quyền cần thiết | Git local đã có; GitHub/remote chưa xác minh |
 | DB CLI/MCP | Có schema/DB thử và target được phép | Chưa chọn/cài; không cần MCP nếu CLI đủ |
 | Công cụ sinh ảnh | Task cần tài sản bitmap cụ thể | Theo khả năng phiên và scope; chưa là gate nền tảng |
 | Android emulator/device tools | Bắt đầu mobile, có SDK/thiết bị | Chưa kiểm chứng thiết bị thật |

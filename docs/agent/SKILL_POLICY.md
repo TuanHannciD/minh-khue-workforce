@@ -4,18 +4,18 @@
 
 Theo đề xuất được người dùng đồng ý: Superpowers là phương pháp chính; specialist Minh Khuê bổ sung project; Impeccable là UI/UX chính và UI UX Pro Max cung cấp tham khảo. Chọn task qua [SKILL_USAGE_MATRIX](../../SKILL_USAGE_MATRIX.md).
 
-Hiện chưa cài gói nào trong workspace này. Bộ Superpowers `v6.4.2` được khảo sát ở SellerFlow là tham chiếu, không phải phiên bản đã ghim cho Minh Khuê. Phiên bản/commit chính xác, dependency và nguồn snapshot UI phải được xác minh trong task cài đặt.
+Đã cài trong MKW-AGENT-002: 15 Superpowers `v6.4.2`, commit `8ca22dba9a94f28898bbce59f2537ff4d87c747d`, bằng system skill-installer helper; 2 bộ UI lấy nguyên byte snapshot local SellerFlow. UI là bản import được duy trì local từ Windows-Video-Builder, không claim pristine upstream. Chi tiết và hash ở [Superpowers manifest](../../.agents/superpowers-source.json), [UI manifest](../../.agents/ui-skills-source.json), [license Superpowers](../../.agents/SUPERPOWERS-LICENSE) và [UI licenses](../../.agents/UI-LICENSES).
 
 ## Một nguồn phân phối
 
-- Dùng gói project-local ở `.agents/skills/` nếu harness hỗ trợ; đây là đường dẫn dự kiến, chưa tồn tại.
-- Manifest dự kiến `.agents/superpowers-source.json` và `.agents/ui-skills-source.json` lưu repository/provenance, version/commit, file hash, license và ngày xác minh.
+- Dùng gói project-local ở `.agents/skills/`. Nếu harness chưa liệt kê tự động, đọc SKILL.md trực tiếp theo matrix; chưa coi auto-discovery là Verified.
+- Manifest `.agents/superpowers-source.json` và `.agents/ui-skills-source.json` lưu repository/provenance, version/commit, file hash, license và ngày xác minh. `npm run check:skills` kiểm tra hash, inventory, metadata và đường dẫn.
 - Giữ byte upstream đã ghim; không sửa âm thầm hay dịch rồi vẫn gọi là upstream nguyên trạng.
 - Specialist riêng là gói tách biệt, có nguồn sở hữu và tham chiếu hiện hành.
 - Nếu cần Claude, sinh mirror tương thích và entrypoint từ cùng nguồn; không duy trì hai bản skill độc lập.
 - Plugin là cách đóng gói/phân phối skill/tool, không là lifecycle thứ hai. Tránh cài thêm global/plugin trùng bộ local.
 
-Những đường dẫn dự kiến trên được ghi bằng code, không được link như file đã tồn tại. Sau cài đặt phải bổ sung manifest/evidence thật vào readiness.
+Không cài mirror Claude/global hoặc hook. Impeccable update check đã tắt local tại `.impeccable/config.json`. Chỉ chạy script cần cho task sau khi đọc; không tự thực thi toàn bộ script trong distribution. Check hash xác nhận integrity với manifest đã review, không là chữ ký tin cậy từ upstream.
 
 ## Điều kiện cài/cập nhật
 

@@ -20,4 +20,4 @@ Skill local nguồn/license/hash; 15 Superpowers + hai UI. Tooling kiểm tra ng
 
 ## Next action
 
-Tạo baseline Git và worktree; cài/pin skill; triển khai pilot/test; cập nhật evidence và readiness. Tài nguyên và run ID ghi trong validation trước khi acquire.
+Git/skill/pilot đã triển khai. Hoàn tất browser regression, cập nhật evidence/readiness, commit candidate và review độc lập đúng tip; sửa/re-review rồi tích hợp local khi sạch. Checkpoint Agent mới tại [HANDOFF](HANDOFF.md). Chi tiết và giới hạn tại validation.

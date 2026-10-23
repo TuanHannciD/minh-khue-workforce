@@ -1,6 +1,6 @@
 # Chọn skill theo công việc
 
-Đây là catalog đã chọn, **chưa là danh sách skill đã cài**. Nguồn/pin/override ở [SKILL_POLICY](docs/agent/SKILL_POLICY.md); kiểm chứng cài đặt tại [READINESS](docs/agent/READINESS.md). Chỉ load phần cần cho task.
+15 Superpowers và 2 bộ UI dưới đây đã cài project-local tại `.agents/skills/`. Nguồn/pin/override ở [SKILL_POLICY](docs/agent/SKILL_POLICY.md); mức kiểm chứng tại [READINESS](docs/agent/READINESS.md). Chỉ load phần cần cho task. Khi runtime chưa tự liệt kê, đọc trực tiếp `.agents/skills/<tên>/SKILL.md`; việc đọc file không chứng minh auto-discovery.
 
 ## Superpowers — 15 skill
 

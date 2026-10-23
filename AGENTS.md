@@ -30,4 +30,4 @@ Hiệu lực: nền tảng Agent, theo phạm vi người dùng đã duyệt ng�
 
 ## Bootstrap hiện tại
 
-MKW-AGENT-001 chỉ viết bộ tài liệu. Git, skill local, adapter và ứng dụng chưa có; không viện một quy trình chưa cài để chặn việc viết tài liệu đã được giao. Tình trạng tiếp theo ở [READINESS](docs/agent/READINESS.md).
+MKW-AGENT-001 hoàn tất tài liệu. [MKW-AGENT-002](docs/tasks/MKW-AGENT-002/INDEX.md) cài 15 Superpowers + 2 UI project-local và pilot ghi chú UI/API/SQLite độc lập với sản phẩm. Chạy `npm run check`, `npm run test:e2e` theo [hướng dẫn local](docs/agent/LOCAL_RUN.md). Skill chưa được runtime tự liệt kê thì đọc trực tiếp `.agents/skills/<tên>/SKILL.md`, không claim auto-discovery. Trạng thái từng gate và giới hạn ở [READINESS](docs/agent/READINESS.md).

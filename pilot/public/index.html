@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ghi chú thử · Minh Khuê</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body><main>
+  <header><h1>Ghi chú thử</h1><p>Kiểm tra thao tác và dữ liệu trong môi trường thử Minh Khuê.</p></header>
+  <div class="workspace">
+    <section aria-labelledby="compose-heading">
+      <h2 id="compose-heading">Lưu một ghi chú</h2>
+      <form id="note-form">
+        <label for="note">Ghi chú thử</label>
+        <textarea id="note" name="note" rows="4" maxlength="200" required aria-describedby="note-help"></textarea>
+        <p id="note-help" class="hint">Tối đa 200 ký tự. Chỉ nhập dữ liệu giả.</p>
+        <label class="check"><input id="simulate" type="checkbox"> Thử lỗi máy chủ một lần</label>
+        <button id="save" type="submit">Lưu ghi chú</button>
+      </form>
+      <p id="error" role="alert" hidden></p>
+      <p id="status" role="status" aria-live="polite"></p>
+    </section>
+    <section aria-labelledby="history-heading" class="history">
+      <h2 id="history-heading">Đã lưu</h2>
+      <p id="empty" class="hint">Chưa có ghi chú. Hãy thử lưu ghi chú đầu tiên.</p>
+      <ul id="notes" aria-label="Ghi chú đã lưu"></ul>
+    </section>
+  </div>
+  <footer>Pilot công cụ · API và SQLite local thật · Không phải ứng dụng chấm công</footer>
+</main></body></html>

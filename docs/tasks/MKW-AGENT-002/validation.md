@@ -18,4 +18,45 @@ Task MKW-AGENT-002. Worktree sau baseline: primary/.worktrees/agent-bootstrap. R
 
 ## Ledger
 
-Bootstrap đang thực hiện. Các lệnh/kết quả RED/GREEN, commit range, child ID và trạng thái resource sẽ cập nhật sau từng bước.
+Worktree base `ff91255e2a92f21027ba27bd7875b3d69c9c796c`, branch `agent/mkw-agent-002`. Evidence root thực tế: `D:/TinHoc/minh-khue-workforce/.agent-runs/MKW-AGENT-002` (ignored, ngoài disposable checkout). Primary chưa bị thay implementation.
+
+## Skill và tooling — Verified
+
+- System installer `install-skill-from-github.py` bằng `py -3`: obra/superpowers `v6.4.2`, commit `8ca22dba9a94f28898bbce59f2537ff4d87c747d`, 15 package local. UI copy nguyên byte từ SellerFlow commit `5477dce80c55c42f4b612479296d22574a177266`, nguồn local Windows-Video-Builder `8b9ff69c5b84cae119cbc325bc5acb6b20d05f0a`. Không claim UI pristine upstream.
+- `npm run check:skills`: 15+2, hash/inventory/metadata/license paths đạt. Checker thử tamper/missing/traversal/unmanifested; `skills-red.log` fail assertion0/1 trước implementation, sau đó pass1/1.
+- Node22.12/npm10.9, Python3.14.3, Git2.54; không sửa global identity/config. Lockfile pin dependency; npm install audit0 vulnerabilities tại thời điểm chạy. ESLint9 warning hết hỗ trợ, giới hạn ghi LOCAL_RUN.
+- `npm run check`, cwd worktree: exit0, docs UTF-8/link/anchor/fence + lint + **7 pass/0 fail/0 skipped**; `check-before-review.log`. Không claim type-check/build. Lifecycle test bổ sung sau CLI để kiểm preservation, không claim mọi dòng tooling viết bằng TDD.
+
+## Pilot API/SQLite — Verified
+
+`node --experimental-sqlite --test --test-concurrency=1 tests/pilot.test.mjs`: `pilot-red.log` **0/5**, contract stub501 khác expected; sau implementation `pilot-green.log` **5/5**, exit0. SQLite file thật, restart vẫn còn dữ liệu, concurrent retry không trùng, conflicting key409, simulated503 không ghi DB, validation/origin/size/static protections. SQLite experimental là giới hạn pilot, không quyết định stack sản phẩm.
+
+Lifecycle test khởi động CLI thật, xác nhận loopback/owner/run riêng; gửi `stop`, exit0, port đóng, record released, bằng chứng còn và server khác còn hoạt động. Run thư mục mới được giữ; không cleanup recursive evidence. Hard crash/PID reuse/parent crash recovery: Not run.
+
+## UI skills và browser thật
+
+Impeccable context và UI UX Pro Max search đã chạy theo PRODUCT/DESIGN nội bộ. Detector lần đầu degraded vì thiếu parser; sau cài parser local chạy đầy đủ có2 warning heuristic: cream-palette (paper có chủ đích trong brief), flat-type-hierarchy (chỉ thấy14/16/20, không tính h1 clamp tới48px). Đã xem screenshot; không coi detector thành chứng nhận accessibility đầy đủ.
+
+T3 Browser tab owned nêu trên; server PID31640 URL `http://127.0.0.1:64433`, DB/evidence `interactive-1zBaM2`. Tool navigate/snapshot/type/click/wait/evaluate: lưu201 → GET200 có1; lỗi thật503, giữ text/DB vẫn1; retry201 → reload → API và DOM cùng đúng2, không overflow1280px. Không mock/intercept. `t3-failure.json`, `t3-final.png` giữ bằng chứng. Console có503 cố ý, không che lỗi. Screenshot đã xem trực tiếp.
+
+Playwright ban đầu Failed vì thiếu executable; `playwright-first.log` và run report giữ nguyên. Chromium tải project-local; không dùng lỗi prerequisite làm RED hành vi. Kết quả sau cài ghi tiếp bên dưới.
+
+Sau installer exit0 (Chromium1248/FFmpeg1013/Winldd1007 tại node_modules local), `npm run test:e2e` **exit0, 2 passed, retries0**, desktop1280×800/mobile390×844. `playwright-installed.log`, run `playwright-WTU1Bs` có DB/owner/trace/screenshot/report. Assertions keyboard focus/outline, text HTML không tạo img, lưu/reload/503/retry/API count2/không overflow/pageerror rỗng. Không intercept. Không dùng test retry để che fail.
+
+Resource thực tế: session tương tác ban đầu chạy không PTY nên stdin bị đóng; gửi stop Failed. Đã xác minh PID31640/commandline/thời điểm tạo khớp owner và GET API còn hoạt động; dừng đúng process sở hữu bằng Stop-Process, không kill theo cổng. Script so sánh DateTimeOffset có lỗi PowerShell conversion không-terminating, không được coi là guard tự động đạt; ownership đã được kiểm riêng trước đó. Record ghi `terminated-owned-stdin-unavailable`, không claim graceful release cho run này. Fetch sau dừng ECONNREFUSED, DB đọc trực tiếp count2; đóng tab Agent-owned bằng T3 lifecycle. Evidence giữ nguyên. Test CLI pipe-owned đã chứng minh graceful stop; dùng PTY cho interactive lần sau.
+
+## Resume ngữ cảnh mới — Verified trong scope checkpoint
+
+Khắc phục control sau khi runtime từ chối PTY Access denied: test file-stop được viết/chạy trước, `file-stop-red.log` fail timeout mong đợi, thêm run-local stop.request → `file-stop-green.log`2/2. Run thật `interactive-mkpOd3` PID28528/port61263 nhận file `stop`, session exit0 và record released. Không dùng PID kill cho vòng sửa; chưa kiểm hard-crash recovery.
+
+T3 live discovery provider `codex_cx_via_9router`, model `gpt-6.1-sol`, reasoning medium. ClientRequestId `mkw-002-resume-checkpoint-20261023-a`, taskId `node:delegated-task:command%3Amcp%3A14c60b1f-f7ec-49a9-99c3-f28509d15780%3Adelegate-task%3Amkw-002-resume-checkpoint-20261023-a`, completed. Brief chỉ cung cấp đường dẫn/handoff, không truyền parent history.
+
+Agent mới đọc authority/routing/approved/technical/validation/HANDOFF, khôi phục quyền/base/next action; explicit-read verification skill, `npm run check` exit0/7pass. Git status trước/sau không đổi; run `interactive-3IOC4v` released, không đụng server parent. Kết quả trong `resume-result.json`. Không chứng minh auto-discovery hoặc phục hồi toàn phiên parent sau crash. Android/production/scheduler: Not run/ngoài scope.
+
+## Review và tích hợp
+
+Pending: candidate commit immutable, review độc lập exact base..tip, sửa/re-review khi cần; local fast-forward sau gate đạt/primary sạch. Giữ branch/worktree/evidence, không push/remote/deploy.
+
+## Ruling thực hiện
+
+Plan002 là brief theo task, không theo schema shell helpers upstream executing-plans; dùng ledger/validation project thay parser/task-done Bash upstream. Không sửa distribution. Project buộc re-review tip mới/giữ evidence, ưu tiên phần upstream bỏ re-review/xóa workspace. UI snapshot provenance local giữ rõ. Chi phí nếu chọn sai: đổi adapter/nguồn skill trong task nâng cấp; không có quyết định nghiệp vụ bị áp đặt.

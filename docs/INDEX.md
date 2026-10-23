@@ -12,12 +12,14 @@
 - [Quality gates](agent/QUALITY_GATES.md): kiểm tra/review/Done.
 - [Browser testing](agent/BROWSER_TESTING.md): thao tác UI thật, Playwright và debug flow.
 - [Readiness](agent/READINESS.md): phần đã viết/cài/kiểm chứng và bước triển khai tiếp.
+- [Chạy local](agent/LOCAL_RUN.md): lệnh check, pilot và browser regression.
 
 ## Mẫu công việc
 
 - [Task brief](templates/TASK_BRIEF.md)
 - [Handoff/resume](templates/HANDOFF.md)
 - [Task MKW-AGENT-001](tasks/MKW-AGENT-001/INDEX.md)
+- [Task MKW-AGENT-002](tasks/MKW-AGENT-002/INDEX.md)
 
 ## Báo cáo tham khảo
 
