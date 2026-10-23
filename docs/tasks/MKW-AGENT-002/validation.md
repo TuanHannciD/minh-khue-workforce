@@ -1,6 +1,6 @@
 # Validation — MKW-AGENT-002
 
-Đang triển khai; không coi plan là kết quả.
+Triển khai/pilot đã kiểm chứng. Gate cuối review/tích hợp theo receipt tại evidence root, không coi plan hoặc candidate là kết quả nghiệm thu cuối.
 
 ## Discovery
 
@@ -55,8 +55,21 @@ Agent mới đọc authority/routing/approved/technical/validation/HANDOFF, khô
 
 ## Review và tích hợp
 
-Pending: candidate commit immutable, review độc lập exact base..tip, sửa/re-review khi cần; local fast-forward sau gate đạt/primary sạch. Giữ branch/worktree/evidence, không push/remote/deploy.
+Tích hợp chỉ local fast-forward sau review final tip/check đạt và primary sạch. Giữ branch/worktree/evidence, không push/remote/deploy. Kết quả cuối ghi trong `completion-receipt.json` dưới evidence root đã nêu: status, full candidate/base/tip, reviewer task/result, check và integration actual SHA. Receipt là evidence hậu commit; tránh sửa tip chỉ để tự ghi SHA/review của chính nó. Chưa có receipt Done thì không tự suy task Done.
+
+Candidate round1: `8966959a436813c6bcb26015caa053edb8876c63`; base full SHA đã ghi trên. Delegated independent reviewer `codex_cx_via_9router` / `gpt-6-astra` reasoning high, clientRequestId `mkw-002-review-round1-8966959`, taskId `node:delegated-task:command%3Amcp%3A14c60b1f-f7ec-49a9-99c3-f28509d15780%3Adelegate-task%3Amkw-002-review-round1-8966959`. Reviewer read-only, không parent transcript/child dispatch. Kết quả **With fixes**, 2 Important, không Critical; toàn report `review-round1.json`.
+
+Candidate check `candidate-check.log` exit0/**8pass**, sau bổ sung file-stop test. `git diff --check` toàn distribution có whitespace warnings tại bytes UI đã import; giữ byte/provenance theo yêu cầu, không sửa vendor để làm check xanh. Diff ngoài `.agents/skills` không lỗi whitespace. Đây là exception theo scope bảo toàn byte đã duyệt, không giả full diff check pass.
+
+### Fix pass
+
+1. UI xóa draft mới khi response của thao tác cũ về: `tests/ui.test.mjs` kiểm transport chậm trong unit fixture, `draft-red.log` fail đúng expected B/actual rỗng; chỉ clear khi text hiện tại khớp text đã lưu, `draft-green.log`pass1/1. Unit này dùng DOM/transport kiểm soát, không claim là browser thật; 2 browser regression vẫn API/DB thật không intercept.
+2. Thiếu notice thư viện vendored modern-screenshot: truy vết npm tarball4.7.0, gitHead `792d6db7411839c62940a6e930161f8e376e817f`; bundle local khớp nguyên byte `package/dist/index.js`, SHA256 `bb36665889124a0b6e15f16045265737449c3bdcf2712cdb08af3cfa01563e2b`. Thêm `.agents/MODERN-SCREENSHOT-LICENSE` từ LICENSE chính tarball (MIT, copyright2021-present wxm), hash/nguồn trong UI manifest; giữ nguyên toàn bộ byte snapshot và UI-LICENSES cũ. Evidence `modern-screenshot-provenance.json`. License là bổ sung tài liệu attribution, kiểm bằng integrity checker, không tạo test app giả cho nội dung pháp lý.
+
+Final fix check/regression/review tip mới và tích hợp actual ghi receipt cùng log riêng; không lấy round1 làm review tip mới.
 
 ## Ruling thực hiện
 
 Plan002 là brief theo task, không theo schema shell helpers upstream executing-plans; dùng ledger/validation project thay parser/task-done Bash upstream. Không sửa distribution. Project buộc re-review tip mới/giữ evidence, ưu tiên phần upstream bỏ re-review/xóa workspace. UI snapshot provenance local giữ rõ. Chi phí nếu chọn sai: đổi adapter/nguồn skill trong task nâng cấp; không có quyết định nghiệp vụ bị áp đặt.
+
+Reviewer declined-to-judge đã được parent xử lý: (1)15 workflow/mọi vendor script chưa audit/vận hành toàn bộ → giữ giới hạn, chỉ thử workflow dùng; (2)UI pristine upstream → không claim, snapshot local có hash đã duyệt; (3)production/auth/nhân sự/Android/deploy → ngoài scope; (4)hard crash/PID reuse/durable browser retry → Not run; (5)typecheck/build → N/A cho JS/static pilot, không coi là script đã pass; (6)whitespace nguồn/2 warning UI → giữ bytes/brief, không là lỗi acceptance. Chi phí các phạm vi hoãn: phải có task/pilot tương ứng trước khi dựa vào chúng; không có quyền sản phẩm phát sinh. Không có deferred minor finding từ round1.

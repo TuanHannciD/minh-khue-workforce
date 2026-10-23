@@ -1,5 +1,7 @@
 # Checkpoint khôi phục — MKW-AGENT-002
 
+Hồ sơ checkpoint lịch sử đã được Agent mới thực thi thành công; không phải trạng thái tài nguyên hiện tại. Server parent nêu dưới đã dừng, tab đã đóng. Tiếp tục task theo INDEX/validation và completion-receipt thay vì chạy lại checkpoint này.
+
 Ngày 23/10/2026. Writer chính đang bootstrap trong `.worktrees/agent-bootstrap`, nhánh `agent/mkw-agent-002`; không tạo thêm worktree. Base `ff91255e2a92f21027ba27bd7875b3d69c9c796c`, baseline `12bb0421fd1f8a0a44e87c52866ae3110f992bd2`. Primary chỉ đọc đến tích hợp local cuối.
 
 ## Mục tiêu và quyền

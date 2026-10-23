@@ -17,6 +17,8 @@ Theo đề xuất được người dùng đồng ý: Superpowers là phương p
 
 Không cài mirror Claude/global hoặc hook. Impeccable update check đã tắt local tại `.impeccable/config.json`. Chỉ chạy script cần cho task sau khi đọc; không tự thực thi toàn bộ script trong distribution. Check hash xác nhận integrity với manifest đã review, không là chữ ký tin cậy từ upstream.
 
+Notice riêng [modern-screenshot MIT](../../.agents/MODERN-SCREENSHOT-LICENSE) bổ sung ngoài cây snapshot để giữ byte import. Bundle khớp nguyên byte `modern-screenshot@4.7.0` npm `package/dist/index.js`; manifest UI ghi tarball/integrity/hash và gitHead. License package lấy từ chính tarball đã đối chiếu, không suy từ license Impeccable.
+
 ## Điều kiện cài/cập nhật
 
 Task được giao phải bao phủ cài đặt và quyền cần thiết. Xác minh nguồn/version/license, kiểm tra script/hook/network side effect, lưu checksum và khả năng rollback. Không tự cập nhật hoặc sửa global agent config vì skill gợi ý. Thay version phải chạy lại integrity/routing và pilot liên quan; pin khớp không chứng minh skill được Agent sử dụng đúng.

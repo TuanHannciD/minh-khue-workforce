@@ -37,7 +37,7 @@ Ghi rõ lớp đang chạy trong task/report. Browser thật vẫn có thể g�
 - DB thử riêng được kiểm tra identity từ cấu hình thực, seed có thể tái lập, tài khoản/role thử. Một env flag xác nhận không thay kiểm tra target.
 - Browser context/tab/profile riêng phù hợp, viewport và trạng thái auth rõ.
 - Quyền mutation, cách giữ report/trace/screenshot an toàn và cách release resource.
-- Có lệnh start/stop/reset fixture thật được xác minh khi bootstrap ứng dụng. Hiện chưa có app nên chưa có command hợp lệ để ghi ở đây.
+- Có lệnh start/stop/reset fixture thật được xác minh khi bootstrap ứng dụng. Pilot002 đã có `npm run pilot`, dừng mềm bằng stdin hoặc file run-local, `npm run test:e2e`; xem [LOCAL_RUN](LOCAL_RUN.md). Mỗi run tạo DB mới, không reset/xóa DB đã có để làm test xanh. Đây chưa là command sản phẩm.
 
 ## Cách thực hiện và kiểm kết quả
 
@@ -67,4 +67,4 @@ UI review độc lập theo QUALITY_GATES và phạm vi task. Không kéo dài p
 
 ## Gate nghiệm thu nền tảng browser
 
-Chỉ Verified khi có pilot theo scope: mở được target, thực hiện thao tác, assertion UI/API/persistence đạt, thu bằng chứng phù hợp và release resource. Chạy thêm ca lỗi có kiểm soát để chứng minh debug/retest. App chưa có thì gate sandbox là Not run, không ảnh hưởng Done của task viết tài liệu.
+Chỉ Verified khi có pilot theo scope: mở được target, thực hiện thao tác, assertion UI/API/persistence đạt, thu bằng chứng phù hợp và release resource. Chạy thêm ca lỗi có kiểm soát để chứng minh debug/retest. Pilot002 đã kiểm sandbox ghi chú theo validation; chức năng nhân sự chưa có vẫn là Not run, không suy thành sản phẩm đã đạt.

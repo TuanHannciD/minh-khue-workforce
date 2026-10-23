@@ -1,6 +1,6 @@
 # MKW-AGENT-002 — Bootstrap và pilot nền tảng Agent
 
-Ngày: 23/10/2026. Trạng thái: In progress.
+Ngày: 23/10/2026. Trạng thái: triển khai đã kiểm chứng; review/tích hợp cuối theo receipt nêu trong validation.
 
 - [Yêu cầu đã duyệt](approved/requirements.md)
 - [Kế hoạch](technical/implementation-plan.md)
@@ -20,4 +20,4 @@ Skill local nguồn/license/hash; 15 Superpowers + hai UI. Tooling kiểm tra ng
 
 ## Next action
 
-Git/skill/pilot đã triển khai. Hoàn tất browser regression, cập nhật evidence/readiness, commit candidate và review độc lập đúng tip; sửa/re-review rồi tích hợp local khi sạch. Checkpoint Agent mới tại [HANDOFF](HANDOFF.md). Chi tiết và giới hạn tại validation.
+Xem [validation](validation.md) và `completion-receipt.json` tại evidence root để biết full tip đã review/tích hợp và status cuối. Checkpoint [HANDOFF](HANDOFF.md) là bằng chứng resume đã chạy, không phải yêu cầu lặp pilot. Sau receipt Done, bước sản phẩm tiếp theo là làm rõ nghiệp vụ chấm công/kiến trúc FE–BE/API cho Android; chưa được chốt bằng pilot này.

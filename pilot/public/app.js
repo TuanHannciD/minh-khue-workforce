@@ -39,7 +39,9 @@ form.addEventListener('submit', async event => {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error?.message ?? 'Không lưu được. Hãy thử lại.');
-    pending = null; input.value = ''; status.textContent = 'Đã lưu ghi chú.';
+    pending = null;
+    if (input.value.trim() === operation.text) input.value = '';
+    status.textContent = 'Đã lưu ghi chú.';
     await refresh(); input.focus();
   } catch (failure) {
     showError(failure instanceof TypeError ? 'Mất kết nối. Hãy bấm Lưu ghi chú để đối chiếu và thử lại.' : failure.message);
