@@ -1,0 +1,47 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+*{box-sizing:border-box}body{margin:0;font:14px/1.6 var(--font-sans,Segoe UI,sans-serif);color:var(--foreground,#17202a)}p{margin:0 0 12px}.lead{font-size:20px;font-weight:650;line-height:1.4}.muted,small{color:var(--muted-foreground,#67758a)}nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}button{font:inherit;background:transparent;color:inherit;border:1px solid var(--border,#ddd);border-radius:8px;padding:8px 11px;cursor:pointer}button[aria-selected=true]{background:var(--primary,#2463dc);color:var(--primary-foreground,#fff);border-color:transparent}button:focus-visible{outline:3px solid var(--ring,#598be0);outline-offset:2px}.panel{display:none}.panel.active{display:block}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.box{padding:17px;border:1px solid var(--border,#ddd);border-radius:var(--radius,10px);background:var(--card,#f6f7fa);margin:0 0 12px}.box h3{font-size:15px;margin:0 0 6px}.box p{margin:0}ul,ol{padding-left:21px;margin:8px 0}li{margin:8px 0}.stats{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.stat{padding:5px 10px;background:var(--secondary,#eff3f8);color:var(--secondary-foreground,#28354a);border-radius:7px}table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:10px 6px;border-bottom:1px solid var(--border,#ddd);vertical-align:top;text-align:left}td:first-child{width:30%}.good{color:var(--success,#288154)}.warn{color:var(--warning,#b47920)}.pill{font-size:12px;font-weight:600}footer{color:var(--muted-foreground,#67758a);font-size:12px;margin-top:16px}code{font-size:12px;overflow-wrap:anywhere}.sequence{border-left:2px solid var(--border,#ddd);padding-left:16px;margin:14px 0}.sequence div{margin-bottom:13px}.sequence b{display:block}@media(max-width:480px){.grid{grid-template-columns:1fr}.lead{font-size:18px}table{font-size:12px}button{padding:7px 9px}}
+</style></head><body>
+<p class="lead">Nền tảng AI Agent: SellerFlow đang có gì, Minh Khuê cần chuẩn bị gì?</p>
+<p class="muted">Khảo sát lại ngày 22/10/2026 · Phạm vi là môi trường Agent phát triển phần mềm · Chưa cài đặt</p>
+<nav role="tablist" aria-label="Khảo sát AI Agent"><button id="tab-foundation" role="tab" aria-controls="foundation" aria-selected="true">Cấu trúc hiện có</button><button id="tab-evidence" role="tab" aria-controls="evidence" aria-selected="false">Đã kiểm chứng đến đâu?</button><button id="tab-preparation" role="tab" aria-controls="preparation" aria-selected="false">Chuẩn bị Minh Khuê</button><button id="tab-autonomy" role="tab" aria-controls="autonomy" aria-selected="false">Giới hạn tự động</button></nav>
+<section id="foundation" role="tabpanel" aria-labelledby="tab-foundation" class="panel active">
+<p>Để Agent làm việc như SellerFlow, cần đủ sáu lớp dưới đây. Cài skill mới chỉ đáp ứng một phần.</p>
+<div class="grid">
+<div class="box"><h3>1. Quy tắc và nguồn chuẩn</h3><p>AGENTS, bản đồ thẩm quyền và routing: đọc gì, sửa gì, ưu tiên nguồn nào, khi nào dừng.</p></div>
+<div class="box"><h3>2. Methodology và chuyên môn</h3><p>15 skill Superpowers + 11 specialist SellerFlow + 2 bộ UI. Một quy trình chính, chuyên môn bổ sung.</p></div>
+<div class="box"><h3>3. Hồ sơ và tiến độ task</h3><p>Yêu cầu đã duyệt, kế hoạch, quyết định, validation; ledger và brief giúp tiếp tục đúng việc.</p></div>
+<div class="box"><h3>4. Công cụ thực thi</h3><p>Terminal, Git, check runner, browser/HTTP và công cụ điều phối do runtime cung cấp.</p></div>
+<div class="box"><h3>5. Cách ly và bảo toàn</h3><p>Worktree riêng, ownership process/cổng, giữ report, kiểm tra trước khi dọn tài nguyên.</p></div>
+<div class="box"><h3>6. Review và quyền tự động</h3><p>Review độc lập theo rủi ro, sửa và xác minh; quyền local khác quyền push/merge/deploy.</p></div></div>
+<p class="muted">Workflow cũ trong archive chỉ dùng tra cứu lịch sử. Không sao chép các vai trò cũ thành một quy trình cạnh tranh với Superpowers.</p>
+</section>
+<section id="evidence" role="tabpanel" aria-labelledby="tab-evidence" class="panel">
+<div class="stats"><span class="stat">19/19 test tập trung đạt</span><span class="stat">Integrity đạt</span><span class="stat">Governance đạt</span></div>
+<table><thead><tr><th>Năng lực</th><th>Bằng chứng và giới hạn</th></tr></thead><tbody>
+<tr><td><span class="pill good">Kiểm tra mới</span><br>Phân phối skill</td><td>15 skill Superpowers + 2 bộ UI khớp manifest; 28 skill đạt checker governance. Không phải bằng chứng harness đã tự load chúng.</td></tr>
+<tr><td><span class="pill good">Kiểm tra mới</span><br>Test nền tảng</td><td>19 test về distribution, mirror, reference, check entrypoint và artifact đạt. Chưa chạy lại toàn bộ test workspace/process.</td></tr>
+<tr><td><span class="pill">Discovery mới</span><br>Điều phối T3</td><td>Catalog công bố khả năng child task, cancellation và scheduler. Chưa dispatch child hay tạo lịch để thử.</td></tr>
+<tr><td><span class="pill warn">Hồ sơ lịch sử</span><br>Workspace và browser</td><td>Hồ sơ ghi 57/57 tooling và 6/6 browser fixture từng đạt; không phải kết quả mới hoặc DB thật.</td></tr>
+<tr><td><span class="pill warn">Chưa đủ bằng chứng</span><br>Ứng dụng và phục hồi</td><td>Hồ sơ ghi lint còn lỗi, DB bị bỏ qua; chưa chứng minh vòng Agent AI crash/resume tự động.</td></tr>
+</tbody></table>
+<div class="box" style="margin-top:14px"><h3>Trạng thái cần đối chiếu</h3><p>Git main đã có commit công cụ workflow. Hồ sơ closeout vẫn ghi “pending”. Không kết luận mọi thứ chưa làm, cũng không kết luận đã nghiệm thu trọn vẹn.</p></div>
+</section>
+<section id="preparation" role="tabpanel" aria-labelledby="tab-preparation" class="panel">
+<p>Cần xây bộ nền tảng riêng có thể kiểm chứng. Các bước dưới đây là đề xuất, chưa phải nhiệm vụ triển khai đã được giao.</p>
+<div class="sequence">
+<div><b>1. Chốt thiết kế nền tảng</b>Harness chính, methodology, quyền, nguồn tài liệu và mức tự động cần đạt.</div>
+<div><b>2. Chuẩn bị quy tắc và skill</b>AGENTS, authority/routing, task template, nguồn skill có version/hash/license và specialist đúng project.</div>
+<div><b>3. Nối công cụ thực thi</b>Kiểm tra toolchain, Git/worktree, check runner, resource ownership, evidence và resume.</div>
+<div><b>4. Pilot Agent thật</b>Task local → test lỗi → sửa → review → tiếp tục từ checkpoint → bàn giao và bảo toàn dữ liệu.</div>
+<div><b>5. Nối sandbox ứng dụng khi có app</b>Web/API/DB/browser thuộc task, seed dữ liệu giả, kiểm tra hành vi và giải phóng tài nguyên.</div>
+<div><b>6. Chạy dài hạn/phát hành nếu cần</b>Trigger/scheduler, timeout/cancel/restart, Git remote và release theo quyền riêng.</div>
+</div>
+<div class="box"><h3>Điều kiện nghiệm thu nền tảng</h3><p>Agent thực sự dùng đúng rule, hoàn thành task trong scope, báo check thiếu chính xác, review đúng commit và resume đúng bước. “File đã có” chưa đủ để nghiệm thu.</p></div>
+</section>
+<section id="autonomy" role="tabpanel" aria-labelledby="tab-autonomy" class="panel">
+<div class="box"><h3>Tự tiếp tục trong phạm vi được giao</h3><p>Đọc ngữ cảnh → thực hiện kế hoạch → test → chẩn đoán/sửa → review → xác minh → bàn giao. Không hỏi lại từng thao tác local đã được cho phép.</p></div>
+<ul><li><b>Skill không tự cấp tool hoặc quyền.</b> Có hướng dẫn browser/subagent chưa chứng minh runtime làm được.</li><li><b>Resource registry chưa là provisioning.</b> Adapter hiện không tự tạo/xác minh DB hoặc điều khiển browser.</li><li><b>Resume chưa là tự khởi động lại.</b> Cần runtime/trigger và phép thử Agent thật.</li><li><b>Quy tắc phải hòa giải.</b> SellerFlow yêu cầu review tip mới sau sửa; skill upstream có bước không re-review. Tool reference cũng phải theo schema runtime hiện tại.</li><li><b>Quyền release cần tách rõ.</b> SellerFlow không mặc định tự pull/push/merge/deploy hoặc tạo scheduler.</li></ul>
+<p class="muted">Các chính sách trên mô tả SellerFlow. Chưa tự áp dụng thành quyền và quy tắc cho Minh Khuê.</p>
+</section>
+<footer>Khảo sát chỉ đọc nguồn và chạy check tập trung; không sửa SellerFlow, cài skill, tạo subagent, scheduler hoặc triển khai ứng dụng.</footer>
+<script>const tabs=[...document.querySelectorAll('[role=tab]')];function choose(t){tabs.forEach(b=>b.setAttribute('aria-selected',String(b===t)));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===t.getAttribute('aria-controls')))}tabs.forEach((t,i)=>{t.onclick=()=>choose(t);t.onkeydown=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();const n=tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];choose(n);n.focus()}}});console.log('Agent foundation report: 4 tabs initialized');</script></body></html>

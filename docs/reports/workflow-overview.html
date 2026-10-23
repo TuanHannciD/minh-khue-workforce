@@ -1,0 +1,46 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
+*{box-sizing:border-box}body{margin:0;color:var(--foreground,#17202a);font:14px/1.6 var(--font-sans,Segoe UI,sans-serif)}p{margin:0 0 12px}.lead{font-size:19px;font-weight:650;line-height:1.4}.muted{color:var(--muted-foreground,#667085)}nav{display:flex;gap:7px;flex-wrap:wrap;margin:18px 0}button{font:inherit;padding:8px 12px;background:transparent;color:inherit;border:1px solid var(--border,#ddd);border-radius:8px;cursor:pointer}button[aria-selected=true]{background:var(--primary,#243750);color:var(--primary-foreground,#fff);border-color:transparent}button:focus-visible{outline:3px solid var(--ring,#598be0);outline-offset:2px}.panel{display:none}.panel.active{display:block}.box{padding:18px;background:var(--card,#f4f6f8);border:1px solid var(--border,#ddd);border-radius:var(--radius,10px);margin:12px 0}.flow{display:grid;grid-template-columns:1fr 1fr;gap:12px}.step{padding:16px;border:1px solid var(--border,#ddd);border-radius:var(--radius,10px)}.step b{display:block;margin-bottom:5px}.num{color:var(--muted-foreground,#667085);font-size:12px}h3{font-size:15px;margin:0 0 8px}ul,ol{padding-left:22px;margin:8px 0}li{margin:6px 0}.tags{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.tag{border-radius:6px;padding:4px 9px;background:var(--secondary,#eef1f5);color:var(--secondary-foreground,#28354a)}.architecture{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center}.api{grid-column:1/-1;padding:18px;background:var(--accent-surface,#edf4fc);color:var(--accent-surface-foreground,inherit);border:1px solid var(--border,#ddd);border-radius:var(--radius,10px)}.client{padding:16px;border:1px solid var(--border,#ddd);border-radius:var(--radius,10px)}.future{border-style:dashed}table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:10px 6px;border-bottom:1px solid var(--border,#ddd);text-align:left;vertical-align:top}code{overflow-wrap:anywhere;font-size:12px}footer{margin-top:16px;font-size:12px;color:var(--muted-foreground,#667085)}@media(max-width:480px){.flow{grid-template-columns:1fr}.lead{font-size:17px}button{padding:7px 9px}table{font-size:12px}}
+</style></head><body>
+<p class="lead">Minh Khuê: kế thừa nguyên tắc SellerFlow, thu gọn cách vận hành</p>
+<p class="muted">Khảo sát 22/10/2026 · Đề xuất để thảo luận · Chưa chốt nghiệp vụ hoặc cài đặt công nghệ</p>
+<nav role="tablist" aria-label="Nội dung báo cáo">
+<button role="tab" id="t1" aria-controls="workflow" aria-selected="true" data-target="workflow">Workflow đề xuất</button>
+<button role="tab" id="t2" aria-controls="audit" aria-selected="false" data-target="audit">SellerFlow hiện có</button>
+<button role="tab" id="t3" aria-controls="architecture" aria-selected="false" data-target="architecture">Web → Android</button>
+<button role="tab" id="t4" aria-controls="next" aria-selected="false" data-target="next">Bước tiếp theo</button></nav>
+<section id="workflow" role="tabpanel" aria-labelledby="t1" class="panel active">
+<p>Mỗi tính năng đi xuyên suốt giao diện, API và dữ liệu; có điều kiện nghiệm thu trước khi viết code.</p>
+<div class="flow">
+<div class="step"><span class="num">01 → 02</span><b>Làm rõ và chốt phạm vi</b>Ai sử dụng, thao tác gì, kết quả nào là đạt? Ghi rõ phần chưa làm và luật còn thiếu.</div>
+<div class="step"><span class="num">03 → 04</span><b>Thiết kế rồi chia task</b>Luồng màn hình, quyền, dữ liệu và API. Chia nhỏ theo chức năng sử dụng được.</div>
+<div class="step"><span class="num">05 → 06</span><b>Triển khai, kiểm thử, review</b>Kiểm tra gửi trùng, thời gian, quyền và sửa công. Báo đúng phần đạt/chưa chạy.</div>
+<div class="step"><span class="num">07 → 08</span><b>Nghiệm thu và phát hành thử</b>HR thử kịch bản đã chốt; pilot nhóm nhỏ, đối chiếu dữ liệu và theo dõi sai lệch.</div>
+</div>
+<div class="box"><h3>Một nguồn tài liệu tiếng Việt</h3>Phạm vi MVP → quy tắc chấm công → thiết kế hệ thống → hợp đồng API → workflow và kiểm tra → hướng dẫn phát hành.<p style="margin:8px 0 0" class="muted">Mỗi task có mục tiêu, kế hoạch và bằng chứng. Task nhỏ dùng một file; tách thêm khi cần.</p></div>
+<p class="muted">Đây là workflow đề xuất cho Minh Khuê. Superpowers hiện là methodology của SellerFlow; chưa được cài hay áp dụng vào project mới.</p>
+</section>
+<section id="audit" role="tabpanel" aria-labelledby="t2" class="panel">
+<div class="tags"><span class="tag">38 tài liệu chuẩn</span><span class="tag">36 tệp tiếng Việt</span><span class="tag">28 thư mục skill</span><span class="tag">12 mẫu giao task</span></div>
+<table><thead><tr><th>Tầng tài liệu</th><th>Cách tổ chức hiện tại</th></tr></thead><tbody>
+<tr><td>Điểm vào</td><td>README → AGENTS → bản đồ thẩm quyền → bộ tài liệu theo task.</td></tr>
+<tr><td>Quy chuẩn</td><td><code>docs/ai/</code> là nguồn chuẩn tiếng Anh; <code>docs/vi/</code> là bản dịch.</td></tr>
+<tr><td>Phương pháp</td><td>Superpowers là lifecycle duy nhất; specialist bổ sung nghiệp vụ, DB, UI và review.</td></tr>
+<tr><td>Hồ sơ task</td><td>INDEX, yêu cầu đã duyệt, kế hoạch kỹ thuật, quyết định và validation tách riêng.</td></tr>
+<tr><td>Workflow cũ</td><td><code>archive/agent-workflow/</code> chỉ phục vụ lịch sử/audit.</td></tr>
+<tr><td>Kiểm chứng</td><td>Phân biệt static/build, mock test, browser, DB thật và production.</td></tr>
+</tbody></table>
+<div class="box"><h3>Những điểm cần tránh khi sao chép</h3><ul><li>Tài liệu song ngữ chưa đối xứng hoàn toàn về danh sách tên.</li><li>Stack khuyến nghị test khác runner thực tế; phải kiểm tra script.</li><li>Hồ sơ còn ghi lint tồn đọng và DB chưa chạy; chưa kiểm chứng lại.</li><li>Domain bán hàng, chatbot, tenant và AI runtime không thuộc MVP chấm công.</li></ul></div>
+</section>
+<section id="architecture" role="tabpanel" aria-labelledby="t3" class="panel">
+<p>Hai ứng dụng độc lập từ đầu, cùng một kho mã để dễ phát triển. Android dùng lại API và nghiệp vụ.</p>
+<div class="architecture"><div class="client"><b>Web · Next.js</b><br>Form, bảng công, trạng thái UI</div><div class="client future"><b>Android · giai đoạn sau</b><br>React Native/Kotlin chưa chốt</div><div class="api">↓ REST API có hợp đồng và phiên bản ↓<br><b>Backend · NestJS</b><br>Đăng nhập · quyền · chấm công · điều chỉnh · báo cáo</div><div class="api"><b>PostgreSQL + Prisma</b><br>Transaction · ràng buộc dữ liệu · migration · lịch sử</div></div>
+<div class="box"><h3>Chuẩn bị cho mobile ngay ở API</h3><ul><li>Phân quyền tại backend và quản lý thu hồi phiên.</li><li>Giờ máy chủ, múi giờ nghiệp vụ và ngày công rõ ràng.</li><li>Retry và yêu cầu đồng thời không tạo lượt công sai.</li><li>API tương thích với ứng dụng Android phiên bản cũ.</li></ul></div>
+<p class="muted">Stack là ứng viên. Chưa cần microservices, Android scaffold, queue, AI hoặc shared package rỗng.</p>
+</section>
+<section id="next" role="tabpanel" aria-labelledby="t4" class="panel">
+<p class="lead">MKW-001 · Khảo sát và chốt phạm vi MVP</p>
+<ol><li><b>Điểm danh hay chấm vào/ra?</b> Chỉ xác nhận có mặt hay cần tổng hợp giờ/công?</li><li><b>Nhân sự và địa điểm?</b> Số người, chi nhánh, nhân viên lưu động hoặc từ xa.</li><li><b>Ca làm thế nào?</b> Giờ cố định, nhiều ca, qua đêm, nghỉ giữa ca.</li><li><b>Chấm bằng cách nào?</b> Điện thoại, máy tính, kiosk; tài khoản, QR, GPS hoặc mạng văn phòng.</li></ol>
+<div class="box"><h3>Đầu ra cần có trước khi dựng app</h3><b>MVP_SCOPE.md</b> — người dùng, phạm vi, acceptance.<br><b>ATTENDANCE_RULES.md</b> — quy tắc và ví dụ một ngày làm việc thật.<p style="margin:8px 0 0">Sau đó chốt thiết kế hệ thống, dựng web/API và thực hiện lát chấm công đầu tiên.</p></div>
+<p class="muted">Chưa mặc định có tính lương, nhận diện khuôn mặt, theo dõi GPS liên tục hoặc offline.</p>
+</section><footer>Số lượng là kiểm kê thư mục trực tiếp. Báo cáo đầy đủ kèm danh mục 38 tài liệu, lộ trình, quality gates và nguồn đối chiếu được lưu trong project.</footer>
+<script>const tabs=[...document.querySelectorAll('[role=tab]')];function activate(t){tabs.forEach(b=>b.setAttribute('aria-selected',String(b===t)));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===t.dataset.target))}tabs.forEach((t,i)=>{t.addEventListener('click',()=>activate(t));t.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const n=tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];activate(n);n.focus()}})});console.log('Report initialized: '+tabs.length+' tabs, '+document.querySelectorAll('.panel.active').length+' active panel');</script></body></html>

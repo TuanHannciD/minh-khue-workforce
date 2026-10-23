@@ -1,0 +1,11 @@
+node_modules/
+.worktrees/
+.superpowers/
+.agent-runs/
+test-results/
+playwright-report/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
