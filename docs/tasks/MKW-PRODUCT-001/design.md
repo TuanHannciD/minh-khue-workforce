@@ -32,7 +32,7 @@ Mỗi ô có hai thông tin độc lập về mặt nghiệp vụ: **nội dung*
 
 Nhập số giờ tăng ca độc lập với số công, theo bước `0,5` giờ (nửa giờ). Chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5` giờ; số lớn hơn `2,5` giờ nhập qua **Tùy chỉnh**, vẫn theo bước `0,5` giờ. Không cần nhập bước15 phút và không dùng `2,5` làm trần giờ tăng ca. Ví dụ giả: cùng ngày có1,5 công và2 giờ tăng ca; tổng công tăng1,5 và tổng giờ tăng ca tăng2. Không có tỷ lệ quy đổi tăng ca thành công được phê duyệt.
 
-Ngày trước khi vào làm và sau khi kết thúc tuân mốc nhân sự, không phát sinh tổng tăng ca. Trong thời gian làm việc, quy ước ô tăng ca không phát sinh giờ (trống/0/`F`) còn cần chốt; không tự áp ý nghĩa `F` của bảng công thành bộ mã nhập tăng ca.
+Ngày trước khi vào làm và sau khi kết thúc tuân mốc nhân sự, không phát sinh tổng tăng ca. Trong thời gian làm việc, ngày không tăng ca để ô trống, không tự điền `0` hoặc `F`; ô trống không cộng giờ vào tổng. `F` là ký hiệu nghỉ của bảng công, không dùng làm lựa chọn không tăng ca.
 
 ### Phép cộng và màu
 
@@ -92,7 +92,7 @@ AC02 — Cùng ngày lưu1,5 công và2 giờ tăng ca: refresh/thiết bị kh�
 
 AC03 — Bật/tắt màu xanh của ô công không đổi giá trị/tổng hoặc màu ô tăng ca, và ngược lại; màu được giữ sau refresh và xuất Excel.
 
-AC04 — `F`, trống, `N`, `—` hiển thị đúng ý nghĩa, không tạo số công/giờ; trống không bị đổi thành nghỉ.
+AC04 — `F`, trống, `N`, `—` hiển thị đúng ý nghĩa, không tạo số công/giờ; trống không bị đổi thành nghỉ. Ngày không tăng ca giữ ô tăng ca trống qua lưu/đọc lại và xuất Excel, không tự điền `0` hoặc `F`, không cộng giờ.
 
 AC05 — Ngày bắt đầu do người dùng chọn tạo cách hiển thị `N` đúng trước ngày đó; ngày bắt đầu không bị tự ghi công hoặc thay bằng ngày tạo nhân sự.
 
@@ -112,7 +112,7 @@ Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot
 
 ## 10. Các quyết định còn cần chốt
 
-Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Còn cần chốt độ chính xác của số công tùy chỉnh, giới hạn, cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Có cho nhập số0 ở bảng công, và hiển thị0 hay tự chuẩn hóa `F`? Quy ước không tăng ca là trống/0 hay có `F`?
+Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Còn cần chốt độ chính xác của số công tùy chỉnh, giới hạn, cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Có cho nhập số0 ở bảng công, và hiển thị0 hay tự chuẩn hóa `F`? Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
 
 Q2 — Đồng ý dùng hai tài khoản riêng nhưng cùng quyền? Phương thức đăng nhập/khôi phục và nơi vận hành phải phù hợp nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
 

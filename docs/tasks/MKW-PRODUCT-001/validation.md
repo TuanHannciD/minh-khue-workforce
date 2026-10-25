@@ -39,3 +39,7 @@ Theo trả lời mới của người dùng, cập nhật requirements, design v
 ## Cập nhật bước tăng ca — 25/10/2026
 
 Người dùng xác nhận giờ tăng ca có bước nửa giờ như các bước công. Cập nhật nguồn requirements, design/AC11/Q1 và next action: chọn nhanh0,5/1/1,5/2/2,5 giờ, tùy chỉnh lớn hơn2,5 theo bước0,5 giờ. Đây là xác nhận mới, thay phần chưa chốt bước tăng ca ở checkpoint trước. Tự review giữ nguyên đơn vị/tổng riêng và không tự quyết định ô không tăng ca hay làm tròn. Kiểm tra tài liệu bằng `npm run check:docs` và `git diff --check`; không chạy app/browser vì chỉ sửa Markdown.
+
+## Cập nhật ô không tăng ca — 25/10/2026
+
+Người dùng đồng ý đề xuất để trống ngày không tăng ca. Cập nhật requirements, design/AC04/Q1 và INDEX; không tự điền0/F hoặc cộng giờ cho ô trống. Quy tắc mốc ngày N/— và màu nhắc độc lập giữ nguyên. Phạm vi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`, không chứng nhận ứng dụng.
