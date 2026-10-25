@@ -21,6 +21,7 @@
 - [Task MKW-AGENT-001](tasks/MKW-AGENT-001/INDEX.md)
 - [Task MKW-AGENT-002](tasks/MKW-AGENT-002/INDEX.md)
 - [Task MKW-PRODUCT-001](tasks/MKW-PRODUCT-001/INDEX.md): yêu cầu đã thống nhất và đặc tả chấm công để review.
+- [Rà soát cấu trúc code và nền UI tái sử dụng](tasks/MKW-PRODUCT-001/technical/maintainability-review.md): hiện trạng, khoảng trống và đề xuất kiến trúc; chưa phải rule/stack đã duyệt.
 
 ## Báo cáo tham khảo
 

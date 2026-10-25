@@ -31,3 +31,9 @@ Bàn giao người dùng review bản viết và tiếp tục làm rõ các đi�
 ## Checkpoint UI trực quan
 
 Đã chuẩn bị ba phương án A/B/C trong ui/BRIEF.md và HTML độc lập. Người dùng chọn hướng tổ chức C, nhưng đánh giá UI bản mẫu thô, chưa đạt cảm giác đẹp/chuyên nghiệp doanh nghiệp. Tiếp theo thiết kế thị giác C ở mức hoàn thiện cao hơn bằng hai skill UI để review; không suy lựa chọn bố cục thành phê duyệt diện mạo hiện tại. Các câu hỏi nghiệp vụ còn mở ở design vẫn chưa tự được giải quyết bởi bản mẫu.
+
+## Rà soát khả năng mở rộng và bảo trì
+
+Người dùng yêu cầu ưu tiên một bộ UI nhất quán/tái sử dụng khi có nhiều feature, đồng thời kiểm tra rule cấu trúc file/code/thành phần. Scope bổ sung: khảo sát nguồn hiện hành và viết [báo cáo cùng đề xuất kiến trúc](technical/maintainability-review.md); chưa phê duyệt shadcn/Radix/React hoặc cấu trúc repository, chưa sửa rule thực thi, tooling, dependency hay scaffold sản phẩm.
+
+Base checkpoint `bb390add47a862b12d7a9ad4fdd74cc0399b46a4`, workspace sạch trước sửa. Writer inline; risk tài liệu trung bình do ảnh hưởng kiến trúc tương lai, tự review + người dùng review, không dispatch child. Vùng file: dossier này và liên kết định tuyến authority map/docs INDEX. Acceptance: đối chiếu rule với cấu hình thật, chỉ rõ có/thiếu, đề xuất module/UI/contract và cách kiểm soát bằng công cụ, giữ phân biệt Proposed/Enforced. Chỉ dùng đọc file/search/check Markdown; không resource server/DB/browser mới, không đổi primary. Bước tiếp: người dùng review đề xuất nền tảng trước khi hoàn thiện chuẩn sản phẩm và kiến trúc chi tiết.

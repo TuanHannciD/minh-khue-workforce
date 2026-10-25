@@ -81,3 +81,11 @@ Các AC sản phẩm vẫn Not run. Chưa có pinch zoom/cảm ứng/bàn phím 
 ## Quyết định chọn hướng C và phản hồi chất lượng UI — 25/10/2026
 
 Người dùng chọn C về tổ chức/thao tác, đồng thời đánh giá diện mạo bản mẫu còn thô/xấu, chưa chuyên nghiệp. Cập nhật requirements, design/Q5, ui/BRIEF và INDEX; không coi UI hiện tại đã duyệt hoặc gọi bước polish đơn giản là đủ. Giữ HTML so sánh ở checkpoint trước làm lịch sử, chưa sửa giao diện hoặc chạy lại browser cho thay đổi tài liệu. Next action: phát triển thiết kế thị giác C hoàn thiện hơn bằng Impeccable + UI UX Pro Max để người dùng review. Kiểm tài liệu bằng `npm run check:docs` và `git diff --check`.
+
+## Rà soát cấu trúc/reuse khi mở rộng feature — 25/10/2026
+
+Theo yêu cầu mới, khảo sát các nguồn hiện hành AGENTS, authority/routing, execution/permissions/skill policy, quality/browser rules, product dossier, package.json, ESLint, docs checker và inventory file kể cả root ẩn. Base `bb390add47a862b12d7a9ad4fdd74cc0399b46a4`, workspace sạch trước sửa. Đối chiếu xác nhận chưa có cây source sản phẩm, rule import/boundary/cycle, type/build pipeline hoặc design system sản phẩm; không suy kết quả pilot thành các năng lực này. Chưa thấy cấu hình CI trong checkout, không kết luận về CI ngoài repo.
+
+Đã viết technical/maintainability-review.md: ba lựa chọn tổ chức và phương án đề xuất, cây module ứng viên, ownership UI/pattern/feature, chiều import, tiêu chí shared, state/contract/naming/update component và enforcement cần có. Ghi rõ các rule là Draft/Proposed và chưa cài shadcn/Radix/React. Tự review giữ hướng C, FE/BE tách ứng dụng, không dùng lại DOM component cho Android native; không thêm nghiệp vụ hoặc module tương lai vào scope. Cập nhật yêu cầu reuse đã xác nhận cùng định tuyến, không áp proposal vào AGENTS/lint/quality policy.
+
+`npm run check:docs` cwd worktree: exit0,32 current documents; `git diff --check`: exit0. Quét TODO/TBD/FIXME trong báo cáo mới không có mục bỏ dở; các lựa chọn chưa duyệt được ghi rõ. Kiểm staged diff trước commit. Không chạy pilot/browser/app tests vì chỉ sửa Markdown, không cài dependency hoặc acquire server/DB/browser. Tự review không được gọi là review độc lập; task và kiến trúc sản phẩm vẫn In review. Next action: người dùng review phương án nền UI/cấu trúc, sau đó hoàn thiện chuẩn và kế hoạch kỹ thuật đúng phần đã duyệt.

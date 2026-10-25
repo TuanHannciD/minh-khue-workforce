@@ -23,6 +23,7 @@ Chỉ dẫn hệ thống/developer/runtime → yêu cầu và quyền người d
 | Nghiệp vụ chấm công bản đầu đã thống nhất? | [MKW-PRODUCT-001 requirements](../tasks/MKW-PRODUCT-001/approved/requirements.md), tổng hợp xác nhận trong hội thoại |
 | Thiết kế sản phẩm để review và quyết định còn thiếu? | [MKW-PRODUCT-001 design](../tasks/MKW-PRODUCT-001/design.md), Draft for review; đề xuất/câu hỏi chưa là yêu cầu đã duyệt |
 | Kiến trúc kỹ thuật/API/schema? | Chưa có bản đã duyệt; định hướng FE–BE/API cho Android không tự quyết định stack/contract |
+| Rule cấu trúc code, UI tái sử dụng và khoảng trống hiện tại? | [MKW-PRODUCT-001 maintainability review](../tasks/MKW-PRODUCT-001/technical/maintainability-review.md): khảo sát + đề xuất để review, chưa là rule thực thi hoặc stack đã duyệt |
 
 ## Phân biệt loại nội dung
 

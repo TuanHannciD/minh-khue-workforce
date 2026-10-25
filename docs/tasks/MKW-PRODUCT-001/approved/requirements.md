@@ -45,3 +45,5 @@ Nguồn: hội thoại trực tiếp tiếp nối MKW-AGENT-002, ghi nhận ngà
 ## Định hướng kỹ thuật đã có
 
 Web app tổ chức FE và BE tách biệt, chuẩn bị API có thể phục vụ Android sau này. Chưa chọn stack/framework/DB, cách đăng nhập, hosting hoặc xây Android trong bản đầu. Pilot002 dùng Node/SQLite không quyết định công nghệ sản phẩm.
+
+Người dùng ưu tiên một nền UI chuyên nghiệp và nhất quán, tái sử dụng từ đầu vì có thể thêm nhiều feature; cần rà soát quy tắc cấu trúc file/code/thành phần để dễ bảo trì khi mở rộng. shadcn/ui với Radix là phương án người dùng muốn cân nhắc, chưa tự coi là đã chọn React/stack hoặc đã cho phép cài đặt. Báo cáo khảo sát và các nguyên tắc kiến trúc đề xuất nằm ở [maintainability review](../technical/maintainability-review.md); phần Proposed không tự trở thành rule đã duyệt.
