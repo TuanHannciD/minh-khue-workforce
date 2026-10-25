@@ -59,3 +59,7 @@ Theo chỉ dẫn người dùng, bố cục/vị trí phải qua skill thiết k
 ## Cập nhật quy mô nhân sự — 25/10/2026
 
 Người dùng cho biết hiện khoảng20 người, sau này có thể nhiều hơn rất nhiều. Cập nhật requirements/design/Q6/INDEX, không suy ra trần, số lượng tương lai cụ thể hoặc quyết định phân trang/ảo hóa. Chưa có benchmark hay kiểm thử hiệu năng sản phẩm. Thay đổi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`.
+
+## Cập nhật nhóm điện thoại — 25/10/2026
+
+Người dùng xác nhận sử dụng cả iPhone và Android. Cập nhật requirements, design/AC08/Q6 và INDEX. Chưa suy ra mẫu máy/phiên bản/trình duyệt hoặc claim đã thử cảm ứng thật; giữ rõ viewport mô phỏng không thay thiết bị thật. Phạm vi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`.

@@ -58,6 +58,7 @@ Tên hiển thị không được dùng như lý do gộp hai nhân sự trùng 
 
 Thiết kế đã được người dùng đồng ý:
 
+- Hỗ trợ cả iPhone và Android; chưa chốt mẫu máy/phiên bản/trình duyệt cụ thể. Các khác biệt cuộn, zoom, bàn phím và không gian hiển thị phải được xét trong thiết kế và kế hoạch kiểm chứng.
 - Giữ dạng bảng; cuộn ngang qua các ngày và cuộn dọc qua nhân sự.
 - Giữ cột tên và hàng ngày/thứ trong tầm nhìn khi cuộn, giúp xác định đúng ô.
 - Cho phép phóng to/thu nhỏ bằng hai ngón, xem bảng toàn màn hình và xoay ngang.
@@ -104,7 +105,7 @@ AC06 — Kết thúc20/10: vẫn nhập ngày20, sau đó hiện `—`, tháng11
 
 AC07 — Bảng tháng hỗ trợ tháng28/29/30/31 ngày, hiển thị đúng thứ; tổng hàng/cột khớp dữ liệu. Chưa áp lịch nghỉ/cuối tuần thành công/nghỉ tự động.
 
-AC08 — Điện thoại: cuộn/zoom/xoay ngang và chế độ toàn màn hình vẫn nhận diện đúng người/ngày; nhập được giá trị/màu. Desktop: đầy đủ thao tác chuột/bàn phím và Enter/Tab. Kiểm cảm ứng trên thiết bị thật riêng với viewport mô phỏng.
+AC08 — Điện thoại: cuộn/zoom/xoay ngang và chế độ toàn màn hình vẫn nhận diện đúng người/ngày; nhập được giá trị/màu. Desktop: đầy đủ thao tác chuột/bàn phím và Enter/Tab. Kiểm cảm ứng trên cả iPhone và Android thật, ghi rõ thiết bị/trình duyệt, riêng với viewport mô phỏng; chưa có thiết bị thì ghi Not run cho phần tương ứng.
 
 AC09 — Excel tháng xuất ra khớp số, ký hiệu, màu và tổng của cùng dữ liệu trên web; mở bằng ứng dụng đọc Excel để kiểm, không chỉ assert file tồn tại.
 
@@ -128,6 +129,6 @@ Q4 — Khi sửa mốc ngày làm việc đụng ô đã có công/tăng ca, ng�
 
 Q5 — Xác nhận đề xuất một sheet với hai bảng, và tổng xuất là số tại thời điểm xuất hay công thức để tiếp tục sửa Excel? Bố trí hai bảng liên tiếp hay chuyển qua lại trên web sẽ được phân tích bằng Impeccable + UI UX Pro Max rồi trình phương án trực quan để review, chưa chốt hai nút Công/Tăng ca hoặc bố cục khác.
 
-Q6 — Đã biết hiện tại khoảng20 người mỗi tháng, sau này có thể tăng nhiều; chưa có số lượng mục tiêu tương lai. Cần biết nhóm điện thoại/trình duyệt chính để thiết kế và xác minh zoom, sticky, nhập cảm ứng. Mốc hiệu năng/quy mô kiểm thử sẽ đề xuất rõ khi có kiến trúc, không tự coi20 là trần hoặc hứa hỗ trợ không giới hạn.
+Q6 — Đã biết hiện tại khoảng20 người mỗi tháng, sau này có thể tăng nhiều; chưa có số lượng mục tiêu tương lai. Đã xác nhận dùng cả iPhone và Android; mẫu máy/phiên bản/trình duyệt cụ thể chưa xác định và sẽ ghi rõ trong kế hoạch kiểm chứng. Thiết kế phải xét cả hai nhóm khi xử lý zoom, sticky và nhập cảm ứng. Mốc hiệu năng/quy mô kiểm thử sẽ đề xuất rõ khi có kiến trúc, không tự coi20 là trần hoặc hứa hỗ trợ không giới hạn.
 
 Các câu hỏi này không chặn việc ghi nhận yêu cầu/UX đã thống nhất. Chúng chặn phần kiến trúc/validation/contract hoặc thiết kế chi tiết tương ứng; không gọi bản này là spec đủ để Agent tự triển khai sản phẩm ngay.
