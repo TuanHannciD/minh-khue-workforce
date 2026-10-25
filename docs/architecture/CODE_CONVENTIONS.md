@@ -10,6 +10,8 @@ UI nền thuộc hệ UI chung; logic và UI nghiệp vụ thuộc feature sở 
 
 Mỗi đơn vị có trách nhiệm rõ: khởi tạo/lắp ghép, hiển thị/tương tác, logic/state của feature, truy cập API hoặc xử lý nghiệp vụ server. Tách khi trách nhiệm lẫn nhau hoặc khó hiểu/kiểm thử; không đặt số dòng tối đa tùy tiện.
 
+[SOURCE_NAVIGATION](SOURCE_NAVIGATION.md) sở hữu tiêu chí chia/giữ file, ngưỡng nhắc review400/800 dòng, module map và TOC theo symbol cho file lớn. Đây không phải hard cap số dòng. Agent đọc map khi có rồi xác minh implementation, dependency/consumer/test; đổi cấu trúc phải cập nhật map cùng thay đổi. Checker tự động chưa cài.
+
 ## Import, dữ liệu và state
 
 Tuân chiều phụ thuộc tại ARCHITECTURE. Dùng interface công khai tối thiểu khi có consumer khác module; không import sâu hoặc export mọi nội bộ qua barrel toàn cục. Shared không import feature.

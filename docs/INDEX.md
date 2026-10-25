@@ -20,6 +20,7 @@
 - [ADR-002](architecture/decisions/ADR-002-state-management.md): TanStack Query + state React đã duyệt, Zustand có điều kiện; chưa cài.
 - [Kiến trúc](architecture/ARCHITECTURE.md): ứng dụng, module và ranh giới phụ thuộc.
 - [Chuẩn code](architecture/CODE_CONVENTIONS.md): trách nhiệm, reuse và import.
+- [Chia file và điều hướng source](architecture/SOURCE_NAVIGATION.md): trách nhiệm, ngưỡng review, module/file map và cách Agent đọc có mục tiêu; checker chưa cài.
 - [Hệ UI](architecture/UI_SYSTEM.md): shadcn/Radix, component và thiết kế dùng chung.
 - [Nguyên tắc API](architecture/API_CONTRACTS.md): ranh giới FE/BE/Android; chưa có contract chi tiết.
 
@@ -33,6 +34,7 @@
 - [Rà soát cấu trúc code và nền UI tái sử dụng](tasks/MKW-PRODUCT-001/technical/maintainability-review.md): khảo sát trước quyết định nền tảng; các đề xuất chi tiết chưa chốt vẫn là đề xuất.
 
 - [Bản kiến trúc kỹ thuật cụ thể để review](tasks/MKW-PRODUCT-001/technical/architecture-proposal.md): stack ứng viên, cây source, state/lưu lỗi/xung đột và cách kiểm; chưa là implementation plan.
+- [Khảo sát repo về chia file và context](tasks/MKW-PRODUCT-001/technical/source-navigation-research.md): nguồn theo commit, cách áp dụng và giới hạn bằng chứng.
 
 ## Báo cáo tham khảo
 

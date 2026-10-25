@@ -91,6 +91,8 @@ docs/
 
 Test nhỏ đặt cạnh module/file tương ứng khi phù hợp; suite integration dùng tài nguyên chung có vị trí riêng. File web dùng kebab-case, exports component PascalCase, hook bắt đầu bằng use; Nest giữ quy ước `.controller.ts`, `.service.ts`, `.module.ts`. Alias `@/` đề xuất chỉ trỏ src của từng app, không xuyên sang ứng dụng kia. Không alias che một import sai ranh giới.
 
+Quy định tiếp nối về độ dài và đọc source tại [SOURCE_NAVIGATION](../../../architecture/SOURCE_NAVIGATION.md): tách theo trách nhiệm, giữ module/file map khi cần, ngưỡng review không là hard cap. Chưa có checker tự động; cây ứng viên ở đây không yêu cầu tạo mọi file/thư mục hoặc TOC trước khi có source.
+
 Web chỉ gọi API qua transport/client; không import API source/ORM. Feature không import nội bộ feature khác; app lắp ghép thông qua exports tối thiểu. Nếu attendance cần thông tin nhân sự, nhận qua contract hoặc interface module công khai thích hợp, không đọc trực tiếp repository nội bộ employees. Shared không import ngược feature/app. API không import component web. Không tạo package shared-domain cho quy tắc tính công chỉ để client/server chạy cùng code; server là nguồn kiểm tính đúng, client hiển thị/preview theo contract và test đối chiếu.
 
 ## 5. State cụ thể và luồng nhập công

@@ -19,6 +19,8 @@ Hiệu lực: nền tảng Agent, theo phạm vi người dùng đã duyệt ng�
 
 ## Ràng buộc chung
 
+- Khi đọc/sửa source: theo [SOURCE_NAVIGATION](docs/architecture/SOURCE_NAVIGATION.md). Tách theo trách nhiệm; đọc module/file map nếu có, định vị lại symbol trong source hiện tại rồi đọc đầy đủ đơn vị, dependency/consumer/test liên quan. TOC không thay việc hiểu implementation hoặc review tác động.
+
 - Với thiết kế/code sản phẩm: đọc [kiến trúc](docs/architecture/ARCHITECTURE.md), [chuẩn code](docs/architecture/CODE_CONVENTIONS.md), [hệ UI](docs/architecture/UI_SYSTEM.md) và [nguyên tắc API](docs/architecture/API_CONTRACTS.md) theo phạm vi task. Nền tảng đã chốt tại [ADR-001](docs/architecture/decisions/ADR-001-product-foundation.md); chi tiết còn Pending không được tự coi là đã duyệt hoặc đã có công cụ enforce.
 
 - Không tự đặt nghiệp vụ chấm công, field, trạng thái hoặc contract. Ghi rõ điều chưa biết; hỏi phần chặn tính đúng, tiếp tục phần độc lập đã được phép.
