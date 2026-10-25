@@ -1,6 +1,6 @@
 # Yêu cầu người dùng đã thống nhất
 
-Nguồn: hội thoại trực tiếp tiếp nối MKW-AGENT-002, ghi nhận ngày 25/10/2026. Tài liệu này chỉ tổng hợp ý định đã xác nhận; không phải phê duyệt stack, API/schema hay triển khai code.
+Nguồn: hội thoại trực tiếp tiếp nối MKW-AGENT-002, ghi nhận ngày 25/10/2026. Tài liệu này chỉ tổng hợp ý định đã xác nhận; bao gồm nền tảng đã chốt ở cuối tài liệu, không phải phê duyệt stack chi tiết, API/schema hay triển khai code.
 
 ## Mục tiêu và người dùng
 
@@ -44,6 +44,6 @@ Nguồn: hội thoại trực tiếp tiếp nối MKW-AGENT-002, ghi nhận ngà
 
 ## Định hướng kỹ thuật đã có
 
-Web app tổ chức FE và BE tách biệt, chuẩn bị API có thể phục vụ Android sau này. Chưa chọn stack/framework/DB, cách đăng nhập, hosting hoặc xây Android trong bản đầu. Pilot002 dùng Node/SQLite không quyết định công nghệ sản phẩm.
+Người dùng đã chốt [nền tảng tại ADR-001](../../../architecture/decisions/ADR-001-product-foundation.md): shadcn/ui nền Radix; code theo feature/module; FE và BE tách ứng dụng trong cùng repository; shared UI và feature có ownership rõ; chuẩn code/UI/API phải được kiểm bằng công cụ khi triển khai. API chuẩn bị phục vụ Android sau này; không mặc định dùng lại component web cho Android native.
 
-Người dùng ưu tiên một nền UI chuyên nghiệp và nhất quán, tái sử dụng từ đầu vì có thể thêm nhiều feature; cần rà soát quy tắc cấu trúc file/code/thành phần để dễ bảo trì khi mở rộng. shadcn/ui với Radix là phương án người dùng muốn cân nhắc, chưa tự coi là đã chọn React/stack hoặc đã cho phép cài đặt. Báo cáo khảo sát và các nguyên tắc kiến trúc đề xuất nằm ở [maintainability review](../technical/maintainability-review.md); phần Proposed không tự trở thành rule đã duyệt.
+Bốn nguồn hiện hành là [kiến trúc](../../../architecture/ARCHITECTURE.md), [chuẩn code](../../../architecture/CODE_CONVENTIONS.md), [hệ UI](../../../architecture/UI_SYSTEM.md) và [nguyên tắc API](../../../architecture/API_CONTRACTS.md). Đây là quyết định và chuẩn tài liệu; chưa cài toolkit hoặc công cụ enforce sản phẩm. Framework/phiên bản cụ thể, backend/DB, đăng nhập, hosting, schema/contract chi tiết và cây thư mục cụ thể còn cần thiết kế. Không suy duyệt nền tảng thành duyệt mọi chi tiết trong báo cáo khảo sát, implementation plan hoặc quyền cài/code sản phẩm. Pilot002 dùng Node/SQLite không quyết định công nghệ sản phẩm.

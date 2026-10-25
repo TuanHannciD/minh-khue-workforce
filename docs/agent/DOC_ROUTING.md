@@ -8,10 +8,10 @@ Mặc định: [AGENTS](../../AGENTS.md) → [AUTHORITY_MAP](AUTHORITY_MAP.md) �
 | Phạm vi, quyền, cài đặt, remote | [PERMISSIONS](PERMISSIONS.md) |
 | Chọn/cài/cập nhật skill | [SKILL_POLICY](SKILL_POLICY.md), [SKILL_USAGE_MATRIX](../../SKILL_USAGE_MATRIX.md), [READINESS](READINESS.md) |
 | Dùng MCP/plugin/tool/model | [TOOL_CAPABILITIES](TOOL_CAPABILITIES.md), quyền liên quan và schema runtime |
-| Viết/sửa source hoặc tooling | Plan đã duyệt, [QUALITY_GATES](QUALITY_GATES.md), tài liệu module/contract khi có |
-| UI/UX hoặc thao tác browser | [BROWSER_TESTING](BROWSER_TESTING.md), nhóm UI trong skill matrix, thiết kế hiện hành khi có |
+| Viết/sửa source hoặc tooling | Plan đã duyệt, [QUALITY_GATES](QUALITY_GATES.md); với sản phẩm đọc [ARCHITECTURE](../architecture/ARCHITECTURE.md), [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md) và module/contract liên quan |
+| UI/UX hoặc thao tác browser | [UI_SYSTEM](../architecture/UI_SYSTEM.md), [BROWSER_TESTING](BROWSER_TESTING.md), nhóm UI trong skill matrix, thiết kế hiện hành khi có |
 | Lỗi | Evidence hiện có, skill debugging khi đã cài, quality gate liên quan; mở rộng source/log theo giả thuyết |
-| DB/API | Yêu cầu đã duyệt và nguồn contract/schema khi có; chưa có thì làm rõ, không suy từ báo cáo khảo sát |
+| DB/API | Yêu cầu đã duyệt, [API_CONTRACTS](../architecture/API_CONTRACTS.md), [ARCHITECTURE](../architecture/ARCHITECTURE.md) và contract/schema cụ thể khi có; chưa có thì làm rõ, không suy từ báo cáo khảo sát |
 | Chỉ sửa tài liệu | Nguồn sở hữu cần sửa, quyền/phạm vi và check tài liệu trong QUALITY_GATES |
 | Hỏi mức sẵn sàng hoặc chuẩn bị pilot | [READINESS](READINESS.md), validation đúng checkpoint |
 

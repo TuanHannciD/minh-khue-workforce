@@ -34,6 +34,6 @@ Phần tên, ngày/thứ và tổng giữ trong vùng nhìn khi cuộn. Điện 
 
 ## Review tiếp theo
 
-Người dùng đề nghị cân nhắc một nền UI nhất quán/tái sử dụng và kiểm tra rule khi có nhiều feature. Xem [khảo sát và đề xuất kiến trúc](../technical/maintainability-review.md) cho phương án shadcn nền Radix, ownership primitives/patterns/feature và khoảng trống enforcement. Chưa cài toolkit hoặc coi đó là stack đã duyệt.
+Người dùng đề nghị cân nhắc một nền UI nhất quán/tái sử dụng và kiểm tra rule khi có nhiều feature. Đã chốt shadcn/ui nền Radix và phân trách nhiệm primitives/patterns/feature tại [UI_SYSTEM](../../../architecture/UI_SYSTEM.md), theo [ADR-001](../../../architecture/decisions/ADR-001-product-foundation.md). Toolkit chưa cài, tokens và diện mạo cuối chưa duyệt; [khảo sát kiến trúc](../technical/maintainability-review.md) giữ hiện trạng trước quyết định và các đề xuất chi tiết chưa chốt.
 
 Phát triển thiết kế thị giác C thành bản mẫu hoàn thiện hơn để người dùng review: phân cấp chữ/số, độ rõ của bảng, nhịp khoảng cách, màu thương hiệu và màu nghiệp vụ, trạng thái chọn ô, phần nhập và bố cục điện thoại/desktop. Giữ cấu trúc C và nghiệp vụ đã chốt; không trình bản khảo sát hiện tại như UI đã hoàn tất. Tiếp tục làm rõ luồng chi tiết, trạng thái lưu/lỗi/xung đột và các màn hình còn lại. Hỗ trợ iPhone/Android, cảm ứng/zoom, bàn phím, dữ liệu lớn và Excel vẫn phải có kiểm chứng đúng môi trường ở giai đoạn triển khai, không suy ra từ bản mẫu HTML này.

@@ -1,5 +1,8 @@
 # Rà soát nền tảng tái sử dụng và bảo trì
 
+> Cập nhật sau khảo sát: người dùng đã chốt nền tảng tại [ADR-001](../../../architecture/decisions/ADR-001-product-foundation.md). Quy tắc hiện hành thuộc [kiến trúc](../../../architecture/ARCHITECTURE.md), [chuẩn code](../../../architecture/CODE_CONVENTIONS.md), [hệ UI](../../../architecture/UI_SYSTEM.md) và [nguyên tắc API](../../../architecture/API_CONTRACTS.md). Báo cáo bên dưới giữ mốc khảo sát trước quyết định; các chi tiết đề xuất chưa được chốt không tự trở thành quy định. Chưa cài/enforce tooling sản phẩm.
+
+
 Ngày 25/10/2026, checkpoint base `bb390add47a862b12d7a9ad4fdd74cc0399b46a4`. Trạng thái: **Khảo sát hiện trạng + đề xuất để review**, không phải coding rule hoặc kiến trúc đã duyệt. Phạm vi/quyền/ownership tại [INDEX](../INDEX.md). Ý định mới của người dùng: chuẩn bị một hệ UI chuyên nghiệp, tái sử dụng và dễ bảo trì khi có thêm nhiều tính năng; shadcn/ui + Radix đang được cân nhắc.
 
 ## Kết luận

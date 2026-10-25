@@ -19,6 +19,8 @@ Hiệu lực: nền tảng Agent, theo phạm vi người dùng đã duyệt ng�
 
 ## Ràng buộc chung
 
+- Với thiết kế/code sản phẩm: đọc [kiến trúc](docs/architecture/ARCHITECTURE.md), [chuẩn code](docs/architecture/CODE_CONVENTIONS.md), [hệ UI](docs/architecture/UI_SYSTEM.md) và [nguyên tắc API](docs/architecture/API_CONTRACTS.md) theo phạm vi task. Nền tảng đã chốt tại [ADR-001](docs/architecture/decisions/ADR-001-product-foundation.md); chi tiết còn Pending không được tự coi là đã duyệt hoặc đã có công cụ enforce.
+
 - Không tự đặt nghiệp vụ chấm công, field, trạng thái hoặc contract. Ghi rõ điều chưa biết; hỏi phần chặn tính đúng, tiếp tục phần độc lập đã được phép.
 - Bảo toàn file dirty/untracked/ignored, bằng chứng và công việc khác. Không reset/clean/ghi đè hoặc xóa tài nguyên chưa rõ chủ sở hữu.
 - Mỗi task ghi mục tiêu, scope, acceptance, risk, writer/review route, base hoặc giới hạn chưa có Git, tài nguyên và bước tiếp theo trước khi sửa.

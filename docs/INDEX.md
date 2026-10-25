@@ -14,6 +14,14 @@
 - [Readiness](agent/READINESS.md): phần đã viết/cài/kiểm chứng và bước triển khai tiếp.
 - [Chạy local](agent/LOCAL_RUN.md): lệnh check, pilot và browser regression.
 
+## Nền tảng sản phẩm
+
+- [ADR-001](architecture/decisions/ADR-001-product-foundation.md): quyết định nền tảng đã chốt và giới hạn.
+- [Kiến trúc](architecture/ARCHITECTURE.md): ứng dụng, module và ranh giới phụ thuộc.
+- [Chuẩn code](architecture/CODE_CONVENTIONS.md): trách nhiệm, reuse và import.
+- [Hệ UI](architecture/UI_SYSTEM.md): shadcn/Radix, component và thiết kế dùng chung.
+- [Nguyên tắc API](architecture/API_CONTRACTS.md): ranh giới FE/BE/Android; chưa có contract chi tiết.
+
 ## Mẫu công việc
 
 - [Task brief](templates/TASK_BRIEF.md)
@@ -21,11 +29,11 @@
 - [Task MKW-AGENT-001](tasks/MKW-AGENT-001/INDEX.md)
 - [Task MKW-AGENT-002](tasks/MKW-AGENT-002/INDEX.md)
 - [Task MKW-PRODUCT-001](tasks/MKW-PRODUCT-001/INDEX.md): yêu cầu đã thống nhất và đặc tả chấm công để review.
-- [Rà soát cấu trúc code và nền UI tái sử dụng](tasks/MKW-PRODUCT-001/technical/maintainability-review.md): hiện trạng, khoảng trống và đề xuất kiến trúc; chưa phải rule/stack đã duyệt.
+- [Rà soát cấu trúc code và nền UI tái sử dụng](tasks/MKW-PRODUCT-001/technical/maintainability-review.md): khảo sát trước quyết định nền tảng; các đề xuất chi tiết chưa chốt vẫn là đề xuất.
 
 ## Báo cáo tham khảo
 
 - [Khảo sát nền tảng Agent SellerFlow ngày 22/10](reports/2026-10-22-ai-agent-foundation-audit.md)
 - [Khảo sát ban đầu có đề xuất sản phẩm/kiến trúc](reports/2026-10-22-sellerflow-audit-va-workflow-de-xuat.md)
 
-Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Yêu cầu chấm công đã thống nhất được ghi ở MKW-PRODUCT-001; bản thiết kế viết đang chờ review. Chưa có kiến trúc kỹ thuật, schema hay API contract đã duyệt; nguồn sở hữu được định tuyến tại authority map.
+Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Yêu cầu chấm công đã thống nhất được ghi ở MKW-PRODUCT-001; bản thiết kế viết đang chờ review. Nền tảng đã chốt tại ADR-001; stack chi tiết, schema và contract API cụ thể chưa duyệt; nguồn sở hữu được định tuyến tại authority map.

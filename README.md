@@ -1,12 +1,13 @@
 # Minh Khuê Workforce
 
-Project đang chuẩn bị nền tảng để AI Agent phát triển phần mềm theo quy trình có kiểm chứng. Định hướng sản phẩm ban đầu là điểm danh/chấm công; đặc tả nghiệp vụ và công nghệ ứng dụng chưa được chốt.
+Project đang chuẩn bị nền tảng để AI Agent phát triển phần mềm theo quy trình có kiểm chứng. Sản phẩm ban đầu là chấm công; nền tảng UI và tổ chức code đã chốt, đặc tả đầy đủ và stack chi tiết còn đang thiết kế.
 
 ## Bắt đầu
 
 - Agent: đọc [AGENTS.md](AGENTS.md), sau đó hồ sơ task đang làm và tài liệu được định tuyến.
 - Người dùng: xem [mục lục tài liệu](docs/INDEX.md) và [trạng thái sẵn sàng](docs/agent/READINESS.md).
 - Công việc hiện tại: [MKW-PRODUCT-001 — đặc tả chấm công để review](docs/tasks/MKW-PRODUCT-001/INDEX.md).
+- Nền tảng sản phẩm đã chốt: [ADR-001](docs/architecture/decisions/ADR-001-product-foundation.md), cùng bốn nguồn chuẩn được liên kết trong ADR.
 - Nền tảng đã bootstrap: [MKW-AGENT-002 — cài đặt và pilot](docs/tasks/MKW-AGENT-002/INDEX.md).
 - Chạy tooling và pilot: [hướng dẫn local](docs/agent/LOCAL_RUN.md).
 
@@ -18,4 +19,4 @@ Một bộ tài liệu tiếng Việt là nguồn chuẩn của project. Skill u
 
 ## Trạng thái
 
-Bộ tài liệu và skill project-local đã có Git baseline; pilot ghi chú dùng UI/API/SQLite thật để kiểm tra workflow. Đây là ứng dụng thử dữ liệu giả. Trạng thái từng năng lực, review/resume và bằng chứng tại READINESS. Yêu cầu chấm công đã thống nhất đang được tổng hợp thành đặc tả để review trong MKW-PRODUCT-001; stack/contract sản phẩm và ứng dụng Android chưa được chốt.
+Bộ tài liệu và skill project-local đã có Git baseline; pilot ghi chú dùng UI/API/SQLite thật để kiểm tra workflow. Đây là ứng dụng thử dữ liệu giả. Trạng thái từng năng lực, review/resume và bằng chứng tại READINESS. Yêu cầu chấm công đã thống nhất đang được tổng hợp thành đặc tả để review trong MKW-PRODUCT-001; đã chọn shadcn/ui nền Radix, module theo feature và FE/BE tách ứng dụng cùng repository. Chuẩn code/UI/API đã ghi tại docs/architecture; công cụ enforce sản phẩm chưa cài. Framework cụ thể, backend/DB, contract chi tiết và ứng dụng Android còn chưa chốt.

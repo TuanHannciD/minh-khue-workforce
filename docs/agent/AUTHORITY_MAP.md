@@ -22,8 +22,9 @@ Chỉ dẫn hệ thống/developer/runtime → yêu cầu và quyền người d
 | Điều gì đã thực sự chạy? | Validation: lệnh/tool, môi trường, kết quả, artifact và giới hạn |
 | Nghiệp vụ chấm công bản đầu đã thống nhất? | [MKW-PRODUCT-001 requirements](../tasks/MKW-PRODUCT-001/approved/requirements.md), tổng hợp xác nhận trong hội thoại |
 | Thiết kế sản phẩm để review và quyết định còn thiếu? | [MKW-PRODUCT-001 design](../tasks/MKW-PRODUCT-001/design.md), Draft for review; đề xuất/câu hỏi chưa là yêu cầu đã duyệt |
-| Kiến trúc kỹ thuật/API/schema? | Chưa có bản đã duyệt; định hướng FE–BE/API cho Android không tự quyết định stack/contract |
-| Rule cấu trúc code, UI tái sử dụng và khoảng trống hiện tại? | [MKW-PRODUCT-001 maintainability review](../tasks/MKW-PRODUCT-001/technical/maintainability-review.md): khảo sát + đề xuất để review, chưa là rule thực thi hoặc stack đã duyệt |
+| Kiến trúc kỹ thuật/API/schema? | [ADR-001](../architecture/decisions/ADR-001-product-foundation.md) ghi nền tảng đã chốt; [ARCHITECTURE](../architecture/ARCHITECTURE.md) và [API_CONTRACTS](../architecture/API_CONTRACTS.md) sở hữu nguyên tắc. Stack chi tiết, endpoint/schema chưa duyệt |
+| Rule cấu trúc code, UI tái sử dụng? | [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md), [UI_SYSTEM](../architecture/UI_SYSTEM.md); chuẩn đã ghi, công cụ kiểm sản phẩm chưa cài/enforce |
+| Hiện trạng trước khi chốt nền tảng và đề xuất chi tiết? | [Maintainability review](../tasks/MKW-PRODUCT-001/technical/maintainability-review.md): khảo sát theo checkpoint, không thay các nguồn hiện hành trên |
 
 ## Phân biệt loại nội dung
 
