@@ -51,3 +51,7 @@ Người dùng đồng ý hai tài khoản riêng cho người chấm chính và
 ## Cập nhật xung đột cùng ô — 25/10/2026
 
 Người dùng đồng ý báo người lưu sau khi hai người sửa cùng một ô từ dữ liệu cũ, hiển thị giá trị mới trước khi quyết định sửa tiếp. Cập nhật requirements, design/Q3/AC12 và INDEX; không tự tạo quy trình duyệt hoặc quyết định cơ chế API. AC12 là Not run. Phạm vi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`, chưa kiểm chứng xử lý xung đột trên ứng dụng.
+
+## Cập nhật phương pháp UI/UX — 25/10/2026
+
+Theo chỉ dẫn người dùng, bố cục/vị trí phải qua skill thiết kế, không tự kết luận. Đã đọc Impeccable/shape và UI UX Pro Max; chạy context một lần với target design của task. Context tải cả PRODUCT.md của pilot nên không dùng nó làm brief chấm công hoặc sửa root. Tra cứu UX ban đầu có kết quả lẫn chủ đề; thu hẹp một lần sang touch target size, trả về đúng Mobile Touch và Web Target Size (Minimum); chỉ dùng làm tham khảo theo nền tảng, không tự áp một kích thước cho mọi nơi hoặc thêm bulk edit vào scope. Chưa tạo/chọn mockup, chưa chứng nhận chất lượng UI. Bổ sung requirements/design/INDEX để ghi hai nút Công/Tăng ca chưa được duyệt; phạm vi vẫn chỉ tài liệu.

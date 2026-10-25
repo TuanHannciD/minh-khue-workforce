@@ -52,6 +52,8 @@ Tên hiển thị không được dùng như lý do gộp hai nhân sự trùng 
 
 ## 5. Thao tác trên điện thoại
 
+**Quy trình thiết kế đã thống nhất:** dùng Impeccable để phân tích tác vụ và hình thành phương án UI/UX, UI UX Pro Max bổ trợ tra cứu tương tác/khả năng tiếp cận. Bố cục, vị trí điều khiển và cách chuyển/xem công–tăng ca phải được trình để review sau phân tích; đề xuất hai nút Công/Tăng ca chưa được duyệt. Các yêu cầu sử dụng bên dưới là ràng buộc đầu vào, chưa phải mockup hoàn chỉnh. Nguồn nghiệp vụ là requirements của task này; PRODUCT.md/DESIGN.md ở root vẫn mô tả pilot, không là brief sản phẩm chấm công.
+
 Thiết kế đã được người dùng đồng ý:
 
 - Giữ dạng bảng; cuộn ngang qua các ngày và cuộn dọc qua nhân sự.
@@ -122,7 +124,7 @@ Q3 — Đã chốt: khi hai người sửa cùng một ô từ dữ liệu cũ, 
 
 Q4 — Khi sửa mốc ngày làm việc đụng ô đã có công/tăng ca, người dùng muốn giải quyết thế nào? Cần làm rõ trước khi cho phép thay mốc gây loại dữ liệu. Trường hợp nghỉ/quay lại chưa được yêu cầu; không tự thêm nhiều hợp đồng/giai đoạn vào bản đầu.
 
-Q5 — Xác nhận đề xuất một sheet với hai bảng, và tổng xuất là số tại thời điểm xuất hay công thức để tiếp tục sửa Excel? Có cần bản đầu hiển thị hai bảng liên tiếp trên web như Excel, hay chuyển qua lại giữa công/tăng ca để tiết kiệm màn hình? Chưa chốt UI bằng file mockup.
+Q5 — Xác nhận đề xuất một sheet với hai bảng, và tổng xuất là số tại thời điểm xuất hay công thức để tiếp tục sửa Excel? Bố trí hai bảng liên tiếp hay chuyển qua lại trên web sẽ được phân tích bằng Impeccable + UI UX Pro Max rồi trình phương án trực quan để review, chưa chốt hai nút Công/Tăng ca hoặc bố cục khác.
 
 Q6 — Quy mô dự kiến (số nhân sự) và nhóm điện thoại/trình duyệt chính để đặt yêu cầu hiệu năng/bộ nhớ và xác minh zoom, sticky, nhập cảm ứng.
 
