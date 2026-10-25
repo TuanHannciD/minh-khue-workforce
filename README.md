@@ -1,6 +1,6 @@
 # Minh Khuê Workforce
 
-Project đang chuẩn bị nền tảng để AI Agent phát triển phần mềm theo quy trình có kiểm chứng. Sản phẩm ban đầu là chấm công; nền tảng UI và tổ chức code đã chốt, đặc tả đầy đủ và stack chi tiết còn đang thiết kế.
+Project đang chuẩn bị nền tảng để AI Agent phát triển phần mềm theo quy trình có kiểm chứng. Sản phẩm ban đầu là chấm công; nền tảng UI và tổ chức code đã chốt, stack mục tiêu phương án A đã chốt; đặc tả đầy đủ và chi tiết triển khai còn đang thiết kế.
 
 ## Bắt đầu
 
@@ -19,4 +19,4 @@ Một bộ tài liệu tiếng Việt là nguồn chuẩn của project. Skill u
 
 ## Trạng thái
 
-Bộ tài liệu và skill project-local đã có Git baseline; pilot ghi chú dùng UI/API/SQLite thật để kiểm tra workflow. Đây là ứng dụng thử dữ liệu giả. Trạng thái từng năng lực, review/resume và bằng chứng tại READINESS. Yêu cầu chấm công đã thống nhất đang được tổng hợp thành đặc tả để review trong MKW-PRODUCT-001; đã chọn shadcn/ui nền Radix, module theo feature và FE/BE tách ứng dụng cùng repository. Chuẩn code/UI/API đã ghi tại docs/architecture; công cụ enforce sản phẩm chưa cài. Quản lý state đã chọn TanStack Query + state React, Zustand có điều kiện theo [ADR-002](docs/architecture/decisions/ADR-002-state-management.md), chưa cài. [Bản kiến trúc cụ thể](docs/tasks/MKW-PRODUCT-001/technical/architecture-proposal.md) đề xuất stack và luồng để review; framework cụ thể, backend/DB, contract chi tiết và ứng dụng Android còn chưa chốt.
+Bộ tài liệu và skill project-local đã có Git baseline; pilot ghi chú dùng UI/API/SQLite thật để kiểm tra workflow. Đây là ứng dụng thử dữ liệu giả. Trạng thái từng năng lực, review/resume và bằng chứng tại READINESS. Yêu cầu chấm công đã thống nhất đang được tổng hợp thành đặc tả để review trong MKW-PRODUCT-001; đã chọn shadcn/ui nền Radix, module theo feature và FE/BE tách ứng dụng cùng repository. Chuẩn code/UI/API đã ghi tại docs/architecture; công cụ enforce sản phẩm chưa cài. Quản lý state đã chọn TanStack Query + state React, Zustand có điều kiện theo [ADR-002](docs/architecture/decisions/ADR-002-state-management.md), chưa cài. [Bản kiến trúc cụ thể](docs/tasks/MKW-PRODUCT-001/technical/architecture-proposal.md) ghi thiết kế và luồng; [ADR-003](docs/architecture/decisions/ADR-003-product-stack.md) chốt React/Vite + NestJS + PostgreSQL/Prisma cùng tooling mục tiêu. Chưa pin/cài/kiểm tương thích; auth/contract chi tiết và ứng dụng Android còn cần thiết kế.

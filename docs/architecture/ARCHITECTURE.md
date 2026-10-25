@@ -1,6 +1,6 @@
 # Kiến trúc nền tảng Minh Khuê
 
-Hiệu lực: nguyên tắc nền tảng theo [ADR-001](decisions/ADR-001-product-foundation.md). Chưa là kiến trúc kỹ thuật đầy đủ hoặc quyền triển khai sản phẩm. Trạng thái: đã chốt nền tảng; source sản phẩm và enforcement chưa có.
+Hiệu lực: nguyên tắc nền tảng theo [ADR-001](decisions/ADR-001-product-foundation.md). Bộ công nghệ mục tiêu được chốt tiếp nối tại [ADR-003](decisions/ADR-003-product-stack.md); chưa là contract/schema đầy đủ hoặc quyền triển khai sản phẩm. Trạng thái: đã chốt nền tảng; source sản phẩm và enforcement chưa có.
 
 ## Tổ chức ứng dụng và module
 
@@ -18,7 +18,7 @@ Shared là code nền/trung tính có consumer thật. Component nghiệp vụ d
 - FE không import ORM/entity DB, module server hoặc secret. API không phụ thuộc component web.
 - Backend chia module trước; cách tách HTTP/use case/domain/data access theo độ phức tạp và stack được duyệt, tránh nhiều lớp rỗng.
 
-Thư mục, tên alias, barrel entrypoint và dependency graph cụ thể chưa chốt. Cây minh họa trong [báo cáo khảo sát](../tasks/MKW-PRODUCT-001/technical/maintainability-review.md) giúp thảo luận, không tự trở thành scaffold bắt buộc.
+Theo ADR-003, tổ chức mục tiêu là apps/web, apps/api và contracts; mỗi ứng dụng chia feature/module. Tên alias, exports và dependency graph chi tiết cần review theo use case. Cây minh họa trong [báo cáo khảo sát](../tasks/MKW-PRODUCT-001/technical/maintainability-review.md) giúp thảo luận, không tự trở thành scaffold bắt buộc.
 
 ## Nguồn chi tiết
 
@@ -26,8 +26,8 @@ Thư mục, tên alias, barrel entrypoint và dependency graph cụ thể chưa 
 
 ## Bản thiết kế kỹ thuật để review
 
-[Bản kiến trúc cụ thể](../tasks/MKW-PRODUCT-001/technical/architecture-proposal.md) trình các hướng stack, cây source ứng viên, luồng state/API và kiểm tự động. Ngoài phần được duyệt riêng tại [ADR-002](decisions/ADR-002-state-management.md), các lựa chọn mới ở đó vẫn Proposed. Bản này là nguồn nguyên tắc; proposal không tự thay quy tắc hiện hành.
+[Bản kiến trúc cụ thể](../tasks/MKW-PRODUCT-001/technical/architecture-proposal.md) trình các hướng stack, cây source ứng viên, luồng state/API và kiểm tự động. State theo [ADR-002](decisions/ADR-002-state-management.md), stack phương án A theo ADR-003 đã duyệt; phiên bản/auth/schema và các chi tiết luồng còn mở chưa tự được duyệt. Bản này là nguồn nguyên tắc; proposal không tự thay quy tắc hiện hành.
 
 ## Cần thiết kế trước triển khai
 
-Chốt framework web, toolchain và backend; chọn DB/auth theo nhu cầu thực; cụ thể hóa cây source/build và contract. Sau đó lập kế hoạch cấu hình boundary/type/build/test và review theo [QUALITY_GATES](../agent/QUALITY_GATES.md). Chưa có benchmark hoặc cam kết quy mô vô hạn; khả năng mở rộng dữ liệu phải kiểm riêng với dữ liệu giả phù hợp.
+React/Vite/TypeScript, NestJS/Express, PostgreSQL/Prisma và bộ tooling mục tiêu đã chọn theo ADR-003; cần pin/kiểm tương thích, chốt auth và cụ thể hóa build/contract. Sau đó lập kế hoạch cấu hình boundary/type/build/test và review theo [QUALITY_GATES](../agent/QUALITY_GATES.md). Chưa có benchmark hoặc cam kết quy mô vô hạn; khả năng mở rộng dữ liệu phải kiểm riêng với dữ liệu giả phù hợp.

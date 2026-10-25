@@ -11,7 +11,7 @@ Chuyển cách chấm công Excel toàn công ty thành đặc tả web dễ dù
 - [Yêu cầu đã thống nhất trong hội thoại](approved/requirements.md).
 - [Đặc tả để review](design.md).
 - [Kiểm chứng và bàn giao](validation.md).
-- [Brief và ba phương án UI](ui/BRIEF.md), [bản mẫu tương tác](ui/attendance-concepts.html) — đã chọn tổ chức C, chờ thiết kế thị giác hoàn thiện hơn.
+- [Brief và ba phương án UI](ui/BRIEF.md), [khảo sát A/B/C](ui/attendance-concepts.html) và [bản C hiện hành](ui/attendance-c.html) — C mới đã tự review bản mẫu, chờ người dùng review diện mạo/luồng.
 - Nguồn quyền/routing: [AGENTS](../../../AGENTS.md), [authority map](../../agent/AUTHORITY_MAP.md), [execution rules](../../agent/EXECUTION_RULES.md), [permissions](../../agent/PERMISSIONS.md), [quality gates](../../agent/QUALITY_GATES.md).
 - Quyền hiện tại: đọc/viết/check tài liệu và commit local bản đặc tả theo bước brainstorming. Người dùng đã duyệt bắt đầu thiết kế trực quan: thêm HTML bản mẫu độc lập và kiểm bằng native HTML preview/render; không phải quyền triển khai ứng dụng sản phẩm. Không scaffold/code/cài dependency sản phẩm, tự chọn stack, dispatch child mới, tích hợp main, push/deploy hoặc dùng hệ thống nhân sự thật.
 - Phạm vi file: dossier này; thêm định tuyến tại authority map, README và docs/INDEX. Giữ nguyên pilot, PRODUCT.md/DESIGN.md của pilot, skill distribution, hồ sơ002 và evidence cũ.
@@ -26,11 +26,9 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 
 ## Bước tiếp
 
-Đã bổ sung [quy định chia file/đọc source](../../architecture/SOURCE_NAVIGATION.md) và [khảo sát repo theo commit](technical/source-navigation-research.md) theo yêu cầu tiếp nối. Quy định hiện là tài liệu, chưa có checker hoặc refactor source. Người dùng review phương án/ngưỡng; phần kiến trúc sản phẩm và UI bên dưới vẫn tiếp tục theo trạng thái đã ghi.
+Đã chốt phương án A và bộ công nghệ mục tiêu tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md). Nền tảng ADR-001 và state ADR-002 giữ nguyên. Bộ stack chưa pin/cài/kiểm tương thích; auth/hosting/schema và nghiệp vụ chưa chốt vẫn mở.
 
-Đã ghi [ADR-002 về state](../../architecture/decisions/ADR-002-state-management.md) theo approval tiếp nối. [Bản kiến trúc cụ thể](technical/architecture-proposal.md) đã viết để người dùng review: so sánh hướng stack, đề xuất công cụ/cây source, luồng state/lưu lỗi/xung đột và acceptance tooling. Chưa có cài/code/implementation plan. Các lựa chọn mới vẫn Proposed; tiếp tục làm rõ nghiệp vụ/đăng nhập/Excel và thiết kế thị giác C trước phần triển khai phụ thuộc.
-
-Checkpoint trước: đã ghi nhận nền tảng được người dùng chốt tại [ADR-001](../../architecture/decisions/ADR-001-product-foundation.md), hoàn thiện bốn nguồn chuẩn và định tuyến Agent. Tiếp theo cụ thể hóa framework/toolchain, backend/DB/auth, cây source và cách kiểm ranh giới; đồng thời phát triển bản mẫu thị giác C chuyên nghiệp bằng Impeccable + UI UX Pro Max để review. Tiếp tục làm rõ các điểm mở ở mục10 của đặc tả trước contract/validation tương ứng. Khi bản đặc tả viết đủ quyết định và được duyệt, mới lập kế hoạch triển khai; chưa cài/scaffold sản phẩm hoặc tích hợp primary. Commit tài liệu giữ local trên worktree hiện có.
+Bước hiện tại: [bản C](ui/attendance-c.html) đã viết và kiểm DOM/headless HTML preview, đang chờ người dùng review diện mạo/luồng; chưa duyệt UI. Chi tiết và giới hạn tại [brief](ui/BRIEF.md), [validation](validation.md). Sau đó lần lượt làm rõ các điểm mở ở mục10 của đặc tả; khi bản viết đủ quyết định và được duyệt mới lập implementation plan. Chưa cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local trên worktree hiện có.
 
 ## Checkpoint UI trực quan
 
@@ -55,3 +53,13 @@ Writer inline; tự review tài liệu và người dùng review thiết kế, k
 Theo yêu cầu người dùng: khảo sát repo công khai thực tế, suy luận và viết quy định cho file code dài; tách hợp lý, có mục lục/hướng dẫn đọc khi cần để tránh loãng context. Base `3a70f702db5e6e6ad614d9f75c9d946eb2cd14ae`, workspace sạch trước sửa. Acceptance: nguồn khảo sát có commit/path và phạm vi bằng chứng; tiêu chí tách/giữ; mục lục bằng symbol thay số dòng dễ lệch; quy trình Agent mở rộng context theo dependency/consumer/test; cách tránh tài liệu lỗi thời và phân biệt documented/enforced.
 
 Writer inline, tự review tài liệu + người dùng review; không dispatch child. Risk trung bình vì ảnh hưởng cách Agent đọc/sửa code, không giảm gate test/review hoặc quyền. Phạm vi: báo cáo khảo sát mới, chuẩn code/điều hướng source và routing AGENTS/authority/docs INDEX/dossier liên quan. Tài nguyên: đọc Internet public và Markdown local; bằng chứng đọc repo lưu ignored theo task. Không thực thi script từ repo khảo sát, cài dependency, refactor source/pilot/skill, đổi primary hoặc tạo server/DB/browser. Quy định tài liệu được yêu cầu trong scope này; tự động kiểm mục lục/độ dài nếu đề xuất sẽ ghi chưa cài, không tự triển khai tooling.
+
+## Tiếp nối chốt phương án A và hoàn thiện UI C — 25/10/2026
+
+Nguồn xác nhận: người dùng trả lời “Tôi đồng ý phương án A” sau bản trình bộ công nghệ cụ thể. Mục tiêu: ghi quyết định đúng phạm vi đã trình, đồng bộ nguồn hiện hành, rồi hoàn thiện bản mẫu hướng C đã được phép. Base `467e42cdfd9466c70ea763f4ce091baedec2b4d7`, workspace sạch trước sửa; giữ worktree/branch hiện có, primary chỉ đọc.
+
+Acceptance: ADR ghi rõ stack mục tiêu Accepted nhưng chưa cài/kiểm tương thích; nguồn định tuyến không tiếp tục gọi bộ stack đã chọn là Proposed. Bản mẫu C độc lập dùng dữ liệu giả, một bảng Công/Tăng ca, tổng riêng, màu nhắc độc lập, editor dễ nhập và giữ draft khi chuyển ngữ cảnh. Kiểm bằng HTML preview ở điện thoại/desktop và self-review; trình native HTML render để người dùng review diện mạo. Không dùng bản mẫu thay bằng chứng sản phẩm.
+
+Writer inline; risk tài liệu trung bình, bản mẫu thấp; tự review + người dùng review, không dispatch child. Vùng sửa: docs/architecture, dossier này, các nguồn định tuyến liên quan; bản UI mới tại ui/attendance-c.html, giữ nguyên HTML khảo sát A/B/C. Resource: file local và T3 html_preview/html_render, evidence trong `.agent-runs/MKW-PRODUCT-001/`; không server/port/DB/tab riêng. Không cài dependency, scaffold/code sản phẩm, thay pilot/global config, tích hợp primary, push/deploy. Phiên bản, auth/hosting/schema và nghiệp vụ chưa chốt vẫn để mở.
+
+Bước tiếp: ghi ADR phương án A → hoàn thiện và trình UI C → làm rõ nghiệp vụ còn thiếu → review đặc tả viết trước implementation plan. Chưa suy approval stack thành approval UI/spec hoặc quyền triển khai.

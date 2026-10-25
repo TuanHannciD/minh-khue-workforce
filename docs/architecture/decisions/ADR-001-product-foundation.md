@@ -33,3 +33,5 @@ Framework web, TypeScript/toolchain chi tiết, backend/DB/ORM/auth/hosting, pac
 - [API contracts](../API_CONTRACTS.md) sở hữu nguyên tắc FE/BE/Android và việc chốt contract.
 
 Trạng thái công cụ: **chưa cài/chưa enforce cho sản phẩm**. Check pilot không chứng minh các chuẩn trên đã được thực thi. ADR có thể được thay bởi quyết định được người dùng duyệt về sau, cần ghi rõ lý do và phạm vi.
+
+Cập nhật tiếp nối: [ADR-003](ADR-003-product-stack.md) đã chốt bộ công nghệ mục tiêu phương án A. Những phần framework/backend/DB/tooling được bổ sung bởi ADR-003 không còn Pending ở hiện tại; vẫn chưa cài/kiểm tương thích, và các chi tiết chưa chốt không tự được duyệt.

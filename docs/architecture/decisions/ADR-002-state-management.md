@@ -15,3 +15,5 @@ Ngày 25/10/2026. Trạng thái: **Accepted về lựa chọn và phân trách n
 [CODE_CONVENTIONS](../CODE_CONVENTIONS.md) sở hữu nguyên tắc state; [API_CONTRACTS](../API_CONTRACTS.md) sở hữu ranh giới API. Luồng cụ thể và lựa chọn kỹ thuật tiếp theo nằm trong [bản kiến trúc để review](../../tasks/MKW-PRODUCT-001/technical/architecture-proposal.md); phần Proposed ở đó chưa tự được duyệt bởi ADR này.
 
 Không đồng nhất cache với khả năng làm việc offline hoặc lưu bản nháp sau đóng trang. Chưa cài thư viện, pin phiên bản, kiểm compatibility hoặc chạy test state sản phẩm. Framework, backend/DB, cách đồng bộ giữa thiết bị và chi tiết lỗi/xung đột còn cần thiết kế. Quyền hiện tại là tài liệu; chưa có quyền cài/scaffold/code sản phẩm.
+
+Cập nhật tiếp nối: [ADR-003](ADR-003-product-stack.md) đã chốt bộ công nghệ mục tiêu phương án A. Những phần framework/backend/DB/tooling được bổ sung bởi ADR-003 không còn Pending ở hiện tại; vẫn chưa cài/kiểm tương thích, và các chi tiết chưa chốt không tự được duyệt.

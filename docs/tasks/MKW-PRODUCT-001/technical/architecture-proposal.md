@@ -1,12 +1,12 @@
 # Kiến trúc kỹ thuật cụ thể — bản để review
 
-Ngày 25/10/2026. Trạng thái: **Draft for review**, chưa là implementation plan hoặc quyền cài/scaffold/code. Nguồn nền tảng đã duyệt: [ADR-001](../../../architecture/decisions/ADR-001-product-foundation.md), [ADR-002 về state](../../../architecture/decisions/ADR-002-state-management.md). Nghiệp vụ theo [requirements](../approved/requirements.md); các điểm mở theo mục10 của [design](../design.md).
+Ngày 25/10/2026. Trạng thái tiếp nối: **Phương án A và bộ công nghệ mục tiêu đã Accepted tại [ADR-003](../../../architecture/decisions/ADR-003-product-stack.md)**; phiên bản và chi tiết còn mở vẫn để review. Chưa là implementation plan hoặc quyền cài/scaffold/code. Nguồn nền tảng đã duyệt: [ADR-001](../../../architecture/decisions/ADR-001-product-foundation.md), [ADR-002 về state](../../../architecture/decisions/ADR-002-state-management.md). Nghiệp vụ theo [requirements](../approved/requirements.md); các điểm mở theo mục10 của [design](../design.md).
 
 ## 1. Mục tiêu và giới hạn
 
 Web chấm công toàn công ty, người dùng và sếp cùng quyền, thao tác đơn giản trên điện thoại và đầy đủ desktop. Cần nền đủ rõ để Agent thêm feature mà tìm đúng code, dùng lại UI và không phá contract. API phục vụ web hiện tại và Android sau này. Không thêm tính lương, phân bổ công trình, approval hoặc nhân viên tự check-in.
 
-Hai quyết định đã duyệt không đồng nghĩa toàn bộ stack bên dưới đã duyệt. Tài liệu này đề xuất tên công cụ, vị trí code, luồng dữ liệu và cách xác minh. Chưa có bằng chứng các công cụ này cài/build/test tương thích trong project. Không dùng kết quả pilot thay kiểm sản phẩm.
+Checkpoint ban đầu đề xuất các hướng bên dưới; người dùng sau đó chốt phương án A và bộ công cụ đã trình, phạm vi chính xác theo ADR-003. Giữ B/C làm rationale; các từ ứng viên/đề xuất trong bản thiết kế phải đọc cùng ADR-003, không coi mọi chi tiết luồng là đã duyệt. Chưa có bằng chứng các công cụ này cài/build/test tương thích trong project. Không dùng kết quả pilot thay kiểm sản phẩm.
 
 ## 2. Các hướng kỹ thuật đã cân nhắc
 
@@ -157,7 +157,7 @@ Review độc lập cho code/tooling theo [QUALITY_GATES](../../../agent/QUALITY
 
 ## 9. Điểm cần review trước kế hoạch triển khai
 
-1. Chọn hướng A và các công cụ ứng viên hay điều chỉnh; chốt phiên bản tương thích ở bước tooling, không kế thừa pin pilot một cách tự động.
+1. Đã chốt hướng A và bộ công nghệ mục tiêu theo ADR-003; chốt/kiểm phiên bản tương thích ở bước tooling, không kế thừa pin pilot một cách tự động.
 2. Chốt đăng nhập/khôi phục và nhu cầu cập nhật giữa hai tài khoản; lựa chọn hạ tầng vận hành/backup trước release.
 3. Hoàn thiện câu hỏi nghiệp vụ Q1/Q4/Q5 về số, đổi mốc và Excel; trình bản UI C hoàn thiện bằng Impeccable + UI UX Pro Max.
 4. Review contract/request/response, concurrency, migrations và gate kiểm đúng phạm vi. Chưa đủ quyết định để Agent tự triển khai toàn bộ sản phẩm.

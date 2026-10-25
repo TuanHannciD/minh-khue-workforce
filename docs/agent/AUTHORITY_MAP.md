@@ -22,10 +22,10 @@ Chỉ dẫn hệ thống/developer/runtime → yêu cầu và quyền người d
 | Điều gì đã thực sự chạy? | Validation: lệnh/tool, môi trường, kết quả, artifact và giới hạn |
 | Nghiệp vụ chấm công bản đầu đã thống nhất? | [MKW-PRODUCT-001 requirements](../tasks/MKW-PRODUCT-001/approved/requirements.md), tổng hợp xác nhận trong hội thoại |
 | Thiết kế sản phẩm để review và quyết định còn thiếu? | [MKW-PRODUCT-001 design](../tasks/MKW-PRODUCT-001/design.md), Draft for review; đề xuất/câu hỏi chưa là yêu cầu đã duyệt |
-| Kiến trúc kỹ thuật/API/schema? | [ADR-001](../architecture/decisions/ADR-001-product-foundation.md) ghi nền tảng đã chốt; [ARCHITECTURE](../architecture/ARCHITECTURE.md) và [API_CONTRACTS](../architecture/API_CONTRACTS.md) sở hữu nguyên tắc. Stack chi tiết, endpoint/schema chưa duyệt |
+| Kiến trúc kỹ thuật/API/schema? | [ADR-001](../architecture/decisions/ADR-001-product-foundation.md) ghi nền tảng đã chốt; [ARCHITECTURE](../architecture/ARCHITECTURE.md) và [API_CONTRACTS](../architecture/API_CONTRACTS.md) sở hữu nguyên tắc. [ADR-003](../architecture/decisions/ADR-003-product-stack.md) chốt stack phương án A; version/auth/endpoint/schema chi tiết chưa duyệt |
 | Rule cấu trúc code, UI tái sử dụng? | [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md), [UI_SYSTEM](../architecture/UI_SYSTEM.md); chuẩn đã ghi, công cụ kiểm sản phẩm chưa cài/enforce |
 | File dài chia thế nào, Agent đọc source/map ra sao? | [SOURCE_NAVIGATION](../architecture/SOURCE_NAVIGATION.md), chi tiết của CODE_CONVENTIONS; map chỉ định vị, không thay implementation/nghiệp vụ hoặc gate review |
-| State dữ liệu/giao diện và stack ứng viên? | [ADR-002](../architecture/decisions/ADR-002-state-management.md) và [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md) ghi lựa chọn state đã duyệt; [architecture proposal](../tasks/MKW-PRODUCT-001/technical/architecture-proposal.md) cụ thể hóa thiết kế để review, stack mới còn Proposed |
+| State dữ liệu/giao diện và stack ứng viên? | [ADR-002](../architecture/decisions/ADR-002-state-management.md) và [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md) ghi lựa chọn state đã duyệt; [architecture proposal](../tasks/MKW-PRODUCT-001/technical/architecture-proposal.md) cụ thể hóa thiết kế để review, stack phương án A đã duyệt theo ADR-003; các chi tiết còn mở không tự được duyệt |
 | Hiện trạng trước khi chốt nền tảng và đề xuất chi tiết? | [Maintainability review](../tasks/MKW-PRODUCT-001/technical/maintainability-review.md): khảo sát theo checkpoint, không thay các nguồn hiện hành trên |
 
 ## Phân biệt loại nội dung

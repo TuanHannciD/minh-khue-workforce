@@ -6,7 +6,7 @@ Nguồn nền tảng: [ADR-001](decisions/ADR-001-product-foundation.md). Hiệu
 
 Web và API là hai ứng dụng độc lập trong cùng repository; Android về sau có thể dùng chung API. Client dùng contract công khai, không truy cập DB hoặc import entity ORM/internal server. Backend xác minh quyền, validation và quy tắc nghiệp vụ; schema/type của client không thay kiểm tra server.
 
-Contract có một nguồn sở hữu, kèm ví dụ/request/response và lỗi cần hỗ trợ khi thiết kế chi tiết. Chọn OpenAPI/JSON Schema hoặc cơ chế khác phù hợp stack ở bước kiến trúc; không suy từ tên thư mục minh họa rằng format đã được chốt. Sinh client/types khi phù hợp, không duy trì các bản DTO viết tay cạnh tranh mà không có kiểm đồng bộ.
+Contract có một nguồn sở hữu, kèm ví dụ/request/response và lỗi cần hỗ trợ khi thiết kế chi tiết. Theo [ADR-003](decisions/ADR-003-product-stack.md), chọn Nest Swagger sinh OpenAPI từ DTO API và openapi-typescript sinh kiểu web; phiên bản và contract cụ thể chưa chốt. Sinh client/types khi phù hợp, không duy trì các bản DTO viết tay cạnh tranh mà không có kiểm đồng bộ.
 
 Thay contract phải xét consumer web/Android cần hỗ trợ, compatibility và cách chuyển phiên bản. Hình thức URL/version/error/pagination chưa chốt; không tự đặt chúng từ UI mockup hoặc pilot.
 

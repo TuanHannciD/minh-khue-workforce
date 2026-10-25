@@ -24,7 +24,7 @@ Server xác nhận quyền và dữ liệu nghiệp vụ; kiểm tra kiểu ho�
 
 ## Tên, dependency và cập nhật
 
-Tên phản ánh trách nhiệm, tuân convention framework/ngôn ngữ được chọn. File casing, alias, strict TypeScript, format/lint chi tiết sẽ cụ thể hóa trong thiết kế toolchain; quy ước kebab-case/PascalCase ở báo cáo khảo sát vẫn là đề xuất, không tự ép lên backend chưa chọn ngôn ngữ.
+Tên phản ánh trách nhiệm, tuân convention framework/ngôn ngữ được chọn. File casing, alias, strict TypeScript, format/lint chi tiết sẽ cụ thể hóa trong thiết kế toolchain; React/Vite và NestJS/TypeScript đã chọn theo [ADR-003](decisions/ADR-003-product-stack.md); quy ước file/alias chi tiết trong proposal vẫn cần review trong toolchain.
 
 Dependency có vai trò rõ; tránh nhiều thư viện cùng trách nhiệm khi chưa có lý do. Chốt version/lockfile khi được phép cài. Component mã nguồn lấy từ shadcn cần lưu nguồn/version và phần tùy biến; nâng cấp qua diff/review, không ghi đè phần custom.
 

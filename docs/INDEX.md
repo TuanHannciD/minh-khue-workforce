@@ -18,6 +18,7 @@
 
 - [ADR-001](architecture/decisions/ADR-001-product-foundation.md): quyết định nền tảng đã chốt và giới hạn.
 - [ADR-002](architecture/decisions/ADR-002-state-management.md): TanStack Query + state React đã duyệt, Zustand có điều kiện; chưa cài.
+- [ADR-003](architecture/decisions/ADR-003-product-stack.md): stack mục tiêu phương án A đã duyệt; chưa pin/cài/kiểm tương thích.
 - [Kiến trúc](architecture/ARCHITECTURE.md): ứng dụng, module và ranh giới phụ thuộc.
 - [Chuẩn code](architecture/CODE_CONVENTIONS.md): trách nhiệm, reuse và import.
 - [Chia file và điều hướng source](architecture/SOURCE_NAVIGATION.md): trách nhiệm, ngưỡng review, module/file map và cách Agent đọc có mục tiêu; checker chưa cài.
@@ -41,4 +42,4 @@
 - [Khảo sát nền tảng Agent SellerFlow ngày 22/10](reports/2026-10-22-ai-agent-foundation-audit.md)
 - [Khảo sát ban đầu có đề xuất sản phẩm/kiến trúc](reports/2026-10-22-sellerflow-audit-va-workflow-de-xuat.md)
 
-Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Yêu cầu chấm công đã thống nhất được ghi ở MKW-PRODUCT-001; bản thiết kế viết đang chờ review. Nền tảng đã chốt tại ADR-001; stack chi tiết, schema và contract API cụ thể chưa duyệt; nguồn sở hữu được định tuyến tại authority map.
+Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Yêu cầu chấm công đã thống nhất được ghi ở MKW-PRODUCT-001; bản thiết kế viết đang chờ review. Nền tảng đã chốt tại ADR-001; stack mục tiêu đã chốt tại ADR-003, phiên bản/auth/schema và contract API cụ thể chưa duyệt; nguồn sở hữu được định tuyến tại authority map.
