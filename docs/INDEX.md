@@ -20,10 +20,11 @@
 - [Handoff/resume](templates/HANDOFF.md)
 - [Task MKW-AGENT-001](tasks/MKW-AGENT-001/INDEX.md)
 - [Task MKW-AGENT-002](tasks/MKW-AGENT-002/INDEX.md)
+- [Task MKW-PRODUCT-001](tasks/MKW-PRODUCT-001/INDEX.md): yêu cầu đã thống nhất và đặc tả chấm công để review.
 
 ## Báo cáo tham khảo
 
 - [Khảo sát nền tảng Agent SellerFlow ngày 22/10](reports/2026-10-22-ai-agent-foundation-audit.md)
 - [Khảo sát ban đầu có đề xuất sản phẩm/kiến trúc](reports/2026-10-22-sellerflow-audit-va-workflow-de-xuat.md)
 
-Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Project hiện chưa có tài liệu nghiệp vụ, schema hay API contract đã duyệt; khi tạo phải bổ sung nguồn sở hữu vào authority map.
+Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Yêu cầu chấm công đã thống nhất được ghi ở MKW-PRODUCT-001; bản thiết kế viết đang chờ review. Chưa có kiến trúc kỹ thuật, schema hay API contract đã duyệt; nguồn sở hữu được định tuyến tại authority map.

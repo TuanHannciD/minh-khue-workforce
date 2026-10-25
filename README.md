@@ -6,7 +6,8 @@ Project đang chuẩn bị nền tảng để AI Agent phát triển phần mề
 
 - Agent: đọc [AGENTS.md](AGENTS.md), sau đó hồ sơ task đang làm và tài liệu được định tuyến.
 - Người dùng: xem [mục lục tài liệu](docs/INDEX.md) và [trạng thái sẵn sàng](docs/agent/READINESS.md).
-- Công việc hiện tại: [MKW-AGENT-002 — cài đặt và pilot](docs/tasks/MKW-AGENT-002/INDEX.md).
+- Công việc hiện tại: [MKW-PRODUCT-001 — đặc tả chấm công để review](docs/tasks/MKW-PRODUCT-001/INDEX.md).
+- Nền tảng đã bootstrap: [MKW-AGENT-002 — cài đặt và pilot](docs/tasks/MKW-AGENT-002/INDEX.md).
 - Chạy tooling và pilot: [hướng dẫn local](docs/agent/LOCAL_RUN.md).
 
 ## Phạm vi đã thống nhất
@@ -17,4 +18,4 @@ Một bộ tài liệu tiếng Việt là nguồn chuẩn của project. Skill u
 
 ## Trạng thái
 
-Bộ tài liệu và skill project-local đã có Git baseline; pilot ghi chú dùng UI/API/SQLite thật để kiểm tra workflow. Đây là ứng dụng thử dữ liệu giả. Trạng thái từng năng lực, review/resume và bằng chứng tại READINESS; nghiệp vụ chấm công, stack sản phẩm và Android chưa được chốt.
+Bộ tài liệu và skill project-local đã có Git baseline; pilot ghi chú dùng UI/API/SQLite thật để kiểm tra workflow. Đây là ứng dụng thử dữ liệu giả. Trạng thái từng năng lực, review/resume và bằng chứng tại READINESS. Yêu cầu chấm công đã thống nhất đang được tổng hợp thành đặc tả để review trong MKW-PRODUCT-001; stack/contract sản phẩm và ứng dụng Android chưa được chốt.
