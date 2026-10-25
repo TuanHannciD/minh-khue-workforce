@@ -11,8 +11,9 @@ Chuyển cách chấm công Excel toàn công ty thành đặc tả web dễ dù
 - [Yêu cầu đã thống nhất trong hội thoại](approved/requirements.md).
 - [Đặc tả để review](design.md).
 - [Kiểm chứng và bàn giao](validation.md).
+- [Brief và ba phương án UI](ui/BRIEF.md), [bản mẫu tương tác](ui/attendance-concepts.html) — chờ review.
 - Nguồn quyền/routing: [AGENTS](../../../AGENTS.md), [authority map](../../agent/AUTHORITY_MAP.md), [execution rules](../../agent/EXECUTION_RULES.md), [permissions](../../agent/PERMISSIONS.md), [quality gates](../../agent/QUALITY_GATES.md).
-- Quyền hiện tại: đọc/viết/check tài liệu và commit local bản đặc tả theo bước brainstorming. Không scaffold/code/cài dependency sản phẩm, tự chọn stack, dispatch child mới, tích hợp main, push/deploy hoặc dùng hệ thống nhân sự thật.
+- Quyền hiện tại: đọc/viết/check tài liệu và commit local bản đặc tả theo bước brainstorming. Người dùng đã duyệt bắt đầu thiết kế trực quan: thêm HTML bản mẫu độc lập và kiểm bằng native HTML preview/render; không phải quyền triển khai ứng dụng sản phẩm. Không scaffold/code/cài dependency sản phẩm, tự chọn stack, dispatch child mới, tích hợp main, push/deploy hoặc dùng hệ thống nhân sự thật.
 - Phạm vi file: dossier này; thêm định tuyến tại authority map, README và docs/INDEX. Giữ nguyên pilot, PRODUCT.md/DESIGN.md của pilot, skill distribution, hồ sơ002 và evidence cũ.
 
 ## Ownership và risk
@@ -21,8 +22,12 @@ Writer: Agent chính inline. Review: tự rà soát tài liệu và người dù
 
 Workspace sẵn có: `.worktrees/agent-bootstrap`, branch `agent/mkw-agent-002`, base tại lúc bắt đầu `a502c982e07f45e77895833fd86144a474254080`, sạch. Dùng worktree hiện có cho task tài liệu, không tạo thêm; branch vẫn tên bootstrap, commit mới phải thể hiện scope sản phẩm riêng. Primary chỉ đọc; không suy quyền tích hợp002 sang sản phẩm001.
 
-Resource: file Markdown local, checker hiện có; không acquire server/port/DB/browser. Không chép tên nhân sự hoặc ảnh chứa thông tin nhân sự vào Git. Không có thay đổi code nên không chạy lại browser/app tests.
+Resource: file Markdown/HTML local, checker hiện có và native T3 HTML preview/render cho bản mẫu; không tạo server/port/DB, không acquire tab browser riêng. Không chép tên nhân sự hoặc ảnh chứa thông tin nhân sự vào Git. HTML chỉ dùng dữ liệu giả trong bộ nhớ trang; không chạy pilot/app tests không liên quan. Risk riêng của bản mẫu: thấp vì không lưu dữ liệu hoặc kết nối hệ thống; tự review + người dùng xem mẫu, không thay gate review độc lập cho sản phẩm.
 
 ## Bước tiếp
 
 Bàn giao người dùng review bản viết và tiếp tục làm rõ các điểm ở mục10 của đặc tả, đã chốt lựa chọn nhanh công/tăng ca, tự nhập khi lớn hơn2,5 và tăng ca theo bước0,5 giờ; không tăng ca đã chốt để trống. Đã chốt hai tài khoản riêng cùng quyền; đã chốt báo người lưu sau khi ô có thay đổi mới. Tiếp theo phân tích UI/UX bằng Impeccable và UI UX Pro Max, đã biết quy mô hiện tại khoảng20 người và có thể tăng nhiều; đã xác nhận dùng cả iPhone và Android cùng desktop, bước tiếp là trình phương án thiết kế trực quan; không yêu cầu người dùng tự chọn vị trí điều khiển khi chưa có thiết kế. Khi bản viết đủ quyết định và được duyệt, mới chuyển sang kế hoạch triển khai. Không biến đề xuất thành yêu cầu đã duyệt. Commit local của task tài liệu được giữ trên worktree hiện có, chưa tích hợp main.
+
+## Checkpoint UI trực quan
+
+Đã chuẩn bị ba phương án A/B/C trong ui/BRIEF.md và HTML độc lập; chưa phương án nào được duyệt. Tiếp theo người dùng xem/chạm thử, chọn hướng hoặc yêu cầu điều chỉnh. Các câu hỏi nghiệp vụ còn mở ở design vẫn chưa tự được giải quyết bởi bản mẫu.

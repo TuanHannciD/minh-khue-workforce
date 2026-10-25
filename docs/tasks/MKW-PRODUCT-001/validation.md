@@ -63,3 +63,17 @@ Người dùng cho biết hiện khoảng20 người, sau này có thể nhiều
 ## Cập nhật nhóm điện thoại — 25/10/2026
 
 Người dùng xác nhận sử dụng cả iPhone và Android. Cập nhật requirements, design/AC08/Q6 và INDEX. Chưa suy ra mẫu máy/phiên bản/trình duyệt hoặc claim đã thử cảm ứng thật; giữ rõ viewport mô phỏng không thay thiết bị thật. Phạm vi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`.
+
+## Checkpoint bản mẫu trực quan — 25/10/2026
+
+Người dùng đã duyệt bước thiết kế bản mẫu bằng hai skill UI. Scope mở rộng sang HTML nghiên cứu tương tác, không thành triển khai app. Ba phương án/giới hạn tại ui/BRIEF.md; writer vẫn inline. Risk bản mẫu thấp: dữ liệu giả, không gọi API, không persistence/auth, không thay pilot hoặc primary. Tự review và người dùng review bố cục; gate code sản phẩm không được thay bằng kết quả này.
+
+Đã đọc Impeccable shape/new-work/craft-floor, dùng UI UX Pro Max theo brief. Context script nhận PRODUCT.md pilot nên áp nguồn requirements/design của task. Không sửa artifact root hoặc cài dependency. Trình bằng T3 HTML inline thay việc tạo thêm local decision server; không có port/process cần giữ. Chưa chốt visual world hoặc coi nội dung demo là quyết định nghiệp vụ.
+
+Kiểm T3 `html_preview` với tài liệu HTML tự chứa, width390 (dark) và1200 (light): cả hai báo `CHECKS PASSED: 22`, không có console error ở lần cuối. Các kiểm tra DOM gồm20 người/31 ngày, đổi công/tổng, màu không đổi tổng, công/tăng ca độc lập, tùy chỉnh tăng ca3,5, từ chối3,25 trong mẫu, trống/F/Hủy, A/B/C và chuyển loại, tìm người/empty state, reset, N/— không sửa, mở rộng bảng và bố cục theo chiều rộng. Đây là kích hoạt DOM `.click()` trong headless HTML preview, không claim thao tác người dùng thật hoặc Playwright E2E sản phẩm. Script kiểm và kết quả nằm trong `.agent-runs/MKW-PRODUCT-001/ui-preview-checks.js` và `ui-preview-results.json` (ignored, cùng worktree).
+
+Đã xem ảnh render ở khung điện thoại, vùng chat và desktop; sửa tương phản chữ ngoài bản mẫu theo theme. Một assertion desktop ban đầu Failed vì đọc bố cục giữa animation max-width; bỏ animation kích thước, chạy lại xác nhận desktop có hai cột (896px và270px) và điện thoại một cột (376px), không nới assertion. Ngày/nhân sự mẫu đang chọn được đặt trong vùng cuộn nhìn thấy.
+
+`node .agents/skills/impeccable/scripts/detect.mjs --json docs/tasks/MKW-PRODUCT-001/ui/attendance-concepts.html`: lần cuối exit1, còn một warning `flat-type-hierarchy` về nhiều cỡ chữ nhỏ gần nhau. Đã sửa transition kích thước, skipped heading và shadow màu; không tắt/sửa detector. Warning typography giữ mở để xử lý khi phát triển phương án được chọn; không claim detector đạt hoặc UI đã hoàn thiện. Scope hiện tại là artifact để review, không Done sản phẩm.
+
+Các AC sản phẩm vẫn Not run. Chưa có pinch zoom/cảm ứng/bàn phím trên iPhone/Android thật, keyboard Enter/Tab theo bảng, đăng nhập, xung đột hai người, lưu API/DB, export Excel, hiệu năng danh sách lớn hoặc kiểm accessibility đầy đủ. Bản mẫu chỉ giữ dữ liệu trong bộ nhớ và reset khi tải lại. Next action: người dùng chọn/chỉnh hướng A/B/C trước thiết kế chi tiết và review bản đặc tả viết.

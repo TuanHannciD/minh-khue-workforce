@@ -54,7 +54,7 @@ Tên hiển thị không được dùng như lý do gộp hai nhân sự trùng 
 
 ## 5. Thao tác trên điện thoại
 
-**Quy trình thiết kế đã thống nhất:** dùng Impeccable để phân tích tác vụ và hình thành phương án UI/UX, UI UX Pro Max bổ trợ tra cứu tương tác/khả năng tiếp cận. Bố cục, vị trí điều khiển và cách chuyển/xem công–tăng ca phải được trình để review sau phân tích; đề xuất hai nút Công/Tăng ca chưa được duyệt. Các yêu cầu sử dụng bên dưới là ràng buộc đầu vào, chưa phải mockup hoàn chỉnh. Nguồn nghiệp vụ là requirements của task này; PRODUCT.md/DESIGN.md ở root vẫn mô tả pilot, không là brief sản phẩm chấm công.
+**Quy trình thiết kế đã thống nhất:** dùng Impeccable để phân tích tác vụ và hình thành phương án UI/UX, UI UX Pro Max bổ trợ tra cứu tương tác/khả năng tiếp cận. Bố cục, vị trí điều khiển và cách chuyển/xem công–tăng ca phải được trình để review sau phân tích; đề xuất hai nút Công/Tăng ca chưa được duyệt. Các yêu cầu sử dụng bên dưới là ràng buộc đầu vào, chưa phải mockup hoàn chỉnh. Đã có [ba phương án nghiên cứu](ui/BRIEF.md) và [bản mẫu HTML tương tác](ui/attendance-concepts.html) để review; chưa phương án nào được chốt. Nguồn nghiệp vụ là requirements của task này; PRODUCT.md/DESIGN.md ở root vẫn mô tả pilot, không là brief sản phẩm chấm công.
 
 Thiết kế đã được người dùng đồng ý:
 
