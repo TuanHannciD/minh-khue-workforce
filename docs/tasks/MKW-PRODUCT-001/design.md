@@ -12,7 +12,7 @@ Thành công được đánh giá bằng việc thêm nhân sự, nhập/sửa c
 
 Người chấm chính và sếp cùng quyền trên bảng toàn công ty: nhập, sửa số liệu/màu và quản lý ngày làm việc của nhân sự. Không có bước gửi duyệt hoặc mở khóa dữ liệu đã chốt. “Chốt” trong trao đổi là quyết định nhập/sửa của người dùng, không tạo trạng thái hệ thống riêng.
 
-Cùng quyền không đồng nghĩa dùng chung một tài khoản. Cách đăng nhập và tài khoản còn phải chốt ở mục10. Audit log chưa là tính năng bắt buộc; không tự đưa màn hình lịch sử/phê duyệt vào scope.
+Đã thống nhất hai tài khoản riêng cho người chấm chính và sếp, cùng quyền xem, nhập và sửa dữ liệu chấm công toàn công ty. Phương thức đăng nhập và khôi phục tài khoản còn phải chốt ở mục10. Audit log chưa là tính năng bắt buộc; không tự đưa màn hình lịch sử/phê duyệt vào scope.
 
 ## 3. Bảng tháng và ý nghĩa ô
 
@@ -86,7 +86,7 @@ Không tái sử dụng lựa chọn Node22/SQLite experimental của pilot như
 
 ## 9. Tiêu chí nghiệm thu dự kiến khi có ứng dụng
 
-AC01 — Người chấm chính và sếp đều nhập/sửa trực tiếp được; không bị buộc qua quy trình duyệt/mở lại. Kiểm quyền cả UI và API theo thiết kế tài khoản sẽ duyệt.
+AC01 — Người chấm chính và sếp dùng hai tài khoản riêng, cùng quyền xem, nhập/sửa trực tiếp dữ liệu chấm công toàn công ty; không bị buộc qua quy trình duyệt/mở lại. Kiểm quyền cả UI và API theo thiết kế tài khoản sẽ duyệt.
 
 AC02 — Cùng ngày lưu1,5 công và2 giờ tăng ca: refresh/thiết bị khác đọc lại đúng hai giá trị và hai tổng riêng.
 
@@ -114,7 +114,7 @@ Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot
 
 Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Còn cần chốt độ chính xác của số công tùy chỉnh, giới hạn, cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Có cho nhập số0 ở bảng công, và hiển thị0 hay tự chuẩn hóa `F`? Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
 
-Q2 — Đồng ý dùng hai tài khoản riêng nhưng cùng quyền? Phương thức đăng nhập/khôi phục và nơi vận hành phải phù hợp nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
+Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập và sửa. Phương thức đăng nhập/khôi phục và nơi vận hành còn cần chốt theo nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
 
 Q3 — Nếu hai người sửa cùng một ô trước khi thấy thay đổi của nhau, lựa chọn xử lý xung đột đơn giản nào phù hợp? Đề xuất để review: báo có thay đổi mới và tải lại ô trước khi lưu tiếp; chưa tự áp dụng.
 

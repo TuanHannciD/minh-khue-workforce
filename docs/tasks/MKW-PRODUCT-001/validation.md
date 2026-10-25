@@ -43,3 +43,7 @@ Người dùng xác nhận giờ tăng ca có bước nửa giờ như các bư�
 ## Cập nhật ô không tăng ca — 25/10/2026
 
 Người dùng đồng ý đề xuất để trống ngày không tăng ca. Cập nhật requirements, design/AC04/Q1 và INDEX; không tự điền0/F hoặc cộng giờ cho ô trống. Quy tắc mốc ngày N/— và màu nhắc độc lập giữ nguyên. Phạm vi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`, không chứng nhận ứng dụng.
+
+## Cập nhật tài khoản cùng quyền — 25/10/2026
+
+Người dùng đồng ý hai tài khoản riêng cho người chấm chính và sếp, cùng quyền xem/nhập/sửa toàn công ty. Cập nhật requirements, design/AC01/Q2 và INDEX. Chưa quyết định phương thức đăng nhập/khôi phục, chưa thêm vai trò khác hoặc workflow duyệt. Phạm vi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`, chưa có triển khai hoặc kiểm thử quyền trên ứng dụng.
