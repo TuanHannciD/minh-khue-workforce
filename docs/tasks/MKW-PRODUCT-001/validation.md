@@ -47,3 +47,7 @@ Người dùng đồng ý đề xuất để trống ngày không tăng ca. Cậ
 ## Cập nhật tài khoản cùng quyền — 25/10/2026
 
 Người dùng đồng ý hai tài khoản riêng cho người chấm chính và sếp, cùng quyền xem/nhập/sửa toàn công ty. Cập nhật requirements, design/AC01/Q2 và INDEX. Chưa quyết định phương thức đăng nhập/khôi phục, chưa thêm vai trò khác hoặc workflow duyệt. Phạm vi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`, chưa có triển khai hoặc kiểm thử quyền trên ứng dụng.
+
+## Cập nhật xung đột cùng ô — 25/10/2026
+
+Người dùng đồng ý báo người lưu sau khi hai người sửa cùng một ô từ dữ liệu cũ, hiển thị giá trị mới trước khi quyết định sửa tiếp. Cập nhật requirements, design/Q3/AC12 và INDEX; không tự tạo quy trình duyệt hoặc quyết định cơ chế API. AC12 là Not run. Phạm vi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`, chưa kiểm chứng xử lý xung đột trên ứng dụng.

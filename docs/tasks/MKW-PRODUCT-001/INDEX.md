@@ -25,4 +25,4 @@ Resource: file Markdown local, checker hiện có; không acquire server/port/DB
 
 ## Bước tiếp
 
-Bàn giao người dùng review bản viết và tiếp tục làm rõ các điểm ở mục10 của đặc tả, đã chốt lựa chọn nhanh công/tăng ca, tự nhập khi lớn hơn2,5 và tăng ca theo bước0,5 giờ; không tăng ca đã chốt để trống. Đã chốt hai tài khoản riêng cùng quyền; tiếp theo làm rõ cách xử lý khi hai người cùng sửa một ô. Khi bản viết đủ quyết định và được duyệt, mới chuyển sang kế hoạch triển khai. Không biến đề xuất thành yêu cầu đã duyệt. Commit local của task tài liệu được giữ trên worktree hiện có, chưa tích hợp main.
+Bàn giao người dùng review bản viết và tiếp tục làm rõ các điểm ở mục10 của đặc tả, đã chốt lựa chọn nhanh công/tăng ca, tự nhập khi lớn hơn2,5 và tăng ca theo bước0,5 giờ; không tăng ca đã chốt để trống. Đã chốt hai tài khoản riêng cùng quyền; đã chốt báo người lưu sau khi ô có thay đổi mới. Tiếp theo làm rõ bố trí bảng công/tăng ca để hoàn thiện bản đặc tả. Khi bản viết đủ quyết định và được duyệt, mới chuyển sang kế hoạch triển khai. Không biến đề xuất thành yêu cầu đã duyệt. Commit local của task tài liệu được giữ trên worktree hiện có, chưa tích hợp main.

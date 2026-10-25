@@ -68,7 +68,7 @@ Thiết kế đã được người dùng đồng ý:
 
 Hiển thị nhiều cột/người theo không gian màn hình; giữ định hướng dòng/cột khi cuộn. Hỗ trợ chuột, bàn phím, Enter/Tab chuyển ô, và thao tác sửa giá trị/màu tương đương điện thoại.
 
-Hai thiết bị dùng cùng nguồn dữ liệu. Đổi tháng/refresh phải đọc lại số đã lưu và màu. Cách xử lý hai người cùng sửa một ô phải được quyết định trước triển khai để tránh âm thầm mất thay đổi; không tự suy quyền cùng sửa thành “ghi đè cuối luôn thắng”.
+Hai thiết bị dùng cùng nguồn dữ liệu. Đổi tháng/refresh phải đọc lại số đã lưu và màu. Đã thống nhất: nếu hai người sửa cùng một ô dựa trên dữ liệu cũ, người lưu sau nhận thông báo ô đã thay đổi và được xem giá trị mới trước khi quyết định sửa tiếp. Không âm thầm ghi đè thay đổi vừa lưu của người kia. Ví dụ giả: người chấm lưu1,5 công trong lúc sếp đang nhập2 công từ dữ liệu cũ; lần lưu của sếp phải báo thay đổi trước khi sếp quyết định sửa tiếp. Cơ chế kỹ thuật phát hiện xung đột sẽ xác định trong thiết kế API; không tạo bước xin duyệt hoặc khóa quyền sửa.
 
 ## 7. Xuất Excel
 
@@ -104,9 +104,11 @@ AC08 — Điện thoại: cuộn/zoom/xoay ngang và chế độ toàn màn hìn
 
 AC09 — Excel tháng xuất ra khớp số, ký hiệu, màu và tổng của cùng dữ liệu trên web; mở bằng ứng dụng đọc Excel để kiểm, không chỉ assert file tồn tại.
 
-AC10 — Khi lỗi lưu không báo thành công giả, không mất bản nháp; dữ liệu qua web–API–DB thật còn sau reload. Các quyết định về xung đột, validation số và sửa mốc ngày phải có acceptance bổ sung sau khi được chốt.
+AC10 — Khi lỗi lưu không báo thành công giả, không mất bản nháp; dữ liệu qua web–API–DB thật còn sau reload. Validation số và sửa mốc ngày phải có acceptance bổ sung sau khi được chốt.
 
 AC11 — Bảng công có đủ năm lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; chọn **Tùy chỉnh** nhập được số lớn hơn `2,5` (ví dụ3 công), lưu/đọc lại và cộng tổng đúng. Giờ tăng ca có cùng các lựa chọn nhanh nhưng đơn vị và tổng riêng; nhập tùy chỉnh3,5 giờ phải lưu/đọc lại đúng và cộng3,5 giờ, không đổi số công. Bước nhập tăng ca là0,5 giờ; không tự làm tròn số không hợp lệ khi chưa chốt cách xử lý. Validation chi tiết cho số tùy chỉnh sẽ bổ sung sau khi chốt Q1.
+
+AC12 — Hai phiên đăng nhập đọc cùng một ô: phiên thứ nhất lưu1,5 công, phiên thứ hai thử lưu2 công từ dữ liệu cũ. Phiên thứ hai phải nhận thông báo ô đã thay đổi và thấy giá trị1,5 mới; lần lưu đó không âm thầm thay thành2. Người dùng vẫn có thể quyết định sửa tiếp sau khi xem giá trị mới, không qua duyệt.
 
 Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot002 để đổi thành Verified.
 
@@ -116,7 +118,7 @@ Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, 
 
 Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập và sửa. Phương thức đăng nhập/khôi phục và nơi vận hành còn cần chốt theo nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
 
-Q3 — Nếu hai người sửa cùng một ô trước khi thấy thay đổi của nhau, lựa chọn xử lý xung đột đơn giản nào phù hợp? Đề xuất để review: báo có thay đổi mới và tải lại ô trước khi lưu tiếp; chưa tự áp dụng.
+Q3 — Đã chốt: khi hai người sửa cùng một ô từ dữ liệu cũ, báo người lưu sau và hiển thị giá trị mới để quyết định sửa tiếp; không âm thầm ghi đè. Cơ chế kỹ thuật thuộc bước thiết kế API, chưa triển khai.
 
 Q4 — Khi sửa mốc ngày làm việc đụng ô đã có công/tăng ca, người dùng muốn giải quyết thế nào? Cần làm rõ trước khi cho phép thay mốc gây loại dữ liệu. Trường hợp nghỉ/quay lại chưa được yêu cầu; không tự thêm nhiều hợp đồng/giai đoạn vào bản đầu.
 
