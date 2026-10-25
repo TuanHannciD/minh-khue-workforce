@@ -30,7 +30,7 @@ Mỗi ô có hai thông tin độc lập về mặt nghiệp vụ: **nội dung*
 
 ### Tăng ca
 
-Nhập số giờ tăng ca độc lập với số công. Ví dụ giả: cùng ngày có1,5 công và2 giờ tăng ca; tổng công tăng1,5 và tổng giờ tăng ca tăng2. Không có tỷ lệ quy đổi tăng ca thành công được phê duyệt.
+Nhập số giờ tăng ca độc lập với số công, theo bước `0,5` giờ (nửa giờ). Chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5` giờ; số lớn hơn `2,5` giờ nhập qua **Tùy chỉnh**, vẫn theo bước `0,5` giờ. Không cần nhập bước15 phút và không dùng `2,5` làm trần giờ tăng ca. Ví dụ giả: cùng ngày có1,5 công và2 giờ tăng ca; tổng công tăng1,5 và tổng giờ tăng ca tăng2. Không có tỷ lệ quy đổi tăng ca thành công được phê duyệt.
 
 Ngày trước khi vào làm và sau khi kết thúc tuân mốc nhân sự, không phát sinh tổng tăng ca. Trong thời gian làm việc, quy ước ô tăng ca không phát sinh giờ (trống/0/`F`) còn cần chốt; không tự áp ý nghĩa `F` của bảng công thành bộ mã nhập tăng ca.
 
@@ -38,7 +38,7 @@ Ngày trước khi vào làm và sau khi kết thúc tuân mốc nhân sự, kh�
 
 Tổng chỉ cộng giá trị số của đúng loại dữ liệu. Không trừ ô màu xanh khỏi tổng, không tách thêm “tổng đã xác nhận”. Ví dụ giả trên bốn ngày:1 (xanh),0,5,`F` (xanh),trống cho tổng1,5 công; màu giữ nguyên ý nghĩa nhắc người dùng. `N` và `—` không tạo công hoặc giờ tăng ca.
 
-Các lựa chọn nhanh của số công đã được chốt; bước nhập giờ tăng ca, độ chính xác/làm tròn và giới hạn số tùy chỉnh còn phải chốt trước validation API và xuất số; không lấy giới hạn ngẫu nhiên của UI làm nghiệp vụ. Giao diện cần thể hiện dấu phẩy thập phân quen thuộc; cách chấp nhận dấu chấm và độ chính xác là quyết định ở mục10.
+Lựa chọn nhanh của công/tăng ca và bước tăng ca `0,5` giờ đã được chốt; độ chính xác của số công tùy chỉnh, giới hạn và xử lý số không hợp lệ còn phải chốt trước validation API và xuất số; không lấy giới hạn ngẫu nhiên của UI làm nghiệp vụ. Giao diện cần thể hiện dấu phẩy thập phân quen thuộc; cách chấp nhận dấu chấm và độ chính xác là quyết định ở mục10.
 
 ## 4. Nhân sự và mốc làm việc
 
@@ -58,7 +58,7 @@ Thiết kế đã được người dùng đồng ý:
 - Giữ cột tên và hàng ngày/thứ trong tầm nhìn khi cuộn, giúp xác định đúng ô.
 - Cho phép phóng to/thu nhỏ bằng hai ngón, xem bảng toàn màn hình và xoay ngang.
 - Chạm một ô mở phần nhập dễ bấm; bảng công có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`, **Tùy chỉnh** cho số lớn hơn `2,5`, chọn `F` và bật/tắt màu xanh. `N`/`—` liên quan mốc ngày, không tự biến thành lựa chọn nghỉ.
-- Công và tăng ca đều có đủ thao tác; không giới hạn điện thoại chỉ xem.
+- Bảng tăng ca có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5` giờ và **Tùy chỉnh** cho số lớn hơn `2,5` giờ, theo bước `0,5` giờ. Công và tăng ca đều có đủ thao tác; không giới hạn điện thoại chỉ xem.
 
 **Đề xuất để review:** phần nhập cho biết tên người, ngày và loại công/tăng ca đang sửa, có Lưu/Hủy để hạn chế chạm nhầm. Chỉ báo đã lưu khi backend xác nhận; lỗi lưu giữ nội dung để thử lại, không giả tổng đã lưu. Đây là hành vi an toàn kỹ thuật đề xuất, chưa phải mockup hoặc màn hình đã kiểm chứng.
 
@@ -106,13 +106,13 @@ AC09 — Excel tháng xuất ra khớp số, ký hiệu, màu và tổng của c
 
 AC10 — Khi lỗi lưu không báo thành công giả, không mất bản nháp; dữ liệu qua web–API–DB thật còn sau reload. Các quyết định về xung đột, validation số và sửa mốc ngày phải có acceptance bổ sung sau khi được chốt.
 
-AC11 — Bảng công có đủ năm lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; chọn **Tùy chỉnh** nhập được số lớn hơn `2,5` (ví dụ3 công), lưu/đọc lại và cộng tổng đúng. Không áp bộ lựa chọn này sang giờ tăng ca. Validation chi tiết cho số tùy chỉnh sẽ bổ sung sau khi chốt Q1.
+AC11 — Bảng công có đủ năm lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; chọn **Tùy chỉnh** nhập được số lớn hơn `2,5` (ví dụ3 công), lưu/đọc lại và cộng tổng đúng. Giờ tăng ca có cùng các lựa chọn nhanh nhưng đơn vị và tổng riêng; nhập tùy chỉnh3,5 giờ phải lưu/đọc lại đúng và cộng3,5 giờ, không đổi số công. Bước nhập tăng ca là0,5 giờ; không tự làm tròn số không hợp lệ khi chưa chốt cách xử lý. Validation chi tiết cho số tùy chỉnh sẽ bổ sung sau khi chốt Q1.
 
 Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot002 để đổi thành Verified.
 
 ## 10. Các quyết định còn cần chốt
 
-Q1 — Đã chốt lựa chọn nhanh số công `0,5; 1; 1,5; 2; 2,5` và tự nhập khi lớn hơn `2,5`. Còn cần chốt bước nhập giờ tăng ca; độ chính xác/giới hạn của số tùy chỉnh; xử lý dấu phẩy/chấm và làm tròn. Có cho nhập số0 ở bảng công, và hiển thị0 hay tự chuẩn hóa `F`? Quy ước không tăng ca là trống/0 hay có `F`?
+Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Còn cần chốt độ chính xác của số công tùy chỉnh, giới hạn, cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Có cho nhập số0 ở bảng công, và hiển thị0 hay tự chuẩn hóa `F`? Quy ước không tăng ca là trống/0 hay có `F`?
 
 Q2 — Đồng ý dùng hai tài khoản riêng nhưng cùng quyền? Phương thức đăng nhập/khôi phục và nơi vận hành phải phù hợp nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
 

@@ -35,3 +35,7 @@ Bản viết là đặc tả để review, không phải implementation-ready ch
 ## Cập nhật lựa chọn số công — 25/10/2026
 
 Theo trả lời mới của người dùng, cập nhật requirements, design và bước tiếp trong INDEX: chọn nhanh0,5/1/1,5/2/2,5; Tùy chỉnh để nhập lớn hơn2,5. Tự review xác nhận không biến2,5 thành trần hoặc suy bước công thành bước giờ tăng ca. Q1 đã giải quyết một phần; độ chính xác/giới hạn tùy chỉnh vẫn chưa chốt. Thêm AC11 ở trạng thái Not run; phạm vi vẫn chỉ tài liệu.
+
+## Cập nhật bước tăng ca — 25/10/2026
+
+Người dùng xác nhận giờ tăng ca có bước nửa giờ như các bước công. Cập nhật nguồn requirements, design/AC11/Q1 và next action: chọn nhanh0,5/1/1,5/2/2,5 giờ, tùy chỉnh lớn hơn2,5 theo bước0,5 giờ. Đây là xác nhận mới, thay phần chưa chốt bước tăng ca ở checkpoint trước. Tự review giữ nguyên đơn vị/tổng riêng và không tự quyết định ô không tăng ca hay làm tròn. Kiểm tra tài liệu bằng `npm run check:docs` và `git diff --check`; không chạy app/browser vì chỉ sửa Markdown.
