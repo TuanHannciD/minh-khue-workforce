@@ -16,6 +16,8 @@ Người chấm chính và sếp cùng quyền trên bảng toàn công ty: nh�
 
 ## 3. Bảng tháng và ý nghĩa ô
 
+Quy mô hiện tại khoảng20 người mỗi tháng, có thể tăng nhiều về sau; chưa xác định trần hoặc số lượng mục tiêu tương lai. Thiết kế cần xét danh sách dài hơn, không lấy20 làm giới hạn hoặc tự quyết định phân trang/ảo hóa khi chưa phân tích.
+
 Chọn tháng/năm, xem nhân sự theo dòng và ngày/thứ theo cột. Có bảng công và bảng tăng ca; tổng theo người và theo ngày ở mỗi phần, đơn vị riêng.
 
 Mỗi ô có hai thông tin độc lập về mặt nghiệp vụ: **nội dung** và **có màu xanh nhắc kiểm tra hay không**. Hai ô công/tăng ca của cùng người/ngày không bắt buộc cùng màu. Màu không thay đổi phép tính và không ngăn chỉnh sửa.
@@ -126,6 +128,6 @@ Q4 — Khi sửa mốc ngày làm việc đụng ô đã có công/tăng ca, ng�
 
 Q5 — Xác nhận đề xuất một sheet với hai bảng, và tổng xuất là số tại thời điểm xuất hay công thức để tiếp tục sửa Excel? Bố trí hai bảng liên tiếp hay chuyển qua lại trên web sẽ được phân tích bằng Impeccable + UI UX Pro Max rồi trình phương án trực quan để review, chưa chốt hai nút Công/Tăng ca hoặc bố cục khác.
 
-Q6 — Quy mô dự kiến (số nhân sự) và nhóm điện thoại/trình duyệt chính để đặt yêu cầu hiệu năng/bộ nhớ và xác minh zoom, sticky, nhập cảm ứng.
+Q6 — Đã biết hiện tại khoảng20 người mỗi tháng, sau này có thể tăng nhiều; chưa có số lượng mục tiêu tương lai. Cần biết nhóm điện thoại/trình duyệt chính để thiết kế và xác minh zoom, sticky, nhập cảm ứng. Mốc hiệu năng/quy mô kiểm thử sẽ đề xuất rõ khi có kiến trúc, không tự coi20 là trần hoặc hứa hỗ trợ không giới hạn.
 
 Các câu hỏi này không chặn việc ghi nhận yêu cầu/UX đã thống nhất. Chúng chặn phần kiến trúc/validation/contract hoặc thiết kế chi tiết tương ứng; không gọi bản này là spec đủ để Agent tự triển khai sản phẩm ngay.

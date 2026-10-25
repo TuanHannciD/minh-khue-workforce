@@ -55,3 +55,7 @@ Người dùng đồng ý báo người lưu sau khi hai người sửa cùng m�
 ## Cập nhật phương pháp UI/UX — 25/10/2026
 
 Theo chỉ dẫn người dùng, bố cục/vị trí phải qua skill thiết kế, không tự kết luận. Đã đọc Impeccable/shape và UI UX Pro Max; chạy context một lần với target design của task. Context tải cả PRODUCT.md của pilot nên không dùng nó làm brief chấm công hoặc sửa root. Tra cứu UX ban đầu có kết quả lẫn chủ đề; thu hẹp một lần sang touch target size, trả về đúng Mobile Touch và Web Target Size (Minimum); chỉ dùng làm tham khảo theo nền tảng, không tự áp một kích thước cho mọi nơi hoặc thêm bulk edit vào scope. Chưa tạo/chọn mockup, chưa chứng nhận chất lượng UI. Bổ sung requirements/design/INDEX để ghi hai nút Công/Tăng ca chưa được duyệt; phạm vi vẫn chỉ tài liệu.
+
+## Cập nhật quy mô nhân sự — 25/10/2026
+
+Người dùng cho biết hiện khoảng20 người, sau này có thể nhiều hơn rất nhiều. Cập nhật requirements/design/Q6/INDEX, không suy ra trần, số lượng tương lai cụ thể hoặc quyết định phân trang/ảo hóa. Chưa có benchmark hay kiểm thử hiệu năng sản phẩm. Thay đổi chỉ Markdown; kiểm bằng `npm run check:docs` và `git diff --check`.
