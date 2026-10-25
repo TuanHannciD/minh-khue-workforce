@@ -11,6 +11,7 @@ Mặc định: [AGENTS](../../AGENTS.md) → [AUTHORITY_MAP](AUTHORITY_MAP.md) �
 | Viết/sửa source hoặc tooling | Plan đã duyệt, [QUALITY_GATES](QUALITY_GATES.md); với sản phẩm đọc [ARCHITECTURE](../architecture/ARCHITECTURE.md), [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md) và module/contract liên quan |
 | UI/UX hoặc thao tác browser | [UI_SYSTEM](../architecture/UI_SYSTEM.md), [BROWSER_TESTING](BROWSER_TESTING.md), nhóm UI trong skill matrix, thiết kế hiện hành khi có |
 | Lỗi | Evidence hiện có, skill debugging khi đã cài, quality gate liên quan; mở rộng source/log theo giả thuyết |
+| State/cache/bản nháp | [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md), [ADR-002](../architecture/decisions/ADR-002-state-management.md); luồng chi tiết tại [architecture proposal](../tasks/MKW-PRODUCT-001/technical/architecture-proposal.md), phần mới vẫn để review |
 | DB/API | Yêu cầu đã duyệt, [API_CONTRACTS](../architecture/API_CONTRACTS.md), [ARCHITECTURE](../architecture/ARCHITECTURE.md) và contract/schema cụ thể khi có; chưa có thì làm rõ, không suy từ báo cáo khảo sát |
 | Chỉ sửa tài liệu | Nguồn sở hữu cần sửa, quyền/phạm vi và check tài liệu trong QUALITY_GATES |
 | Hỏi mức sẵn sàng hoặc chuẩn bị pilot | [READINESS](READINESS.md), validation đúng checkpoint |

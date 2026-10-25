@@ -24,6 +24,10 @@ Thư mục, tên alias, barrel entrypoint và dependency graph cụ thể chưa 
 
 [CODE_CONVENTIONS](CODE_CONVENTIONS.md) sở hữu code/reuse; [UI_SYSTEM](UI_SYSTEM.md) sở hữu UI; [API_CONTRACTS](API_CONTRACTS.md) sở hữu giao tiếp. Những thay đổi ranh giới quan trọng ghi quyết định/ảnh hưởng, không sửa ngầm kiến trúc bằng một import mới.
 
+## Bản thiết kế kỹ thuật để review
+
+[Bản kiến trúc cụ thể](../tasks/MKW-PRODUCT-001/technical/architecture-proposal.md) trình các hướng stack, cây source ứng viên, luồng state/API và kiểm tự động. Ngoài phần được duyệt riêng tại [ADR-002](decisions/ADR-002-state-management.md), các lựa chọn mới ở đó vẫn Proposed. Bản này là nguồn nguyên tắc; proposal không tự thay quy tắc hiện hành.
+
 ## Cần thiết kế trước triển khai
 
 Chốt framework web, toolchain và backend; chọn DB/auth theo nhu cầu thực; cụ thể hóa cây source/build và contract. Sau đó lập kế hoạch cấu hình boundary/type/build/test và review theo [QUALITY_GATES](../agent/QUALITY_GATES.md). Chưa có benchmark hoặc cam kết quy mô vô hạn; khả năng mở rộng dữ liệu phải kiểm riêng với dữ liệu giả phù hợp.

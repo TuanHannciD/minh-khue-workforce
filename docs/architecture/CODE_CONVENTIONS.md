@@ -16,6 +16,8 @@ Tuân chiều phụ thuộc tại ARCHITECTURE. Dùng interface công khai tối
 
 Giữ state chọn ô/bản nháp ở feature phù hợp, dữ liệu server qua lớp truy cập dữ liệu thống nhất, chỉ dùng global state cho nhu cầu toàn ứng dụng thật. Không tự chọn query/store/form library chỉ để đủ danh mục. Quy tắc công/tăng ca và mốc nhân sự không đặt vào generic formatter hoặc primitive UI.
 
+Theo [ADR-002](decisions/ADR-002-state-management.md), dùng TanStack Query cho dữ liệu API và state React cho thao tác/bản nháp. Không nhân bản server cache sang global store. Zustand chỉ bổ sung khi xác định được consumer và nhu cầu chia sẻ state giao diện; chưa là dependency bắt buộc. URL state theo router sẽ thiết kế sau. Chưa cài hoặc kiểm chứng các thư viện state sản phẩm.
+
 Server xác nhận quyền và dữ liệu nghiệp vụ; kiểm tra kiểu hoặc UI validation không thay validation server. FE không nhận server secrets hoặc phụ thuộc kiểu entity DB; contract giao tiếp theo API_CONTRACTS.
 
 ## Tên, dependency và cập nhật

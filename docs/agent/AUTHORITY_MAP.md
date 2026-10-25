@@ -24,6 +24,7 @@ Chỉ dẫn hệ thống/developer/runtime → yêu cầu và quyền người d
 | Thiết kế sản phẩm để review và quyết định còn thiếu? | [MKW-PRODUCT-001 design](../tasks/MKW-PRODUCT-001/design.md), Draft for review; đề xuất/câu hỏi chưa là yêu cầu đã duyệt |
 | Kiến trúc kỹ thuật/API/schema? | [ADR-001](../architecture/decisions/ADR-001-product-foundation.md) ghi nền tảng đã chốt; [ARCHITECTURE](../architecture/ARCHITECTURE.md) và [API_CONTRACTS](../architecture/API_CONTRACTS.md) sở hữu nguyên tắc. Stack chi tiết, endpoint/schema chưa duyệt |
 | Rule cấu trúc code, UI tái sử dụng? | [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md), [UI_SYSTEM](../architecture/UI_SYSTEM.md); chuẩn đã ghi, công cụ kiểm sản phẩm chưa cài/enforce |
+| State dữ liệu/giao diện và stack ứng viên? | [ADR-002](../architecture/decisions/ADR-002-state-management.md) và [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md) ghi lựa chọn state đã duyệt; [architecture proposal](../tasks/MKW-PRODUCT-001/technical/architecture-proposal.md) cụ thể hóa thiết kế để review, stack mới còn Proposed |
 | Hiện trạng trước khi chốt nền tảng và đề xuất chi tiết? | [Maintainability review](../tasks/MKW-PRODUCT-001/technical/maintainability-review.md): khảo sát theo checkpoint, không thay các nguồn hiện hành trên |
 
 ## Phân biệt loại nội dung

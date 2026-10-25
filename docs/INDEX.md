@@ -17,6 +17,7 @@
 ## Nền tảng sản phẩm
 
 - [ADR-001](architecture/decisions/ADR-001-product-foundation.md): quyết định nền tảng đã chốt và giới hạn.
+- [ADR-002](architecture/decisions/ADR-002-state-management.md): TanStack Query + state React đã duyệt, Zustand có điều kiện; chưa cài.
 - [Kiến trúc](architecture/ARCHITECTURE.md): ứng dụng, module và ranh giới phụ thuộc.
 - [Chuẩn code](architecture/CODE_CONVENTIONS.md): trách nhiệm, reuse và import.
 - [Hệ UI](architecture/UI_SYSTEM.md): shadcn/Radix, component và thiết kế dùng chung.
@@ -30,6 +31,8 @@
 - [Task MKW-AGENT-002](tasks/MKW-AGENT-002/INDEX.md)
 - [Task MKW-PRODUCT-001](tasks/MKW-PRODUCT-001/INDEX.md): yêu cầu đã thống nhất và đặc tả chấm công để review.
 - [Rà soát cấu trúc code và nền UI tái sử dụng](tasks/MKW-PRODUCT-001/technical/maintainability-review.md): khảo sát trước quyết định nền tảng; các đề xuất chi tiết chưa chốt vẫn là đề xuất.
+
+- [Bản kiến trúc kỹ thuật cụ thể để review](tasks/MKW-PRODUCT-001/technical/architecture-proposal.md): stack ứng viên, cây source, state/lưu lỗi/xung đột và cách kiểm; chưa là implementation plan.
 
 ## Báo cáo tham khảo
 

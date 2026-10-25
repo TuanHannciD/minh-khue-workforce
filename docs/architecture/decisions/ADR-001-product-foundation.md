@@ -21,6 +21,8 @@ Thay component nền phải xét các consumer; feature mới dùng lại hệ U
 
 ## Những phần chưa được quyết định
 
+Cập nhật tiếp nối: lựa chọn query/state đã được chốt riêng tại [ADR-002](ADR-002-state-management.md). Danh sách bên dưới giữ phạm vi quyết định tại thời điểm ADR-001; áp dụng ADR-002 cho phần được bổ sung.
+
 Framework web, TypeScript/toolchain chi tiết, backend/DB/ORM/auth/hosting, package manager và version pin; cây thư mục/alias cụ thể; format/version/API fields; thư viện query/store/form/grid; palette/font/tokens cuối; CI provider. Số công tùy chỉnh và các điểm nghiệp vụ chưa chốt vẫn theo dossier sản phẩm. Chưa duyệt implementation plan, cài dependency hoặc scaffold/code sản phẩm.
 
 ## Nguồn hiện hành và kiểm chứng

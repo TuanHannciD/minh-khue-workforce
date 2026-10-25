@@ -26,7 +26,9 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 
 ## Bước tiếp
 
-Đã ghi nhận nền tảng được người dùng chốt tại [ADR-001](../../architecture/decisions/ADR-001-product-foundation.md), hoàn thiện bốn nguồn chuẩn và định tuyến Agent. Tiếp theo cụ thể hóa framework/toolchain, backend/DB/auth, cây source và cách kiểm ranh giới; đồng thời phát triển bản mẫu thị giác C chuyên nghiệp bằng Impeccable + UI UX Pro Max để review. Tiếp tục làm rõ các điểm mở ở mục10 của đặc tả trước contract/validation tương ứng. Khi bản đặc tả viết đủ quyết định và được duyệt, mới lập kế hoạch triển khai; chưa cài/scaffold sản phẩm hoặc tích hợp primary. Commit tài liệu giữ local trên worktree hiện có.
+Đã ghi [ADR-002 về state](../../architecture/decisions/ADR-002-state-management.md) theo approval tiếp nối. [Bản kiến trúc cụ thể](technical/architecture-proposal.md) đã viết để người dùng review: so sánh hướng stack, đề xuất công cụ/cây source, luồng state/lưu lỗi/xung đột và acceptance tooling. Chưa có cài/code/implementation plan. Các lựa chọn mới vẫn Proposed; tiếp tục làm rõ nghiệp vụ/đăng nhập/Excel và thiết kế thị giác C trước phần triển khai phụ thuộc.
+
+Checkpoint trước: đã ghi nhận nền tảng được người dùng chốt tại [ADR-001](../../architecture/decisions/ADR-001-product-foundation.md), hoàn thiện bốn nguồn chuẩn và định tuyến Agent. Tiếp theo cụ thể hóa framework/toolchain, backend/DB/auth, cây source và cách kiểm ranh giới; đồng thời phát triển bản mẫu thị giác C chuyên nghiệp bằng Impeccable + UI UX Pro Max để review. Tiếp tục làm rõ các điểm mở ở mục10 của đặc tả trước contract/validation tương ứng. Khi bản đặc tả viết đủ quyết định và được duyệt, mới lập kế hoạch triển khai; chưa cài/scaffold sản phẩm hoặc tích hợp primary. Commit tài liệu giữ local trên worktree hiện có.
 
 ## Checkpoint UI trực quan
 
@@ -39,3 +41,9 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 **Lịch sử khảo sát trước quyết định trên:** người dùng yêu cầu ưu tiên một bộ UI nhất quán/tái sử dụng khi có nhiều feature, đồng thời kiểm tra rule cấu trúc file/code/thành phần. Scope bổ sung: khảo sát nguồn hiện hành và viết [báo cáo cùng đề xuất kiến trúc](technical/maintainability-review.md); chưa phê duyệt shadcn/Radix/React hoặc cấu trúc repository, chưa sửa rule thực thi, tooling, dependency hay scaffold sản phẩm.
 
 Base checkpoint `bb390add47a862b12d7a9ad4fdd74cc0399b46a4`, workspace sạch trước sửa. Writer inline; risk tài liệu trung bình do ảnh hưởng kiến trúc tương lai, tự review + người dùng review, không dispatch child. Vùng file: dossier này và liên kết định tuyến authority map/docs INDEX. Acceptance: đối chiếu rule với cấu hình thật, chỉ rõ có/thiếu, đề xuất module/UI/contract và cách kiểm soát bằng công cụ, giữ phân biệt Proposed/Enforced. Chỉ dùng đọc file/search/check Markdown; không resource server/DB/browser mới, không đổi primary. Bước tiếp: người dùng review đề xuất nền tảng trước khi hoàn thiện chuẩn sản phẩm và kiến trúc chi tiết.
+
+## Tiếp nối quản lý state và kiến trúc cụ thể
+
+Người dùng trả lời “Approve” sau đề xuất TanStack Query + state React, Zustand chỉ bổ sung khi có nhu cầu chia sẻ state rõ ràng, và bước hoàn thiện bản kiến trúc cụ thể để review. Base `784e697e49d216cee9725a5aef709963925462e0`, workspace sạch trước sửa. Acceptance: ghi ADR state, cụ thể hóa trách nhiệm/cache/bản nháp/lưu lỗi/xung đột; trình phương án stack/cây source/contract/check với lý do và giới hạn. Phần stack mới vẫn Proposed, không suy approval thành quyền cài/code hoặc duyệt backend/DB/auth.
+
+Writer inline; tự review tài liệu và người dùng review thiết kế, không dispatch child. Phạm vi: docs/architecture, dossier sản phẩm, định tuyến README/docs INDEX/authority/routing cần thiết. Resource: Markdown local, check tài liệu và đọc tài liệu công khai chính thức; nếu lưu kết quả khảo sát thì dùng evidence ignored của task, không acquire server/DB/browser. Primary giữ nguyên, không sửa pilot/dependency/tooling/global config. Risk trung bình về diễn giải kiến trúc; không thay yêu cầu nghiệp vụ đang mở bằng giả định kỹ thuật. Bản kiến trúc là design để review, chưa phải implementation plan.
