@@ -77,3 +77,7 @@ Kiểm T3 `html_preview` với tài liệu HTML tự chứa, width390 (dark) và
 `node .agents/skills/impeccable/scripts/detect.mjs --json docs/tasks/MKW-PRODUCT-001/ui/attendance-concepts.html`: lần cuối exit1, còn một warning `flat-type-hierarchy` về nhiều cỡ chữ nhỏ gần nhau. Đã sửa transition kích thước, skipped heading và shadow màu; không tắt/sửa detector. Warning typography giữ mở để xử lý khi phát triển phương án được chọn; không claim detector đạt hoặc UI đã hoàn thiện. Scope hiện tại là artifact để review, không Done sản phẩm.
 
 Các AC sản phẩm vẫn Not run. Chưa có pinch zoom/cảm ứng/bàn phím trên iPhone/Android thật, keyboard Enter/Tab theo bảng, đăng nhập, xung đột hai người, lưu API/DB, export Excel, hiệu năng danh sách lớn hoặc kiểm accessibility đầy đủ. Bản mẫu chỉ giữ dữ liệu trong bộ nhớ và reset khi tải lại. Next action: người dùng chọn/chỉnh hướng A/B/C trước thiết kế chi tiết và review bản đặc tả viết.
+
+## Quyết định chọn hướng C và phản hồi chất lượng UI — 25/10/2026
+
+Người dùng chọn C về tổ chức/thao tác, đồng thời đánh giá diện mạo bản mẫu còn thô/xấu, chưa chuyên nghiệp. Cập nhật requirements, design/Q5, ui/BRIEF và INDEX; không coi UI hiện tại đã duyệt hoặc gọi bước polish đơn giản là đủ. Giữ HTML so sánh ở checkpoint trước làm lịch sử, chưa sửa giao diện hoặc chạy lại browser cho thay đổi tài liệu. Next action: phát triển thiết kế thị giác C hoàn thiện hơn bằng Impeccable + UI UX Pro Max để người dùng review. Kiểm tài liệu bằng `npm run check:docs` và `git diff --check`.

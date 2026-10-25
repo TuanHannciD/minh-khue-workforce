@@ -10,7 +10,7 @@ Nguồn: hội thoại trực tiếp tiếp nối MKW-AGENT-002, ghi nhận ngà
 - Người dùng và sếp mỗi người một tài khoản riêng, cùng quyền xem, nhập và sửa dữ liệu chấm công toàn công ty. Phương thức đăng nhập/khôi phục chưa được chốt.
 - Khi hai người sửa cùng một ô dựa trên dữ liệu cũ, người lưu sau được báo ô đã thay đổi và xem giá trị mới trước khi quyết định sửa tiếp; không âm thầm ghi đè thay đổi vừa lưu của người kia. Đây không phải quy trình duyệt.
 - Không ghi nhận phần công của một người theo từng công trình trong ngày. Lọc/quản lý công trình chưa được chốt vào phạm vi bản đầu.
-- Vị trí thành phần và UI/UX phải được phân tích, thiết kế bằng skill chuyên môn (Impeccable chủ đạo, UI UX Pro Max bổ trợ), trình phương án để người dùng review; không tự chốt bố cục từ đề xuất hội thoại. Hai nút Công/Tăng ca chưa được duyệt.
+- Vị trí thành phần và UI/UX phải được phân tích, thiết kế bằng skill chuyên môn (Impeccable chủ đạo, UI UX Pro Max bổ trợ), trình phương án để người dùng review; không tự chốt bố cục từ đề xuất hội thoại. Sau khi xem bản mẫu, người dùng chọn hướng C: mỗi lúc hiển thị một bảng lớn, chuyển Công/Tăng ca. Lựa chọn này chốt hướng tổ chức/thao tác; màu sắc, font, khoảng cách, hình thức điều khiển và mức hoàn thiện thị giác của bản mẫu chưa được duyệt. Người dùng đánh giá UI hiện tại thô, chưa đẹp/chuyên nghiệp và yêu cầu phát triển thiết kế phù hợp doanh nghiệp.
 - Quy mô hiện tại khoảng20 người được chấm công mỗi tháng; sau này có thể tăng nhiều, chưa xác định số lượng tối đa hoặc mốc tăng trưởng. Không lấy20 làm trần nhân sự.
 - Thiết kế ban đầu đơn giản. Dùng cả điện thoại và máy tính, ưu tiên điện thoại một chút nhưng desktop phải đầy đủ.
 

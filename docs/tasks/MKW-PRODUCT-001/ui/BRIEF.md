@@ -1,6 +1,6 @@
 # Bản mẫu bảng tháng và nhập ô
 
-Ngày 25/10/2026. Trạng thái: **Proposed — chờ người dùng chọn hướng**. Người dùng đã cho phép bắt đầu bản mẫu trực quan bằng Impeccable + UI UX Pro Max; chưa duyệt bố cục, màu sắc, đặc tả viết đầy đủ hoặc triển khai sản phẩm.
+Ngày 25/10/2026. Trạng thái: **Đã chọn hướng tổ chức C — thiết kế thị giác chưa duyệt**. Người dùng chọn một bảng lớn và chuyển Công/Tăng ca, đồng thời nhận xét bản mẫu còn thô/xấu, chưa mang cảm giác đẹp/chuyên nghiệp cho doanh nghiệp. Không xem lựa chọn C là phê duyệt màu sắc, font, spacing, hình thức điều khiển hoặc độ hoàn thiện hiện tại. Chưa duyệt đặc tả viết đầy đủ hoặc triển khai sản phẩm.
 
 ## Mục đích và phạm vi
 
@@ -18,7 +18,7 @@ Nguồn nghiệp vụ là [requirements](../approved/requirements.md) và [desig
 | B — Sổ công liên tiếp | Bảng công trước, tăng ca sau | Hai bảng rộng nối tiếp, phần nhập bên phải | Quen Excel; danh sách dài làm tăng quãng cuộn giữa hai phần |
 | C — Tập trung một bảng | Chuyển Công/Tăng ca, một bảng lớn | Một bảng lớn, phần nhập bên phải | Nhiều chỗ đọc/nhập hơn; cần chuyển bảng khi đối chiếu |
 
-A mở đầu để khám phá, không phải mặc định sản phẩm đã chọn. B là phương án gần quy trình Excel hiện tại; C đáng thử khi nhập chủ yếu trên điện thoại. Không kết luận thay người dùng; có thể yêu cầu kết hợp, điều chỉnh hoặc một hướng khác.
+Người dùng đã chọn C về cách tổ chức và thao tác. A/B là phương án khảo sát được giữ làm lịch sử; HTML so sánh vẫn là bản mẫu tại checkpoint trước, không tự nâng thành giao diện cuối. Bước tiếp phát triển diện mạo C ở mức hoàn thiện cao hơn để review.
 
 Ba phương án dùng cùng bộ dữ liệu và điều khiển để so sánh công bằng. Màu xanh chỉ nhắc, vẫn cộng số bình thường; ô công và tăng ca đánh dấu độc lập. F chỉ có ở công; tăng ca trống là không phát sinh giờ. N/— không chỉnh trực tiếp. Tổng người/ngày riêng theo đơn vị. Số chọn nhanh và tùy chỉnh theo yêu cầu đã chốt. Xử lý số công tùy chỉnh chưa là validation contract chính thức.
 
@@ -27,11 +27,11 @@ Phần tên, ngày/thứ và tổng giữ trong vùng nhìn khi cuộn. Điện 
 ## Cách dùng skill và giới hạn
 
 - Impeccable: đã chạy context một lần và đọc shape/new-work/craft-floor; nguồn sản phẩm riêng của task được ưu tiên so với pilot. Skill giữ vai trò phân tích, chưa gọi UI hoàn thiện hoặc production-ready.
-- Đã chạy concept-seed direction/operate, key `eef56e12`, assigned index7. Các hướng được xét từ quy trình quen thuộc: sổ công tháng, lịch bàn, sổ đăng bộ, phiếu nhập theo người, bảng theo dõi ca, bảng điều phối và bảng đối chiếu hai mặt. Index7 tương ứng A; hướng sổ công tháng tương ứng B. Tất cả vẫn là nghiên cứu, không có lựa chọn được khóa hoặc telemetry kết quả lựa chọn.
+- Đã chạy concept-seed direction/operate, key `eef56e12`, assigned index7. Các hướng được xét từ quy trình quen thuộc: sổ công tháng, lịch bàn, sổ đăng bộ, phiếu nhập theo người, bảng theo dõi ca, bảng điều phối và bảng đối chiếu hai mặt. Index7 tương ứng A; hướng sổ công tháng tương ứng B. Người dùng sau đó chọn C về tổ chức bảng; không dùng seed để suy ra phê duyệt một catalog world hoặc thiết kế thị giác. Chưa gửi telemetry kết quả lựa chọn.
 - Các gợi ý catalog được cân nhắc theo nhận diện người dùng và độ rõ của công việc: bố cục dày kiểu Japanese high-density đóng góp tính tiết kiệm không gian cho C; không nhập tiny type/hover-only/red badge vào giao diện điện thoại. Bản đồ giao thông, bản đồ sao, vé máy bay và manual acetate không được đưa thành phương án thương hiệu vì làm xa cấu trúc người × ngày hoặc thêm ẩn dụ/trạng thái không có trong nghiệp vụ. Giữ kỷ luật định hướng, tọa độ dòng/cột, đơn vị rõ và thứ bậc điều khiển. Đây là tham khảo đã điều chỉnh theo brief Excel, không claim tái tạo đầy đủ catalog world.
 - UI UX Pro Max: hai lượt design-system trả cả pattern landing page/Enterprise Gateway không phù hợp, nên loại các pattern Hero/CTA/contact sales và không persist chúng thành design system. Chỉ giữ tham khảo mật độ dữ liệu, độ tương phản, tính nhất quán. Query UX touch target size khớp Mobile Touch/Web Target Size; không dùng một đơn vị native làm chuẩn web. Không thêm chart, KPI, bulk edit hoặc filter công trình từ kết quả tra cứu.
 - Dùng HTML/CSS để thể hiện chính xác bảng và số tiếng Việt, không sinh ảnh bitmap giao diện. Trình phương án qua HTML tương tác native của T3 (`html_preview`/`html_render`) trong hội thoại, không dựng thêm decision server hoặc ghi đè root DESIGN.md. Chưa chốt font/palette hoặc lập design-system MASTER cạnh tranh với nguồn task.
 
 ## Review tiếp theo
 
-Người dùng xem/chạm thử A/B/C, cho biết hướng muốn phát triển hoặc điểm cần sửa. Sau lựa chọn mới hoàn thiện luồng chi tiết, trạng thái lưu/lỗi/xung đột và các màn hình còn lại. Hỗ trợ iPhone/Android, cảm ứng/zoom, bàn phím, dữ liệu lớn và Excel vẫn phải có kiểm chứng đúng môi trường ở giai đoạn triển khai, không suy ra từ bản mẫu HTML này.
+Phát triển thiết kế thị giác C thành bản mẫu hoàn thiện hơn để người dùng review: phân cấp chữ/số, độ rõ của bảng, nhịp khoảng cách, màu thương hiệu và màu nghiệp vụ, trạng thái chọn ô, phần nhập và bố cục điện thoại/desktop. Giữ cấu trúc C và nghiệp vụ đã chốt; không trình bản khảo sát hiện tại như UI đã hoàn tất. Tiếp tục làm rõ luồng chi tiết, trạng thái lưu/lỗi/xung đột và các màn hình còn lại. Hỗ trợ iPhone/Android, cảm ứng/zoom, bàn phím, dữ liệu lớn và Excel vẫn phải có kiểm chứng đúng môi trường ở giai đoạn triển khai, không suy ra từ bản mẫu HTML này.

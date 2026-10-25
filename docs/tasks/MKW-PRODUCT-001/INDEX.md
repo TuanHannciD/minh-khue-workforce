@@ -11,7 +11,7 @@ Chuyển cách chấm công Excel toàn công ty thành đặc tả web dễ dù
 - [Yêu cầu đã thống nhất trong hội thoại](approved/requirements.md).
 - [Đặc tả để review](design.md).
 - [Kiểm chứng và bàn giao](validation.md).
-- [Brief và ba phương án UI](ui/BRIEF.md), [bản mẫu tương tác](ui/attendance-concepts.html) — chờ review.
+- [Brief và ba phương án UI](ui/BRIEF.md), [bản mẫu tương tác](ui/attendance-concepts.html) — đã chọn tổ chức C, chờ thiết kế thị giác hoàn thiện hơn.
 - Nguồn quyền/routing: [AGENTS](../../../AGENTS.md), [authority map](../../agent/AUTHORITY_MAP.md), [execution rules](../../agent/EXECUTION_RULES.md), [permissions](../../agent/PERMISSIONS.md), [quality gates](../../agent/QUALITY_GATES.md).
 - Quyền hiện tại: đọc/viết/check tài liệu và commit local bản đặc tả theo bước brainstorming. Người dùng đã duyệt bắt đầu thiết kế trực quan: thêm HTML bản mẫu độc lập và kiểm bằng native HTML preview/render; không phải quyền triển khai ứng dụng sản phẩm. Không scaffold/code/cài dependency sản phẩm, tự chọn stack, dispatch child mới, tích hợp main, push/deploy hoặc dùng hệ thống nhân sự thật.
 - Phạm vi file: dossier này; thêm định tuyến tại authority map, README và docs/INDEX. Giữ nguyên pilot, PRODUCT.md/DESIGN.md của pilot, skill distribution, hồ sơ002 và evidence cũ.
@@ -30,4 +30,4 @@ Bàn giao người dùng review bản viết và tiếp tục làm rõ các đi�
 
 ## Checkpoint UI trực quan
 
-Đã chuẩn bị ba phương án A/B/C trong ui/BRIEF.md và HTML độc lập; chưa phương án nào được duyệt. Tiếp theo người dùng xem/chạm thử, chọn hướng hoặc yêu cầu điều chỉnh. Các câu hỏi nghiệp vụ còn mở ở design vẫn chưa tự được giải quyết bởi bản mẫu.
+Đã chuẩn bị ba phương án A/B/C trong ui/BRIEF.md và HTML độc lập. Người dùng chọn hướng tổ chức C, nhưng đánh giá UI bản mẫu thô, chưa đạt cảm giác đẹp/chuyên nghiệp doanh nghiệp. Tiếp theo thiết kế thị giác C ở mức hoàn thiện cao hơn bằng hai skill UI để review; không suy lựa chọn bố cục thành phê duyệt diện mạo hiện tại. Các câu hỏi nghiệp vụ còn mở ở design vẫn chưa tự được giải quyết bởi bản mẫu.

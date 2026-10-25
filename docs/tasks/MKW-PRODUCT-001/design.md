@@ -54,7 +54,7 @@ Tên hiển thị không được dùng như lý do gộp hai nhân sự trùng 
 
 ## 5. Thao tác trên điện thoại
 
-**Quy trình thiết kế đã thống nhất:** dùng Impeccable để phân tích tác vụ và hình thành phương án UI/UX, UI UX Pro Max bổ trợ tra cứu tương tác/khả năng tiếp cận. Bố cục, vị trí điều khiển và cách chuyển/xem công–tăng ca phải được trình để review sau phân tích; đề xuất hai nút Công/Tăng ca chưa được duyệt. Các yêu cầu sử dụng bên dưới là ràng buộc đầu vào, chưa phải mockup hoàn chỉnh. Đã có [ba phương án nghiên cứu](ui/BRIEF.md) và [bản mẫu HTML tương tác](ui/attendance-concepts.html) để review; chưa phương án nào được chốt. Nguồn nghiệp vụ là requirements của task này; PRODUCT.md/DESIGN.md ở root vẫn mô tả pilot, không là brief sản phẩm chấm công.
+**Quy trình thiết kế đã thống nhất:** dùng Impeccable để phân tích tác vụ và hình thành phương án UI/UX, UI UX Pro Max bổ trợ tra cứu tương tác/khả năng tiếp cận. Bố cục, vị trí điều khiển và cách chuyển/xem công–tăng ca phải được trình để review sau phân tích; người dùng đã chọn hướng C sau khi xem bản mẫu: tập trung một bảng lớn và chuyển Công/Tăng ca. Các yêu cầu sử dụng bên dưới là ràng buộc đầu vào, chưa phải mockup hoàn chỉnh. Đã có [ba phương án nghiên cứu](ui/BRIEF.md) và [bản mẫu HTML tương tác](ui/attendance-concepts.html) để review; hướng tổ chức C đã được chọn, còn thiết kế thị giác chưa được duyệt; bản mẫu hiện tại được người dùng đánh giá thô, chưa đạt cảm giác đẹp/chuyên nghiệp cho doanh nghiệp. Nguồn nghiệp vụ là requirements của task này; PRODUCT.md/DESIGN.md ở root vẫn mô tả pilot, không là brief sản phẩm chấm công.
 
 Thiết kế đã được người dùng đồng ý:
 
@@ -127,7 +127,7 @@ Q3 — Đã chốt: khi hai người sửa cùng một ô từ dữ liệu cũ, 
 
 Q4 — Khi sửa mốc ngày làm việc đụng ô đã có công/tăng ca, người dùng muốn giải quyết thế nào? Cần làm rõ trước khi cho phép thay mốc gây loại dữ liệu. Trường hợp nghỉ/quay lại chưa được yêu cầu; không tự thêm nhiều hợp đồng/giai đoạn vào bản đầu.
 
-Q5 — Xác nhận đề xuất một sheet với hai bảng, và tổng xuất là số tại thời điểm xuất hay công thức để tiếp tục sửa Excel? Bố trí hai bảng liên tiếp hay chuyển qua lại trên web sẽ được phân tích bằng Impeccable + UI UX Pro Max rồi trình phương án trực quan để review, chưa chốt hai nút Công/Tăng ca hoặc bố cục khác.
+Q5 — Xác nhận đề xuất một sheet với hai bảng, và tổng xuất là số tại thời điểm xuất hay công thức để tiếp tục sửa Excel? Trên web đã chọn hướng C: mỗi lúc xem một bảng lớn, chuyển Công/Tăng ca. Cần tiếp tục thiết kế thị giác chuyên nghiệp bằng Impeccable + UI UX Pro Max rồi trình review; chưa duyệt diện mạo bản mẫu. Lựa chọn web này không tự chốt bố cục file Excel.
 
 Q6 — Đã biết hiện tại khoảng20 người mỗi tháng, sau này có thể tăng nhiều; chưa có số lượng mục tiêu tương lai. Đã xác nhận dùng cả iPhone và Android; mẫu máy/phiên bản/trình duyệt cụ thể chưa xác định và sẽ ghi rõ trong kế hoạch kiểm chứng. Thiết kế phải xét cả hai nhóm khi xử lý zoom, sticky và nhập cảm ứng. Mốc hiệu năng/quy mô kiểm thử sẽ đề xuất rõ khi có kiến trúc, không tự coi20 là trần hoặc hứa hỗ trợ không giới hạn.
 
