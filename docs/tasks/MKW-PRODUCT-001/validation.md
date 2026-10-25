@@ -31,3 +31,7 @@ Không chạy lại hash/app/browser tests cho thay đổi Markdown thuần. Gat
 ## Bàn giao
 
 Bản viết là đặc tả để review, không phải implementation-ready cho các phần còn Q1–Q6. Next action: người dùng review bản viết, trả lời lần lượt các quyết định ảnh hưởng; cập nhật nguồn chuẩn trước thiết kế kiến trúc/kế hoạch triển khai. Commit/tip thực tế có trong Git log; không tự ghi SHA của chính commit vào nội dung commit đó.
+
+## Cập nhật lựa chọn số công — 25/10/2026
+
+Theo trả lời mới của người dùng, cập nhật requirements, design và bước tiếp trong INDEX: chọn nhanh0,5/1/1,5/2/2,5; Tùy chỉnh để nhập lớn hơn2,5. Tự review xác nhận không biến2,5 thành trần hoặc suy bước công thành bước giờ tăng ca. Q1 đã giải quyết một phần; độ chính xác/giới hạn tùy chỉnh vẫn chưa chốt. Thêm AC11 ở trạng thái Not run; phạm vi vẫn chỉ tài liệu.

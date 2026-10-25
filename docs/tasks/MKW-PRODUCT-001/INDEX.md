@@ -25,4 +25,4 @@ Resource: file Markdown local, checker hiện có; không acquire server/port/DB
 
 ## Bước tiếp
 
-Bàn giao người dùng review bản viết và tiếp tục làm rõ các điểm ở mục10 của đặc tả, trước hết là quy tắc nhập số công/giờ tăng ca. Khi bản viết đủ quyết định và được duyệt, mới chuyển sang kế hoạch triển khai. Không biến đề xuất thành yêu cầu đã duyệt. Commit local của task tài liệu được giữ trên worktree hiện có, chưa tích hợp main.
+Bàn giao người dùng review bản viết và tiếp tục làm rõ các điểm ở mục10 của đặc tả, đã chốt lựa chọn nhanh số công và tự nhập khi lớn hơn2,5; tiếp theo làm rõ cách nhập giờ tăng ca. Khi bản viết đủ quyết định và được duyệt, mới chuyển sang kế hoạch triển khai. Không biến đề xuất thành yêu cầu đã duyệt. Commit local của task tài liệu được giữ trên worktree hiện có, chưa tích hợp main.

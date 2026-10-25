@@ -22,7 +22,7 @@ Mỗi ô có hai thông tin độc lập về mặt nghiệp vụ: **nội dung*
 
 ### Công
 
-- Số công theo giá trị được nhập; `0,5` tương ứng một buổi. Cho phép số lớn hơn1 do chỉ đạo của sếp; chưa tự giới hạn tối đa1 hoặc suy ra làm sai.
+- Số công có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; `0,5` tương ứng một buổi. Với số lớn hơn `2,5`, chọn **Tùy chỉnh** để tự nhập. Không dùng `2,5` làm trần; nhiều công trong ngày vẫn theo chỉ đạo của sếp. Độ chính xác và giới hạn của số tùy chỉnh chưa được chốt.
 - `F` nghĩa nghỉ cả ngày, không cộng công. Dùng `F` làm cách ghi thống nhất thay cho `0,0` cũ; cách xử lý khi nhập trực tiếp số0 còn cần chốt.
 - `N` chỉ ngày trước khi bắt đầu làm, không cộng công; không dùng để chỉ nghỉ trong thời gian làm việc.
 - `—` chỉ ngày sau khi kết thúc làm việc, không cộng công.
@@ -38,7 +38,7 @@ Ngày trước khi vào làm và sau khi kết thúc tuân mốc nhân sự, kh�
 
 Tổng chỉ cộng giá trị số của đúng loại dữ liệu. Không trừ ô màu xanh khỏi tổng, không tách thêm “tổng đã xác nhận”. Ví dụ giả trên bốn ngày:1 (xanh),0,5,`F` (xanh),trống cho tổng1,5 công; màu giữ nguyên ý nghĩa nhắc người dùng. `N` và `—` không tạo công hoặc giờ tăng ca.
 
-Quy tắc bước số/làm tròn/giới hạn phải chốt trước validation API và xuất số; không lấy giới hạn ngẫu nhiên của UI làm nghiệp vụ. Giao diện cần thể hiện dấu phẩy thập phân quen thuộc; cách chấp nhận dấu chấm và độ chính xác là quyết định ở mục10.
+Các lựa chọn nhanh của số công đã được chốt; bước nhập giờ tăng ca, độ chính xác/làm tròn và giới hạn số tùy chỉnh còn phải chốt trước validation API và xuất số; không lấy giới hạn ngẫu nhiên của UI làm nghiệp vụ. Giao diện cần thể hiện dấu phẩy thập phân quen thuộc; cách chấp nhận dấu chấm và độ chính xác là quyết định ở mục10.
 
 ## 4. Nhân sự và mốc làm việc
 
@@ -57,7 +57,7 @@ Thiết kế đã được người dùng đồng ý:
 - Giữ dạng bảng; cuộn ngang qua các ngày và cuộn dọc qua nhân sự.
 - Giữ cột tên và hàng ngày/thứ trong tầm nhìn khi cuộn, giúp xác định đúng ô.
 - Cho phép phóng to/thu nhỏ bằng hai ngón, xem bảng toàn màn hình và xoay ngang.
-- Chạm một ô mở phần nhập dễ bấm; nhập giá trị, chọn `F` ở bảng công, bật/tắt màu xanh. `N`/`—` liên quan mốc ngày, không tự biến thành lựa chọn nghỉ.
+- Chạm một ô mở phần nhập dễ bấm; bảng công có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`, **Tùy chỉnh** cho số lớn hơn `2,5`, chọn `F` và bật/tắt màu xanh. `N`/`—` liên quan mốc ngày, không tự biến thành lựa chọn nghỉ.
 - Công và tăng ca đều có đủ thao tác; không giới hạn điện thoại chỉ xem.
 
 **Đề xuất để review:** phần nhập cho biết tên người, ngày và loại công/tăng ca đang sửa, có Lưu/Hủy để hạn chế chạm nhầm. Chỉ báo đã lưu khi backend xác nhận; lỗi lưu giữ nội dung để thử lại, không giả tổng đã lưu. Đây là hành vi an toàn kỹ thuật đề xuất, chưa phải mockup hoặc màn hình đã kiểm chứng.
@@ -106,11 +106,13 @@ AC09 — Excel tháng xuất ra khớp số, ký hiệu, màu và tổng của c
 
 AC10 — Khi lỗi lưu không báo thành công giả, không mất bản nháp; dữ liệu qua web–API–DB thật còn sau reload. Các quyết định về xung đột, validation số và sửa mốc ngày phải có acceptance bổ sung sau khi được chốt.
 
+AC11 — Bảng công có đủ năm lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; chọn **Tùy chỉnh** nhập được số lớn hơn `2,5` (ví dụ3 công), lưu/đọc lại và cộng tổng đúng. Không áp bộ lựa chọn này sang giờ tăng ca. Validation chi tiết cho số tùy chỉnh sẽ bổ sung sau khi chốt Q1.
+
 Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot002 để đổi thành Verified.
 
 ## 10. Các quyết định còn cần chốt
 
-Q1 — Số công/giờ tăng ca cho phép nhập theo bước nào, tối đa bao nhiêu, xử lý dấu phẩy/chấm và làm tròn thế nào? Có cho nhập số0 ở bảng công, và hiển thị0 hay tự chuẩn hóa `F`? Quy ước không tăng ca là trống/0 hay có `F`?
+Q1 — Đã chốt lựa chọn nhanh số công `0,5; 1; 1,5; 2; 2,5` và tự nhập khi lớn hơn `2,5`. Còn cần chốt bước nhập giờ tăng ca; độ chính xác/giới hạn của số tùy chỉnh; xử lý dấu phẩy/chấm và làm tròn. Có cho nhập số0 ở bảng công, và hiển thị0 hay tự chuẩn hóa `F`? Quy ước không tăng ca là trống/0 hay có `F`?
 
 Q2 — Đồng ý dùng hai tài khoản riêng nhưng cùng quyền? Phương thức đăng nhập/khôi phục và nơi vận hành phải phù hợp nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
 
