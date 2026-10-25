@@ -137,3 +137,17 @@ Bước tiếp: người dùng review bản C và luồng bảo vệ draft; sau 
 Check tài liệu sau đồng bộ: `npm run check:docs` tại worktree exit0,42 current documents; `git diff --check` exit0. Chỉ có cảnh báo Git chuẩn hóa CRLF→LF. Kiểm diff nội dung và routing, không dùng app/pilot tests cho artifact này; kiểm staged diff gồm hai file mới trước commit local. Native HTML render dùng đúng artifact đã preview, không chèn script kiểm vào bản trình người dùng.
 
 Đã trình artifact qua native T3 `html_render`, title “Minh Khuê · Bản mẫu bảng công C”, frame1401px; dùng HTML gốc đã preview, không script assertion. Đang chờ người dùng review, không ghi Accepted cho UI.
+
+## Sửa phân vai màu theo phản hồi — 25/10/2026
+
+Base `91e6869`, workspace sạch trước sửa. Người dùng đánh giá màu/cách phân bổ chưa đạt; ghi nhận trong brief và design, không viện kết quả detector trước làm approval thị giác. Chỉ đổi CSS/visual copy của bản C và hồ sơ, giữ nghiệp vụ/cấu trúc C/inline JavaScript. Đã đối chiếu nguyên phần script với `git show HEAD:<artifact>` bằng assertion Python, bằng nhau. Không code/cài sản phẩm, dispatch child, sửa primary hoặc acquire server/DB/tab mới.
+
+Impeccable colorize và UI UX Pro Max theo brief: than chì đầu trang, trắng dữ liệu, xám vùng nhập, xanh lam action/selection, xanh lá reminder. Lần lệnh chỉnh đầu Failed do PowerShell ParserError ở chuỗi `@container`; file chưa thay đổi. Preview ngay sau đó là baseline cũ, không tính như bằng chứng palette mới. Sửa cách truyền script, kiểm đã có CSS mới rồi mới chạy hai vòng kiểm bản sửa.
+
+Vòng đầu native html_preview390 dark,728/1200 light: đã xem cả ba ảnh, không console error. Vòng xác nhận375 dark,728/1200 light: cả ba có `CHECKS PASSED: 28` và `COLOR CHECKS PASSED: 12`, không console error.28 check giữ hành vi mẫu;12 check mới đo computed text/background và vai trò vùng màu. Tỷ lệ text: body13,62; header14,39; header phụ9,10; editor label12,59; editor phụ5,52; primary6,25; reminder6,14; viền chọn trên reminder5,43. Text>=4,5 và outline>=3 trong các cặp đã đo; không suy ra audit accessibility toàn diện. Kiểm thêm header/editor/ledger khác nền, tab active trong suốt, tổng trung tính, checkbox reminder dùng màu semantic.
+
+`node .agents/skills/impeccable/scripts/detect.mjs --json docs/tasks/MKW-PRODUCT-001/ui/attendance-c.html`: exit0, `[]`. Evidence ignored: ui-c-color-checks.js, ui-c-color-results.json, ui-c-color-375.png và ui-c-color-1200.png trong `.agent-runs/MKW-PRODUCT-001/`; đã xem ảnh tool trả và xác minh Git ignore. Giữ evidence cũ. Kiểm DOM dùng synthetic events, không user touch thật. App vẫn nền sáng cố định, dark chỉ là theme hội thoại. Không có font/theme/thiết bị thật, network/error/DB/concurrency/Excel hoặc full accessibility evidence mới; các giới hạn Not run trước giữ nguyên.
+
+Review: chỉ self-review + trình người dùng, không review độc lập hoặc Accepted thị giác. Check contrast và detector không chứng minh người dùng sẽ thấy phối màu đạt. Không có tài nguyên chạy nền cần release. Bước tiếp: người dùng review bản sửa; sau chốt UI tiếp tục nghiệp vụ/spec/plan theo gate cũ.
+
+Đã trình HTML gốc qua T3 html_render title “Minh Khuê · Phối màu C điều chỉnh”, frame1416px. `npm run check:docs`: exit0,42 current documents; `git diff --check`: exit0. Kiểm staged diff trước commit local; palette vẫn chờ người dùng review.

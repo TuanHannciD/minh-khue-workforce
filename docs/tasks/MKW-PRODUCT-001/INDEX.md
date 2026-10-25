@@ -28,7 +28,7 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 
 Đã chốt phương án A và bộ công nghệ mục tiêu tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md). Nền tảng ADR-001 và state ADR-002 giữ nguyên. Bộ stack chưa pin/cài/kiểm tương thích; auth/hosting/schema và nghiệp vụ chưa chốt vẫn mở.
 
-Bước hiện tại: [bản C](ui/attendance-c.html) đã viết và kiểm DOM/headless HTML preview, đang chờ người dùng review diện mạo/luồng; chưa duyệt UI. Chi tiết và giới hạn tại [brief](ui/BRIEF.md), [validation](validation.md). Sau đó lần lượt làm rõ các điểm mở ở mục10 của đặc tả; khi bản viết đủ quyết định và được duyệt mới lập implementation plan. Chưa cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local trên worktree hiện có.
+Bước hiện tại: [bản C](ui/attendance-c.html) đã viết và kiểm DOM/headless HTML preview, đã nhận phản hồi màu/cách phân bổ chưa đạt và đã trình bản phối sửa, chờ người dùng review; chưa duyệt UI. Chi tiết và giới hạn tại [brief](ui/BRIEF.md), [validation](validation.md). Sau đó lần lượt làm rõ các điểm mở ở mục10 của đặc tả; khi bản viết đủ quyết định và được duyệt mới lập implementation plan. Chưa cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local trên worktree hiện có.
 
 ## Checkpoint UI trực quan
 
@@ -63,3 +63,9 @@ Acceptance: ADR ghi rõ stack mục tiêu Accepted nhưng chưa cài/kiểm tư�
 Writer inline; risk tài liệu trung bình, bản mẫu thấp; tự review + người dùng review, không dispatch child. Vùng sửa: docs/architecture, dossier này, các nguồn định tuyến liên quan; bản UI mới tại ui/attendance-c.html, giữ nguyên HTML khảo sát A/B/C. Resource: file local và T3 html_preview/html_render, evidence trong `.agent-runs/MKW-PRODUCT-001/`; không server/port/DB/tab riêng. Không cài dependency, scaffold/code sản phẩm, thay pilot/global config, tích hợp primary, push/deploy. Phiên bản, auth/hosting/schema và nghiệp vụ chưa chốt vẫn để mở.
 
 Bước tiếp: ghi ADR phương án A → hoàn thiện và trình UI C → làm rõ nghiệp vụ còn thiếu → review đặc tả viết trước implementation plan. Chưa suy approval stack thành approval UI/spec hoặc quyền triển khai.
+
+## Sửa phối màu C theo phản hồi — 25/10/2026
+
+Người dùng đánh giá “Màu sắc, cách phối phân bổ đang khá tệ”. Base `91e6869`, workspace sạch trước sửa. Mục tiêu/acceptance: điều chỉnh vai trò màu và phân vùng của cùng bản C, kiểm bằng render phone/chat/desktop và contrast computed; giữ nghiệp vụ, thao tác và hướng C đã chọn. Không coi bộ màu mới là đã duyệt. Phạm vi: CSS/visual copy của ui/attendance-c.html, brief/dossier/evidence liên quan; không đổi stack/tooling hoặc source sản phẩm.
+
+Writer inline, tự review + người dùng review; risk thấp của bản mẫu, không dispatch child. Resource native html_preview/html_render, evidence task-owned trong `.agent-runs/MKW-PRODUCT-001/`; không acquire server/DB/tab hay dependency. Skill route: Impeccable colorize, UI UX Pro Max semantic/contrast bổ trợ; nhận phản hồi trước khi sửa, không mở lại vòng chọn cấu trúc C. Bước tiếp: trình bản phối màu sửa để review rồi tiếp tục nghiệp vụ còn mở.
