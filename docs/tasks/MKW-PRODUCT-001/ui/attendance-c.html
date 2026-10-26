@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Minh Khuê · Bảng chấm công</title>
 <style>
-:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;--ink:#292e38;--quiet:#5c6472;--navy:#4359b8;--accent:#4359b8;--soft:#eef0fc;--paper:#fff;--wash:#f3f4f6;--line:#d9dde4;--green:#e6f2e8;--green-ink:#2f633c;--danger:#a52d27;--grid-line:#e5e8ed;--header:#252a34;--header-quiet:#c8ced8;--editor:#f5f6f8;--radius:14px;color:var(--ink)}
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;--ink:#292e38;--quiet:#5c6472;--action:#1b6248;--accent:#1b6248;--soft:#eaf3ee;--paper:#fff;--wash:#f3f4f6;--line:#d9dde4;--reminder-surface:#edf4d6;--reminder-ink:#435c23;--danger:#a52d27;--grid-line:#e5e8ed;--header:#153e30;--header-quiet:#cce1d5;--editor:#f5f6f8;--radius:14px;color:var(--ink)}
 
 *{box-sizing:border-box}
 body{margin:0;background:transparent}
@@ -16,11 +16,11 @@ button{padding:9px 14px;font-size:.875rem;font-weight:600;transition:background 
 button:hover{background:var(--wash)}
 button:active{background:#e2e5eb}
 button:disabled{opacity:.5;cursor:default}
-button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #4359b8;outline-offset:3px}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #1b6248;outline-offset:3px}
 input{padding:10px 12px;color:var(--ink);caret-color:var(--accent);min-width:0}
 input::placeholder{color:var(--quiet)}
 input[type=checkbox]{accent-color:var(--accent)}
-::selection{background:#dce1f7;color:var(--ink)}
+::selection{background:#d5e9dd;color:var(--ink)}
 [hidden]{display:none!important}
 svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 h1,h2,p{margin:0}
@@ -40,7 +40,7 @@ small{font-size:.75rem}
 .tools{display:flex;align-items:center;gap:12px;justify-content:space-between;padding-bottom:18px;flex-wrap:wrap}
 .switcher{display:flex;gap:4px;background:var(--wash);border-radius:9px;padding:4px}
 .switcher button{border:0;background:transparent;min-width:110px}
-.switcher button[aria-pressed=true]{background:var(--navy);color:white}
+.switcher button[aria-pressed=true]{background:var(--action);color:white}
 .search{display:flex;align-items:center;gap:8px;flex:1;max-width:280px}
 .search input{width:100%;background:var(--paper)}
 .expand{display:flex;align-items:center;gap:8px}
@@ -65,17 +65,17 @@ thead .total{z-index:5}
 td button{border:0;border-radius:0;background:transparent;padding:0;min-width:47px;min-height:44px;width:100%;height:100%;font-weight:450;position:relative}
 td button:hover{background:#eceef2}
 td button:focus-visible{outline-offset:-4px;outline-width:2px}
-.reminded{background:var(--green);color:var(--green-ink)}
-.reminded button:after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--green-ink)}
+.reminded{background:var(--reminder-surface);color:var(--reminder-ink)}
+.reminded button:after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--reminder-ink)}
 .selected{box-shadow:inset 0 0 0 2px var(--accent);background:#ffffff}
-.selected.reminded{background:var(--green)}
+.selected.reminded{background:var(--reminder-surface)}
 .inactive{background:#f7f8fa;color:#5c6472}
 tfoot th,tfoot td{background:var(--wash);font-weight:700;border-bottom:0}
 tfoot .name{background:var(--wash)}
 .empty{padding:40px 16px;text-align:center;line-height:1.7;background:var(--wash);border-radius:8px}
 .legend{display:flex;gap:8px 18px;flex-wrap:wrap;color:var(--quiet);font-size:.75rem;line-height:1.7;padding:16px 0}
 .legend span{display:inline-flex;align-items:center;gap:6px}
-.mark{background:var(--green);border:1px solid #2f633c;width:12px;height:12px;border-radius:2px}
+.mark{background:var(--reminder-surface);border:1px solid #435c23;width:12px;height:12px;border-radius:2px}
 .editor{border-top:1px solid var(--line);padding-top:22px;min-width:0}
 .editor-top{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:20px}
 .editor-top p{font-size:.875rem;color:var(--quiet);margin-top:6px}
@@ -95,8 +95,8 @@ tfoot .name{background:var(--wash)}
 .reminder small{display:block;color:var(--quiet);margin-top:4px}
 .actions{display:flex;gap:8px}
 .actions button{flex:1}
-.primary{background:var(--navy);border-color:var(--navy);color:white}
-.primary:hover{background:#35489d}
+.primary{background:var(--action);border-color:var(--action);color:white}
+.primary:hover{background:#134b36}
 .actions .primary{flex:2}
 .status{font-size:.75rem;line-height:1.6;color:var(--quiet);margin-top:12px;min-height:38px}
 .draft-tag{color:var(--accent);font-size:.75rem;line-height:1.5;margin-top:8px}
@@ -146,7 +146,7 @@ h1{font-size:1.5rem}
 }
 
 
-/* Color revision: neutral data, one action accent, green reserved for reminders. */
+/* Green brand revision: forest action/header, neutral data, pale leaf reminders. */
 .masthead{padding:20px 24px;margin:-16px -16px 0;background:var(--header);color:var(--paper);border-bottom:0}
 
 .brand span,.account{color:var(--header-quiet)}
@@ -167,7 +167,7 @@ th,td{border-right-color:var(--grid-line);border-bottom-color:var(--grid-line)}
 
 .unit{color:var(--quiet)}
 
-.reminder input{accent-color:var(--green-ink)}
+.reminder input{accent-color:var(--reminder-ink)}
 
 .guard{background:var(--paper);border:1px solid var(--line)}
 
@@ -194,7 +194,7 @@ th,td{border-right-color:var(--grid-line);border-bottom-color:var(--grid-line)}
 </head>
 <body>
 <!-- THESIS: C, one legible monthly ledger with an explicit unit switch; no dashboard cards.
-OWN-WORLD: graphite masthead, white ledger, neutral-gray input surface; blue only marks action/selection, green only means reminder.
+OWN-WORLD: forest-green masthead and actions, white ledger, neutral-gray input surface; pale leaf-green reminder cells retain a dot and accessible label.
 STORY: find person/day, edit a separate draft, keep work and overtime totals independent.
 FIRST VIEWPORT: wordmark, month, unit switch, search, sticky ledger; editor at right on desktop, below on phone. Signature: selection keeps person/date/unit visible and protects unsaved input.
 FORM: user-pinned C, following seed eef56e12; code-led independent HTML, no new direction lottery. Operate mode, system UI numerals.
@@ -222,7 +222,7 @@ Scope override: task BRIEF owns prototype visual record; self-review + user revi
 </section></div>
 <footer class="footer"><span>Chạm ô để nhập · Cuộn ngang để xem các ngày</span><button id="reset">Đặt lại dữ liệu mẫu</button></footer>
 </div></main>
-<details class="review-details"><summary>Phạm vi bản mẫu và điểm cần review</summary><p>Hướng C: một bảng lớn, chuyển Công/Tăng ca. Đề xuất phối màu sửa: đầu trang than chì, bảng trắng, vùng nhập xám nhạt; xanh lam dành cho thao tác/lựa chọn và xanh lá dành riêng cho nhắc kiểm tra. Màu xanh lá là nhắc kiểm tra độc lập.</p><p>HTML minh họa chưa dùng shadcn/Radix thực tế, không có đăng nhập, API, lưu bền vững hay xuất Excel. Lỗi mạng/xung đột hai tài khoản và pinch zoom trên iPhone/Android thật chưa kiểm. Mở rộng chỉ tăng vùng bảng trong trang.</p><p>Thử chọn ô, nhập số, đánh dấu nhắc, chuyển loại bảng và tìm nhân sự. Với công tùy chỉnh, mẫu chỉ minh họa số lớn hơn 2,5; quy tắc chi tiết chưa là contract đã duyệt.</p></details>
+<details class="review-details"><summary>Phạm vi bản mẫu và điểm cần review</summary><p>Hướng C: một bảng lớn, chuyển Công/Tăng ca. Hướng thương hiệu xanh lá: đầu trang và thao tác chính dùng xanh rừng trầm, bảng trắng và vùng nhập xám nhạt. Ô nhắc kiểm tra dùng xanh lá sáng kèm dấu nhận biết; màu nhắc không đổi tổng. Mã màu và cách phân bổ cụ thể đang chờ review.</p><p>HTML minh họa chưa dùng shadcn/Radix thực tế, không có đăng nhập, API, lưu bền vững hay xuất Excel. Lỗi mạng/xung đột hai tài khoản và pinch zoom trên iPhone/Android thật chưa kiểm. Mở rộng chỉ tăng vùng bảng trong trang.</p><p>Thử chọn ô, nhập số, đánh dấu nhắc, chuyển loại bảng và tìm nhân sự. Với công tùy chỉnh, mẫu chỉ minh họa số lớn hơn 2,5; quy tắc chi tiết chưa là contract đã duyệt.</p></details>
 <script>
 'use strict';
 // File map: seed/model → table rendering → editor/draft → interactions.

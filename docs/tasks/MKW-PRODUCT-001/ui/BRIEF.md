@@ -63,3 +63,13 @@ Impeccable colorize sở hữu bước sửa, UI UX Pro Max query `color semanti
 Chiến lược đề xuất: trung tính, phân vùng bằng sáng/tối; màu nhấn có vai trò hẹp. Đầu trang than chì #252a34 với chữ trắng/phụ #c8ced8; bảng trắng, chữ #292e38/phụ #5c6472; đường kẻ #e5e8ed, header bảng #f3f4f6, tổng #fafbfc; vùng nhập #f5f6f8. Xanh lam #4359b8 dành cho primary/focus/lựa chọn; tab chọn dùng gạch chân thay mảng xanh đặc, ô chọn viền thay phủ nền; không tô xanh đơn vị hoặc tổng. Reminder #e6f2e8/chữ #2f633c và checkbox cùng màu nghiệp vụ, giữ dấu/aria-label. Chưa là nhận diện thương hiệu được duyệt hoặc dark mode app; masthead tối chỉ là vùng phân cấp trong giao diện sáng.
 
 Đã xem ảnh phone/chat/desktop; kiểm computed contrast/role và DOM theo validation. Đây là bản phối màu sửa để người dùng review, chưa gọi đẹp/chuyên nghiệp/Accepted. Palette checkpoint cũ giữ provenance ở Git và evidence, không có hai nguồn thiết kế hiện hành cạnh tranh. Bước tiếp: nhận phản hồi bản phối này trước khi chốt diện mạo; nghiệp vụ mở vẫn chưa được giải quyết bằng màu.
+
+## Thương hiệu nhóm xanh lá — 27/10/2026
+
+Người dùng xác nhận muốn màu thương hiệu thuộc nhóm xanh lá; thay phần “chưa có màu thương hiệu” của checkpoint25/10. Đây là hướng Accepted, không phải duyệt mã màu/phân bổ/bản UI hoàn chỉnh. Nghiệp vụ reminder xanh vẫn theo requirements.
+
+Palette hiện hành để review: đầu trang xanh rừng #153e30, chữ phụ #cce1d5; action/focus/viền chọn #1b6248, hover #134b36, nền chọn nhẹ #eaf3ee. Bảng vẫn trắng và phần nhập xám trung tính để dữ liệu dễ đọc, không phủ xanh toàn bộ nền/đường kẻ. Reminder xanh lá sáng #edf4d6 với chữ/dấu #435c23; ô chọn có viền, ô nhắc có dấu chấm và aria-label. Checkbox reminder thuộc semantic, không dùng để xác nhận lưu. Không thêm trạng thái nghiệp vụ hay dùng màu làm dấu hiệu duy nhất.
+
+CSS token action/reminder được đặt tên theo vai trò thay tên navy/green trước đó. Đã kiểm nguyên inline JavaScript bằng baseline783e44f, không đổi hành vi. Theo Impeccable colorize và nguyên tắc semantic/contrast của UI UX Pro Max đã đọc, chỉ cụ thể hóa hướng xanh đã được cung cấp, không mở lại cấu trúc C hoặc tạo workflow/child mới. Chưa chốt font, mã màu cuối, dark mode hoặc diện mạo toàn sản phẩm. Self-review và người dùng review theo route cũ.
+
+Ảnh phone/chat/desktop có28 check thao tác và12 check màu mỗi viewport đạt; chi tiết computed contrast và giới hạn tại validation. Hướng thương hiệu đã rõ; bước tiếp người dùng review sắc xanh trầm, tỷ lệ màu và sự phân biệt với ô nhắc, trước khi chốt diện mạo và làm rõ nghiệp vụ còn thiếu.

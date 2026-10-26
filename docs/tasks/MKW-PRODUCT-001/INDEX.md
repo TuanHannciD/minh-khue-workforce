@@ -28,7 +28,7 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 
 Đã chốt phương án A và bộ công nghệ mục tiêu tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md). Nền tảng ADR-001 và state ADR-002 giữ nguyên. Bộ stack chưa pin/cài/kiểm tương thích; auth/hosting/schema và nghiệp vụ chưa chốt vẫn mở.
 
-Bước hiện tại: [bản C](ui/attendance-c.html) đã viết và kiểm DOM/headless HTML preview, đã nhận phản hồi màu/cách phân bổ chưa đạt và đã trình bản phối sửa, chờ người dùng review; chưa duyệt UI. Chi tiết và giới hạn tại [brief](ui/BRIEF.md), [validation](validation.md). Sau đó lần lượt làm rõ các điểm mở ở mục10 của đặc tả; khi bản viết đủ quyết định và được duyệt mới lập implementation plan. Chưa cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local trên worktree hiện có.
+Bước hiện tại: [bản C](ui/attendance-c.html) đã viết và kiểm DOM/headless HTML preview, đã nhận phản hồi màu/cách phân bổ chưa đạt; người dùng tiếp tục xác nhận hướng thương hiệu xanh lá ngày27/10. Đã trình palette xanh cụ thể, chờ người dùng review sắc độ/phân bổ; chưa duyệt UI. Chi tiết và giới hạn tại [brief](ui/BRIEF.md), [validation](validation.md). Sau đó lần lượt làm rõ các điểm mở ở mục10 của đặc tả; khi bản viết đủ quyết định và được duyệt mới lập implementation plan. Chưa cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local trên worktree hiện có.
 
 ## Checkpoint UI trực quan
 
@@ -69,3 +69,9 @@ Bước tiếp: ghi ADR phương án A → hoàn thiện và trình UI C → là
 Người dùng đánh giá “Màu sắc, cách phối phân bổ đang khá tệ”. Base `91e6869`, workspace sạch trước sửa. Mục tiêu/acceptance: điều chỉnh vai trò màu và phân vùng của cùng bản C, kiểm bằng render phone/chat/desktop và contrast computed; giữ nghiệp vụ, thao tác và hướng C đã chọn. Không coi bộ màu mới là đã duyệt. Phạm vi: CSS/visual copy của ui/attendance-c.html, brief/dossier/evidence liên quan; không đổi stack/tooling hoặc source sản phẩm.
 
 Writer inline, tự review + người dùng review; risk thấp của bản mẫu, không dispatch child. Resource native html_preview/html_render, evidence task-owned trong `.agent-runs/MKW-PRODUCT-001/`; không acquire server/DB/tab hay dependency. Skill route: Impeccable colorize, UI UX Pro Max semantic/contrast bổ trợ; nhận phản hồi trước khi sửa, không mở lại vòng chọn cấu trúc C. Bước tiếp: trình bản phối màu sửa để review rồi tiếp tục nghiệp vụ còn mở.
+
+## Hướng thương hiệu xanh lá — 27/10/2026
+
+Người dùng xác nhận muốn màu thương hiệu thuộc nhóm xanh lá. Base `783e44f`, workspace sạch. Mục tiêu: ghi hướng màu đã xác nhận vào requirements/UI_SYSTEM, cụ thể hóa một palette xanh lá trong bản C để review; không coi mã màu/độ phân bổ là đã duyệt. Acceptance: thương hiệu và reminder đều xanh nhưng khác vai trò/độ sáng, có dấu/nhãn bổ sung; contrast và thao tác mẫu đạt tại phone/chat/desktop.
+
+Phạm vi: CSS/copy artifact, brief, requirements/design/INDEX/validation và UI_SYSTEM. Writer inline; tự review + người dùng review, risk thấp bản mẫu; không child/dependency/source sản phẩm/primary. Resource HTML preview/render và evidence ignored theo task, không server/DB/tab. Tiếp tục Impeccable colorize + UI UX Pro Max theo hướng đã xác định; giữ C và nghiệp vụ. Bước tiếp: trình palette để review, sau đó nghiệp vụ/spec/plan theo gate cũ.

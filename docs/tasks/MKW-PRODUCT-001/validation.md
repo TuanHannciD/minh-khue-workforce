@@ -151,3 +151,15 @@ Vòng đầu native html_preview390 dark,728/1200 light: đã xem cả ba ảnh,
 Review: chỉ self-review + trình người dùng, không review độc lập hoặc Accepted thị giác. Check contrast và detector không chứng minh người dùng sẽ thấy phối màu đạt. Không có tài nguyên chạy nền cần release. Bước tiếp: người dùng review bản sửa; sau chốt UI tiếp tục nghiệp vụ/spec/plan theo gate cũ.
 
 Đã trình HTML gốc qua T3 html_render title “Minh Khuê · Phối màu C điều chỉnh”, frame1416px. `npm run check:docs`: exit0,42 current documents; `git diff --check`: exit0. Kiểm staged diff trước commit local; palette vẫn chờ người dùng review.
+
+## Cụ thể hóa hướng thương hiệu xanh lá — 27/10/2026
+
+Base `783e44f`, workspace sạch trước sửa. Người dùng trả lời câu hỏi màu thương hiệu: muốn nhóm xanh lá. Ghi hướng Accepted tại requirements và UI_SYSTEM; cập nhật brief/design/INDEX, chưa đánh dấu palette cụ thể hoặc UI Accepted. Chỉ đổi CSS/visual copy; đối chiếu toàn bộ inline script với baseline qua Python assertion đạt, không đổi nghiệp vụ/thao tác.
+
+Một vòng native T3 html_preview375 dark,728/1200 light: đã xem cả ba ảnh; không console error. Mỗi viewport có `CHECKS PASSED: 28`, `COLOR CHECKS PASSED: 12`. Computed contrast: body13,62; header11,91; header phụ8,67; editor label12,59; editor phụ5,52; primary7,27; reminder6,63; viền chọn trên reminder6,41. Tất cả text pairs được đo>=4,5, viền chọn>=3; không suy toàn bộ accessibility đạt.12 check vẫn xác minh vùng header/editor/ledger, tab không fill, tổng neutral và checkbox reminder đúng màu semantic.28 check chỉ DOM/synthetic events, không user touch thật.
+
+Detector `node .agents/skills/impeccable/scripts/detect.mjs --json docs/tasks/MKW-PRODUCT-001/ui/attendance-c.html`: exit0, `[]`. Evidence ignored mới ui-c-green-checks.js, ui-c-green-results.json, ui-c-green-375.png và ui-c-green-1200.png trong `.agent-runs/MKW-PRODUCT-001/`, đã kiểm Git ignore, giữ evidence cũ. Chỉ một vòng render kiểm, không kéo dài polish.
+
+Không cài dependency/framework hoặc scaffold/code sản phẩm, sửa pilot/primary, dispatch child, server/DB/tab mới. API/auth/persistence/concurrency/export Excel, actual touch/zoom, dark mode app và accessibility toàn diện vẫn Not run. Không có tài nguyên chạy nền cần release. Palette/diện mạo vẫn để người dùng review; màu thương hiệu xanh không thay nghĩa màu nhắc hoặc quyền triển khai.
+
+Đã trình đúng HTML đã preview qua native T3 html_render title “Minh Khuê · Hướng thương hiệu xanh lá”, frame1416px, không chèn assertion. `npm run check:docs` exit0,42 current documents; `git diff --check` exit0. Review diff CSS/copy và nguồn nghiệp vụ/UI, staged diff kiểm trước commit local.
