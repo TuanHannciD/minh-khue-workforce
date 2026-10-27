@@ -132,3 +132,7 @@ Q5 — Xác nhận đề xuất một sheet với hai bảng, và tổng xuất 
 Q6 — Đã biết hiện tại khoảng20 người mỗi tháng, sau này có thể tăng nhiều; chưa có số lượng mục tiêu tương lai. Đã xác nhận dùng cả iPhone và Android; mẫu máy/phiên bản/trình duyệt cụ thể chưa xác định và sẽ ghi rõ trong kế hoạch kiểm chứng. Thiết kế phải xét cả hai nhóm khi xử lý zoom, sticky và nhập cảm ứng. Mốc hiệu năng/quy mô kiểm thử sẽ đề xuất rõ khi có kiến trúc, không tự coi20 là trần hoặc hứa hỗ trợ không giới hạn.
 
 Các câu hỏi này không chặn việc ghi nhận yêu cầu/UX đã thống nhất. Chúng chặn phần kiến trúc/validation/contract hoặc thiết kế chi tiết tương ứng; không gọi bản này là spec đủ để Agent tự triển khai sản phẩm ngay.
+
+## 11. Bổ sung nhập vùng để review — 27/10/2026
+
+Người dùng chấp nhận phối xanh hiện tại làm cơ sở tiếp tục và yêu cầu kéo chọn nhiều ô để nhập cùng lúc. Đã chốt hai chế độ: chỉ điền ô trống hoặc ghi đè cả vùng. Luồng chi tiết được trình tại [bulk-entry design](ui/bulk-entry-design.md), chưa đưa vào HTML hoặc API. Đây là yêu cầu bổ sung, thay giới hạn nghiên cứu nhập từng ô trước; không tự duyệt các chi tiết skip N/—, giữ màu, mobile gesture hoặc batch conflict. Các AC trước giữ phạm vi cũ; acceptance batch cần hoàn thiện sau review brief, hiện Not run.

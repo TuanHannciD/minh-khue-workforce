@@ -73,3 +73,7 @@ Palette hiện hành để review: đầu trang xanh rừng #153e30, chữ phụ
 CSS token action/reminder được đặt tên theo vai trò thay tên navy/green trước đó. Đã kiểm nguyên inline JavaScript bằng baseline783e44f, không đổi hành vi. Theo Impeccable colorize và nguyên tắc semantic/contrast của UI UX Pro Max đã đọc, chỉ cụ thể hóa hướng xanh đã được cung cấp, không mở lại cấu trúc C hoặc tạo workflow/child mới. Chưa chốt font, mã màu cuối, dark mode hoặc diện mạo toàn sản phẩm. Self-review và người dùng review theo route cũ.
 
 Ảnh phone/chat/desktop có28 check thao tác và12 check màu mỗi viewport đạt; chi tiết computed contrast và giới hạn tại validation. Hướng thương hiệu đã rõ; bước tiếp người dùng review sắc xanh trầm, tỷ lệ màu và sự phân biệt với ô nhắc, trước khi chốt diện mạo và làm rõ nghiệp vụ còn thiếu.
+
+## Tiếp nối nhập vùng — 27/10/2026
+
+Người dùng chấp nhận phối xanh hiện tại làm cơ sở tiếp tục, yêu cầu kéo chọn nhiều ô và chọn hai chế độ điền trống/ghi đè vùng. [Brief nhập vùng](bulk-entry-design.md) sở hữu luồng mới để review; HTML hiện tại chưa có tính năng chọn vùng. Gợi ý bulk edit từng bị loại vì chưa được yêu cầu nay đã có yêu cầu trực tiếp; không giữ giới hạn cũ như một lệnh cấm. Chưa suy chấp nhận phối màu thành duyệt đầy đủ đặc tả/API hoặc quyền triển khai sản phẩm.

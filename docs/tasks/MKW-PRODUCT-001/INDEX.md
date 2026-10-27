@@ -28,7 +28,7 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 
 Đã chốt phương án A và bộ công nghệ mục tiêu tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md). Nền tảng ADR-001 và state ADR-002 giữ nguyên. Bộ stack chưa pin/cài/kiểm tương thích; auth/hosting/schema và nghiệp vụ chưa chốt vẫn mở.
 
-Bước hiện tại: [bản C](ui/attendance-c.html) đã viết và kiểm DOM/headless HTML preview, đã nhận phản hồi màu/cách phân bổ chưa đạt; người dùng tiếp tục xác nhận hướng thương hiệu xanh lá ngày27/10. Đã trình palette xanh cụ thể, chờ người dùng review sắc độ/phân bổ; chưa duyệt UI. Chi tiết và giới hạn tại [brief](ui/BRIEF.md), [validation](validation.md). Sau đó lần lượt làm rõ các điểm mở ở mục10 của đặc tả; khi bản viết đủ quyết định và được duyệt mới lập implementation plan. Chưa cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local trên worktree hiện có.
+Bước hiện tại: người dùng đã chấp nhận phối xanh của [bản C](ui/attendance-c.html) làm cơ sở tiếp tục, yêu cầu kéo chọn/nhập nhiều ô và chốt hai chế độ điền trống/ghi đè vùng. [Brief nhập vùng](ui/bulk-entry-design.md) đã viết để review; HTML hiện chưa có tính năng mới. Tiếp theo chốt cách xử lý vùng có N/— và luồng chọn/áp dụng rồi cập nhật bản mẫu trong scope HTML. Sau đó làm rõ nghiệp vụ còn mở, review đặc tả viết trước implementation plan. Không cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local. Chi tiết check/giới hạn tại [validation](validation.md).
 
 ## Checkpoint UI trực quan
 
@@ -75,3 +75,9 @@ Writer inline, tự review + người dùng review; risk thấp của bản mẫ
 Người dùng xác nhận muốn màu thương hiệu thuộc nhóm xanh lá. Base `783e44f`, workspace sạch. Mục tiêu: ghi hướng màu đã xác nhận vào requirements/UI_SYSTEM, cụ thể hóa một palette xanh lá trong bản C để review; không coi mã màu/độ phân bổ là đã duyệt. Acceptance: thương hiệu và reminder đều xanh nhưng khác vai trò/độ sáng, có dấu/nhãn bổ sung; contrast và thao tác mẫu đạt tại phone/chat/desktop.
 
 Phạm vi: CSS/copy artifact, brief, requirements/design/INDEX/validation và UI_SYSTEM. Writer inline; tự review + người dùng review, risk thấp bản mẫu; không child/dependency/source sản phẩm/primary. Resource HTML preview/render và evidence ignored theo task, không server/DB/tab. Tiếp tục Impeccable colorize + UI UX Pro Max theo hướng đã xác định; giữ C và nghiệp vụ. Bước tiếp: trình palette để review, sau đó nghiệp vụ/spec/plan theo gate cũ.
+
+## Chọn vùng và nhập hàng loạt — 27/10/2026
+
+Nguồn mới: người dùng nhận xét bản xanh hiện tại “Cũng ok rồi”, tiếp tục yêu cầu kéo chọn nhiều ô như Excel để nhập nhiều ô một lúc; sau câu hỏi về ô có dữ liệu, chọn “Có hai lựa chọn: điền ô trống hoặc ghi đè cả vùng”. Ghi chấp nhận bản phối xanh hiện tại làm cơ sở tiếp tục, không suy duyệt toàn bộ spec/ứng dụng.
+
+Base `baf1eda`, workspace sạch. Mục tiêu/acceptance vòng này: ghi yêu cầu mới và hai chế độ đúng nguồn, viết brief tương tác cụ thể để review; các chi tiết vùng chứa N/—, màu/draft và cảm ứng còn Proposed. Phạm vi: requirements/design/brief/dossier/validation, artifact thiết kế ui/bulk-entry-design.md. Chưa sửa HTML hành vi hoặc code sản phẩm khi luồng mới chưa đủ quyết định. Risk tài liệu trung bình vì thay đổi nhiều ô; writer inline, tự review + người dùng, không child. Resource Markdown/check local; không server/DB/tab/dependency/primary. Skill brainstorming tiếp nối architectural/spec, Impeccable shape + UI UX Pro Max kéo/chọn có thao tác thay thế. Bước tiếp: review brief nhập vùng, cập nhật bản mẫu trong quyền HTML sau chốt; nghiệp vụ/API/concurrency batch cần thiết kế tương ứng trước implementation plan.

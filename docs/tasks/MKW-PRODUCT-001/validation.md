@@ -163,3 +163,11 @@ Detector `node .agents/skills/impeccable/scripts/detect.mjs --json docs/tasks/MK
 Không cài dependency/framework hoặc scaffold/code sản phẩm, sửa pilot/primary, dispatch child, server/DB/tab mới. API/auth/persistence/concurrency/export Excel, actual touch/zoom, dark mode app và accessibility toàn diện vẫn Not run. Không có tài nguyên chạy nền cần release. Palette/diện mạo vẫn để người dùng review; màu thương hiệu xanh không thay nghĩa màu nhắc hoặc quyền triển khai.
 
 Đã trình đúng HTML đã preview qua native T3 html_render title “Minh Khuê · Hướng thương hiệu xanh lá”, frame1416px, không chèn assertion. `npm run check:docs` exit0,42 current documents; `git diff --check` exit0. Review diff CSS/copy và nguồn nghiệp vụ/UI, staged diff kiểm trước commit local.
+
+## Ghi yêu cầu nhập vùng — 27/10/2026
+
+Base `baf1eda`, workspace sạch trước sửa. Nguồn người dùng: “Cũng ok rồi” với phối xanh hiện tại, yêu cầu kéo chọn nhiều ô như Excel để nhập nhiều ô một lúc; trả lời có hai lựa chọn điền ô trống/ghi đè cả vùng. Ghi đúng phạm vi vào requirements/design/brief/INDEX; viết ui/bulk-entry-design.md cho luồng Proposed, không tự quyết skip N/—, màu/default/partial save/concurrency. Tiếp nối brainstorming/Impeccable shape; UI UX Pro Max query dragging alternative selection trả đúng Dragging Movements, dùng cho phương án không kéo và keyboard.
+
+Chỉ Markdown, không đổi HTML/JS/dependency/primary hoặc dispatch child/acquire tài nguyên. Self-review yêu cầu đã xác nhận tách đề xuất, hai tổng độc lập/màu không đổi nghiệp vụ; chưa có feature hoặc browser checks mới. Chọn vùng/điền hàng loạt: Not run, HTML cũ vẫn nhập từng ô. Bước tiếp: người dùng review cách xử lý vùng chứa N/— và luồng brief, rồi hoàn thiện prototype trong quyền HTML; batch API/DB để thiết kế trước implementation plan.
+
+`npm run check:docs` tại worktree exit0,43 current documents; `git diff --check`/staged diff check trước commit local. Chưa chạy app/browser vì chỉ ghi yêu cầu/brief Markdown.

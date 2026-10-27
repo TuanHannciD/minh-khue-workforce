@@ -53,3 +53,9 @@ Người dùng đã duyệt cách quản lý state tại [ADR-002](../../../arch
 Người dùng tiếp tục xác nhận “Tôi đồng ý phương án A”: bộ công nghệ mục tiêu được ghi tại [ADR-003](../../../architecture/decisions/ADR-003-product-stack.md), gồm React/Vite/TypeScript, NestJS/Express, PostgreSQL/Prisma, công cụ form/contract/Excel/tooling đã trình. Phần framework/backend/DB/package manager chưa chọn ở checkpoint trên được thay bằng quyết định này. Chưa pin/cài/kiểm tương thích; auth/hosting, schema/contract chi tiết, nghiệp vụ còn mở, UI thị giác/spec/plan và quyền triển khai chưa tự được duyệt.
 
 Ngày27/10/2026, người dùng xác nhận mong muốn màu thương hiệu thuộc nhóm **xanh lá**. Đây là hướng màu đã xác nhận, chưa chốt sắc độ/mã màu hoặc phân bổ cuối. Màu xanh nhắc kiểm tra vẫn giữ ý nghĩa nghiệp vụ; thiết kế phải phân biệt thương hiệu và reminder bằng độ sáng, dấu/nhãn và vị trí.
+
+## Chọn vùng và nhập hàng loạt — 27/10/2026
+
+Người dùng chấp nhận bản phối xanh hiện tại làm cơ sở tiếp tục (“Cũng ok rồi”), rồi yêu cầu kéo để chọn nhiều ô như Excel và nhập nhiều ô một lúc. Đây là yêu cầu mở rộng đã xác nhận, không còn loại bulk entry chỉ vì các gợi ý skill trước đây chưa thuộc scope.
+
+Khi vùng chọn chứa ô đã có dữ liệu, người dùng chốt có **hai lựa chọn: điền ô trống hoặc ghi đè cả vùng**. Hình thức chọn, bước xác nhận, xử lý vùng có N/—, màu nhắc khi nhập hàng loạt, cảm ứng và tính nguyên tử/xung đột nhiều ô còn cần thiết kế; không suy từ hai chế độ ra API/contract hoặc quyền triển khai sản phẩm. Brief để review tại [nhập vùng](../ui/bulk-entry-design.md).
