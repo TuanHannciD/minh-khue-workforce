@@ -36,3 +36,7 @@ Giữ attendance-c.html tự chứa (450 dòng tại checkpoint này) vì native
 File map theo symbol hiện có: CSS `.selection-tools`/`.in-range` và DOM `#bulk-panel` thể hiện vùng; `rangeCells`/`targets` xác định tập ô; `markDraft`/`loadDraft`/`requestChange` bảo vệ draft; `renderTable`/`renderEditor`/`paintSelection` hiển thị; `chooseCell`/`setRange` điều phối chọn; `trackPointer`/`autoScroll`/`endGesture` quản lý kéo và cleanup; handler `save` chỉ cập nhật bộ nhớ. Consumer là native HTML preview/render; scripts kiểm ignored được định tuyến tại validation.
 
 Impeccable shape sở hữu brief tương tác; UI UX Pro Max query `dragging alternative selection --domain ux` khớp Dragging Movements: có lựa chọn không kéo và keyboard. Đây là tham khảo accessibility, không tự quyết nghiệp vụ batch. Writer inline, self-review + người dùng; không child hoặc nguồn chuẩn cạnh tranh.
+
+## Số công tùy chỉnh tiếp nối
+
+Đã chốt chỉ bước0,5 cho số công trên2,5, giống bước tăng ca nhưng độc lập đơn vị/tổng. Mẫu áp cùng validation cho một ô và vùng;3/3,5 được nhận,3,25 bị báo lỗi và giữ draft, không tự làm tròn. Giới hạn trên và số0 còn mở ở Q1; chưa triển khai validation API.

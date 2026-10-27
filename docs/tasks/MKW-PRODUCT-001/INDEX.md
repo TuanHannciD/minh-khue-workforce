@@ -91,3 +91,7 @@ Vùng sửa: artifact attendance-c.html và dossier/brief/validation; evidence/s
 ## Chốt xử lý xung đột vùng — 27/10/2026
 
 Người dùng chọn “Dừng cả vùng, giữ bản nháp”. Base `0141f6f`, workspace sạch. Mục tiêu/acceptance: ghi quyết định vào requirements, design, brief và kiến trúc lưu; một ô xung đột khiến toàn bộ lần lưu không ghi ô nào, giữ draft và chỉ rõ ô xung đột. Scope chỉ tài liệu dossier; writer inline, tự review + người dùng, risk trung bình về diễn giải tính nguyên tử. Resource Markdown/check local; không child/server/DB/tab/dependency/source sản phẩm/primary. Chưa chọn field/status/schema hoặc triển khai transaction. Bước tiếp: Q1 về số công tùy chỉnh, rồi các quyết định nghiệp vụ còn mở trước spec/plan.
+
+## Bước số công tùy chỉnh — 27/10/2026
+
+Người dùng chọn chỉ bước0,5 cho số công tự nhập trên2,5. Base `184c98d`, workspace sạch. Scope requirements/design/brief/HTML/validation; acceptance nhập một ô và vùng nhận3/3,5, từ chối3,25 không làm tròn, giữ draft và không đổi dữ liệu khi lỗi. Writer inline, tự review + người dùng, risk thấp của prototype không persistence. Resource check local/native HTML preview-render và evidence ignored, không child/server/DB/tab/dependency/primary/source sản phẩm. Tiếp theo chốt giới hạn/định dạng/0 còn mở rồi nghiệp vụ khác; không tự suy bước0,5 thành trần.

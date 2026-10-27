@@ -193,3 +193,11 @@ Detector Impeccable exit0, `[]`. `npm run check:docs` exit0,43 current documents
 Base `0141f6f`, workspace sạch. Ghi lựa chọn người dùng dừng cả vùng/giữ draft/chỉ rõ xung đột vào requirements/design/brief/architecture proposal và INDEX. Tự review phân biệt nghiệp vụ Accepted với transaction/revision/response còn Proposed; ghi đè vùng không được bỏ concurrency. Thêm AC13 sản phẩm, Not run. Chỉ Markdown, không đổi HTML, code sản phẩm, dependency/pilot/primary hoặc acquire resource/child; không chạy lại prototype/pilot suite vì không có thay đổi hành vi. Bước tiếp: làm rõ Q1 rồi Q2/Q4/Q5, hoàn thiện spec để review trước plan.
 
 `npm run check:docs` exit0,43 tài liệu hiện hành; `git diff --check` exit0. Review diff nguồn quyết định và acceptance trước commit local; kiểm staged whitespace, không claim API/DB Verified.
+
+## Số công tùy chỉnh bước0,5 — 27/10/2026
+
+Base `184c98d`, sạch trước sửa. Người dùng chốt bước0,5 cho công tùy chỉnh. Ghi requirements/design/brief/INDEX và sửa chung validator trong prototype, kèm help/error. Không tự chốt trần, số0 hoặc định dạng lưu thật. Writer inline, self-review + người dùng; không code sản phẩm/API/DB/dependency/child/primary hoặc resource mới.
+
+TDD: script ui-c-half-step-checks.js trước sửa RED `quarter step must not write false` (mẫu cũ nhận3,25). Sau sửa native html_preview375/1200 light: mỗi viewport đạt8 check mới về3/3,5 hợp lệ,3,25 bị chặn/giữ draft/không ghi dữ liệu cho cả một ô và vùng; đồng thời28 hồi quy +12 contrast +21 bulk +13 gesture đều đạt, không console error. Evidence RED/GREEN tại `.agent-runs/MKW-PRODUCT-001/ui-c-half-step-results.json`, script cùng thư mục ignored. Không mở rộng kiểm unrelated hoặc dùng pilot làm bằng chứng. Các events tổng hợp/headless, không trusted touch hay API/DB validation; các giới hạn sản phẩm trước giữ Not run.
+
+`npm run check:docs` exit0 (43 current documents), `git diff --check` exit0; evidence mới đã kiểm ignore. Trình HTML gốc đã preview qua native html_render “Minh Khuê · Nhập công theo bước 0,5”, frame1476px. Kiểm diff và staged whitespace trước commit local.
