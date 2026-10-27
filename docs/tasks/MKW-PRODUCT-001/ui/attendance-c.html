@@ -190,6 +190,24 @@ th,td{border-right-color:var(--grid-line);border-bottom-color:var(--grid-line)}
 
 }
 
+
+.selection-tools{display:flex;align-items:center;gap:12px;padding:0 0 16px;flex-wrap:wrap}
+.selection-tools p{font-size:.75rem;line-height:1.6;color:var(--quiet);flex:1;min-width:180px}
+#multi-select[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}
+#grid table{user-select:none;-webkit-user-select:none}
+td[data-position]{position:relative}
+td.in-range{background:var(--soft)}
+td.in-range.reminded{background:var(--reminder-surface)}
+td.in-range.inactive{background:#e9ebee;color:var(--quiet)}
+td.in-range:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;border:0 solid var(--accent)}
+td.range-top:after{border-top-width:2px}td.range-bottom:after{border-bottom-width:2px}
+td.range-left:after{border-left-width:2px}td.range-right:after{border-right-width:2px}
+.bulk-panel{margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.bulk-panel label{display:block;font-size:.875rem;font-weight:600;margin:14px 0 8px}
+.bulk-panel select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:7px;padding:8px;background:var(--paper);font:inherit;font-size:.875rem;color:var(--ink)}
+.bulk-panel select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.range-summary{font-size:.875rem;font-weight:600;line-height:1.6}
+#bulk-reminder-note{font-size:.75rem;line-height:1.6;color:var(--quiet);padding:18px 0}
 </style>
 </head>
 <body>
@@ -200,7 +218,7 @@ FIRST VIEWPORT: wordmark, month, unit switch, search, sticky ledger; editor at r
 FORM: user-pinned C, following seed eef56e12; code-led independent HTML, no new direction lottery. Operate mode, system UI numerals.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
 Scope override: task BRIEF owns prototype visual record; self-review + user review only, no child dispatch or root pilot edits. -->
-<p class="review-note">Bản mẫu C · Dữ liệu giả tháng 10/2026. Bạn có thể thử nhập ô; tải lại trang sẽ đặt lại dữ liệu.</p>
+<p class="review-note">Bản mẫu C · Dữ liệu giả tháng 10/2026. Bạn có thể kéo chọn vùng và thử nhập nhiều ô; tải lại trang sẽ đặt lại dữ liệu.</p>
 <main class="screen" id="screen"><div class="screen-inner">
 <header class="masthead"><div class="brand">Minh Khuê<span>Workforce</span></div><div class="account"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><span>Người chấm công</span></div></header>
 <section class="heading"><div><h1>Bảng chấm công</h1><p>Một bảng tháng, đầy đủ công và tăng ca.</p></div><div class="month">Tháng 10 / 2026</div></section>
@@ -209,57 +227,224 @@ Scope override: task BRIEF owns prototype visual record; self-review + user revi
 <label class="search"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="search" aria-label="Tìm nhân sự" placeholder="Tìm nhân sự…" type="search"></label>
 <button type="button" class="expand" id="expand" aria-pressed="false" aria-label="Mở rộng bảng"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg><span>Mở rộng bảng</span></button>
 </div>
+<div class="selection-tools"><button id="multi-select" type="button" aria-pressed="false">Chọn nhiều</button><p id="selection-hint">Kéo chuột để chọn vùng · Điện thoại: Chọn nhiều</p></div>
 <div class="workspace"><section class="sheet" aria-labelledby="sheet-title"><div class="sheet-heading"><h2 id="sheet-title">Công tháng 10</h2><span id="sheet-meta">20 nhân sự · Đơn vị: công</span></div><div class="grid-scroll" id="grid" tabindex="0" role="region" aria-label="Bảng tháng, cuộn để xem thêm ngày và nhân sự"></div><div class="empty" id="empty" hidden>Không tìm thấy nhân sự.<br>Thử tên khác hoặc xóa nội dung tìm kiếm.</div>
 <div class="legend"><span><i class="mark" aria-hidden="true"></i>Nhắc kiểm tra · vẫn tính tổng</span><span>F · Nghỉ cả ngày</span><span>N · Chưa bắt đầu</span><span>— · Đã kết thúc</span></div></section>
 <section class="editor" id="editor" aria-labelledby="person"><div class="editor-top"><div><h2 id="person">Nhân sự 04</h2><p id="date">25/10/2026 · CN</p><p class="draft-tag" id="draft-tag" hidden>Có thay đổi chưa lưu</p></div><span class="unit" id="unit">Số công</span></div>
+<div class="bulk-panel" id="bulk-panel" hidden><p class="range-summary" id="range-summary"></p><label for="bulk-mode">Cách áp dụng</label><select id="bulk-mode"><option value="fill">Chỉ điền ô trống</option><option value="replace">Ghi đè cả vùng</option></select><p class="help" id="apply-preview"></p></div>
 <span class="field-label" id="value-label">Chọn số công</span><div class="values" role="group" aria-labelledby="value-label"><button data-value="0.5" aria-pressed="false">0,5</button><button data-value="1" aria-pressed="true">1</button><button data-value="1.5" aria-pressed="false">1,5</button><button data-value="2" aria-pressed="false">2</button><button data-value="2.5" aria-pressed="false">2,5</button></div>
 <div class="secondary"><button id="off" aria-pressed="false">F · Nghỉ</button><button id="clear" aria-pressed="false">Để trống</button><button id="custom-toggle" aria-pressed="false" aria-expanded="false" aria-controls="custom">Tùy chỉnh</button></div>
 <div class="custom" id="custom" hidden><label class="field-label" id="custom-label" for="custom-value">Số công lớn hơn 2,5</label><input id="custom-value" inputmode="decimal" type="text" aria-describedby="custom-help error"><p class="help" id="custom-help">Ví dụ: 3 công. Quy tắc số công tùy chỉnh còn chờ chốt.</p></div>
 <p class="error" id="error" role="alert"></p>
-<label class="reminder"><input type="checkbox" id="reminder"><span>Nhắc kiểm tra ô này<small>Tô xanh để nhớ hỏi lại.<br>Giá trị vẫn được cộng vào tổng.</small></span></label>
+<label class="reminder" id="reminder-field"><input type="checkbox" id="reminder"><span>Nhắc kiểm tra ô này<small>Tô xanh để nhớ hỏi lại.<br>Giá trị vẫn được cộng vào tổng.</small></span></label>
+<p id="bulk-reminder-note" hidden>Giữ màu nhắc riêng của từng ô. Ô N/— được bỏ qua.</p>
 <div class="actions"><button id="cancel">Hủy</button><button class="primary" id="save">Lưu thử</button></div><p class="status" id="status" role="status">Chọn một giá trị rồi bấm Lưu thử.</p>
 <div class="guard" id="guard" role="region" aria-label="Bản nháp chưa lưu" hidden><p>Bạn còn thay đổi chưa lưu. Tiếp tục sửa hoặc bỏ bản nháp để chuyển.</p><div><button id="keep" class="primary">Tiếp tục sửa</button><button id="discard">Bỏ và chuyển</button></div></div>
 </section></div>
 <footer class="footer"><span>Chạm ô để nhập · Cuộn ngang để xem các ngày</span><button id="reset">Đặt lại dữ liệu mẫu</button></footer>
 </div></main>
-<details class="review-details"><summary>Phạm vi bản mẫu và điểm cần review</summary><p>Hướng C: một bảng lớn, chuyển Công/Tăng ca. Hướng thương hiệu xanh lá: đầu trang và thao tác chính dùng xanh rừng trầm, bảng trắng và vùng nhập xám nhạt. Ô nhắc kiểm tra dùng xanh lá sáng kèm dấu nhận biết; màu nhắc không đổi tổng. Mã màu và cách phân bổ cụ thể đang chờ review.</p><p>HTML minh họa chưa dùng shadcn/Radix thực tế, không có đăng nhập, API, lưu bền vững hay xuất Excel. Lỗi mạng/xung đột hai tài khoản và pinch zoom trên iPhone/Android thật chưa kiểm. Mở rộng chỉ tăng vùng bảng trong trang.</p><p>Thử chọn ô, nhập số, đánh dấu nhắc, chuyển loại bảng và tìm nhân sự. Với công tùy chỉnh, mẫu chỉ minh họa số lớn hơn 2,5; quy tắc chi tiết chưa là contract đã duyệt.</p></details>
+<details class="review-details"><summary>Phạm vi bản mẫu và điểm cần review</summary><p>Hướng C: một bảng lớn, chuyển Công/Tăng ca. Hướng thương hiệu xanh lá: đầu trang và thao tác chính dùng xanh rừng trầm, bảng trắng và vùng nhập xám nhạt. Ô nhắc kiểm tra dùng xanh lá sáng kèm dấu nhận biết; màu nhắc không đổi tổng. Mã màu và cách phân bổ cụ thể đang chờ review.</p><p>HTML minh họa chưa dùng shadcn/Radix thực tế, không có đăng nhập, API, lưu bền vững hay xuất Excel. Lỗi mạng/xung đột hai tài khoản và pinch zoom trên iPhone/Android thật chưa kiểm. Mở rộng chỉ tăng vùng bảng trong trang.</p><p>Thử kéo chọn vùng, chọn giá trị rồi áp dụng theo hai chế độ. Trên điện thoại bấm Chọn nhiều và chạm hai đầu; vùng chọn chỉ gồm nhân sự đang hiển thị. Màu nhắc từng ô được giữ khi nhập vùng. Với công tùy chỉnh, mẫu chỉ minh họa số lớn hơn 2,5; quy tắc chi tiết chưa là contract đã duyệt.</p></details>
 <script>
 'use strict';
-// File map: seed/model → table rendering → editor/draft → interactions.
-// One self-contained review artifact; no network, storage, product modules or libraries.
+// File map: model/selection → table → editor/draft → pointer/keyboard → apply.
+// Review artifact only: synthetic data and memory, no product API or persistence.
 const $=id=>document.getElementById(id);
 const employees=Array.from({length:20},(_,id)=>({id,name:'Nhân sự '+String(id+1).padStart(2,'0'),start:id===17?15:1,end:id===18?20:31}));
 let data,kind='work',selected={id:3,day:25},draft,custom=false,pending=null;
+let range=null,multiMode=false,awaitingEnd=false,gesture=null,suppressClick=false,scrollFrame=0;
 const fmt=v=>typeof v==='number'?String(v).replace('.',','):v;
 const weekday=d=>['CN','T2','T3','T4','T5','T6','T7'][new Date(2026,9,d).getDay()];
 const active=(id,d)=>d>=employees[id].start&&d<=employees[id].end;
-function seed(){data={work:[],overtime:[]};for(const e of employees){data.work[e.id]=Array.from({length:31},(_,i)=>({value:i<25?(i===11?'F':i===7?.5:1):'',reminder:i===24&&e.id%7===3}));data.overtime[e.id]=Array.from({length:31},(_,i)=>({value:i<25&&(i+e.id)%5===0?1.5:'',reminder:i===19&&e.id===3}));}for(const k of ['work','overtime'])for(const e of employees)for(let d=1;d<=31;d++)if(!active(e.id,d))data[k][e.id][d-1]={value:'',reminder:false};}
+function seed(){
+ data={work:[],overtime:[]};
+ for(const e of employees){
+  data.work[e.id]=Array.from({length:31},(_,i)=>({value:i<25?(i===11?'F':i===7?.5:1):'',reminder:i===24&&e.id%7===3}));
+  data.overtime[e.id]=Array.from({length:31},(_,i)=>({value:i<25&&(i+e.id)%5===0?1.5:'',reminder:i===19&&e.id===3}));
+  for(const k of ['work','overtime'])for(let d=1;d<=31;d++)if(!active(e.id,d))data[k][e.id][d-1]={value:'',reminder:false};
+ }
+}
 function total(k,id){return data[k][id].reduce((sum,c,i)=>sum+(active(id,i+1)&&typeof c.value==='number'?c.value:0),0);}
 function dayTotal(d){return employees.reduce((sum,e)=>sum+(active(e.id,d)&&typeof data[kind][e.id][d-1].value==='number'?data[kind][e.id][d-1].value:0),0);}
-function dirty(){const base=data[kind][selected.id][selected.day-1];return custom?($('custom-value').value.trim()!==fmt(base.value)||draft.reminder!==base.reminder):(draft.value!==base.value||draft.reminder!==base.reminder);}
-function markDraft(){$('draft-tag').hidden=!dirty();$('error').textContent='';$('custom-value').removeAttribute('aria-invalid');}
-function requestChange(action){if(dirty()){pending=action;$('guard').hidden=false;$('keep').focus();}else action();}
-function loadDraft(){draft={...data[kind][selected.id][selected.day-1]};custom=typeof draft.value==='number'&&draft.value>2.5;$('custom-value').value=custom?fmt(draft.value):'';$('error').textContent='';$('custom-value').removeAttribute('aria-invalid');$('guard').hidden=true;pending=null;renderEditor();}
-function renderTable(){const oldLeft=$('grid').scrollLeft,oldTop=$('grid').scrollTop;const query=$('search').value.trim().toLocaleLowerCase('vi');const visible=employees.filter(e=>e.name.toLocaleLowerCase('vi').includes(query));$('empty').hidden=visible.length>0;$('grid').hidden=visible.length===0;$('sheet-title').textContent=(kind==='work'?'Công':'Tăng ca')+' tháng 10';$('sheet-meta').textContent=visible.length+' nhân sự · Đơn vị: '+(kind==='work'?'công':'giờ');
- let html='<table><caption>'+ (kind==='work'?'Bảng công':'Bảng tăng ca')+' tháng 10/2026, dữ liệu giả. Tổng ngày tính toàn bộ 20 nhân sự, kể cả khi tìm kiếm.</caption><thead><tr><th scope="col" class="name">Nhân sự</th>';
- for(let d=1;d<=31;d++)html+='<th scope="col">'+d+'<small>'+weekday(d)+'</small></th>';html+='<th class="total" scope="col">Tổng</th></tr></thead><tbody>';
- for(const e of visible){html+='<tr><th class="name" scope="row">'+e.name+'</th>';for(let d=1;d<=31;d++){const c=data[kind][e.id][d-1];if(!active(e.id,d)){html+='<td class="inactive" aria-label="'+e.name+', '+d+'/10, '+(d<e.start?'chưa bắt đầu':'đã kết thúc')+'">'+(d<e.start?'N':'—')+'</td>';continue;}const sel=selected.id===e.id&&selected.day===d;html+='<td class="'+(c.reminder?'reminded ':'')+(sel?'selected':'')+'"><button type="button" data-cell="'+e.id+':'+d+'" aria-label="'+e.name+', '+d+'/10, '+(kind==='work'?'công':'tăng ca')+': '+(c.value===''?'trống':fmt(c.value))+(c.reminder?', nhắc kiểm tra':'')+'"'+(sel?' aria-current="true"':'')+'>'+fmt(c.value)+'</button></td>';}html+='<td class="total">'+fmt(total(kind,e.id))+'</td></tr>';}
- html+='</tbody><tfoot><tr><th class="name" scope="row">Tổng ngày</th>';for(let d=1;d<=31;d++)html+='<td>'+fmt(dayTotal(d))+'</td>';html+='<td class="total">'+fmt(employees.reduce((n,e)=>n+total(kind,e.id),0))+'</td></tr></tfoot></table>';$('grid').innerHTML=html;$('grid').scrollLeft=oldLeft;$('grid').scrollTop=oldTop;
+function visibleEmployees(){const q=$('search').value.trim().toLocaleLowerCase('vi');return employees.filter(e=>e.name.toLocaleLowerCase('vi').includes(q));}
+function rangeCells(){
+ if(!range)return [];
+ const a=range.rows.indexOf(range.start.id),b=range.rows.indexOf(range.end.id),cells=[];
+ for(const id of range.rows.slice(Math.min(a,b),Math.max(a,b)+1))for(let day=Math.min(range.start.day,range.end.day);day<=Math.max(range.start.day,range.end.day);day++)cells.push({id,day});
+ return cells;
 }
-function renderEditor(){$('person').textContent=employees[selected.id].name;$('date').textContent=selected.day+'/10/2026 · '+weekday(selected.day);$('unit').textContent=kind==='work'?'Số công':'Giờ tăng ca';$('value-label').textContent=kind==='work'?'Chọn số công':'Chọn số giờ tăng ca';$('off').hidden=kind!=='work';$('reminder').checked=draft.reminder;document.querySelectorAll('[data-value]').forEach(b=>b.setAttribute('aria-pressed',String(!custom&&Number(b.dataset.value)===draft.value)));$('off').setAttribute('aria-pressed',String(!custom&&draft.value==='F'));$('clear').setAttribute('aria-pressed',String(!custom&&draft.value===''));$('custom-toggle').setAttribute('aria-pressed',String(custom));$('custom-toggle').setAttribute('aria-expanded',String(custom));$('custom').hidden=!custom;$('custom-label').textContent=kind==='work'?'Số công lớn hơn 2,5':'Số giờ lớn hơn 2,5';$('custom-help').textContent=kind==='work'?'Ví dụ: 3 công. Quy tắc số công tùy chỉnh còn chờ chốt.':'Nhập theo bước 0,5 giờ. Ví dụ: 3,5 giờ.';markDraft();}
-function chooseCell(id,day){requestChange(()=>{selected={id,day};$('screen').classList.remove('full');syncExpand();loadDraft();renderTable();$('status').textContent='Đang sửa ô '+day+'/10 · '+employees[id].name+'.';if(window.matchMedia('(max-width:540px)').matches)$('editor').scrollIntoView({block:'nearest'});});}
+function targets(){return rangeCells().filter(c=>active(c.id,c.day)&&($('bulk-mode').value==='replace'||data[kind][c.id][c.day-1].value===''));}
+function dirty(){
+ if(range)return custom||draft.value!==null;
+ const base=data[kind][selected.id][selected.day-1];
+ return custom?($('custom-value').value.trim()!==fmt(base.value)||draft.reminder!==base.reminder):(draft.value!==base.value||draft.reminder!==base.reminder);
+}
+function markDraft(){
+ $('draft-tag').hidden=!dirty();$('error').textContent='';$('custom-value').removeAttribute('aria-invalid');
+ if(range){
+  const cells=rangeCells(),skipped=cells.filter(c=>!active(c.id,c.day)).length;
+  const occupied=cells.filter(c=>active(c.id,c.day)&&data[kind][c.id][c.day-1].value!=='').length;
+  $('range-summary').textContent='Đã chọn '+cells.length+' ô · Bỏ qua '+skipped+' ô N/—';
+  $('apply-preview').textContent=awaitingEnd?'Chọn ô cuối để hoàn tất vùng.':targets().length+' ô sẽ được áp dụng. '+($('bulk-mode').value==='replace'?occupied+' ô đã có dữ liệu trong vùng.':'Giữ nguyên '+occupied+' ô đã có dữ liệu.');
+  $('save').disabled=awaitingEnd||targets().length===0||(!custom&&draft.value===null);
+ }else $('save').disabled=!active(selected.id,selected.day);
+}
+function requestChange(action){if(dirty()){pending=action;$('guard').hidden=false;$('keep').focus();}else action();}
+function loadDraft(){
+ draft=range?{value:null,reminder:false}:{...data[kind][selected.id][selected.day-1]};
+ custom=!range&&typeof draft.value==='number'&&draft.value>2.5;
+ $('custom-value').value=custom?fmt(draft.value):'';$('error').textContent='';$('custom-value').removeAttribute('aria-invalid');
+ $('guard').hidden=true;pending=null;renderEditor();
+}
+function paintSelection(){
+ const cells=rangeCells(),keys=new Set(cells.map(c=>c.id+':'+c.day));
+ const rows=range?range.rows.slice(Math.min(range.rows.indexOf(range.start.id),range.rows.indexOf(range.end.id)),Math.max(range.rows.indexOf(range.start.id),range.rows.indexOf(range.end.id))+1):[];
+ for(const td of $('grid').querySelectorAll('[data-position]')){
+  const [id,day]=td.dataset.position.split(':').map(Number),inside=keys.has(td.dataset.position);
+  td.classList.toggle('in-range',inside);td.classList.toggle('range-top',inside&&id===rows[0]);td.classList.toggle('range-bottom',inside&&id===rows.at(-1));
+  td.classList.toggle('range-left',inside&&day===Math.min(range.start.day,range.end.day));td.classList.toggle('range-right',inside&&day===Math.max(range.start.day,range.end.day));
+  td.classList.toggle('selected',!range&&selected.id===id&&selected.day===day);
+  const button=td.querySelector('button');if(button){button.setAttribute('aria-pressed',String(inside));if(!range&&selected.id===id&&selected.day===day)button.setAttribute('aria-current','true');else button.removeAttribute('aria-current');}
+ }
+}
+function renderTable(){
+ const oldLeft=$('grid').scrollLeft,oldTop=$('grid').scrollTop,visible=visibleEmployees();
+ $('empty').hidden=visible.length>0;$('grid').hidden=visible.length===0;
+ $('sheet-title').textContent=(kind==='work'?'Công':'Tăng ca')+' tháng 10';$('sheet-meta').textContent=visible.length+' nhân sự · Đơn vị: '+(kind==='work'?'công':'giờ');
+ let html='<table><caption>'+(kind==='work'?'Bảng công':'Bảng tăng ca')+' tháng 10/2026, dữ liệu giả. Tổng ngày tính toàn bộ 20 nhân sự, kể cả khi tìm kiếm.</caption><thead><tr><th scope="col" class="name">Nhân sự</th>';
+ for(let d=1;d<=31;d++)html+='<th scope="col">'+d+'<small>'+weekday(d)+'</small></th>';
+ html+='<th class="total" scope="col">Tổng</th></tr></thead><tbody>';
+ for(const e of visible){
+  html+='<tr><th class="name" scope="row">'+e.name+'</th>';
+  for(let d=1;d<=31;d++){
+   const c=data[kind][e.id][d-1],pos=e.id+':'+d;
+   if(!active(e.id,d)){
+    html+='<td data-position="'+pos+'" class="inactive" aria-label="'+e.name+', '+d+'/10, '+(d<e.start?'chưa bắt đầu':'đã kết thúc')+'">'+(d<e.start?'N':'—')+'</td>';continue;
+   }
+   html+='<td data-position="'+pos+'" class="'+(c.reminder?'reminded':'')+'"><button type="button" data-cell="'+pos+'" aria-label="'+e.name+', '+d+'/10, '+(kind==='work'?'công':'tăng ca')+': '+(c.value===''?'trống':fmt(c.value))+(c.reminder?', nhắc kiểm tra':'')+'">'+fmt(c.value)+'</button></td>';
+  }
+  html+='<td class="total">'+fmt(total(kind,e.id))+'</td></tr>';
+ }
+ html+='</tbody><tfoot><tr><th class="name" scope="row">Tổng ngày</th>';
+ for(let d=1;d<=31;d++)html+='<td>'+fmt(dayTotal(d))+'</td>';
+ html+='<td class="total">'+fmt(employees.reduce((n,e)=>n+total(kind,e.id),0))+'</td></tr></tfoot></table>';
+ $('grid').innerHTML=html;$('grid').scrollLeft=oldLeft;$('grid').scrollTop=oldTop;paintSelection();
+}
+function renderEditor(){
+ $('person').textContent=range?'Nhập nhiều ô':employees[selected.id].name;
+ $('date').textContent=range?(rangeCells().length?'Nhân sự '+String(range.start.id+1).padStart(2,'0')+' → '+String(range.end.id+1).padStart(2,'0')+' · '+Math.min(range.start.day,range.end.day)+'–'+Math.max(range.start.day,range.end.day)+'/10':'Chọn vùng'):selected.day+'/10/2026 · '+weekday(selected.day);
+ $('unit').textContent=kind==='work'?'Số công':'Giờ tăng ca';$('value-label').textContent=kind==='work'?'Chọn số công':'Chọn số giờ tăng ca';
+ $('off').hidden=kind!=='work';$('reminder').checked=draft.reminder;$('reminder-field').hidden=!!range;$('bulk-panel').hidden=!range;$('bulk-reminder-note').hidden=!range;
+ $('save').textContent=range?'Áp dụng thử':'Lưu thử';$('cancel').textContent=range?'Hủy vùng':'Hủy';
+ $('multi-select').setAttribute('aria-pressed',String(multiMode));$('multi-select').textContent=multiMode?'Đang chọn nhiều':'Chọn nhiều';
+ $('selection-hint').textContent=multiMode?(awaitingEnd?'Chọn ô cuối của vùng · Esc để hủy.':'Chạm ô đầu rồi ô cuối · Hoặc Shift + phím mũi tên.'):'Kéo chuột để chọn vùng · Shift + bấm ô cuối · Điện thoại: Chọn nhiều';
+ document.querySelectorAll('[data-value]').forEach(b=>b.setAttribute('aria-pressed',String(!custom&&Number(b.dataset.value)===draft.value)));
+ $('off').setAttribute('aria-pressed',String(!custom&&draft.value==='F'));$('clear').setAttribute('aria-pressed',String(!custom&&draft.value===''));
+ $('custom-toggle').setAttribute('aria-pressed',String(custom));$('custom-toggle').setAttribute('aria-expanded',String(custom));$('custom').hidden=!custom;
+ $('custom-label').textContent=kind==='work'?'Số công lớn hơn 2,5':'Số giờ lớn hơn 2,5';
+ $('custom-help').textContent=kind==='work'?'Ví dụ: 3 công. Quy tắc số công tùy chỉnh còn chờ chốt.':'Nhập theo bước 0,5 giờ. Ví dụ: 3,5 giờ.';markDraft();
+}
+function openEditor(){
+ $('screen').classList.remove('full');syncExpand();
+ if(window.matchMedia('(max-width:540px)').matches)$('editor').scrollIntoView({block:'nearest'});
+}
+function setRange(start,end,rows=visibleEmployees().map(e=>e.id)){
+ range={start:{...start},end:{...end},rows:[...rows]};selected={...start};loadDraft();paintSelection();
+}
+function chooseCell(id,day,extend=false){
+ const point={id,day};
+ if(!active(id,day)&&!multiMode&&!extend)return;
+ requestChange(()=>{
+  if(extend){awaitingEnd=false;setRange(range?range.start:selected,point,range?range.rows:undefined);}
+  else if(multiMode){
+   if(awaitingEnd&&range){const start=range.start,rows=range.rows;awaitingEnd=false;setRange(start,point,rows);openEditor();}
+   else{awaitingEnd=true;setRange(point,point);}
+  }else{range=null;awaitingEnd=false;selected=point;loadDraft();paintSelection();openEditor();}
+  $('status').textContent=range?'Vùng chọn chưa thay đổi dữ liệu.':'Đang sửa ô '+day+'/10 · '+employees[id].name+'.';
+ });
+}
 function syncExpand(){const full=$('screen').classList.contains('full');$('expand').setAttribute('aria-pressed',String(full));$('expand').setAttribute('aria-label',full?'Thu gọn bảng':'Mở rộng bảng');$('expand').querySelector('span').textContent=full?'Thu gọn bảng':'Mở rộng bảng';}
-document.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{if(kind===b.dataset.kind)return;requestChange(()=>{kind=b.dataset.kind;document.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.kind===kind)));loadDraft();renderTable();$('status').textContent='Đang xem '+(kind==='work'?'công.':'tăng ca, đơn vị giờ.');});});
-$('grid').onclick=e=>{const b=e.target.closest('[data-cell]');if(b){const [id,d]=b.dataset.cell.split(':').map(Number);chooseCell(id,d);}};
-$('grid').onkeydown=e=>{const b=e.target.closest('[data-cell]');if(!b||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;const [id,d]=b.dataset.cell.split(':').map(Number);const nextId=id+(e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:0),nextDay=d+(e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0);const next=$('grid').querySelector('[data-cell="'+nextId+':'+nextDay+'"]');if(next){e.preventDefault();next.focus();}};
+function readPoint(element){const td=element?.closest('[data-position]');if(!td||!$('grid').contains(td))return null;const [id,day]=td.dataset.position.split(':').map(Number);return {id,day};}
+function trackPointer(x,y){
+ if(!gesture)return;
+ gesture.x=x;gesture.y=y;
+ const box=$('grid').getBoundingClientRect(),first=$('grid').querySelector('tbody .name'),last=$('grid').querySelector('tbody .total'),head=$('grid').querySelector('thead');
+ const px=Math.max(first.getBoundingClientRect().right+3,Math.min(x,last.getBoundingClientRect().left-3));
+ const py=Math.max(head.getBoundingClientRect().bottom+3,Math.min(y,box.bottom-8));
+ const end=readPoint(document.elementFromPoint(px,py));
+ if(!end||!gesture.rows.includes(end.id))return;
+ if(end.id!==gesture.start.id||end.day!==gesture.start.day)gesture.moved=true;
+ if(gesture.moved&&(!range||range.end.id!==end.id||range.end.day!==end.day)){awaitingEnd=false;setRange(gesture.start,end,gesture.rows);}
+}
+function autoScroll(){
+ if(!gesture){scrollFrame=0;return;}
+ const box=$('grid').getBoundingClientRect();
+ const left=$('grid').querySelector('tbody .name').getBoundingClientRect().right,right=$('grid').querySelector('tbody .total').getBoundingClientRect().left;
+ const top=$('grid').querySelector('thead').getBoundingClientRect().bottom;
+ const dx=gesture.x<left+18?-12:gesture.x>right-18?12:0,dy=gesture.y<top+18?-10:gesture.y>box.bottom-22?10:0;
+ if(gesture.moved&&(dx||dy)){$('grid').scrollBy(dx,dy);trackPointer(gesture.x,gesture.y);}
+ scrollFrame=requestAnimationFrame(autoScroll);
+}
+function endGesture(cancelled=false){
+ if(!gesture)return;
+ const old=gesture;gesture=null;cancelAnimationFrame(scrollFrame);scrollFrame=0;
+ if($('grid').hasPointerCapture(old.pointerId))$('grid').releasePointerCapture(old.pointerId);
+ if(cancelled){range=old.before.range;selected=old.before.selected;awaitingEnd=old.before.awaitingEnd;loadDraft();paintSelection();$('status').textContent='Đã hủy thao tác kéo.';}
+ else{renderEditor();if(old.moved){openEditor();$('status').textContent='Đã chọn '+rangeCells().length+' ô; chọn giá trị để áp dụng.';}}
+}
+document.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{
+ if(kind===b.dataset.kind)return;
+ requestChange(()=>{kind=b.dataset.kind;range=null;multiMode=false;awaitingEnd=false;document.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.kind===kind)));loadDraft();renderTable();$('status').textContent='Đang xem '+(kind==='work'?'công.':'tăng ca, đơn vị giờ.');});
+});
+$('multi-select').onclick=()=>requestChange(()=>{multiMode=!multiMode;range=null;awaitingEnd=false;loadDraft();paintSelection();$('status').textContent=multiMode?'Chọn ô đầu rồi ô cuối để tạo vùng.':'Đã trở lại nhập từng ô.';});
+$('grid').onpointerdown=e=>{
+ suppressClick=false;
+ if(e.pointerType!=='mouse'||e.button!==0||multiMode||e.shiftKey)return;
+ const point=readPoint(e.target);if(!point)return;
+ e.preventDefault();suppressClick=true;
+ if(dirty()){requestChange(()=>{range=null;selected=point;loadDraft();paintSelection();});return;}
+ gesture={start:point,rows:visibleEmployees().map(e=>e.id),x:e.clientX,y:e.clientY,moved:false,pointerId:e.pointerId,before:{range,selected:{...selected},awaitingEnd}};
+ range=null;selected=point;awaitingEnd=false;loadDraft();paintSelection();
+ try{$('grid').setPointerCapture(e.pointerId);}catch{/* Browser can decline capture; document listeners still finish the gesture. */}
+ scrollFrame=requestAnimationFrame(autoScroll);
+};
+document.addEventListener('pointermove',e=>{if(gesture&&e.pointerId===gesture.pointerId){if(e.buttons===0){endGesture();return;}trackPointer(e.clientX,e.clientY);}});
+document.addEventListener('pointerup',e=>{if(gesture&&e.pointerId===gesture.pointerId){trackPointer(e.clientX,e.clientY);endGesture();}});
+document.addEventListener('pointercancel',e=>{if(gesture&&e.pointerId===gesture.pointerId)endGesture(true);});
+window.addEventListener('blur',()=>endGesture(true));
+$('grid').onclick=e=>{if(suppressClick){suppressClick=false;return;}const point=readPoint(e.target);if(point)chooseCell(point.id,point.day,e.shiftKey);};
+$('grid').onkeydown=e=>{
+ if(e.key==='Escape'){if(gesture)endGesture(true);else requestChange(()=>{range=null;awaitingEnd=false;loadDraft();paintSelection();});return;}
+ const b=e.target.closest('[data-cell]');if(!b)return;
+ const [id,day]=b.dataset.cell.split(':').map(Number);
+ if(e.shiftKey&&(e.key==='Enter'||e.key===' ')){e.preventDefault();chooseCell(id,day,true);return;}
+ if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;
+ const next={id:id+(e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:0),day:day+(e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0)};
+ const td=$('grid').querySelector('[data-position="'+next.id+':'+next.day+'"]');if(!td)return;
+ e.preventDefault();
+ if(e.shiftKey)chooseCell(next.id,next.day,true);
+ const button=td.querySelector('button');if(button)button.focus();
+};
 document.querySelectorAll('[data-value]').forEach(b=>b.onclick=()=>{custom=false;draft.value=Number(b.dataset.value);renderEditor();});
-$('off').onclick=()=>{custom=false;draft.value='F';renderEditor();};$('clear').onclick=()=>{custom=false;draft.value='';renderEditor();};$('custom-toggle').onclick=()=>{custom=true;$('custom-value').value=typeof draft.value==='number'&&draft.value>2.5?fmt(draft.value):'';renderEditor();$('custom-value').focus();};
-$('custom-value').oninput=markDraft;$('reminder').onchange=()=>{draft.reminder=$('reminder').checked;markDraft();};
-$('save').onclick=()=>{if(custom){const raw=$('custom-value').value.trim();const n=/^\d+(?:[.,]\d+)?$/.test(raw)?Number(raw.replace(',','.')):NaN;if(!Number.isFinite(n)||n<=2.5||(kind==='overtime'&&!Number.isInteger(n*2))){$('error').textContent=kind==='work'?'Nhập số công lớn hơn 2,5, ví dụ 3.':'Nhập số giờ lớn hơn 2,5 theo bước 0,5, ví dụ 3,5.';$('custom-value').setAttribute('aria-invalid','true');$('custom-value').focus();return;}draft.value=n;}data[kind][selected.id][selected.day-1]={...draft};loadDraft();renderTable();$('status').textContent='Đã cập nhật bản mẫu. Dữ liệu chỉ giữ trong trang này.';};
-$('cancel').onclick=()=>{loadDraft();$('status').textContent='Đã bỏ thay đổi chưa lưu.';};$('keep').onclick=()=>{pending=null;$('guard').hidden=true;$('save').focus();};$('discard').onclick=()=>{const action=pending;pending=null;$('guard').hidden=true;if(action)action();};
-$('search').oninput=renderTable;$('expand').onclick=()=>{requestChange(()=>{$('screen').classList.toggle('full');syncExpand();});};$('reset').onclick=()=>requestChange(()=>{seed();kind='work';selected={id:3,day:25};$('search').value='';document.querySelectorAll('[data-kind]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===kind)));$('screen').classList.remove('full');syncExpand();loadDraft();renderTable();$('status').textContent='Đã đặt lại dữ liệu minh họa.';});
+$('off').onclick=()=>{custom=false;draft.value='F';renderEditor();};$('clear').onclick=()=>{custom=false;draft.value='';renderEditor();};
+$('custom-toggle').onclick=()=>{custom=true;$('custom-value').value=typeof draft.value==='number'&&draft.value>2.5?fmt(draft.value):'';renderEditor();$('custom-value').focus();};
+$('custom-value').oninput=markDraft;$('reminder').onchange=()=>{draft.reminder=$('reminder').checked;markDraft();};$('bulk-mode').onchange=markDraft;
+$('save').onclick=()=>{
+ if($('save').disabled)return;
+ if(custom){const raw=$('custom-value').value.trim(),n=/^\d+(?:[.,]\d+)?$/.test(raw)?Number(raw.replace(',','.')):NaN;
+  if(!Number.isFinite(n)||n<=2.5||(kind==='overtime'&&!Number.isInteger(n*2))){$('error').textContent=kind==='work'?'Nhập số công lớn hơn 2,5, ví dụ 3.':'Nhập số giờ lớn hơn 2,5 theo bước 0,5, ví dụ 3,5.';$('custom-value').setAttribute('aria-invalid','true');$('custom-value').focus();return;}draft.value=n;
+ }
+ if(range){const cells=targets(),skip=rangeCells().filter(c=>!active(c.id,c.day)).length;for(const c of cells)data[kind][c.id][c.day-1]={...data[kind][c.id][c.day-1],value:draft.value};loadDraft();renderTable();$('status').textContent='Đã áp dụng thử '+cells.length+' ô; bỏ qua '+skip+' ô N/—. Chỉ lưu trong trang.';}
+ else if(active(selected.id,selected.day)){data[kind][selected.id][selected.day-1]={...draft};loadDraft();renderTable();$('status').textContent='Đã cập nhật bản mẫu. Dữ liệu chỉ giữ trong trang này.';}
+};
+$('cancel').onclick=()=>{range=null;awaitingEnd=false;loadDraft();paintSelection();$('status').textContent='Đã bỏ thay đổi chưa lưu.';};
+$('keep').onclick=()=>{pending=null;$('guard').hidden=true;$('save').focus();};$('discard').onclick=()=>{const action=pending;pending=null;$('guard').hidden=true;if(action)action();};
+let acceptedSearch='';
+$('search').oninput=()=>{const next=$('search').value;$('search').value=acceptedSearch;requestChange(()=>{acceptedSearch=next;$('search').value=next;range=null;awaitingEnd=false;loadDraft();renderTable();});};
+$('expand').onclick=()=>requestChange(()=>{$('screen').classList.toggle('full');syncExpand();});
+$('reset').onclick=()=>requestChange(()=>{endGesture(true);seed();kind='work';selected={id:3,day:25};range=null;multiMode=false;awaitingEnd=false;suppressClick=false;acceptedSearch='';$('bulk-mode').value='fill';$('search').value='';document.querySelectorAll('[data-kind]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===kind)));$('screen').classList.remove('full');syncExpand();loadDraft();renderTable();$('status').textContent='Đã đặt lại dữ liệu minh họa.';});
 seed();loadDraft();renderTable();$('grid').scrollLeft=48*22;$('grid').scrollTop=44;
-console.log('UI C ready: 20 synthetic employees, 31 days; no API or storage.');
+console.log('UI C ready: 20 synthetic employees, range entry; memory only, no API or storage.');
+
 </script>
 </body>
 </html>

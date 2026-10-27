@@ -58,4 +58,6 @@ Ngày27/10/2026, người dùng xác nhận mong muốn màu thương hiệu thu
 
 Người dùng chấp nhận bản phối xanh hiện tại làm cơ sở tiếp tục (“Cũng ok rồi”), rồi yêu cầu kéo để chọn nhiều ô như Excel và nhập nhiều ô một lúc. Đây là yêu cầu mở rộng đã xác nhận, không còn loại bulk entry chỉ vì các gợi ý skill trước đây chưa thuộc scope.
 
-Khi vùng chọn chứa ô đã có dữ liệu, người dùng chốt có **hai lựa chọn: điền ô trống hoặc ghi đè cả vùng**. Hình thức chọn, bước xác nhận, xử lý vùng có N/—, màu nhắc khi nhập hàng loạt, cảm ứng và tính nguyên tử/xung đột nhiều ô còn cần thiết kế; không suy từ hai chế độ ra API/contract hoặc quyền triển khai sản phẩm. Brief để review tại [nhập vùng](../ui/bulk-entry-design.md).
+Khi vùng chọn chứa ô đã có dữ liệu, người dùng chốt có **hai lựa chọn: điền ô trống hoặc ghi đè cả vùng**. Tại checkpoint ghi hai chế độ, các chi tiết tương tác còn để review; luồng chọn và bỏ qua N/— được xác nhận tiếp nối bên dưới. Tính nguyên tử/xung đột nhiều ô vẫn cần thiết kế; không suy từ hai chế độ ra API/contract hoặc quyền triển khai sản phẩm. Brief để review tại [nhập vùng](../ui/bulk-entry-design.md).
+
+Người dùng xác nhận luồng được trình: kéo chọn vùng → chọn giá trị → chọn chế độ → xem số ô sẽ thay đổi → Áp dụng; điện thoại dùng Chọn nhiều/chạm hai đầu. Vùng chứa N/— phải bỏ qua các ô ngoài thời gian làm việc và báo rõ số ô bỏ qua. Quyền tiếp tục bản mẫu HTML đã có; lưu thật/batch conflict vẫn cần thiết kế riêng.

@@ -135,4 +135,6 @@ Các câu hỏi này không chặn việc ghi nhận yêu cầu/UX đã thống 
 
 ## 11. Bổ sung nhập vùng để review — 27/10/2026
 
-Người dùng chấp nhận phối xanh hiện tại làm cơ sở tiếp tục và yêu cầu kéo chọn nhiều ô để nhập cùng lúc. Đã chốt hai chế độ: chỉ điền ô trống hoặc ghi đè cả vùng. Luồng chi tiết được trình tại [bulk-entry design](ui/bulk-entry-design.md), chưa đưa vào HTML hoặc API. Đây là yêu cầu bổ sung, thay giới hạn nghiên cứu nhập từng ô trước; không tự duyệt các chi tiết skip N/—, giữ màu, mobile gesture hoặc batch conflict. Các AC trước giữ phạm vi cũ; acceptance batch cần hoàn thiện sau review brief, hiện Not run.
+Người dùng chấp nhận phối xanh hiện tại làm cơ sở tiếp tục, chốt hai chế độ điền trống/ghi đè và đồng ý luồng chọn vùng → giá trị → chế độ → số ô → Áp dụng, bỏ qua N/— và báo số bỏ qua. Điện thoại dùng Chọn nhiều/chạm hai đầu. [Brief nhập vùng](ui/bulk-entry-design.md) ghi tương tác và ranh giới; HTML đã có bản mẫu trong bộ nhớ, chưa có API/lưu thật. Nhập hàng loạt giữ màu nhắc riêng từng ô, tổng công/giờ độc lập.
+
+Acceptance bổ sung cho sản phẩm (Not run): vùng chỉ tác động dòng/ngày đang chọn; điền trống giữ dữ liệu có sẵn, ghi đè chỉ tác động ô hợp lệ; N/— bị bỏ qua và có số đếm; chọn/chỉnh draft chưa lưu dữ liệu; đổi ngữ cảnh không áp nhầm người/đơn vị. Đã kiểm các hành vi tương ứng bằng DOM/pointer tổng hợp của prototype, không đổi AC sản phẩm thành Verified. Cách lưu nguyên tử hay một phần khi có xung đột, phục hồi sau lỗi và cảnh báo ghi đè vẫn cần chốt trước contract/implementation plan.

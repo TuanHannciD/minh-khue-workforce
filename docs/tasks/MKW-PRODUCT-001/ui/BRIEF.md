@@ -1,6 +1,6 @@
 # Bản mẫu bảng tháng và nhập ô
 
-Ngày 25/10/2026. Trạng thái: **Đã chọn hướng tổ chức C — thiết kế thị giác chưa duyệt**. Người dùng chọn một bảng lớn và chuyển Công/Tăng ca, đồng thời nhận xét bản mẫu còn thô/xấu, chưa mang cảm giác đẹp/chuyên nghiệp cho doanh nghiệp. Không xem lựa chọn C là phê duyệt màu sắc, font, spacing, hình thức điều khiển hoặc độ hoàn thiện hiện tại. Chưa duyệt đặc tả viết đầy đủ hoặc triển khai sản phẩm.
+Ngày 25/10/2026. Trạng thái hiện hành: **hướng C và phối xanh được chấp nhận làm cơ sở; bản mẫu nhập vùng chờ review thao tác**. Các đoạn checkpoint phía dưới giữ lịch sử quyết định. Người dùng chọn một bảng lớn và chuyển Công/Tăng ca, đồng thời nhận xét bản mẫu còn thô/xấu, chưa mang cảm giác đẹp/chuyên nghiệp cho doanh nghiệp. Không xem lựa chọn C là phê duyệt màu sắc, font, spacing, hình thức điều khiển hoặc độ hoàn thiện hiện tại. Chưa duyệt đặc tả viết đầy đủ hoặc triển khai sản phẩm.
 
 ## Mục đích và phạm vi
 
@@ -76,4 +76,4 @@ CSS token action/reminder được đặt tên theo vai trò thay tên navy/gree
 
 ## Tiếp nối nhập vùng — 27/10/2026
 
-Người dùng chấp nhận phối xanh hiện tại làm cơ sở tiếp tục, yêu cầu kéo chọn nhiều ô và chọn hai chế độ điền trống/ghi đè vùng. [Brief nhập vùng](bulk-entry-design.md) sở hữu luồng mới để review; HTML hiện tại chưa có tính năng chọn vùng. Gợi ý bulk edit từng bị loại vì chưa được yêu cầu nay đã có yêu cầu trực tiếp; không giữ giới hạn cũ như một lệnh cấm. Chưa suy chấp nhận phối màu thành duyệt đầy đủ đặc tả/API hoặc quyền triển khai sản phẩm.
+Người dùng chấp nhận phối xanh hiện tại làm cơ sở tiếp tục, yêu cầu kéo chọn nhiều ô và chọn hai chế độ điền trống/ghi đè vùng. [Brief nhập vùng](bulk-entry-design.md) sở hữu luồng đã xác nhận và cách thể hiện để review. HTML hiện đã kéo chọn chữ nhật, Chọn nhiều/chạm hai đầu, Shift + bấm/phím mũi tên; đếm ô, điền trống/ghi đè, bỏ qua N/— và giữ màu nhắc. Hủy vùng hoặc guard khi đổi ngữ cảnh bảo vệ draft; dữ liệu chỉ ở bộ nhớ. Các checkpoint thị giác trước không thay phản hồi chấp nhận phối xanh mới nhất. Gợi ý bulk edit từng bị loại vì chưa được yêu cầu nay đã có yêu cầu trực tiếp; không giữ giới hạn cũ như một lệnh cấm. Chưa suy chấp nhận phối màu thành duyệt đầy đủ đặc tả/API hoặc quyền triển khai sản phẩm.
