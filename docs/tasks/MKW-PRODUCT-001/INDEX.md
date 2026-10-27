@@ -99,3 +99,7 @@ Người dùng chọn chỉ bước0,5 cho số công tự nhập trên2,5. Base
 ## Chuẩn hóa0 công thành F — 27/10/2026
 
 Người dùng chọn tự chuyển0 công thành F. Base `416ed47`, workspace sạch. Scope requirements/design/brief/HTML/validation; acceptance0/0,0/0.0 nhập một ô hoặc vùng thành F, không cộng công, giữ reminder và tổng tăng ca; không nhận0 tăng ca như F. Writer inline, self-review + người dùng, risk thấp của HTML giả không persistence. Resource Markdown/check local/native HTML preview-render và evidence ignored; không child/dependency/server/DB/tab/primary/source sản phẩm. Bước tiếp chốt giới hạn/định dạng còn lại và nghiệp vụ mốc ngày/Excel trước spec/plan.
+
+## Chặn đổi mốc loại dữ liệu đã nhập — 27/10/2026
+
+Người dùng “Approve” đề xuất chặn đổi ngày vào/nghỉ khi làm ô đã nhập công/tăng ca nằm ngoài thời gian làm việc mới, chỉ rõ ô cần xử lý trước và không tự xóa. Base `ad615f3`, workspace sạch. Mục tiêu/acceptance: đồng bộ requirements/design/kiến trúc, thêm AC bảo toàn mốc và dữ liệu khi từ chối; ghi ranh giới concurrency/validation chưa triển khai. Writer inline, tự review + người dùng; risk trung bình tài liệu. Scope dossier Markdown; resource file/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bước tiếp Q5 Excel và Q1/Q2 còn mở trước review spec/plan.

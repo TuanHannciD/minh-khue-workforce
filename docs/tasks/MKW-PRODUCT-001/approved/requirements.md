@@ -64,3 +64,8 @@ Người dùng xác nhận luồng được trình: kéo chọn vùng → chọn
 
 
 Người dùng chốt xử lý xung đột khi lưu vùng: **dừng cả vùng, giữ bản nháp**. Nếu có ô vừa bị người khác sửa, lần lưu đó không ghi bất kỳ ô nào trong vùng; chỉ rõ các ô xung đột để kiểm tra lại, giữ giá trị mới trên hệ thống và bản nháp của người nhập. Không tự lưu một phần hoặc tự thử lại để ghi đè. Cách thể hiện dữ liệu đối chiếu và contract kỹ thuật cần thiết kế tương ứng; chưa triển khai/kiểm chứng API/DB.
+
+
+## Sửa ngày vào/nghỉ khi đã có dữ liệu — 27/10/2026
+
+Người dùng duyệt: nếu mốc mới khiến ô đã nhập công hoặc tăng ca nằm ngoài thời gian làm việc, **chặn thay đổi mốc và chỉ rõ các ô liên quan để người dùng xử lý trước**. Giữ nguyên mốc cũ và dữ liệu; không tự xóa, ẩn hoặc chuyển dữ liệu để ép khớp mốc mới. Quy tắc áp cho cả ngày vào và ngày kết thúc, không chỉ tháng đang xem. Cách xử lý ô chỉ có màu nhắc nhưng không có nội dung cần thiết kế rõ, không tự coi là dữ liệu có thể bỏ.

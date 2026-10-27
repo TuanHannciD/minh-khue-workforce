@@ -145,7 +145,7 @@ Lưu thành công nghĩa dữ liệu đã qua API vào DB; reload/thiết bị k
 
 Web/API là hai app nhưng có thể đặt sau cùng một domain qua reverse proxy để đơn giản cookie/CORS. Vẫn build/chạy riêng. Hosting, domain, TLS, secret management, backup/restore và cơ chế session production phải thiết kế trước phát hành; không tự deploy. Android sau này cần luồng đăng nhập/token phù hợp native, không coi cookie web là đã giải quyết xong Android auth.
 
-Mô hình dữ liệu ở mức khái niệm gồm nhân sự/mốc làm việc, công và giờ tăng ca độc lập, màu nhắc, phiên bản concurrency và thông tin tài khoản/phiên. Chưa phê duyệt schema/table/field. Không tự lưu N/— thành công thực nhận; cần thiết kế cách suy hiển thị theo mốc ngày và giữ lịch sử khi mốc thay đổi. Các quy tắc số tùy chỉnh, nhập0 và xử lý đổi mốc đụng dữ liệu phải chốt theo nghiệp vụ trước constraint/migration.
+Mô hình dữ liệu ở mức khái niệm gồm nhân sự/mốc làm việc, công và giờ tăng ca độc lập, màu nhắc, phiên bản concurrency và thông tin tài khoản/phiên. Chưa phê duyệt schema/table/field. Không tự lưu N/— thành công thực nhận; cần thiết kế cách suy hiển thị theo mốc ngày và giữ lịch sử khi mốc thay đổi. Nghiệp vụ đã chốt bước0,5 cho số công tùy chỉnh,0 công thành F và chặn đổi mốc loại dữ liệu đã nhập. Giới hạn/định dạng chi tiết và reminder-only còn cần làm rõ trước constraint/migration.
 
 ## 8. Kiểm tự động phải chứng minh được gì?
 
@@ -154,7 +154,7 @@ Các mục sau là acceptance cho tooling/implementation plan tương lai; **ch�
 - Install theo lockfile, format/lint, type-check strict và build riêng từng app. Build web không cần import source backend; build API không phụ thuộc UI.
 - Boundary check chặn shared→feature, web→server, deep import xuyên feature và cycle; fixture cố ý vi phạm phải thất bại, fixture hợp lệ phải đạt. Loại trừ generated code có phạm vi/lý do, không loại trừ toàn feature để làm xanh.
 - Contract generation tái tạo snapshot/types ổn định; CI/check phát hiện drift khi đổi DTO mà chưa cập nhật output. Request/response thực và validation phải được test, không chỉ compile types.
-- Unit logic công/giờ/mốc ngày sau khi Q1/Q4 chốt; test màu không đổi tổng, công/tăng ca không gộp và tổng ngày/người nhất quán.
+- Unit logic công/giờ/mốc ngày theo phần Q1/Q4 đã chốt và tiếp tục làm rõ phần mở; test màu không đổi tổng, công/tăng ca không gộp và tổng ngày/người nhất quán.
 - Component tests cho draft/lỗi, chuyển bảng, chọn ô và hành vi keyboard; không test lại nội bộ Radix chỉ để tăng số lượng.
 - API integration có quyền, validation, transaction và hai request cập nhật cùng phiên bản; kiểm một lần đạt và lần còn lại báo xung đột, không ghi đè âm thầm. Test sửa màu/giá trị đồng thời và thay mốc cần xét theo contract.
 - Browser web–API–PostgreSQL thật: thêm nhân sự giả, nhập công/giờ/màu, lỗi/thử lại, reload/persistence, hai phiên tranh chấp, xuất Excel/mở kiểm nội dung. Không thay bằng API mock hoặc file tồn tại.
@@ -167,7 +167,7 @@ Review độc lập cho code/tooling theo [QUALITY_GATES](../../../agent/QUALITY
 
 1. Đã chốt hướng A và bộ công nghệ mục tiêu theo ADR-003; chốt/kiểm phiên bản tương thích ở bước tooling, không kế thừa pin pilot một cách tự động.
 2. Chốt đăng nhập/khôi phục và nhu cầu cập nhật giữa hai tài khoản; lựa chọn hạ tầng vận hành/backup trước release.
-3. Hoàn thiện câu hỏi nghiệp vụ Q1/Q4/Q5 về số, đổi mốc và Excel; trình bản UI C hoàn thiện bằng Impeccable + UI UX Pro Max.
+3. Hoàn thiện phần còn mở của Q1/Q4/Q5 về số, reminder-only khi đổi mốc và Excel; trình bản UI C hoàn thiện bằng Impeccable + UI UX Pro Max.
 4. Review contract/request/response, concurrency, migrations và gate kiểm đúng phạm vi. Chưa đủ quyết định để Agent tự triển khai toàn bộ sản phẩm.
 5. Sau khi bản đặc tả viết đủ và được duyệt, mới viết implementation plan, chia task có ownership/check/review/resume. Không chuyển tài liệu này thành danh sách lệnh cài rồi thực hiện ngay.
 
@@ -182,3 +182,8 @@ Review độc lập cho code/tooling theo [QUALITY_GATES](../../../agent/QUALITY
 - [Prisma PostgreSQL](https://www.prisma.io/docs/orm/overview/databases/postgresql), [OpenAPI specification](https://spec.openapis.org/oas/latest.html): nguồn đối chiếu để thiết kế/pin tiếp; HTTP200 không chứng minh app tương thích hoặc mọi version generator hỗ trợ spec latest.
 
 Khảo sát trang web chỉ là tham khảo thiết kế. Version/license/compatibility của từng dependency, generation, engine, build, boundary rules và khả năng vận hành vẫn **Not run** trên sản phẩm.
+
+
+### Bảo toàn dữ liệu khi đổi mốc — tiếp nối Q4
+
+Yêu cầu Accepted: không cho đổi mốc làm loại ô đã nhập công/tăng ca, trả danh sách vị trí cần xử lý trước và giữ mốc cũ. Thiết kế đề xuất: kiểm toàn bộ khoảng bị loại trên dữ liệu server, trong cùng ranh giới transaction/concurrency với cập nhật mốc. Phối hợp kiểm lưu ô và sửa mốc để không có khoảng trống giữa bước kiểm và ghi; không chỉ dựa vào danh sách ô đã tải trên frontend. Không tự cascade-delete hoặc normalize nội dung thành N/—. Contract lỗi, pagination danh sách liên quan và cơ chế khóa/revision cụ thể vẫn Proposed; cần thử request cạnh tranh trên PostgreSQL khi có quyền triển khai. Not run, chưa có API/schema sản phẩm.

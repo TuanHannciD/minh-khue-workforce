@@ -209,3 +209,9 @@ Base `416ed47`, workspace sạch. Người dùng chốt tự chuyển0 công th�
 RED native html_preview728: `zero becomes F false 0` trước sửa. GREEN375/1200 light: mỗi viewport31 check mới đạt (0/0,0/0.0 → F cho một ô/vùng, không cộng công, giữ reminder/tăng ca,0 tăng ca bị chặn);28 hồi quy +12 contrast +21 bulk +13 gesture +8 half-step cũng đạt, không console error. Evidence ignored ui-c-zero-checks.js và ui-c-zero-results.json trong `.agent-runs/MKW-PRODUCT-001/`, giữ bằng chứng cũ. Checks DOM/synthetic events, không trusted touch, API/DB/persistence/concurrency. AC14 lưu thật vẫn Not run.
 
 `npm run check:docs` exit0,43 current documents; `git diff --check` exit0; evidence đã kiểm ignore. Trình HTML gốc đã preview qua native html_render “Minh Khuê · Tự chuyển 0 công thành F”, frame1476px. Kiểm diff và staged whitespace trước commit local. Bước tiếp: các quyết định nghiệp vụ còn mở, không tự triển khai API/DB.
+
+## Chốt bảo vệ dữ liệu khi đổi mốc — 27/10/2026
+
+Base `ad615f3`, workspace sạch. Người dùng duyệt chặn sửa mốc làm loại dữ liệu đã nhập, chỉ rõ ô để xử lý trước. Ghi requirements/design/INDEX và kiến trúc; thêm AC15 gồm dữ liệu tháng khác, F và request lưu ô cạnh tranh. Phân biệt Accepted nghiệp vụ với Proposed transaction/contract; reminder-only vẫn mở, không tự xóa hoặc quyết định thay người dùng. Chỉ Markdown, self-review + người dùng; không review độc lập, không thay HTML/API/DB/dependency/pilot/primary hoặc acquire child/resource. Không chạy prototype/pilot suite vì không đổi hành vi executable. API/DB/luồng sửa nhân sự Not run. Bước tiếp Excel và các quyết định còn mở trước spec/plan.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự rà nội dung/routing và staged whitespace trước commit local; không có kiểm chứng triển khai mới.

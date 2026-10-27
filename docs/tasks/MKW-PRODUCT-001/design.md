@@ -50,7 +50,7 @@ Nếu kết thúc20/10, ngày20 vẫn nhập được; ngày21–31 hiển thị
 
 **Đề xuất để review:** danh sách một tháng gồm người có khoảng làm việc giao với tháng đó; tháng bắt đầu vẫn có các ô `N` phía trước, tháng kết thúc vẫn có `—` phía sau. Không tự thêm người mới vào mọi tháng lịch sử trước tháng họ bắt đầu.
 
-Tên hiển thị không được dùng như lý do gộp hai nhân sự trùng tên. Quy trình sửa ngày bắt đầu/kết thúc khi đã có dữ liệu và trường hợp nghỉ rồi quay lại còn chưa được thiết kế; không tự xóa dữ liệu cũ để khớp mốc ngày mới.
+Tên hiển thị không được dùng như lý do gộp hai nhân sự trùng tên. Đã chốt: chặn đổi ngày bắt đầu/kết thúc nếu mốc mới loại ô đã nhập công/tăng ca; chỉ rõ người/ngày/loại bảng của các ô cần xử lý, giữ nguyên mốc và dữ liệu cũ. Phải xét dữ liệu liên quan ở mọi tháng, không chỉ bảng đang xem. Trường hợp nghỉ rồi quay lại chưa được yêu cầu; ô trống chỉ có nhắc còn cần làm rõ, không tự xóa nhắc.
 
 ## 5. Thao tác trên điện thoại
 
@@ -125,7 +125,7 @@ Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập v�
 
 Q3 — Đã chốt: khi hai người sửa cùng một ô từ dữ liệu cũ, báo người lưu sau và hiển thị giá trị mới để quyết định sửa tiếp; không âm thầm ghi đè. Cơ chế kỹ thuật thuộc bước thiết kế API, chưa triển khai.
 
-Q4 — Khi sửa mốc ngày làm việc đụng ô đã có công/tăng ca, người dùng muốn giải quyết thế nào? Cần làm rõ trước khi cho phép thay mốc gây loại dữ liệu. Trường hợp nghỉ/quay lại chưa được yêu cầu; không tự thêm nhiều hợp đồng/giai đoạn vào bản đầu.
+Q4 — Đã chốt: chặn đổi mốc nếu loại ô đã nhập công/tăng ca, chỉ rõ ô liên quan để xử lý trước, giữ mốc cũ/dữ liệu. Chi tiết ô trống chỉ có reminder còn cần làm rõ. Trường hợp nghỉ/quay lại chưa được yêu cầu; không tự thêm nhiều hợp đồng/giai đoạn vào bản đầu.
 
 Q5 — Xác nhận đề xuất một sheet với hai bảng, và tổng xuất là số tại thời điểm xuất hay công thức để tiếp tục sửa Excel? Trên web đã chọn hướng C: mỗi lúc xem một bảng lớn, chuyển Công/Tăng ca. Cần tiếp tục thiết kế thị giác chuyên nghiệp bằng Impeccable + UI UX Pro Max rồi trình review; chưa duyệt diện mạo bản mẫu. Lựa chọn web này không tự chốt bố cục file Excel.
 
@@ -144,3 +144,6 @@ AC13 — Hai phiên cùng đọc một vùng, phiên A sửa một ô rồi phi�
 
 
 AC14 — Nhập0 công cho một ô hoặc vùng phải hiển thị/lưu thành F, không cộng công, giữ reminder và không đổi tăng ca. Điền trống vẫn giữ ô đã có dữ liệu, ghi đè chỉ áp lên ô hợp lệ; N/— vẫn bỏ qua. Không chuyển0 tăng ca thành F. Kiểm API/DB/lưu đọc lại: Not run; prototype chỉ kiểm trong bộ nhớ.
+
+
+AC15 — Nhân sự có dữ liệu công hoặc tăng ca ngoài khoảng làm việc được đề nghị (kể cả ở tháng khác). Lưu mốc phải bị từ chối, chỉ rõ ô liên quan; mốc cũ, nội dung/màu và tổng theo mốc cũ giữ nguyên. Thử riêng đổi ngày vào và ngày nghỉ, công số/F và tăng ca; không bỏ qua F chỉ vì không cộng tổng. Request lưu ô đồng thời với sửa mốc không được tạo dữ liệu ngoài khoảng hợp lệ. API/DB/luồng sửa nhân sự: **Not run**, prototype hiện chưa có màn hình sửa mốc.
