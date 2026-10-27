@@ -95,3 +95,7 @@ Người dùng chọn “Dừng cả vùng, giữ bản nháp”. Base `0141f6f`
 ## Bước số công tùy chỉnh — 27/10/2026
 
 Người dùng chọn chỉ bước0,5 cho số công tự nhập trên2,5. Base `184c98d`, workspace sạch. Scope requirements/design/brief/HTML/validation; acceptance nhập một ô và vùng nhận3/3,5, từ chối3,25 không làm tròn, giữ draft và không đổi dữ liệu khi lỗi. Writer inline, tự review + người dùng, risk thấp của prototype không persistence. Resource check local/native HTML preview-render và evidence ignored, không child/server/DB/tab/dependency/primary/source sản phẩm. Tiếp theo chốt giới hạn/định dạng/0 còn mở rồi nghiệp vụ khác; không tự suy bước0,5 thành trần.
+
+## Chuẩn hóa0 công thành F — 27/10/2026
+
+Người dùng chọn tự chuyển0 công thành F. Base `416ed47`, workspace sạch. Scope requirements/design/brief/HTML/validation; acceptance0/0,0/0.0 nhập một ô hoặc vùng thành F, không cộng công, giữ reminder và tổng tăng ca; không nhận0 tăng ca như F. Writer inline, self-review + người dùng, risk thấp của HTML giả không persistence. Resource Markdown/check local/native HTML preview-render và evidence ignored; không child/dependency/server/DB/tab/primary/source sản phẩm. Bước tiếp chốt giới hạn/định dạng còn lại và nghiệp vụ mốc ngày/Excel trước spec/plan.

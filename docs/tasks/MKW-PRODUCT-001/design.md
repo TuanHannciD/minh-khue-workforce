@@ -25,7 +25,7 @@ Mỗi ô có hai thông tin độc lập về mặt nghiệp vụ: **nội dung*
 ### Công
 
 - Số công có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; `0,5` tương ứng một buổi. Với số lớn hơn `2,5`, chọn **Tùy chỉnh** để tự nhập. Không dùng `2,5` làm trần; nhiều công trong ngày vẫn theo chỉ đạo của sếp. Số công tùy chỉnh chỉ theo bước `0,5`; giới hạn trên chưa chốt.
-- `F` nghĩa nghỉ cả ngày, không cộng công. Dùng `F` làm cách ghi thống nhất thay cho `0,0` cũ; cách xử lý khi nhập trực tiếp số0 còn cần chốt.
+- `F` nghĩa nghỉ cả ngày, không cộng công. Dùng `F` làm cách ghi thống nhất thay cho `0,0` cũ; nhập trực tiếp số0 công tự chuyển thành `F`, cả một ô và nhập vùng. Giữ màu nhắc riêng, không cộng công.
 - `N` chỉ ngày trước khi bắt đầu làm, không cộng công; không dùng để chỉ nghỉ trong thời gian làm việc.
 - `—` chỉ ngày sau khi kết thúc làm việc, không cộng công.
 - Ô trống giữ là trống, không tự chuyển thành `F` hoặc tự điền1. Ô trống không cung cấp số để cộng, không chứng nhận nhân sự nghỉ.
@@ -119,7 +119,7 @@ Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot
 
 ## 10. Các quyết định còn cần chốt
 
-Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Đã chốt số công tùy chỉnh cũng chỉ bước `0,5`. Còn cần chốt giới hạn, cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Có cho nhập số0 ở bảng công, và hiển thị0 hay tự chuẩn hóa `F`? Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
+Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Đã chốt số công tùy chỉnh cũng chỉ bước `0,5`. Còn cần chốt giới hạn, cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Đã chốt nhập số0 công tự chuẩn hóa thành `F`. Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
 
 Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập và sửa. Phương thức đăng nhập/khôi phục và nơi vận hành còn cần chốt theo nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
 
@@ -141,3 +141,6 @@ Acceptance bổ sung cho sản phẩm (Not run): vùng chỉ tác động dòng/
 
 
 AC13 — Hai phiên cùng đọc một vùng, phiên A sửa một ô rồi phiên B lưu vùng từ dữ liệu cũ. Lần lưu của B phải bị từ chối toàn bộ: không ô nào trong tập áp dụng bị thay bởi lần lưu này, kể cả ô không xung đột; dữ liệu A giữ nguyên. UI giữ vùng/giá trị/chế độ của draft và chỉ rõ ô xung đột cùng dữ liệu mới để kiểm tra. Không tự retry/force-write. Kiểm API/DB và hai phiên thật: **Not run**; HTML bộ nhớ không chứng minh AC này.
+
+
+AC14 — Nhập0 công cho một ô hoặc vùng phải hiển thị/lưu thành F, không cộng công, giữ reminder và không đổi tăng ca. Điền trống vẫn giữ ô đã có dữ liệu, ghi đè chỉ áp lên ô hợp lệ; N/— vẫn bỏ qua. Không chuyển0 tăng ca thành F. Kiểm API/DB/lưu đọc lại: Not run; prototype chỉ kiểm trong bộ nhớ.

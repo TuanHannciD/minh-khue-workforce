@@ -201,3 +201,11 @@ Base `184c98d`, sạch trước sửa. Người dùng chốt bước0,5 cho côn
 TDD: script ui-c-half-step-checks.js trước sửa RED `quarter step must not write false` (mẫu cũ nhận3,25). Sau sửa native html_preview375/1200 light: mỗi viewport đạt8 check mới về3/3,5 hợp lệ,3,25 bị chặn/giữ draft/không ghi dữ liệu cho cả một ô và vùng; đồng thời28 hồi quy +12 contrast +21 bulk +13 gesture đều đạt, không console error. Evidence RED/GREEN tại `.agent-runs/MKW-PRODUCT-001/ui-c-half-step-results.json`, script cùng thư mục ignored. Không mở rộng kiểm unrelated hoặc dùng pilot làm bằng chứng. Các events tổng hợp/headless, không trusted touch hay API/DB validation; các giới hạn sản phẩm trước giữ Not run.
 
 `npm run check:docs` exit0 (43 current documents), `git diff --check` exit0; evidence mới đã kiểm ignore. Trình HTML gốc đã preview qua native html_render “Minh Khuê · Nhập công theo bước 0,5”, frame1476px. Kiểm diff và staged whitespace trước commit local.
+
+## Chuẩn hóa0 công thành F — 27/10/2026
+
+Base `416ed47`, workspace sạch. Người dùng chốt tự chuyển0 công thành F. Cập nhật requirements/design/brief/INDEX và prototype: custom cho phép riêng0 công, chuẩn hóa thành F khi áp dụng, không nhận0 tăng ca như F. Help/error nêu rõ ngoại lệ0 và số trên2,5 bước0,5; không thay hai chế độ, reminder, N/— hoặc tổng. Skill TDD/verification tiếp nối, self-review + người dùng; không độc lập, không source sản phẩm/dependency/child/primary/server/DB/tab.
+
+RED native html_preview728: `zero becomes F false 0` trước sửa. GREEN375/1200 light: mỗi viewport31 check mới đạt (0/0,0/0.0 → F cho một ô/vùng, không cộng công, giữ reminder/tăng ca,0 tăng ca bị chặn);28 hồi quy +12 contrast +21 bulk +13 gesture +8 half-step cũng đạt, không console error. Evidence ignored ui-c-zero-checks.js và ui-c-zero-results.json trong `.agent-runs/MKW-PRODUCT-001/`, giữ bằng chứng cũ. Checks DOM/synthetic events, không trusted touch, API/DB/persistence/concurrency. AC14 lưu thật vẫn Not run.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0; evidence đã kiểm ignore. Trình HTML gốc đã preview qua native html_render “Minh Khuê · Tự chuyển 0 công thành F”, frame1476px. Kiểm diff và staged whitespace trước commit local. Bước tiếp: các quyết định nghiệp vụ còn mở, không tự triển khai API/DB.
