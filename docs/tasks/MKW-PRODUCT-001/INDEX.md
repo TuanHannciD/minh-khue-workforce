@@ -28,7 +28,7 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 
 Đã chốt phương án A và bộ công nghệ mục tiêu tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md). Nền tảng ADR-001 và state ADR-002 giữ nguyên. Bộ stack chưa pin/cài/kiểm tương thích; auth/hosting/schema và nghiệp vụ chưa chốt vẫn mở.
 
-Bước hiện tại: bản phối xanh được chấp nhận làm cơ sở; luồng chọn vùng, hai chế độ và bỏ qua N/— đã xác nhận. [Bản C](ui/attendance-c.html) đã có tương tác nhập vùng trong bộ nhớ, được tự review bằng native HTML preview; chờ người dùng thử. [Brief nhập vùng](ui/bulk-entry-design.md) ghi cách dùng và giới hạn. Tiếp theo làm rõ nghiệp vụ còn mở, nhất là xung đột batch, rồi review đặc tả viết trước implementation plan. Không cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local. Chi tiết check/giới hạn tại [validation](validation.md).
+Bước hiện tại: bản phối xanh được chấp nhận làm cơ sở; luồng chọn vùng, hai chế độ và bỏ qua N/— đã xác nhận. [Bản C](ui/attendance-c.html) đã có tương tác nhập vùng trong bộ nhớ, được tự review bằng native HTML preview; chờ người dùng thử. [Brief nhập vùng](ui/bulk-entry-design.md) ghi cách dùng và giới hạn. Tiếp theo làm rõ nghiệp vụ còn mở, sau quyết định dừng cả vùng khi xung đột, rồi review đặc tả viết trước implementation plan. Không cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local. Chi tiết check/giới hạn tại [validation](validation.md).
 
 ## Checkpoint UI trực quan
 
@@ -87,3 +87,7 @@ Base `baf1eda`, workspace sạch. Mục tiêu/acceptance vòng này: ghi yêu c�
 Người dùng trả lời “Ảgee” với brief luồng kéo/chọn vùng, hai chế độ và bỏ qua N/—/báo số ô bỏ qua. Base `e8533e0`, workspace sạch. Mục tiêu: cập nhật prototype HTML tương tác để review, không triển khai sản phẩm. Acceptance: chọn chữ nhật desktop/đầu-cuối có bàn phím; điền trống/ghi đè có đếm ô; không ghi N/—; giữ màu và tổng độc lập; bảo vệ draft, hủy, lọc và đổi loại không áp nhầm người/đơn vị. Dùng check hành vi có ý nghĩa trước/sau thay đổi, render phone/chat/desktop, detector và check docs.
 
 Vùng sửa: artifact attendance-c.html và dossier/brief/validation; evidence/scripts riêng task ignored. Writer inline; risk thấp của HTML không persistence, self-review + người dùng; không child, dependency, server/DB/tab hoặc source sản phẩm. Tái dùng worktree hiện có và phối xanh đã chấp nhận. Bước tiếp: trình thử nhập vùng, sau đó chốt nghiệp vụ/batch concurrency còn thiếu trước contract/spec/plan. Không suy duyệt prototype thành quyền cài/code sản phẩm.
+
+## Chốt xử lý xung đột vùng — 27/10/2026
+
+Người dùng chọn “Dừng cả vùng, giữ bản nháp”. Base `0141f6f`, workspace sạch. Mục tiêu/acceptance: ghi quyết định vào requirements, design, brief và kiến trúc lưu; một ô xung đột khiến toàn bộ lần lưu không ghi ô nào, giữ draft và chỉ rõ ô xung đột. Scope chỉ tài liệu dossier; writer inline, tự review + người dùng, risk trung bình về diễn giải tính nguyên tử. Resource Markdown/check local; không child/server/DB/tab/dependency/source sản phẩm/primary. Chưa chọn field/status/schema hoặc triển khai transaction. Bước tiếp: Q1 về số công tùy chỉnh, rồi các quyết định nghiệp vụ còn mở trước spec/plan.

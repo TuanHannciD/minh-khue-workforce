@@ -187,3 +187,9 @@ Các checks là DOM/pointer/keyboard tổng hợp trong headless HTML preview, k
 Bước tiếp: người dùng thử thao tác; chốt batch conflict và Q1/Q2/Q4/Q5 còn mở, hoàn thiện spec rồi implementation plan để review. Chưa duyệt toàn bộ spec/plan hoặc quyền triển khai.
 
 Detector Impeccable exit0, `[]`. `npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Đã trình HTML gốc (không chèn check) qua native T3 html_render, title “Minh Khuê · Chọn vùng và nhập nhiều ô”, frame1476px. Không có process/tab cần release; kiểm scoped/staged diff trước commit local.
+
+## Quyết định xung đột vùng — 27/10/2026
+
+Base `0141f6f`, workspace sạch. Ghi lựa chọn người dùng dừng cả vùng/giữ draft/chỉ rõ xung đột vào requirements/design/brief/architecture proposal và INDEX. Tự review phân biệt nghiệp vụ Accepted với transaction/revision/response còn Proposed; ghi đè vùng không được bỏ concurrency. Thêm AC13 sản phẩm, Not run. Chỉ Markdown, không đổi HTML, code sản phẩm, dependency/pilot/primary hoặc acquire resource/child; không chạy lại prototype/pilot suite vì không có thay đổi hành vi. Bước tiếp: làm rõ Q1 rồi Q2/Q4/Q5, hoàn thiện spec để review trước plan.
+
+`npm run check:docs` exit0,43 tài liệu hiện hành; `git diff --check` exit0. Review diff nguồn quyết định và acceptance trước commit local; kiểm staged whitespace, không claim API/DB Verified.

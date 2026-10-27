@@ -19,7 +19,7 @@ Người chấm/sếp cần nhập nhiều ô nhanh trên bảng tháng. Cả C�
 Trong mẫu, “trống” xét nội dung rỗng, không xét màu; mặc định điền trống, giữ F và số đã có. Nhập vùng giữ màu nhắc của từng ô. Đây là cách thể hiện để review, không tự chốt contract backend. Vùng chỉ gồm những dòng đang hiện khi chọn; đổi tìm kiếm phải qua guard nếu có draft rồi bỏ vùng cũ, không áp sang người bị ẩn.
 
 - Chính xác “ô trống”: nội dung trống dù có màu nhắc hay loại khác; đề xuất xét nội dung, giữ màu độc lập theo quy tắc đã có. Không dùng giá trị0/F như trống.
-- Hai người sửa cạnh tranh trong batch: giữ yêu cầu không âm thầm ghi đè. Cần chốt dừng cả lần áp dụng hay báo/lưu một phần, response và cách phục hồi; chưa tự chọn transaction contract.
+- Đã chốt xung đột batch: dừng cả vùng, không ghi ô nào, giữ draft và chỉ rõ ô xung đột. Cần thiết kế response/đối chiếu/thử lại có chủ ý; không tự chọn field/status hoặc tự retry ghi đè.
 - Bước cảnh báo khi ghi đè, default chế độ và thao tác khôi phục. Không tự hứa undo sau lưu nếu chưa có thiết kế lưu.
 - Phạm vi giá trị tùy chỉnh vẫn theo Q1; bulk không tạo validation mới hoặc quy đổi công/giờ.
 

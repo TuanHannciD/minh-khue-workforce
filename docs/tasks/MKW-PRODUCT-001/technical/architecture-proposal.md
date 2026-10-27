@@ -121,6 +121,14 @@ Web chỉ gọi API qua transport/client; không import API source/ORM. Feature 
 
 Revision theo ô công/tăng ca là hướng kỹ thuật đề xuất, **chưa chốt field/status HTTP/schema**. Nếu hai loại độc lập thì tránh khóa nhầm cả tháng; đổi mốc nhân sự ảnh hưởng ô cũng phải được kiểm cùng tính nhất quán. Cơ chế compare-and-swap/transaction phải test hai request tranh chấp trên DB thật của stack được chọn.
 
+### Lưu vùng và xung đột — quyết định tiếp nối
+
+Nghiệp vụ đã duyệt: một ô xung đột thì dừng toàn bộ lần lưu vùng, không ghi một phần; giữ draft và chỉ rõ ô xung đột. “Ghi đè cả vùng” không bỏ kiểm tra phiên bản, chỉ cho phép thay nội dung có sẵn theo snapshot người nhập đã xem.
+
+Thiết kế kỹ thuật đề xuất để đáp ứng: API nhận tập ô cần áp dụng và phiên bản nền; backend kiểm quyền, tính hợp lệ/mốc làm việc và phiên bản trong cùng transaction, ghi tất cả khi toàn bộ kiểm tra đạt. Không tách thành các request lưu ô độc lập gây thành công một phần. Khi có xung đột, rollback mọi ghi của lần lưu và cung cấp/cho đọc dữ liệu mới để UI đối chiếu, giữ vùng/giá trị/chế độ draft. Với điền trống, không tự mở rộng/thu hẹp tập áp dụng sau refetch rồi âm thầm lưu; cần đối chiếu và thao tác lưu lại có chủ ý. Chi tiết phạm vi revision, request/response/status và idempotency vẫn Proposed, cần review trước code.
+
+Acceptance tương lai: hai request tranh chấp trên PostgreSQL thật phải chứng minh không partial write, không mất draft ở UI, không tự retry ghi đè và không nhầm mất phản hồi mạng với rollback. **Not run**; prototype HTML không có transaction/concurrency.
+
 ## 6. Cập nhật giữa hai tài khoản và độ bền
 
 Đề xuất bản đầu refetch khi mở màn hình, trở lại tab và kết nối mạng trở lại; có thao tác tải lại rõ ràng. Nếu cần thấy thay đổi trong lúc cả hai cùng mở bảng, thêm polling với khoảng thời gian được thống nhất hoặc SSE sau khi review nhu cầu/chi phí. Không mặc định chọn WebSocket. **Cách cập nhật giữa thiết bị chưa chốt; không cam kết tức thời.** Concurrency backend vẫn bắt buộc ngay cả khi có realtime.

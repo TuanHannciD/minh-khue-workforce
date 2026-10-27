@@ -61,3 +61,6 @@ Người dùng chấp nhận bản phối xanh hiện tại làm cơ sở tiếp
 Khi vùng chọn chứa ô đã có dữ liệu, người dùng chốt có **hai lựa chọn: điền ô trống hoặc ghi đè cả vùng**. Tại checkpoint ghi hai chế độ, các chi tiết tương tác còn để review; luồng chọn và bỏ qua N/— được xác nhận tiếp nối bên dưới. Tính nguyên tử/xung đột nhiều ô vẫn cần thiết kế; không suy từ hai chế độ ra API/contract hoặc quyền triển khai sản phẩm. Brief để review tại [nhập vùng](../ui/bulk-entry-design.md).
 
 Người dùng xác nhận luồng được trình: kéo chọn vùng → chọn giá trị → chọn chế độ → xem số ô sẽ thay đổi → Áp dụng; điện thoại dùng Chọn nhiều/chạm hai đầu. Vùng chứa N/— phải bỏ qua các ô ngoài thời gian làm việc và báo rõ số ô bỏ qua. Quyền tiếp tục bản mẫu HTML đã có; lưu thật/batch conflict vẫn cần thiết kế riêng.
+
+
+Người dùng chốt xử lý xung đột khi lưu vùng: **dừng cả vùng, giữ bản nháp**. Nếu có ô vừa bị người khác sửa, lần lưu đó không ghi bất kỳ ô nào trong vùng; chỉ rõ các ô xung đột để kiểm tra lại, giữ giá trị mới trên hệ thống và bản nháp của người nhập. Không tự lưu một phần hoặc tự thử lại để ghi đè. Cách thể hiện dữ liệu đối chiếu và contract kỹ thuật cần thiết kế tương ứng; chưa triển khai/kiểm chứng API/DB.
