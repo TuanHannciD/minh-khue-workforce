@@ -103,3 +103,7 @@ Người dùng chọn tự chuyển0 công thành F. Base `416ed47`, workspace s
 ## Chặn đổi mốc loại dữ liệu đã nhập — 27/10/2026
 
 Người dùng “Approve” đề xuất chặn đổi ngày vào/nghỉ khi làm ô đã nhập công/tăng ca nằm ngoài thời gian làm việc mới, chỉ rõ ô cần xử lý trước và không tự xóa. Base `ad615f3`, workspace sạch. Mục tiêu/acceptance: đồng bộ requirements/design/kiến trúc, thêm AC bảo toàn mốc và dữ liệu khi từ chối; ghi ranh giới concurrency/validation chưa triển khai. Writer inline, tự review + người dùng; risk trung bình tài liệu. Scope dossier Markdown; resource file/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bước tiếp Q5 Excel và Q1/Q2 còn mở trước review spec/plan.
+
+## Chốt bố cục và công thức Excel — 27/10/2026
+
+Người dùng đồng ý một sheet gồm bảng Công/Tăng ca, tổng dùng công thức để tiếp tục sửa Excel. Base `148eca4`, workspace sạch. Mục tiêu/acceptance: đồng bộ yêu cầu, đặc tả, kiến trúc và tiêu chí kiểm file; tổng công/giờ độc lập, giá trị/màu/ký hiệu giữ đúng. Writer inline, self-review + người dùng; risk trung bình tài liệu. Scope dossier Markdown; resource file/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Không tạo file Excel hoặc claim ExcelJS đã cài/kiểm. Bước tiếp phần còn mở Q1/Q2/Q4 và review đặc tả trước plan.

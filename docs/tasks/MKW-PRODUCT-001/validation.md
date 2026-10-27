@@ -215,3 +215,9 @@ RED native html_preview728: `zero becomes F false 0` trước sửa. GREEN375/12
 Base `ad615f3`, workspace sạch. Người dùng duyệt chặn sửa mốc làm loại dữ liệu đã nhập, chỉ rõ ô để xử lý trước. Ghi requirements/design/INDEX và kiến trúc; thêm AC15 gồm dữ liệu tháng khác, F và request lưu ô cạnh tranh. Phân biệt Accepted nghiệp vụ với Proposed transaction/contract; reminder-only vẫn mở, không tự xóa hoặc quyết định thay người dùng. Chỉ Markdown, self-review + người dùng; không review độc lập, không thay HTML/API/DB/dependency/pilot/primary hoặc acquire child/resource. Không chạy prototype/pilot suite vì không đổi hành vi executable. API/DB/luồng sửa nhân sự Not run. Bước tiếp Excel và các quyết định còn mở trước spec/plan.
 
 `npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự rà nội dung/routing và staged whitespace trước commit local; không có kiểm chứng triển khai mới.
+
+## Chốt Excel một sheet và tổng công thức — 27/10/2026
+
+Base `148eca4`, workspace sạch. Người dùng đồng ý một sheet gồm hai bảng Công/Tăng ca, tổng dùng công thức để sửa tiếp Excel. Đồng bộ requirements/design/architecture proposal/INDEX; mở rộng AC09 kiểm số/ký hiệu/màu, tổng ban đầu và recalc sau chỉnh file, giữ đơn vị độc lập. Sửa mô tả ExcelJS từ ứng viên thành công cụ mục tiêu đã duyệt tại ADR-003, vẫn chưa pin/cài/kiểm. Self-review tài liệu, không độc lập; không executable/source sản phẩm/dependency/child/primary hoặc resource mới. Không chạy prototype/pilot suite vì chỉ Markdown. Tạo/mở file Excel, formula engine/recalc/compatibility và export từ API/DB: Not run. Quyền thiết kế không là quyền cài/code sản phẩm.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và kiểm staged whitespace trước commit local; chưa có bằng chứng xuất Excel thực. Bước tiếp Q1/Q2/Q4 còn mở trước spec/plan.

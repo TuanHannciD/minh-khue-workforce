@@ -35,7 +35,7 @@ Không đề xuất microservices, Redis, message queue hoặc monorepo orchestr
 - **PostgreSQL + Prisma ORM/Migrate:** dữ liệu quan hệ, query/migration có kiểu, transaction. Prisma model chỉ thuộc backend. ORM không tự đảm bảo quy tắc số công, quyền hoặc chống ghi đè; cần code và test riêng.
 - **Nest DTO + class-validator và Nest Swagger:** đề xuất DTO HTTP là nguồn mô tả request/response, bật validation server chặt chẽ; generate OpenAPI từ cùng source. Không suy rằng decorator tự biểu đạt đầy đủ mọi ràng buộc nghiệp vụ, phải kiểm contract và test runtime.
 - **OpenAPI + openapi-typescript:** API xuất snapshot contract; web sinh kiểu từ snapshot rồi dùng transport fetch thống nhất. Android về sau có thể sinh client theo cùng contract. Không chia sẻ Prisma entity hoặc import source API vào web.
-- **ExcelJS:** ứng viên xuất `.xlsx` phía API để lấy dữ liệu nhất quán tại thời điểm xuất. Cần kiểm license/version và độ tương thích ứng dụng đọc Excel trước khi chọn chính thức; bố cục/công thức còn cần người dùng chốt.
+- **ExcelJS:** công cụ mục tiêu xuất `.xlsx` theo ADR-003, chưa pin/cài/kiểm tương thích. Đề xuất xuất phía API từ dữ liệu đã lưu nhất quán tại thời điểm xuất. Nghiệp vụ đã chốt một sheet Công trên/Tăng ca dưới, tổng bằng công thức để sửa tiếp trong Excel. Cần kiểm version/license, giá trị công thức ban đầu và tính lại trên ứng dụng đọc Excel thật; không coi thư viện ghi công thức là engine đã tính đúng.
 
 ### Workspace và kiểm chất lượng
 
@@ -167,7 +167,7 @@ Review độc lập cho code/tooling theo [QUALITY_GATES](../../../agent/QUALITY
 
 1. Đã chốt hướng A và bộ công nghệ mục tiêu theo ADR-003; chốt/kiểm phiên bản tương thích ở bước tooling, không kế thừa pin pilot một cách tự động.
 2. Chốt đăng nhập/khôi phục và nhu cầu cập nhật giữa hai tài khoản; lựa chọn hạ tầng vận hành/backup trước release.
-3. Hoàn thiện phần còn mở của Q1/Q4/Q5 về số, reminder-only khi đổi mốc và Excel; trình bản UI C hoàn thiện bằng Impeccable + UI UX Pro Max.
+3. Hoàn thiện phần còn mở của Q1/Q4 về số và reminder-only khi đổi mốc; Q5 đã chốt bố cục/công thức Excel; trình bản UI C hoàn thiện bằng Impeccable + UI UX Pro Max.
 4. Review contract/request/response, concurrency, migrations và gate kiểm đúng phạm vi. Chưa đủ quyết định để Agent tự triển khai toàn bộ sản phẩm.
 5. Sau khi bản đặc tả viết đủ và được duyệt, mới viết implementation plan, chia task có ownership/check/review/resume. Không chuyển tài liệu này thành danh sách lệnh cài rồi thực hiện ngay.
 

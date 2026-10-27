@@ -79,9 +79,9 @@ Hai thiết bị dùng cùng nguồn dữ liệu. Đổi tháng/refresh phải �
 
 Có xuất file `.xlsx` cho tháng đang chọn, gồm công và tăng ca với tổng riêng. Giữ ký hiệu `F`, `N`, `—`, ô trống và màu xanh; màu không làm khác phép cộng giữa web và file.
 
-**Đề xuất để review:** một sheet, bảng công trên và tăng ca dưới như ảnh tham khảo; có tháng/năm, ngày/thứ, tổng theo người/ngày và từng phần. Giá trị số được xuất thành ô số, ký hiệu thành chữ, ô trống được giữ trống; cần kiểm bằng ứng dụng đọc Excel thật khi triển khai.
+**Đã duyệt:** một sheet, bảng Công trên và Tăng ca dưới; các tổng dùng công thức để tiếp tục sửa trong Excel. Chi tiết trình bày đề xuất: có tháng/năm, ngày/thứ, tổng theo người/ngày và từng phần. Giá trị số được xuất thành ô số, ký hiệu thành chữ, ô trống được giữ trống; cần kiểm bằng ứng dụng đọc Excel thật khi triển khai.
 
-Chưa mặc định hỗ trợ nhập ngược Excel, đồng bộ hai chiều, tính lương, file PDF hoặc công thức Excel chỉnh lại tự tính. Cách xuất tổng thành công thức hay số chụp tại thời điểm xuất cần chốt ở mục10. Không copy danh sách nhân sự thật từ ảnh vào fixture kiểm thử.
+Đã chốt tổng bằng công thức, tính riêng trong từng bảng; ký hiệu F/N/— và ô trống không được cộng thành công/giờ, màu nhắc không ảnh hưởng phép cộng. Sửa số trong file phải tính lại tổng theo người/ngày và tổng từng phần. Chưa mặc định hỗ trợ nhập ngược Excel, đồng bộ hai chiều, tính lương hoặc file PDF. Không copy danh sách nhân sự thật từ ảnh vào fixture kiểm thử.
 
 ## 8. Kiến trúc ở mức định hướng
 
@@ -107,7 +107,7 @@ AC07 — Bảng tháng hỗ trợ tháng28/29/30/31 ngày, hiển thị đúng t
 
 AC08 — Điện thoại: cuộn/zoom/xoay ngang và chế độ toàn màn hình vẫn nhận diện đúng người/ngày; nhập được giá trị/màu. Desktop: đầy đủ thao tác chuột/bàn phím và Enter/Tab. Kiểm cảm ứng trên cả iPhone và Android thật, ghi rõ thiết bị/trình duyệt, riêng với viewport mô phỏng; chưa có thiết bị thì ghi Not run cho phần tương ứng.
 
-AC09 — Excel tháng xuất ra khớp số, ký hiệu, màu và tổng của cùng dữ liệu trên web; mở bằng ứng dụng đọc Excel để kiểm, không chỉ assert file tồn tại.
+AC09 — Excel tháng có một sheet, bảng Công trên/Tăng ca dưới; số, ký hiệu, màu và tổng ban đầu khớp cùng dữ liệu đã lưu trên web. Tổng theo người/ngày/từng phần dùng công thức, độc lập đơn vị. Mở bằng ứng dụng đọc Excel thật, sửa một ô số và kiểm tổng tương ứng tính lại, bảng còn lại không đổi; F/N/—/trống không cộng số, màu nhắc không loại giá trị khỏi tổng. Kiểm công thức và kết quả thực, không chỉ file tồn tại. Not run, chưa có bộ xuất sản phẩm.
 
 AC10 — Khi lỗi lưu không báo thành công giả, không mất bản nháp; dữ liệu qua web–API–DB thật còn sau reload. Validation số và sửa mốc ngày phải có acceptance bổ sung sau khi được chốt.
 
@@ -127,7 +127,7 @@ Q3 — Đã chốt: khi hai người sửa cùng một ô từ dữ liệu cũ, 
 
 Q4 — Đã chốt: chặn đổi mốc nếu loại ô đã nhập công/tăng ca, chỉ rõ ô liên quan để xử lý trước, giữ mốc cũ/dữ liệu. Chi tiết ô trống chỉ có reminder còn cần làm rõ. Trường hợp nghỉ/quay lại chưa được yêu cầu; không tự thêm nhiều hợp đồng/giai đoạn vào bản đầu.
 
-Q5 — Xác nhận đề xuất một sheet với hai bảng, và tổng xuất là số tại thời điểm xuất hay công thức để tiếp tục sửa Excel? Trên web đã chọn hướng C: mỗi lúc xem một bảng lớn, chuyển Công/Tăng ca. Cần tiếp tục thiết kế thị giác chuyên nghiệp bằng Impeccable + UI UX Pro Max rồi trình review; chưa duyệt diện mạo bản mẫu. Lựa chọn web này không tự chốt bố cục file Excel.
+Q5 — Đã chốt một sheet, Công trên/Tăng ca dưới, tổng dùng công thức để tiếp tục sửa trong Excel. Web vẫn hướng C, một bảng lớn và chuyển loại; phối xanh đã được chấp nhận làm cơ sở. Layout Excel chi tiết và tương thích ứng dụng đọc cần review/kiểm khi triển khai, không dùng HTML làm bằng chứng xuất file.
 
 Q6 — Đã biết hiện tại khoảng20 người mỗi tháng, sau này có thể tăng nhiều; chưa có số lượng mục tiêu tương lai. Đã xác nhận dùng cả iPhone và Android; mẫu máy/phiên bản/trình duyệt cụ thể chưa xác định và sẽ ghi rõ trong kế hoạch kiểm chứng. Thiết kế phải xét cả hai nhóm khi xử lý zoom, sticky và nhập cảm ứng. Mốc hiệu năng/quy mô kiểm thử sẽ đề xuất rõ khi có kiến trúc, không tự coi20 là trần hoặc hứa hỗ trợ không giới hạn.
 

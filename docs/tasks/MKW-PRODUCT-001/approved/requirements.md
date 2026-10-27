@@ -36,7 +36,7 @@ Nguồn: hội thoại trực tiếp tiếp nối MKW-AGENT-002, ghi nhận ngà
 ## Bảng, xuất Excel và thiết bị
 
 - Bảng tháng theo nhân sự × ngày, công và tăng ca riêng; tổng từng người và từng ngày theo cách Excel đang dùng.
-- Có xuất file Excel. Bố trí một sheet với công phía trên/tăng ca phía dưới là phương án Agent đề xuất, cần người dùng review trong đặc tả.
+- Có xuất file Excel. Người dùng đã duyệt một sheet gồm bảng Công phía trên và Tăng ca phía dưới; các tổng dùng công thức để tiếp tục sửa số trong Excel. Tổng công và giờ riêng, không quy đổi hoặc gộp hai đơn vị.
 - Người dùng đã đồng ý thiết kế UI: điện thoại cuộn ngang/dọc, giữ tên và ngày/thứ khi cuộn, phóng to/thu nhỏ bằng hai ngón, chế độ xem bảng toàn màn hình và hỗ trợ xoay ngang; chạm ô mở phần nhập dễ bấm/chọn `F`/màu.
 - Điện thoại sử dụng gồm cả iPhone và Android; thiết kế và kế hoạch kiểm chứng phải xét cả hai nhóm. Chưa xác định mẫu máy/phiên bản hệ điều hành hoặc trình duyệt cụ thể.
 - Desktop tận dụng màn hình rộng; nhập bằng chuột/bàn phím, Enter/Tab chuyển ô; đầy đủ thao tác cùng dữ liệu với điện thoại.
