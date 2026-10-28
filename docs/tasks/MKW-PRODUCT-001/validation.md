@@ -314,3 +314,10 @@ Source: touchHold sở hữu timer/ngữ cảnh; clearTouchHold hủy ứng viê
 Evidence ignored `.agent-runs/MKW-PRODUCT-001/`: ui-c-touch-hold-checks.js, ui-c-touch-hold-red.json, ui-c-touch-hold-add-red.json, ui-c-touch-hold-375/728/1200.json. Ảnh final đã xem từ tool response; giữ nguyên evidence trước. Native html_render đã xuất đúng source không chèn fixture, title “Minh Khuê · Nhấn giữ để kéo chọn và điền”, frame1555, attachment `b1e8d7d6-44cd-4a40-819f-58b7c1a7b236-b4a25800-cbc1-4eac-9ea5-66536d70e4b4-html`.
 
 Detector Impeccable exit0 `[]`; `npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Kiểm staged whitespace trước commit local. Không chạy pilot/app suite ngoài scope tài nguyên sản phẩm001; hồi quy riêng prototype đã chạy đầy đủ ở trên. Cập nhật requirements/design mục14/AC23/brief/INDEX; review toàn bộ spec vẫn chờ người dùng trước implementation plan. Trusted touch/iPhone/Android, accessibility đầy đủ, API/DB/persistence/concurrency/Excel và AC23 sản phẩm: Not run. Bước tiếp người dùng thử nhấn giữ trên thiết bị thực; không suy bản mẫu thành sản phẩm đã triển khai hoặc đã kiểm tương thích.
+
+
+## Chấp nhận bản mẫu và chuyển review đặc tả — 28/10/2026
+
+Base `69c5fcc`, workspace sạch. Người dùng xác nhận “Đã đạt” sau bản nhấn giữ, đề nghị bước tiếp. Ghi nhận user review chấp nhận bản mẫu hiện hành tại INDEX/BRIEF; giữ đúng bằng chứng221 assertions tổng hợp của checkpoint trước. Không nâng trusted touch/iPhone/Android thành Verified vì chưa có mẫu máy/OS/trình duyệt và ca thao tác được báo lại. Không đổi HTML hoặc chạy lại kiểm hành vi cho thay đổi Markdown. Scope tài liệu, writer inline/self-review, không child/resource mới/source sản phẩm/primary. Bước tiếp trình design.md hoàn chỉnh gồm mục12–14 để người dùng review trước writing-plans; chấp nhận bản mẫu không tự duyệt toàn bộ bản viết hoặc triển khai.
+
+Kiểm chốt `npm run check:docs` exit0 (43 current documents), `git diff --check` exit0; staged whitespace kiểm trước commit local.

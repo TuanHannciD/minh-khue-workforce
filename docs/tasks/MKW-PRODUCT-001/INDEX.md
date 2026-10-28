@@ -143,3 +143,8 @@ Người dùng “Agree” bổ sung Ctrl/Cmd bấm/kéo thêm vùng, điện th
 ## Nhấn giữ để kéo cảm ứng — 28/10/2026
 
 Người dùng chốt giữ450ms để kéo chọn vùng hoặc kéo tay nắm điền; nếu di chuyển quá10px trước kích hoạt thì để cuộn bình thường, có viền khi kích hoạt, thả chỉ preview và Áp dụng mới ghi. Base `ecac557`, workspace sạch. Scope HTML độc lập và dossier; acceptance timer/ngưỡng, cuộn trước kích hoạt, chọn/fill sau giữ, hủy/multitouch/bảo vệ draft và hồi quy chuột/bàn phím. Writer inline, risk thấp prototype không persistence; tự review + người dùng, không child. Resource native HTML preview/render và evidence ignored/check local; không server/tab/DB/dependency/source sản phẩm/primary. Bounded design đã duyệt, TDD + Impeccable adapt + UI UX Pro Max Gesture Conflicts. Đã kiểm221 assertions mô phỏng ở375/728/1200px và trình mẫu; bước tiếp người dùng thử thiết bị thật, review toàn bộ đặc tả trước implementation plan. Trusted touch thật Not run, không suy từ viewport.
+
+
+## Người dùng chấp nhận bản mẫu hiện hành — 28/10/2026
+
+Sau bản nhấn giữ tại commit `69c5fcc`, người dùng xác nhận “Đã đạt” và yêu cầu đề xuất bước tiếp. Chấp nhận bản mẫu hiện hành để chuyển sang review toàn bộ bản đặc tả; chưa phải phê duyệt đặc tả viết, chi tiết kỹ thuật, implementation plan hoặc triển khai sản phẩm. Không có thông tin mẫu máy/OS/trình duyệt hay thao tác cụ thể để nâng gate trusted touch thành Verified. Bước tiếp: review design.md (mục12–14 và AC01–AC23), gồm các đề xuất còn nêu rõ; sau duyệt bản viết mới writing-plans. Base `69c5fcc`, workspace sạch; scope ghi nhận review tại INDEX/BRIEF/validation, writer inline, tự review, check tài liệu, commit local; không resource mới hoặc đổi HTML.

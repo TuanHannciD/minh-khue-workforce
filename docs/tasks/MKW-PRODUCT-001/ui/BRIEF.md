@@ -92,3 +92,8 @@ Artifact hiện có union ô rời/chữ nhật không trùng, viền theo lân 
 Thiết kế bounded đã được người dùng chốt: giữ450ms để kéo chọn hoặc kéo tay nắm điền; di chuyển quá10px trước đó nhường cuộn. Impeccable adapt giữ ngữ cảnh web cảm ứng, UI UX Pro Max query `touch gesture scroll conflict --domain ux` khớp Touch/Gesture Conflicts: tránh chiếm vuốt thông thường. Không thêm nút bật chế độ. Hướng dẫn trong mẫu phân biệt vuốt ngay và giữ rồi kéo; viền và status báo kích hoạt. Tay nắm cảm ứng nay hiển thị với vùng chạm44px, thay giới hạn ẩn ở checkpoint ô rời trước. Giữ nút không kéo/bàn phím, không chặn zoom bằng viewport hoặc touch-action toàn bảng.
 
 Artifact540 dòng vẫn giữ tự chứa cho native HTML preview/render; bổ sung lifecycle touchHold/clearTouchHold/beginGesture cạnh gesture chuột. Không tách một vòng đời hủy/khôi phục selection thành module rời cho mẫu inline; source sản phẩm phải theo module như các nguồn kiến trúc. Map/invariant hiện hành ở header và brief nhập vùng. Chỉ kiểm mô phỏng; iPhone/Android thật cần người dùng thử và ghi evidence riêng.
+
+
+## Review của người dùng — 28/10/2026
+
+Sau bản nhấn giữ `69c5fcc`, người dùng xác nhận bản mẫu hiện hành “Đã đạt”. Đây là chấp nhận diện mạo/luồng bản mẫu hiện tại để chuyển bước review đặc tả viết; các nhận xét chưa đạt của checkpoint trước là lịch sử. Chưa có metadata hoặc evidence thao tác thiết bị thực để chứng nhận trusted touch/iPhone/Android. Không tự suy thành duyệt API/schema, toàn bộ spec/plan hoặc quyền triển khai sản phẩm.
