@@ -14,7 +14,7 @@
     "start": "node dist/main.js",
     "build": "prisma generate && tsc -p tsconfig.json",
     "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
-    "test": "node --test test/bootstrap.test.mjs test/auth.contract.test.mjs test/auth.unit.test.mjs test/employment-date.test.mjs",
+    "test": "node --test test/bootstrap.test.mjs test/auth.contract.test.mjs test/auth.unit.test.mjs test/employment-date.test.mjs test/employees.contract.test.mjs",
     "test:integration": "node --test test/auth.integration.test.mjs",
     "test:employees": "node --test test/employees.integration.test.mjs",
     "db:generate": "prisma generate",

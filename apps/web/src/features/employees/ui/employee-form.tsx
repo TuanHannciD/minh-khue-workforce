@@ -21,6 +21,16 @@ export function EmployeeForm({
   save?: (intent: EmployeeIntent) => Promise<Employee>;
 }) {
   useSyncExternalStore(draft.subscribe, draft.snapshot);
+  return <EmployeeFormFields key={draft.lifecycle} draft={draft} save={save} />;
+}
+
+function EmployeeFormFields({
+  draft,
+  save,
+}: {
+  draft: EmployeeDraft;
+  save: (intent: EmployeeIntent) => Promise<Employee>;
+}) {
   const id = useId();
   const summary = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState(false);
@@ -218,8 +228,6 @@ export function EmployeeForm({
             disabled={pending || outcome.type === "unknown"}
             onClick={() => {
               draft.clear();
-              reset(draft.values);
-              setValidationError(false);
             }}
           >
             Hủy

@@ -108,9 +108,9 @@ export interface components {
     CreateEmployeeDto: {
       /**
        * Format: date
-       * @default null
+       * @description Omission defaults to null; null means no end date
        */
-      endDate: string | null;
+      endDate?: string | null;
       /** @description Trimmed, 1–200 Unicode code points */
       name: string;
       /** Format: date */

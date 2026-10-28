@@ -37,6 +37,11 @@ export class EmployeeDraft {
     };
   };
   snapshot = () => this.version;
+  // Only explicit clear starts a new mounted form lifecycle. Ordinary draft
+  // publications must preserve RHF raw fields and validation errors.
+  get lifecycle() {
+    return this.generation;
+  }
   private publish() {
     this.version++;
     for (const listener of this.listeners) listener();

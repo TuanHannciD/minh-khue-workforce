@@ -144,7 +144,7 @@ Review R2 tại `08a867f59e8706b61a987e88b51e832d2c1592b0`: I1/I2/I3 Closed, spe
 
 ### Task 4: Nhân sự và bảo vệ mốc làm việc xuyên tháng
 
-Implementation Task4 đã qua checks/self-review; independent employees/migration review còn Pending do main thực hiện đúng final SHA. Evidence task4-employees và validation ghi giới hạn HTTP reconcile/date-vs-attendance-write còn Task5/7. Test integration dùng Node compiled ESM .mjs theo harness Task3; không đổi nghiệp vụ.
+Review R1 Task4 yêu cầu sửa I1 (lifecycle clear chưa xóa input RHF) và M1 (generated create type bắt buộc endDate). Writer đã sửa và kiểm RED→GREEN tại evidence task4-fix-r1; chờ main fresh exact-SHA re-review, chưa independent PASS. Evidence task4-employees và validation giữ giới hạn HTTP reconcile/date-vs-attendance-write còn Task5/7. Test integration dùng Node compiled ESM .mjs theo harness Task3; không đổi nghiệp vụ.
 
 **Files:** Create API `modules/employees/{employees.module.ts,employees.controller.ts,employees.service.ts,employees.repository.ts,employees.dto.ts}`; schema/migration nhân sự+ô cần bảo vệ; web `features/employees/api/employees.ts`, `ui/employee-form.tsx`; tests `apps/api/test/employees.integration.test.mjs`, `apps/web/src/features/employees/ui/employee-form.test.tsx`.
 

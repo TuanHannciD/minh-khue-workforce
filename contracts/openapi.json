@@ -14,7 +14,7 @@
         "additionalProperties": false,
         "properties": {
           "endDate": {
-            "default": null,
+            "description": "Omission defaults to null; null means no end date",
             "format": "date",
             "nullable": true,
             "type": "string"

@@ -1,5 +1,11 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task4 — sửa review R1, chờ main fresh exact-SHA re-review
+
+Base sửa `d8de46b493041663f317239588b2e8abf6ce9cc5`, workspace/branch giữ nguyên, single writer Sol/high, không agent con hoặc Task5+. I1 dùng lifecycle token chỉ đổi khi draft clear để remount form, xóa cả input/local state và giữ generation fence; publish/refresh thường giữ raw draft/error. M1 sửa metadata riêng endDate rồi sinh lại contract, không đổi runtime missing/null hoặc generator toàn cục.
+
+RED→GREEN, final product:check39 tooling/35 web/7 API và generated determinism/drift đạt; T3 browser kiểm AppShell/runtime thật với HTTP fixture (không Nest/DB). [Validation](validation.md) ghi scope, evidence và resource release. Report ignored `.superpowers/sdd/implementation-plan/task-4-fix-r1.md`; evidence `.agent-runs/MKW-PRODUCT-001/task4-fix-r1/`. Chưa independent PASS; main review fresh exact tip trước Task5, recovery/date-vs-write vẫn staged Task5/7. Các checkpoint bên dưới là lịch sử.
+
 ## Task4 — employees implementation, chờ main review exact SHA
 
 Base `786cd9b0e12a5c48abcc1b5e1ea989caee951e81`, worktree duy nhất `agent-bootstrap`, branch `agent/mkw-agent-002`. Single writer Sol/high, không child/primary/progress.md/Task5+; main giữ các policy files và fresh independent employees/migration review sau commit. Báo cáo trước sửa và handoff tại ignored `.superpowers/sdd/implementation-plan/task-4-implementation.md`; evidence `.agent-runs/MKW-PRODUCT-001/task4-employees/`.

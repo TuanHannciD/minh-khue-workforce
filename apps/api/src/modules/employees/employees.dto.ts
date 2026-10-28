@@ -12,7 +12,7 @@ export class CreateEmployeeDto {
     type: String,
     format: "date",
     nullable: true,
-    default: null,
+    description: "Omission defaults to null; null means no end date",
   })
   @ValidateIf(
     (_object, value: unknown) => value !== undefined && value !== null,
