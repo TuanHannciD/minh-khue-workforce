@@ -42,4 +42,4 @@
 - [Khảo sát nền tảng Agent SellerFlow ngày 22/10](reports/2026-10-22-ai-agent-foundation-audit.md)
 - [Khảo sát ban đầu có đề xuất sản phẩm/kiến trúc](reports/2026-10-22-sellerflow-audit-va-workflow-de-xuat.md)
 
-Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Yêu cầu chấm công đã thống nhất được ghi ở MKW-PRODUCT-001; bản thiết kế viết đã được duyệt toàn bộ28/10/2026, kế hoạch triển khai đã duyệt, Task1 thiết kế đang thực hiện. Nền tảng đã chốt tại ADR-001; stack mục tiêu đã chốt tại ADR-003, phiên bản/auth/schema và contract API cụ thể chưa duyệt; nguồn sở hữu được định tuyến tại authority map.
+Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Yêu cầu chấm công đã thống nhất được ghi ở MKW-PRODUCT-001; bản thiết kế viết đã được duyệt toàn bộ28/10/2026, kế hoạch triển khai đã duyệt, Task1 chờ review G1. Nền tảng đã chốt tại ADR-001; stack mục tiêu đã chốt tại ADR-003, phiên bản/auth/schema và contract API cụ thể chưa duyệt; nguồn sở hữu được định tuyến tại authority map.

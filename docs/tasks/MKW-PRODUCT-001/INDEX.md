@@ -1,6 +1,6 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
-Ngày lập: 25/10/2026. Trạng thái: **Đặc tả đã được người dùng duyệt toàn bộ ngày28/10/2026; kế hoạch triển khai đã duyệt; Task1 In progress**. Chưa được phép triển khai sản phẩm.
+Ngày lập: 25/10/2026. Trạng thái: **Đặc tả đã được người dùng duyệt toàn bộ ngày28/10/2026; kế hoạch triển khai đã duyệt; Task1 In review — G1 chưa duyệt**. Chưa được phép triển khai sản phẩm.
 
 ## Tiếp tục sau duyệt kế hoạch — 28/10/2026
 
@@ -38,7 +38,7 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 
 Đã chốt phương án A và bộ công nghệ mục tiêu tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md). Nền tảng ADR-001 và state ADR-002 giữ nguyên. Bộ stack chưa pin/cài/kiểm tương thích; auth/session chi tiết, hosting/schema và các thiết kế kỹ thuật chưa chốt vẫn mở; nghiệp vụ đã xác nhận được cập nhật tại đặc tả.
 
-Bước hiện tại: đặc tả đã được người dùng duyệt toàn bộ, gồm đề xuất đã trình và mục13–14. Đã lập [kế hoạch triển khai](technical/implementation-plan.md) bằng writing-plans để review; G0 là review/quyền thực hiện, G1 chốt contract/schema/auth/phiên bản trước code phụ thuộc. Tái sử dụng ADR-001/002/003 và UI C đã chấp nhận, không hỏi lại. Chưa cài/scaffold/code sản phẩm, dispatch, tích hợp primary, push/deploy. AC sản phẩm và trusted touch vẫn Not run. Chi tiết tại [validation](validation.md).
+Bước hiện tại: đặc tả và kế hoạch đã được người dùng duyệt. Baseline kế hoạch/spec local commit `6cfc3645f43ae1a1d0cb3b9c0811384671feb8c6`. Đã soạn bộ Task1 để review G1: [API](technical/api-contract.md), [DB/transaction](technical/data-model.md), [auth/session](technical/auth-session.md), [pins/toolchain](technical/toolchain-manifest.md), [verification matrix](technical/verification-matrix.md). G1 chưa duyệt; Task1 chưa complete, chưa cài/scaffold/code Task2. Tái dùng ADR/UI C đã chốt. AC sản phẩm và thiết bị/Excel reader thật vẫn Not run; chi tiết tại validation. Các câu “chưa duyệt plan”/quyền chỉ lập plan ở checkpoint lịch sử phía dưới đã được approval mới thay trong phạm vi Task1.
 
 Các mục checkpoint phía dưới là lịch sử theo ngày/commit, không thay trạng thái hiện hành ở đầu INDEX.
 

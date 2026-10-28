@@ -1,6 +1,6 @@
 # Bản mẫu bảng tháng và nhập ô
 
-Ngày 25/10/2026; cập nhật28/10/2026. Trạng thái hiện hành: **bản mẫu C hiện hành đã được người dùng chấp nhận; toàn bộ design.md gồm đề xuất và mục13–14 đã duyệt; kế hoạch triển khai đang review, chưa có quyền triển khai**. Các mô tả chờ review tại checkpoint dưới là lịch sử; không mở lại lựa chọn UI đã chốt.
+Ngày 25/10/2026; cập nhật28/10/2026. Trạng thái hiện hành: **bản mẫu C hiện hành đã được người dùng chấp nhận; toàn bộ design.md gồm đề xuất và mục13–14 đã duyệt; kế hoạch triển khai đã duyệt, bộ thiết kế Task1 chờ review G1, chưa có quyền triển khai**. Các mô tả chờ review tại checkpoint dưới là lịch sử; không mở lại lựa chọn UI đã chốt.
 
 Trạng thái tại checkpoint ban đầu: **hướng C và phối xanh được chấp nhận làm cơ sở; bản mẫu nhập vùng chờ review thao tác**. Các đoạn checkpoint phía dưới giữ lịch sử quyết định. Người dùng chọn một bảng lớn và chuyển Công/Tăng ca, đồng thời nhận xét bản mẫu còn thô/xấu, chưa mang cảm giác đẹp/chuyên nghiệp cho doanh nghiệp. Không xem lựa chọn C là phê duyệt màu sắc, font, spacing, hình thức điều khiển hoặc độ hoàn thiện hiện tại. Chưa duyệt đặc tả viết đầy đủ hoặc triển khai sản phẩm.
 

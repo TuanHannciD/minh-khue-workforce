@@ -17,7 +17,7 @@ Cần một nguồn tokens cho màu thương hiệu, nền/chữ/viền, typogra
 
 Chuẩn hóa variants/kích thước và các trạng thái thường/focus/disabled/loading/error/empty; label, nội dung dài, feedback và vùng chạm nhất quán. Có nơi xem/kiểm component khi triển khai; công cụ catalog như Storybook chưa được chọn/cài.
 
-Hướng **C** đã chọn: một bảng lớn, chuyển Công/Tăng ca. Giữ yêu cầu bảng/zoom/thiết bị tại [requirements](../tasks/MKW-PRODUCT-001/approved/requirements.md). Bản HTML khảo sát A/B/C giữ lịch sử; bản C hiện hành đã được người dùng chấp nhận. [Đặc tả](../tasks/MKW-PRODUCT-001/design.md) đã duyệt toàn bộ, [kế hoạch](../tasks/MKW-PRODUCT-001/technical/implementation-plan.md) đã duyệt; Task1 đang thiết kế, chưa triển khai hoặc kiểm UI sản phẩm trên điện thoại/desktop thật.
+Hướng **C** đã chọn: một bảng lớn, chuyển Công/Tăng ca. Giữ yêu cầu bảng/zoom/thiết bị tại [requirements](../tasks/MKW-PRODUCT-001/approved/requirements.md). Bản HTML khảo sát A/B/C giữ lịch sử; bản C hiện hành đã được người dùng chấp nhận. [Đặc tả](../tasks/MKW-PRODUCT-001/design.md) đã duyệt toàn bộ, [kế hoạch](../tasks/MKW-PRODUCT-001/technical/implementation-plan.md) đã duyệt; Task1 chờ review G1, chưa triển khai hoặc kiểm UI sản phẩm trên điện thoại/desktop thật.
 
 Màu thương hiệu xanh lá không thay nghĩa ô nhắc: dùng sắc độ/độ sáng, dấu và nhãn để phân biệt. Màu xanh nhắc kiểm tra là semantic độc lập, không đổi tổng hoặc thành trạng thái duyệt/thành công. Công và tăng ca tách đơn vị. Chi tiết nghiệp vụ tiếp tục thuộc dossier sản phẩm, không do component library quyết định.
 

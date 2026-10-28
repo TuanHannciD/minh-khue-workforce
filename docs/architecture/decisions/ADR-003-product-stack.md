@@ -25,6 +25,6 @@ Approval không bao phủ mọi chi tiết state/save/error trong proposal. Khô
 
 ## Phạm vi quyền và bước tiếp
 
-Cập nhật tiếp nối28/10/2026: hai tài khoản tên/mật khẩu, reset qua vận hành, cập nhật khoảng15 giây và toàn bộ design.md (gồm đề xuất, mục13–14) đã duyệt; bản mẫu C hiện hành đã được chấp nhận. [Kế hoạch triển khai](../../tasks/MKW-PRODUCT-001/technical/implementation-plan.md) đang review. Các đoạn chưa chốt/chưa duyệt ở checkpoint25/10 dưới đây giữ lịch sử; chi tiết auth/session/schema/version chưa viết vẫn cần thiết kế/review. Chưa có quyền cài/scaffold/code/dispatch/tích hợp/push/deploy từ approval này.
+Cập nhật tiếp nối28/10/2026: hai tài khoản tên/mật khẩu, reset qua vận hành, cập nhật khoảng15 giây và toàn bộ design.md (gồm đề xuất, mục13–14) đã duyệt; bản mẫu C hiện hành đã được chấp nhận. [Kế hoạch triển khai](../../tasks/MKW-PRODUCT-001/technical/implementation-plan.md) đã duyệt; bộ thiết kế Task1 chờ review G1. Các đoạn chưa chốt/chưa duyệt ở checkpoint25/10 dưới đây giữ lịch sử; chi tiết auth/session/schema/version chưa viết vẫn cần thiết kế/review. Chưa có quyền cài/scaffold/code/dispatch/tích hợp/push/deploy từ approval này.
 
 Quyền hiện tại tiếp tục là tài liệu và bản mẫu HTML độc lập. Chưa duyệt UI thị giác/spec đầy đủ/implementation plan hoặc quyền cài/scaffold/code sản phẩm, dispatch child, tích hợp primary/push/deploy. Tiếp theo trình UI C, làm rõ nghiệp vụ còn thiếu, hoàn thiện/review đặc tả trước kế hoạch triển khai. Không sửa ADR cũ thành quyết định có từ trước; áp ADR này cho phần được bổ sung.

@@ -1,6 +1,6 @@
 # Đặc tả đã duyệt — Chấm công Minh Khuê phiên bản đầu
 
-Ngày lập:25/10/2026; cập nhật28/10/2026. Trạng thái: **Người dùng đã duyệt toàn bộ bản đặc tả viết, gồm các đề xuất đã trình và mục13–14**. [Yêu cầu đã thống nhất](approved/requirements.md) ghi nhận quyết định này. Các đề xuất nghiệp vụ/UI bên dưới nay thuộc phạm vi đã duyệt; chi tiết kỹ thuật chưa viết vẫn cần thiết kế/review. Chưa phải API/schema, kế hoạch triển khai đã duyệt hoặc quyền triển khai sản phẩm. Kế hoạch để review tại [implementation-plan](technical/implementation-plan.md).
+Ngày lập:25/10/2026; cập nhật28/10/2026. Trạng thái: **Người dùng đã duyệt toàn bộ bản đặc tả viết, gồm các đề xuất đã trình và mục13–14**. [Yêu cầu đã thống nhất](approved/requirements.md) ghi nhận quyết định này. Các đề xuất nghiệp vụ/UI bên dưới nay thuộc phạm vi đã duyệt; chi tiết kỹ thuật chưa viết vẫn cần thiết kế/review. Không thay approval API/schema hoặc quyền triển khai sản phẩm. Kế hoạch đã được người dùng duyệt ở bước tiếp nối; thiết kế Task1 còn chờ review G1 tại [implementation-plan](technical/implementation-plan.md).
 
 ## 1. Kết quả cần đạt
 

@@ -66,43 +66,39 @@ Các đường dẫn sản phẩm bên dưới **chưa tồn tại**, chỉ tạ
 | `apps/api/src/modules/attendance/export/` | Excel từ snapshot đã lưu, dùng cùng phép tính server |
 | `contracts/openapi.json`, `scripts/product/` | Snapshot sinh, drift/boundary/run thử có owner |
 
-Đề xuất interface nội bộ cho task1 review, sau G1 cập nhật đồng bộ tên/kiểu/test trước code:
+## Bộ thiết kế Task1 trình review G1
 
-```ts
-// Public wire types: do DTO API định nghĩa/sinh; đây là tên miền đề xuất.
-type AttendanceKind = 'work' | 'overtime';
-type CellKey = { employeeId: string; date: string; kind: AttendanceKind };
-type CellValue = null | { type: 'number'; value: number } | { type: 'absence' };
-// absence chỉ công; N/— suy từ mốc, không là giá trị ghi. Number là bội 0.5.
-// Revision là opaque string, kể cả ô chưa có record; không bỏ CAS của ô trống.
-type CellSnapshot = CellKey & { value: CellValue; reminder: boolean; revision: string };
-type WriteIntent = { targets: CellSnapshot[]; value: CellValue;
-  mode: 'fill-empty' | 'replace'; source?: CellSnapshot };
-type WriteResult = { state: 'saved'; cells: CellSnapshot[] }
-  | { state: 'conflict'; current: CellSnapshot[] };
-```
+- [Contract API](api-contract.md): endpoint/DTO/error, field thiếu/null, revision ô trống, batch/fill/source, timeout và query.
+- [Data model](data-model.md): nửa đơn vị nguyên, tombstone revision, schema/migration và transaction/lock order.
+- [Auth/session](auth-session.md): phiên server/cookie/Origin, hash/quota và reset vận hành.
+- [Toolchain manifest](toolchain-manifest.md): exact pins và metadata, chuyển pnpm/giữ pilot; compatibility chưa chạy.
+- [Verification matrix](verification-matrix.md): toàn bộ AC, failure modes, ngân sách, thiết bị/reader còn thiếu.
 
-Không expose raw Prisma entity; totals/month/employee/session/error DTO phải được task1 định nghĩa đủ ví dụ. DTO sẽ khóa format ngày lịch, ID/revision, phân biệt lỗi HTTP với domain, serialization số và payload giới hạn kỹ thuật có phản hồi rõ; không lấy kiểu minh họa trên làm OpenAPI đã Accepted. Mọi ký hiệu type dùng ở task sau ngoài khối này được định nghĩa và review tại task1, rồi sinh vào client.
+Các tên DTO chính xác để G1 review: `AttendanceKind`, `CellKeyDto`, `CellValueDto`, `CellSnapshotDto`, `EmployeeDto`, `SessionIdentity`, `SessionDto`, `MonthDto`, `KindTotalsDto`, `CellExpectationDto`, `WriteAttendanceDto`, `WriteResultDto`, `TargetPreviewDto` tại api-contract. G1 chưa Accepted; không dùng để code phụ thuộc trước review. Frontend `WriteIntent` là alias nội bộ của generated `WriteAttendanceDto`, `TargetPreview` là alias của `TargetPreviewDto`; không duy trì wire DTO viết tay hoặc union conflict200 cạnh tranh: conflict dùng HTTP409 error envelope theo contract. Kiểu HTTP update nhân sự `UpdateEmploymentDto` gồm expectedRevision bắt buộc và name/startDate/endDate optional theo PATCH trong contract.
+
+Các type frontend props/lifecycle (`AttendanceGridProps`, `ParseResult`, `GestureOptions`, `GestureController`) do task6/8 định nghĩa tại file owner, không source wire. Private `MutationCredential`/`AuthenticatedSession`/`ProductTransaction`/`LockedEmployee` tại auth/data-model là interface backend, không đưa vào OpenAPI/web. G1 đã chỉ rõ ranh giới này để không truyền mỗi SessionIdentity vào transaction rồi bỏ kiểm revoke.
 
 ## Trình tự task
 
 Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → task9 → task10 → task11. Các lát cắt cùng một sản phẩm; không tạo workflow song song. Task6 dùng thiết kế C đã duyệt, không lặp khảo sát A/B/C. Task11 chỉ chuẩn bị release, cần quyền riêng cho thao tác thật.
 
-### Task1: Chốt thiết kế kỹ thuật chi tiết có thể triển khai — G1
+### Task 1: Chốt thiết kế kỹ thuật chi tiết có thể triển khai — G1
 
 **Files:** Create `technical/api-contract.md`, `technical/data-model.md`, `technical/auth-session.md`, `technical/toolchain-manifest.md`, `technical/verification-matrix.md` trong dossier này; Modify plan này và architecture-proposal ở phần tiếp nối. Không tạo source/app/package ở task thiết kế.
 
 **Interfaces:** Consumes design mục1–14, ADR-001/002/003. Produces nguồn DTO/endpoint/error/date/revision/schema/session/version chính xác cho task2–9; không đưa phương án stack khác ra chọn lại.
 
-- [ ] Viết contract có method/path, request/response/error và JSON ví dụ cho login/logout/current session, nhân sự/thay mốc, tháng/tổng, một ô/batch/fill, xuất tháng. Khóa khả năng ghi reminder riêng không ghi đè giá trị; missing vs null, ô vắng record, tập đích rời đã dedupe, source read-only, chế độ điền trống và xung đột phải rõ.
-- [ ] Viết data-model: ID ổn định/trùng tên, ngày lịch inclusive và giao tháng; biểu diễn nửa đơn vị chính xác, unique key ô, revision không tái dùng khi clear/recreate, constraint/migration. Chốt transaction/lock order cho nhân sự và các ô để sửa mốc/ghi ô không tạo write skew; test PostgreSQL cạnh tranh được đặc tả trước code.
-- [ ] Chốt timeout: bản đầu không tự retry write; đọc lại toàn bộ đích/nguồn để đối chiếu, giữ draft và chỉ cho lưu lại sau thao tác rõ trên baseline mới. Xác định response mất không thể phân biệt tác giả ghi; không tự tuyên bố request cũ rollback. Nếu chọn idempotency thay hướng reconciliation phải ghi thiết kế key/lifecycle và test riêng trước duyệt.
-- [ ] Viết auth/session cụ thể: hash mật khẩu, lưu session/revoke/expiry, cookie HttpOnly/Secure/SameSite và CSRF/CORS theo topology local/production dự kiến, rate limit/login error, reset CLI qua vận hành xác minh + revoke session. Không thêm role admin/màn hình quản trị; không đưa credential vào docs. Android sau này dùng API, chưa hứa cookie web là thiết kế auth native cuối.
-- [ ] Lập manifest exact versions/engines/license/source tương thích cho toàn bộ stack đã chọn; đề xuất cách chuyển root npm sang pnpm, kiểm pilot engine/lockfile và script. Nếu không có giao engine hợp lệ, ghi cách chạy pilot bằng runtime riêng, không sửa pilot im lặng. Chưa cài ở bước này; compatibility vẫn Not run.
+- [x] Viết contract có method/path, request/response/error và JSON ví dụ cho login/logout/current session, nhân sự/thay mốc, tháng/tổng, một ô/batch/fill, xuất tháng. Khóa khả năng ghi reminder riêng không ghi đè giá trị; missing vs null, ô vắng record, tập đích rời đã dedupe, source read-only, chế độ điền trống và xung đột phải rõ.
+- [x] Viết data-model: ID ổn định/trùng tên, ngày lịch inclusive và giao tháng; biểu diễn nửa đơn vị chính xác, unique key ô, revision không tái dùng khi clear/recreate, constraint/migration. Chốt transaction/lock order cho nhân sự và các ô để sửa mốc/ghi ô không tạo write skew; test PostgreSQL cạnh tranh được đặc tả trước code.
+- [x] Chốt timeout: bản đầu không tự retry write; đọc lại toàn bộ đích/nguồn để đối chiếu, giữ draft và chỉ cho lưu lại sau thao tác rõ trên baseline mới. Xác định response mất không thể phân biệt tác giả ghi; không tự tuyên bố request cũ rollback. Nếu chọn idempotency thay hướng reconciliation phải ghi thiết kế key/lifecycle và test riêng trước duyệt.
+- [x] Viết auth/session cụ thể: hash mật khẩu, lưu session/revoke/expiry, cookie HttpOnly/Secure/SameSite và CSRF/CORS theo topology local/production dự kiến, rate limit/login error, reset CLI qua vận hành xác minh + revoke session. Không thêm role admin/màn hình quản trị; không đưa credential vào docs. Android sau này dùng API, chưa hứa cookie web là thiết kế auth native cuối.
+- [x] Lập manifest exact versions/engines/license/source tương thích cho toàn bộ stack đã chọn; đề xuất cách chuyển root npm sang pnpm, kiểm pilot engine/lockfile và script. Nếu không có giao engine hợp lệ, ghi cách chạy pilot bằng runtime riêng, không sửa pilot im lặng. Chưa cài ở bước này; compatibility vẫn Not run.
 - [ ] Viết verification-matrix với test fixture, command đề xuất, tiêu chí đạt, target và AC owner. Đề xuất benchmark20/200/1.000 nhân sự, ghi ngân sách tải/render/scroll/nhập cụ thể để review, không coi đó là trần; chốt thiết bị/reader có thể tiếp cận trước gate cần chúng.
 - [ ] Tự đối chiếu contract↔schema↔auth↔AC; trình review G1, ghi quyết định, cập nhật mọi interface trong plan. Commit scoped tài liệu nếu đã được quyền; chưa code phần G1 chưa duyệt. Acceptance task này là thiết kế đủ rõ và được review, không claim compatibility hoặc security đã kiểm bằng tài liệu.
 
-### Task2: Nền chạy độc lập, workspace và enforcement
+Trạng thái Task1: năm thiết kế đã soạn và tự đối chiếu; ma trận đã viết, thiết bị/reader chưa có identity thực. Review/duyệt G1 và phần chốt tài nguyên thật vẫn chưa hoàn tất; không đánh dấu Task1 complete hoặc bắt đầu Task2.
+
+### Task 2: Nền chạy độc lập, workspace và enforcement
 
 **Files:** Create `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `apps/{web,api}/package.json`, configs TypeScript/Vite/Nest mỗi app; `apps/api/src/{main.ts,app.module.ts}`, `apps/web/src/app/{providers,app-shell}.tsx`, `scripts/product/{check-boundaries.mjs,check-contract.mjs}`, `tests/product-tooling/boundaries.test.mjs`; Modify root `package.json`, `.gitignore`, ESLint và local-run docs theo G1. Không xóa npm lock/pilot khi chưa đối chiếu đường chuyển.
 
@@ -114,11 +110,11 @@ Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → 
 - [ ] Chạy tooling tests GREEN; chạy từng app typecheck/build riêng, generator lặp cho cùng output và fixture drift FAIL. Chạy lại `npm run check`, `npm run test:e2e` của pilot theo LOCAL_RUN nếu root/tooling ảnh hưởng, ghi runtime và kết quả thật. pnpm frozen install phải tái lập được.
 - [ ] Review độc lập tooling snapshot; commit scoped `build: establish isolated product toolchain`, cập nhật command map đã chạy. Nếu thiếu quyền reviewer ghi gate Blocked, không chuyển kết quả build thành hoàn tất review.
 
-### Task3: Đăng nhập, phiên và reset qua vận hành
+### Task 3: Đăng nhập, phiên và reset qua vận hành
 
 **Files:** Create API `modules/auth/{auth.module.ts,auth.controller.ts,auth.service.ts,session.guard.ts,auth.dto.ts}`, `prisma/schema.prisma` và migration auth, `scripts/product/reset-password.ts`; web `features/session/api/session.ts`, `features/session/ui/login-page.tsx`, `shared/api/transport.ts`; test `apps/api/test/auth.integration.test.ts`, `apps/web/src/features/session/ui/login-page.test.tsx`. Modify router/providers và OpenAPI/generated client.
 
-**Interfaces:** Consumes G1 session contract, task2 DB/config/transport. Produces `requireSession(request): SessionIdentity`, current-session API và `clearSessionCache(): void` tại providers; credential/session chỉ đi theo thiết kế G1, không localStorage token.
+**Interfaces:** Consumes G1 session contract, task2 DB/config/transport. Produces `requireSession(request): Promise<AuthenticatedSession>`, current-session API và `clearSessionCache(): void` tại providers; credential/session chỉ đi theo thiết kế G1, không localStorage token.
 
 - [ ] Viết `auth_rejects_anonymous_and_equal_accounts_can_edit` và `reset_revokes_sessions_without_admin_role`: unauthorized tháng/write/export; hai tài khoản giả cùng quyền; login sai không lộ account, CSRF/login flooding theo G1; logout/reset khiến cookie cũ bị từ chối. Không có public signup/reset endpoint vô quyền.
 - [ ] Chạy integration trên PostgreSQL thử mới, xác nhận RED chưa có module; viết UI test login lỗi giữ username nhưng không log password, lỗi auth không loop retry.
@@ -126,7 +122,7 @@ Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → 
 - [ ] Chạy GREEN API/UI; kiểm logout xóa Query cache và dữ liệu nhạy cảm, hết phiên ngừng polling và hiện đăng nhập lại; draft không được gửi nhầm sau đổi phiên. Kiểm cookie/CSRF theo môi trường thử, không lấy localhost làm bằng chứng TLS production.
 - [ ] Review độc lập auth/schema snapshot; commit `feat: add two-account authenticated sessions`; AC01/AC19 chỉ đổi Verified ở lớp thực sự đã chạy.
 
-### Task4: Nhân sự và bảo vệ mốc làm việc xuyên tháng
+### Task 4: Nhân sự và bảo vệ mốc làm việc xuyên tháng
 
 **Files:** Create API `modules/employees/{employees.module.ts,employees.controller.ts,employees.service.ts,employees.repository.ts,employees.dto.ts}`; schema/migration nhân sự+ô cần bảo vệ; web `features/employees/api/employees.ts`, `ui/employee-form.tsx`; tests `apps/api/test/employees.integration.test.ts`, `apps/web/src/features/employees/ui/employee-form.test.tsx`.
 
@@ -138,11 +134,11 @@ Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → 
 - [ ] Chạy GREEN qua API/DB reload + UI lỗi/keyboard; migration từ baseline auth giữ tài khoản. Để test cạnh tranh thực với write service tại task5, không claim AC15 toàn bộ đã đạt trước đó.
 - [ ] Review độc lập migration/nhân sự; commit `feat: manage employment dates without data loss`.
 
-### Task5: Snapshot tháng, validation và ghi ô/batch nguyên tử
+### Task 5: Snapshot tháng, validation và ghi ô/batch nguyên tử
 
 **Files:** Create API `modules/attendance/{attendance.module.ts,attendance.controller.ts,attendance.service.ts,attendance.repository.ts,attendance.dto.ts,attendance-values.ts,attendance-totals.ts}`; tests `attendance-values.test.ts`, `attendance-totals.test.ts` colocated, `apps/api/test/attendance.integration.test.ts`, `apps/api/test/attendance-concurrency.integration.test.ts`; Modify Prisma migrations/contract generation.
 
-**Interfaces:** Consumes auth và interface public nhân sự task4/G1; produces `AttendanceService.readMonth(month: string): Promise<MonthDto>`, `write(input: WriteAttendanceDto, actor: SessionIdentity): Promise<WriteResultDto>`; DTO chính thức ở G1 thay tên minh họa nếu cần. Cùng use case cho một ô và tập đích, kiểm permission trên mọi request.
+**Interfaces:** Consumes auth và interface public nhân sự task4/G1; produces `AttendanceService.readMonth(month: string): Promise<MonthDto>`, `write(input: WriteAttendanceDto, credential: MutationCredential): Promise<WriteResultDto>`; DTO chính thức ở G1 thay tên minh họa nếu cần. Cùng use case cho một ô và tập đích, kiểm permission trên mọi request.
 
 - [ ] Viết unit assertion: công29,5/30 và tăng ca23,5/24 nhận; công30,5/31, tăng ca24,5/25, số3,25, âm/NaN/Infinity bị chặn;0 công→F; không nhận F ở overtime, không biến0 overtime thành F. Tổng `[1 xanh,0.5,F xanh,null]` bằng1.5 công; reminder không đổi tổng, công1.5/giờ2 độc lập.
 - [ ] Viết integration `batch_conflict_rolls_back_all_targets`, `empty_cell_revision_prevents_lost_create`, `clear_recreate_cannot_reuse_revision`, `value_and_reminder_share_conflict_check`, `fill_source_change_rejects_stale_intent`, `date_change_race_preserves_valid_interval`. Dùng hai connection/request với barrier xác định, không sleep đoán lịch: một xung đột →không ghi bất kỳ đích nào; đổi mốc/ghi số,F,reminder-only ở tháng khác →chỉ kết quả hợp lệ, không mất nhắc. Kiểm dedupe/skip N—/đếm/sources read-only và không tự đổi tập điền trống khi snapshot cũ.
@@ -150,7 +146,7 @@ Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → 
 - [ ] Chạy GREEN trên PostgreSQL thật của sandbox, đọc độc lập sau reload/connection mới; giả mất phản hồi sau commit chứng minh dữ liệu đã lưu dù client timeout. Kiểm anonymous/unauthorized, payload lệch contract, ô ngoài khoảng/ngày tháng; không dùng SQLite thay concurrency. Chạy drift/boundary/typecheck/build API.
 - [ ] Review độc lập transaction/schema/contract final SHA; commit `feat: persist attendance batches atomically`. AC12/13/15 cần UI và hai phiên task7/10 trước claim toàn luồng.
 
-### Task6: UI nền và bảng tháng theo thiết kế C
+### Task 6: UI nền và bảng tháng theo thiết kế C
 
 **Files:** Create web `shared/styles/tokens.css`, `shared/ui/{button,input,dialog,tabs}.tsx` theo nhu cầu thật; `features/attendance/ui/{attendance-page,attendance-grid,attendance-cell,cell-editor}.tsx`, `model/{number-input.ts,month-view.ts}`; tests `number-input.test.ts`, `month-view.test.ts`, `ui/attendance-grid.test.tsx`. Modify app shell/router; ghi nguồn/custom delta trong `shared/ui/README.md`.
 
@@ -161,7 +157,7 @@ Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → 
 - [ ] Chạy GREEN + browser component states 375/728/1200 và desktop keyboard/focus/contrast/overflow, tên dài/trùng tên/tháng ít ngày; Enter/Tab chuyển đúng ô hợp lệ, không trap focus. UI form/login cùng token; áp dụng Impeccable và UI UX Pro Max cho màn hình chưa dựng theo ngôn ngữ C, không khảo sát lại thiết kế đã duyệt.
 - [ ] Review UI/code snapshot và commit `feat: render approved monthly attendance interface`. Mock component tests chỉ chứng minh lớp UI; chưa claim lưu thật hoặc trusted touch.
 
-### Task7: Query, draft và lưu thật không mất dữ liệu
+### Task 7: Query, draft và lưu thật không mất dữ liệu
 
 **Files:** Create web `features/attendance/api/{attendance.ts,query-keys.ts,use-attendance-month.ts}`, `model/{attendance-draft.ts,use-attendance-draft.ts}`, `ui/save-feedback.tsx`; tests `model/attendance-draft.test.ts`, `api/use-attendance-month.test.tsx`, `tests/product-e2e/attendance-save.spec.ts`; Modify page/editor/transport.
 
@@ -173,11 +169,11 @@ Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → 
 - [ ] Chạy GREEN unit và E2E web–API–DB: hai phiên1.5/2 công →phiên sau thấy1.5 và giữ2 draft; test giá trị/màu độc lập, API fail/timeout sau commit/reload. Readback độc lập chứng minh số/nhắc tồn tại; không dùng API mock thay E2E. Chạy browser trực tiếp theo BROWSER_TESTING.
 - [ ] Review state/transport/concurrency UI snapshot; commit `feat: save attendance while preserving local drafts`.
 
-### Task8: Chọn rời, nhập vùng, fill và cảm ứng nhấn giữ
+### Task 8: Chọn rời, nhập vùng, fill và cảm ứng nhấn giữ
 
 **Files:** Create web `model/{cell-selection.ts,fill-intent.ts,selection-gesture.ts}`, `ui/{selection-tools,bulk-editor,fill-handle}.tsx`, tests colocated mỗi model, `tests/product-e2e/{bulk-entry,selection-input}.spec.ts`; Modify grid/cell/editor/draft. Giữ lifecycle gesture/cancel đủ gần để đọc, đánh giá400/800 dòng theo SOURCE_NAVIGATION.
 
-**Interfaces:** Consumes task7 draft submit/G1 WriteAttendanceDto. Produces `unionCells(a: CellKey[], b: CellKey[]): CellKey[]`, `previewTargets(intent: WriteIntent, month: MonthDto): TargetPreview` (selected/eligible/skipped/changed, định nghĩa tại fill-intent.ts), `createSelectionGesture(options: GestureOptions): GestureController` có cancel/dispose và không tự submit.
+**Interfaces:** Consumes task7 draft submit/G1 WriteAttendanceDto. Produces `unionCells(a: CellKeyDto[], b: CellKeyDto[]): CellKeyDto[]`, `previewTargets(intent: WriteIntent, month: MonthDto): TargetPreview` (selected/eligible/skipped/changed, định nghĩa tại fill-intent.ts), `createSelectionGesture(options: GestureOptions): GestureController` có cancel/dispose và không tự submit.
 
 - [ ] Viết selection/fill assertions: ba ô rời chỉ ba đích, bỏ một còn hai; vùng chồng dedupe, không thêm ô giữa; Ctrl/Cmd bấm/kéo, hai đầu và chạm; fill số/F lặp hai hướng, nguồn không ghi/nhắc không chép, đích giữ reminder. Default fill-empty giữ F/số, reminder-only vẫn trống; replace không bỏ CAS; skip N/— và báo đếm, không đích thì disable Áp dụng.
 - [ ] Viết gesture assertions449ms chưa kích hoạt/450ms có,10px còn giữ/11px nhường pan; cancel/multitouch/blur/Esc/unmount thu hồi timer/capture/auto-scroll và phục hồi selection, giữ rồi thả không toggle bỏ ô. Raw draft dirty chặn gesture và không phát lại sau guard. Chạy RED trước implementation.
@@ -185,7 +181,7 @@ Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → 
 - [ ] Chạy GREEN unit/component, E2E batch một ô conflict→toàn bộ không ghi; hai phiên fill source change/target change→giữ draft và không tự force/retry. Kiểm browser chuột/bàn phím, cuộn sát mép, touch synthetic ghi đúng lớp; phần iPhone/Android thật chuyển task10, thiếu không gọi Verified.
 - [ ] Review độc lập gesture/lifecycle/batch final snapshot; commit `feat: support disjoint selection and repeat fill`.
 
-### Task9: Excel từ snapshot nhất quán với tổng công thức
+### Task 9: Excel từ snapshot nhất quán với tổng công thức
 
 **Files:** Create API `modules/attendance/export/{attendance-workbook.ts,attendance-export.service.ts}`, `attendance-workbook.test.ts`, `apps/api/test/attendance-export.integration.test.ts`; web `features/attendance/ui/export-button.tsx`; `tests/product-e2e/export.spec.ts`; Modify controller/DTO/OpenAPI.
 
@@ -196,7 +192,7 @@ Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → 
 - [ ] Chạy GREEN unit/integration và browser download, parse lại file để kiểm dữ liệu/formula/style + anonymous export bị từ chối. Mở trên reader Excel thật được ghi tên/version, sửa số để tổng tính lại đúng bảng và bảng còn lại giữ nguyên; không dùng ExcelJS đọc lại thay engine tính Excel. Chưa có reader ghi Not run gate AC09.
 - [ ] Review export/auth/snapshot; commit `feat: export editable monthly attendance workbook`.
 
-### Task10: Kiểm xuyên suốt, accessibility, thiết bị và hiệu năng — G3
+### Task 10: Kiểm xuyên suốt, accessibility, thiết bị và hiệu năng — G3
 
 **Files:** Create `tests/product-e2e/{acceptance,two-sessions,recovery}.spec.ts`, `scripts/product/benchmark.mjs`, `playwright.product.config.ts`; Modify `technical/verification-matrix.md`, dossier validation và LOCAL_RUN. Evidence run-owned ignored, fixture chỉ nhân sự giả.
 
@@ -209,7 +205,7 @@ Task1 → task2 → task3 → task4 → task5 → task6 → task7 → task8 → 
 - [ ] Benchmark dữ liệu giả20/200/1.000 theo ngân sách đã review task1: tải/render/scroll/nhập và memory cùng máy/browser. Đạt ngân sách mới kết luận; vượt thì profile và đề xuất sửa/engine qua review, không tự thêm virtualization làm hỏng zoom/selection. Ghi quy mô đã đo, không tuyên bố vô hạn.
 - [ ] Đóng findings, check lại phạm vi ảnh hưởng và mời review độc lập full base..final SHA cùng spec/contract/evidence. Sau sửa cần reviewer xem tip mới theo QUALITY_GATES. Ghi thiếu quyền reviewer là Blocked; commit `test: verify product acceptance across real data flows` chỉ sau các check được báo đúng, không gọi sản phẩm Done khi còn gate bắt buộc.
 
-### Task11: Hồ sơ vận hành và bàn giao local — G4 chưa phải deploy
+### Task 11: Hồ sơ vận hành và bàn giao local — G4 chưa phải deploy
 
 **Files:** Create `docs/operations/product-runbook.md`, `docs/operations/product-backup-restore.md`; Modify task INDEX/validation và READINESS đúng scope, không sửa lịch sử pilot thành evidence sản phẩm.
 
@@ -249,8 +245,8 @@ Scripts start/stop/reset-fixture và env chính xác phải ghi từ task2 sau k
 | Mục11/13; AC13/21/22 | 5/7/8/10: atomic batch, chọn rời/fill/guard/tập đích/source revision |
 | Mục14; AC23 | 8/10: hold/timer/cancel/pan/pinch/thiết bị thật |
 
-Tự review28/10/2026: đã đối chiếu14 mục/23 AC; giữ đề xuất trong bản viết thành quyết định sau approval nhưng API/schema/auth/version chưa có vẫn đi qua task1. Các interface minh họa thống nhất theo G1 trước downstream, không giả wire fields đã chốt. Năm Review Focus đều có test owner ở task3–10. Không đặt lại kiến trúc hoặc UI đã duyệt; kế hoạch chia deliverable kiểm riêng trong cùng một sản phẩm, không viết thân implementation. Tất cả checkbox chưa thực hiện; product tests/compatibility/thiết bị/reader/review độc lập **Not run** ở lượt lập kế hoạch.
+Tự review28/10/2026: đã đối chiếu14 mục/23 AC; giữ đề xuất trong bản viết thành quyết định sau approval nhưng API/schema/auth/version chưa có vẫn đi qua task1. Các interface minh họa thống nhất theo G1 trước downstream, không giả wire fields đã chốt. Năm Review Focus đều có test owner ở task3–10. Không đặt lại kiến trúc hoặc UI đã duyệt; kế hoạch chia deliverable kiểm riêng trong cùng một sản phẩm, không viết thân implementation. Cập nhật thực thi: checkbox Task1 phản ánh phần thiết kế đã soạn, G1 chưa duyệt; task2–11 chưa chạy. Product tests/compatibility/thiết bị/reader/review độc lập vẫn **Not run**.
 
 ## Bàn giao review
 
-Đề nghị review thứ tự, deliverable, gate G0–G4 và coverage. Khuyến nghị triển khai Native inline sau duyệt, vẫn cần reviewer độc lập được phép cho code/tooling/auth/DB; dispatch chưa được cấp. Sau review plan, ghi phạm vi thực thi được cấp và quyết định phương pháp vào INDEX, bắt đầu task1; không nhảy qua G1 sang cài/code. Không hỏi lại những quyết định design/ADR/UI đã được duyệt.
+Kế hoạch đã duyệt, phương pháp inline; đã soạn bộ thiết kế Task1 ở các link trên. Bước tiếp: người dùng review G1 theo gate đã duyệt trước phần code phụ thuộc, không review lại plan/kiến trúc/UI. Reviewer độc lập cho code/tooling/auth/DB và quyền dispatch vẫn cần đúng scope khi đến gate; chưa cài/code Task2 hoặc tích hợp/release.

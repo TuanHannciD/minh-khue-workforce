@@ -2,7 +2,23 @@
 
 Ngày 25/10/2026. Scope hiện tại chỉ tài liệu, không chứng nhận ứng dụng.
 
-## Hiện hành — duyệt đặc tả và lập kế hoạch28/10/2026
+## Hiện hành — duyệt kế hoạch và thiết kế Task1/G1 ngày28/10/2026
+
+Người dùng xác nhận “Tôi xác nhận duyệt kế hoạch”; đã ghi Accepted và tiếp tục inline bằng executing-plans. Commit local baseline spec/plan/approval `6cfc3645f43ae1a1d0cb3b9c0811384671feb8c6`. Worktree linked agent-bootstrap/agent/mkw-agent-002 xác minh git-dir khác common-dir, không submodule, primary không sửa. Các Markdown dirty và plan untracked của lượt trước được xác minh task-owned và commit; không bỏ thay đổi/evidence. Chưa tích hợp/push/deploy hoặc dispatch.
+
+Task1 đã soạn API v1/DTO/error/batch/timeout, data-model/lock order/schema/migration, auth/session/reset, exact-version manifest và verification matrix. G1 **In review**, chưa Accepted, Task1 chưa complete; checkbox phân biệt phần soạn đã có và review/tài nguyên thiết bị còn thiếu. Cập nhật tên/interface plan theo contract đề xuất, không code trước G1. Biên dịch/migration/auth/persistence/browser/Excel/hiệu năng/AC sản phẩm và compatibility vẫn **Not run**. Metadata public đọc được không thay bằng chứng cài/chạy.
+
+Skills: executing-plans, using-git-worktrees, test-driven-development (đọc; hiện chỉ tài liệu, chưa production code để chạy RED/GREEN), verification-before-completion. Bỏ cài/setup và app suite ở Task1 vì scope tài liệu/gate G1, không thay pilot hoặc env global. Upstream task-start lần đầu báo `task 1 not found ... (no heading matching 'Task 1')`; đã chuẩn hóa heading Task1 thành Task 1, chạy lại thành công, đọc brief đúng Task1. Không sửa skill/checker. Ledger/brief/metadata tại `.superpowers/sdd/implementation-plan/`, ignored đã kiểm, giữ bằng chứng. Không gọi task-done vì review G1 chưa đạt acceptance.
+
+Read-only metadata: HTTPS npm registry version/engine/peers/license, Node release index, PostgreSQL versioning. Đã chọn bộ pin đề xuất trong manifest; phát hiện Prisma latest RC lệch client và TypeScript latest ngoài peer giao nên không chọn. Query thử types/node24.15.0 trả404, thay bằng24.19.2 tồn tại. Runtime local `node --version` v22.12.0; product24.22.1/DB17.11 chưa cài hoặc acquire. Không tạo process/server/cổng/browser/DB/tài khoản/mật khẩu thật.
+
+Tự review: contract↔schema↔auth↔plan↔AC nhất quán về tên DTO, missing/null, absence/zero, halfUnits, revision0/tombstone, nguồn read-only, targets rời, User/Employee lock order, reset fence và timeout chưa biết kết quả. Năm Review Focus có test owner trong matrix; đủ AC01–AC23, thiết bị iPhone/Android và reader thật chưa có identity/khả năng kiểm. Không hỏi lại nghiệp vụ/kiến trúc/UI đã duyệt; G1 là phần thiết kế mới được plan yêu cầu review.
+
+Kiểm cuối tại worktree: `npm run check:docs` exit0 (49 current documents); `git diff --check` và scoped staged whitespace exit0; UTF-8/liên kết/fence và tên/interface tự rà đạt trong phạm vi tài liệu. Không gọi self-review là review độc lập. Bước tiếp: người dùng review năm tài liệu G1 qua implementation-plan; sau G1 mới Task2 cài/scaffold trong quyền tương ứng. Chưa cần quyền hệ thống thật hoặc release để review G1. Tip hiện tại xem Git log, không tự nhúng SHA của commit chứa đoạn này.
+
+## Checkpoint lập kế hoạch trước approval (lịch sử)
+
+## Duyệt đặc tả và lập kế hoạch28/10/2026
 
 Người dùng xác nhận chốt toàn bộ design.md, gồm đề xuất đã trình và mục13–14, giao writing-plans lập kế hoạch cho review; chưa triển khai sản phẩm. Cập nhật requirements/design/INDEX và nguồn định tuyến/trạng thái liên quan. Các phần phía dưới là evidence theo checkpoint; trạng thái chờ duyệt bản viết ở lịch sử đã được quyết định này thay, không thay kết quả kiểm cũ.
 
