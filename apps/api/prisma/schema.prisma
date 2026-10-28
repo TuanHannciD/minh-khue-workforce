@@ -41,3 +41,39 @@ model AuthThrottle {
   @@id([bucketKey, windowStart])
   @@index([expiresAt])
 }
+
+model Employee {
+  id String @id @db.Uuid
+  name String
+  startDate DateTime @db.Date
+  endDate DateTime? @db.Date
+  revision String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  cells AttendanceCell[]
+}
+
+enum AttendanceKind {
+  work
+  overtime
+}
+
+enum CellValueType {
+  empty
+  number
+  absence
+}
+
+model AttendanceCell {
+  employeeId String @db.Uuid
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  date DateTime @db.Date
+  kind AttendanceKind
+  valueType CellValueType
+  halfUnits Int? @db.SmallInt
+  reminder Boolean @default(false)
+  revision String @db.Uuid
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([employeeId, date, kind])
+  @@index([date, employeeId])
+}

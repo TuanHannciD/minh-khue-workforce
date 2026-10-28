@@ -1,5 +1,11 @@
 # Toolchain manifest — pins G1 và kiểm chứng Task2–3
 
+## Hiện hành Task4 — consumer form nhân sự
+
+Web đã cài exact React Hook Form7.91.0, @hookform/resolvers6.0.2 và Zod4.6.7 theo pins G1, consumer thật `features/employees/ui/employee-form.tsx`. pnpm thêm release-age exception chỉ resolver6.0.2; giữ engine/required peers/build policy strict. Frozen install exit0, product lint/format/types/build/tooling/boundary/drift và web31/API6 đạt; pilot22 check10/E2E2 đạt. Không cài primitives shadcn/Radix/Tailwind hoặc Excel trước consumer task tương ứng; form giữ native controls và tokens C đã có.
+
+Schema Prisma7.10.1 + migration002 Employee/AttendanceCell đã kiểm PostgreSQL17.11 mới từ trống và upgrade auth giữ hai account/session. Evidence Task4 tại `.agent-runs/MKW-PRODUCT-001/task4-employees/`; main còn phải independent employees/migration review exact tip. Không claim AC15/full attendance race hoặc Linux/device/TLS/operator/reader đã đạt. Các phần Task2–3 bên dưới là checkpoint theo phạm vi tương ứng.
+
 ## Hiện hành Task3 — consumers auth/session
 
 Đã cài đúng pins được duyệt cho Prisma client/adapter/CLI7.10.1, pg8.23.1, Argon2 0.45.1, throttler6.7.1, class-validator/transformer, cookie-parser/Helmet; web Query/Router và Testing Library/jsdom theo package/lock exact. Không cài phần UI primitives/forms/Excel chưa có consumer. Prisma CLI Studio required peers React/DOM19.3.1 là API devDependencies, không mở Studio; engine/peer/native strict giữ nguyên. pnpm thêm minimumReleaseAgeExclude đúng hai pins react-router/react-router-dom7.18.5 theo yêu cầu consumer đã duyệt, không bỏ release-age toàn registry.

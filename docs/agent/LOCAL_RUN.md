@@ -1,6 +1,6 @@
 # Chạy tooling và pilot local
 
-Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có bootstrap React/Vite và Nest/Express riêng, chưa có nghiệp vụ nhân sự. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
+Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session và Task4 POST/PATCH nhân sự; API tháng/ghi công/reconcile chưa triển khai. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
 
 ## Chuẩn bị và check
 
@@ -50,7 +50,7 @@ $env:WEB_ORIGIN='http://127.0.0.1:5173'
 pnpm --filter @mkw/api start
 ```
 
-Dừng foreground bằng Ctrl+C trong đúng terminal sở hữu. Không kill theo cổng tìm thấy. `api dev` chỉ watch compiler; chạy `start` riêng sau build. `apps/*/.env.example` là mẫu cấu hình; Vite đọc `.env`, API đọc biến process (không tự load file secret). Cổng trên là mặc định tài liệu, phải kiểm còn trống trước acquire. API có `/health` và `/api/v1/auth/{login,logout,session}`; không mở Swagger UI hoặc endpoint nghiệp vụ. Vite proxy `/api` về API cùng origin với browser; `API_PROXY_TARGET` đọc từ process Vite, `VITE_API_ORIGIN` chỉ còn dùng health transport bootstrap.
+Dừng foreground bằng Ctrl+C trong đúng terminal sở hữu. Không kill theo cổng tìm thấy. `api dev` chỉ watch compiler; chạy `start` riêng sau build. `apps/*/.env.example` là mẫu cấu hình; Vite đọc `.env`, API đọc biến process (không tự load file secret). Cổng trên là mặc định tài liệu, phải kiểm còn trống trước acquire. API có `/health`, `/api/v1/auth/{login,logout,session}` và POST `/api/v1/employees`, PATCH `/api/v1/employees/:id`; không mở Swagger UI hoặc attendance endpoints. Vite proxy `/api` về API cùng origin với browser; `API_PROXY_TARGET` đọc từ process Vite, `VITE_API_ORIGIN` chỉ còn dùng health transport bootstrap.
 
 Web alias `@/` thuộc src web. API dùng native package imports `#app/*` với `.js` ESM, được kiểm trên compiled runtime; không có alias xuyên app. Contract được sinh từ Nest DTO thành OpenAPI3.0.3 và web types; không sửa hai output bằng tay. [Tooling map](../../scripts/product/README.md) định vị generator/boundary/fixtures.
 
@@ -78,6 +78,21 @@ pnpm --filter @mkw/api auth:reset-password -- --target <target-record> --alias t
 CLI đọc mật khẩu TTY ẩn; automation dùng `--secret-stdin` qua private pipe JSON (`accounts` gồm đúng hai username/password cho provision; `password` cho reset). Không đặt password trong argv/env, shell history hoặc log; không dùng echo với secret literal. Provision chỉ DB chưa có User; reset chỉ User tồn tại và revoke mọi session trong cùng transaction. Không signup/reset HTTP, không role quản trị. CLI hiện từ chối target thật; xác minh danh tính vận hành và enrollment production chưa được cấp quyền/kiểm.
 
 Evidence Task3 tại `.agent-runs/MKW-PRODUCT-001/task3-auth/`: integration, native Windows Argon2, browser login lỗi/đúng/logout/expiry và readback. Guard tháng/write/export chỉ qua route test-owned; Task4/5/9 phải kiểm lại endpoint thật. Sandbox HTTP không chứng minh TLS production; Linux native, thiết bị thật và quy trình reset thật Not run.
+
+
+### Sandbox employees Task4
+
+Task4 thêm migration002 Employee/AttendanceCell đủ bảo vệ mốc xuyên tháng, chưa có attendance mutation hoặc reconcile HTTP. Form tạo/sửa ở AppShell dùng RHF7.91.0/resolvers6.0.2/Zod4.6.7, tokens UI C; chọn người từ bảng tháng và full recovery thuộc Task6/7. POST thành công giữ ID để sửa tiếp; reload toàn trang không persist draft.
+
+```powershell
+$env:MKW_EMPLOYEE_CLUSTER_OWNER=(Resolve-Path '.agent-runs/MKW-PRODUCT-001/task4-employees/cluster-owner.json').Path
+pnpm --filter @mkw/api build
+pnpm --filter @mkw/api test:employees
+```
+
+Harness chỉ nhận owner Task4/fake-sandbox/alias task4-employees/role mkw_task4/loopback/PostgreSQL17.11/dataDirectory đúng task4-employees/pg-data, đối chiếu DB identity thực trước CREATE. Cluster đã release sau handoff: chỉ chạy khi được khởi động lại đúng owner/data/port, không đổi target sang cluster cũ hoặc reset DB. Mỗi run tạo DB UUID mới; upgrade từ baseline auth giữ hai fake account/session, API/CAS/protection/snapshot đọc SQL/client mới. `pnpm --filter @mkw/api test` gồm date-only Gregorian/28–31 ngày/weekday ở UTC, Việt Nam và Los Angeles; không cần DB cho suite này.
+
+Evidence `.agent-runs/MKW-PRODUCT-001/task4-employees/` giữ product/integration/pilot22/browser/readback và release audit. Browser fixture chỉ cấp hai account giả ngoài product router; request employees thật gọi Nest/PostgreSQL. Conflict/unknown giữ draft và khóa submit; unknown khóa Hủy, HTTP reconcile/full recovery vẫn staged Task5/7, không coi read hoặc bỏ draft là fence.
 
 ## Thao tác thử
 

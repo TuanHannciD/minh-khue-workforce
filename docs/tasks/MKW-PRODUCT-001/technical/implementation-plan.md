@@ -144,15 +144,17 @@ Review R2 tại `08a867f59e8706b61a987e88b51e832d2c1592b0`: I1/I2/I3 Closed, spe
 
 ### Task 4: Nhân sự và bảo vệ mốc làm việc xuyên tháng
 
-**Files:** Create API `modules/employees/{employees.module.ts,employees.controller.ts,employees.service.ts,employees.repository.ts,employees.dto.ts}`; schema/migration nhân sự+ô cần bảo vệ; web `features/employees/api/employees.ts`, `ui/employee-form.tsx`; tests `apps/api/test/employees.integration.test.ts`, `apps/web/src/features/employees/ui/employee-form.test.tsx`.
+Implementation Task4 đã qua checks/self-review; independent employees/migration review còn Pending do main thực hiện đúng final SHA. Evidence task4-employees và validation ghi giới hạn HTTP reconcile/date-vs-attendance-write còn Task5/7. Test integration dùng Node compiled ESM .mjs theo harness Task3; không đổi nghiệp vụ.
+
+**Files:** Create API `modules/employees/{employees.module.ts,employees.controller.ts,employees.service.ts,employees.repository.ts,employees.dto.ts}`; schema/migration nhân sự+ô cần bảo vệ; web `features/employees/api/employees.ts`, `ui/employee-form.tsx`; tests `apps/api/test/employees.integration.test.mjs`, `apps/web/src/features/employees/ui/employee-form.test.tsx`.
 
 **Interfaces:** Consumes auth guard và G1 EmployeeDto/MonthDto. Produces `EmployeesService.listForMonth(month: string): Promise<EmployeeDto[]>`, `updateEmployment(input: UpdateEmploymentDto): Promise<EmployeeDto>` hoặc lỗi vị trí đã chốt; interface public validation/lock cho task5 và `EmploymentConsistency.readByIds(tx, ids): Promise<LockedEmployee[]>` để đọc cùng snapshot mà không lọc tháng/không lấy write lock. Không import repository nhân sự xuyên module.
 
-- [ ] Viết `month_membership_uses_interval_intersection`: thêm20/10 chọn bắt đầu15/10 →1–14 N, không hiện tháng9; kết thúc20/10 →20 editable,21–31 —, tháng11 vắng; hai người trùng tên vẫn hai ID. Kiểm28/29/30/31 ngày và thứ theo ngày lịch, không lệch timezone.
-- [ ] Viết `employment_change_preserves_all_months`: đổi cả hai mốc làm loại số/F/giờ/reminder-only →từ chối, trả đúng người/ngày/loại, giữ mốc/nội dung/nhắc/tổng; start>end hoặc ngày không hợp lệ bị từ chối. Chạy RED bằng integration và UI form.
-- [ ] Viết `employee_accepted_noop_fences_delayed_patch` theo barrier A-read-B-thả A của matrix ca6: B same-field200 đổi revision, A409; đảo order B409. Reject patch chỉ expectedRevision, missing/null theo contract. `read_by_ids_survives_month_exit` đọc ID vẫn thấy mốc/revision sau PATCH sang tháng11, tombstone không bị xóa; form giữ ID/draft khi người biến mất khỏi tháng. Recovery HTTP/E2E dùng reconcile của task5/7.
-- [ ] Triển khai phạm vi tháng/mốc server và form React Hook Form/Zod kế thừa UI C; form hiện vị trí cần xử lý, không tự xóa/cascade/ẩn dữ liệu. Tên/ngày chỉ validate theo contract G1, không thêm field nghiệp vụ.
-- [ ] Chạy GREEN qua API/DB reload + UI lỗi/keyboard; migration từ baseline auth giữ tài khoản. Để test cạnh tranh thực với write service tại task5, không claim AC15 toàn bộ đã đạt trước đó.
+- [x] Viết `month_membership_uses_interval_intersection`: thêm20/10 chọn bắt đầu15/10 →1–14 N, không hiện tháng9; kết thúc20/10 →20 editable,21–31 —, tháng11 vắng; hai người trùng tên vẫn hai ID. Kiểm28/29/30/31 ngày và thứ theo ngày lịch, không lệch timezone.
+- [x] Viết `employment_change_preserves_all_months`: đổi cả hai mốc làm loại số/F/giờ/reminder-only →từ chối, trả đúng người/ngày/loại, giữ mốc/nội dung/nhắc/tổng; start>end hoặc ngày không hợp lệ bị từ chối. Chạy RED bằng integration và UI form.
+- [x] Viết `employee_accepted_noop_fences_delayed_patch` theo barrier A-read-B-thả A của matrix ca6: B same-field200 đổi revision, A409; đảo order B409. Reject patch chỉ expectedRevision, missing/null theo contract. `read_by_ids_survives_month_exit` đọc ID vẫn thấy mốc/revision sau PATCH sang tháng11, tombstone không bị xóa; form giữ ID/draft khi người biến mất khỏi tháng. Recovery HTTP/E2E dùng reconcile của task5/7.
+- [x] Triển khai phạm vi tháng/mốc server và form React Hook Form/Zod kế thừa UI C; form hiện vị trí cần xử lý, không tự xóa/cascade/ẩn dữ liệu. Tên/ngày chỉ validate theo contract G1, không thêm field nghiệp vụ.
+- [x] Chạy GREEN qua API/DB reload + UI lỗi/keyboard; migration từ baseline auth giữ tài khoản. Để test cạnh tranh thực với write service tại task5, không claim AC15 toàn bộ đã đạt trước đó.
 - [ ] Review độc lập migration/nhân sự; commit `feat: manage employment dates without data loss`.
 
 ### Task 5: Snapshot tháng, validation và ghi ô/batch nguyên tử

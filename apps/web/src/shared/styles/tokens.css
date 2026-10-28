@@ -155,6 +155,74 @@ p {
 .session-layout section button + button {
   margin: var(--space-1);
 }
+.employee-panel {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-3);
+}
+.employee-panel h2 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+.employee-panel h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+.employee-panel form {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.employee-field {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.employee-field label {
+  font-weight: 600;
+}
+.employee-field p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+.employee-dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.employee-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+.employee-error {
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 7px;
+  padding: var(--space-2);
+  overflow-wrap: anywhere;
+}
+.employee-error a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+.employee-error:focus {
+  outline: 3px solid var(--action);
+  outline-offset: 3px;
+}
+.employee-identity {
+  overflow-wrap: anywhere;
+}
+input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+@media (max-width: 600px) {
+  .employee-dates {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 480px) {
   .login-layout {
     padding: var(--space-3) var(--space-2);

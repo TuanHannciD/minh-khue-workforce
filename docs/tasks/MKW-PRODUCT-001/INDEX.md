@@ -1,6 +1,14 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
-## Gate hiện hành — Task3 review độc lập đạt
+## Task4 — employees implementation, chờ main review exact SHA
+
+Base `786cd9b0e12a5c48abcc1b5e1ea989caee951e81`, worktree duy nhất `agent-bootstrap`, branch `agent/mkw-agent-002`. Single writer Sol/high, không child/primary/progress.md/Task5+; main giữ các policy files và fresh independent employees/migration review sau commit. Báo cáo trước sửa và handoff tại ignored `.superpowers/sdd/implementation-plan/task-4-implementation.md`; evidence `.agent-runs/MKW-PRODUCT-001/task4-employees/`.
+
+Đã triển khai POST/PATCH nhân sự, interval/date-only, CAS/no-op revision fence, public EmploymentConsistency lock/readByIds/protection và migration002 tối thiểu. Form RHF/Zod/UI C giữ ID/draft, lỗi đúng vị trí và keyboard. Product38 tooling/31 web/6 API, PostgreSQL Task4 integration10/10, pilot22 check10/E2E2 đạt. Browser built React→Nest→DB thật kiểm create/no-op/422/409/DB lock-timeout503, SQL/reload readback; anonymous và hai account ngang quyền kiểm trên routes thật.
+
+Đây là implementation/self-review, **chưa independent PASS**. HTTP tháng/reconcile và attendance write/date-vs-write race còn Task5/7; không claim full AC15. Chọn người từ bảng tháng còn Task6/7; Linux/device/reader/TLS/operator thật Not run. Next action duy nhất: main review fresh exact base..tip của Task4; dừng trước Task5. Các checkpoint Task3 bên dưới giữ lịch sử gate đã đạt.
+
+## Gate trước Task4 — Task3 review độc lập đạt
 
 Review R2 tại `08a867f59e8706b61a987e88b51e832d2c1592b0`: I1/I2/I3 Closed, spec và quality Approved, không regression mới. Backend/schema kế thừa review R1; checks final product38 tooling/24 web/5 API, docs52 đạt. Reports ignored `task-3-review-r1.md`, `task-3-fix-r1.md`, `task-3-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`; evidence `task3-auth/` và `task3-fix-r1/` dưới `.agent-runs/MKW-PRODUCT-001/`. Các đoạn Pending bên dưới là lịch sử. Continuity DTO chỉ nhận diện được userId + absolute deadline, không bảo đảm unique opaque session; mọi request vẫn server authorize. Business/device/Linux/production TLS/operator reset thật vẫn Not run. Tiếp tục Task4 theo quyền đã duyệt, không confirmation thường lệ.
 

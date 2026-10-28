@@ -10,6 +10,92 @@
         "required": ["error", "requestId"],
         "type": "object"
       },
+      "CreateEmployeeDto": {
+        "additionalProperties": false,
+        "properties": {
+          "endDate": {
+            "default": null,
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "description": "Trimmed, 1–200 Unicode code points",
+            "type": "string"
+          },
+          "startDate": { "format": "date", "type": "string" }
+        },
+        "required": ["name", "startDate"],
+        "type": "object"
+      },
+      "EmployeeDto": {
+        "additionalProperties": false,
+        "properties": {
+          "endDate": { "format": "date", "nullable": true, "type": "string" },
+          "id": { "format": "uuid", "type": "string" },
+          "name": { "type": "string" },
+          "revision": { "type": "string" },
+          "startDate": { "format": "date", "type": "string" }
+        },
+        "required": ["id", "name", "startDate", "endDate", "revision"],
+        "type": "object"
+      },
+      "EmploymentApiErrorDto": {
+        "additionalProperties": false,
+        "properties": {
+          "error": { "$ref": "#/components/schemas/EmploymentErrorDto" },
+          "requestId": { "format": "uuid", "type": "string" }
+        },
+        "required": ["error", "requestId"],
+        "type": "object"
+      },
+      "EmploymentCellKeyDto": {
+        "additionalProperties": false,
+        "properties": {
+          "date": { "format": "date", "type": "string" },
+          "employeeId": { "format": "uuid", "type": "string" },
+          "kind": { "enum": ["work", "overtime"], "type": "string" }
+        },
+        "required": ["employeeId", "date", "kind"],
+        "type": "object"
+      },
+      "EmploymentErrorDetailsDto": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "items": { "$ref": "#/components/schemas/EmploymentCellKeyDto" },
+            "type": "array"
+          },
+          "current": { "$ref": "#/components/schemas/EmployeeDto" },
+          "fields": {
+            "items": { "$ref": "#/components/schemas/EmploymentFieldErrorDto" },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "EmploymentErrorDto": {
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string" },
+          "details": {
+            "$ref": "#/components/schemas/EmploymentErrorDetailsDto"
+          },
+          "message": { "type": "string" }
+        },
+        "required": ["code", "message"],
+        "type": "object"
+      },
+      "EmploymentFieldErrorDto": {
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "path": { "type": "string" }
+        },
+        "required": ["path", "code", "message"],
+        "type": "object"
+      },
       "ErrorDetailDto": {
         "additionalProperties": false,
         "properties": {
@@ -62,6 +148,21 @@
           "username": { "type": "string" }
         },
         "required": ["userId", "username"],
+        "type": "object"
+      },
+      "UpdateEmploymentDto": {
+        "additionalProperties": false,
+        "minProperties": 2,
+        "properties": {
+          "endDate": { "format": "date", "nullable": true, "type": "string" },
+          "expectedRevision": {
+            "description": "Opaque baseline revision",
+            "type": "string"
+          },
+          "name": { "type": "string" },
+          "startDate": { "format": "date", "type": "string" }
+        },
+        "required": ["expectedRevision"],
         "type": "object"
       }
     },
@@ -290,6 +391,225 @@
         },
         "security": [{ "cookie": [] }],
         "tags": ["auth"]
+      }
+    },
+    "/api/v1/employees": {
+      "post": {
+        "operationId": "EmployeesController_create",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateEmployeeDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmployeeDto" }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [{ "cookie": [] }],
+        "tags": ["employees"]
+      }
+    },
+    "/api/v1/employees/{id}": {
+      "patch": {
+        "operationId": "EmployeesController_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateEmploymentDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EmployeeDto" }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmploymentApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [{ "cookie": [] }],
+        "tags": ["employees"]
       }
     },
     "/health": {

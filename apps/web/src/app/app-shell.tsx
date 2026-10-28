@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { EmployeeDraft, EmployeeForm } from "@/features/employees/index";
 import { LoginPage, useSession } from "@/features/session/index";
 
 export function AppShell() {
   const { status, session, runtime } = useSession();
+  const [employeeDraft] = useState(() => new EmployeeDraft());
+  useEffect(() => employeeDraft.connect(runtime), [employeeDraft, runtime]);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -101,6 +104,7 @@ export function AppShell() {
           {error}
         </p>
       )}
+      <EmployeeForm draft={employeeDraft} />
     </main>
   );
 }

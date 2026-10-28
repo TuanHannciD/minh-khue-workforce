@@ -27,6 +27,7 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    readonly details?: unknown,
   ) {
     super(message);
   }
@@ -80,12 +81,13 @@ export async function apiRequest<T>(
     if (!response.ok) {
       if (response.status === 401 && !auth) boundary.fail();
       const payload = (await response.json().catch(() => null)) as {
-        error?: { code?: string; message?: string };
+        error?: { code?: string; message?: string; details?: unknown };
       } | null;
       throw new ApiError(
         response.status,
         payload?.error?.code ?? "REQUEST_FAILED",
         payload?.error?.message ?? "Chưa thể xử lý. Vui lòng thử lại.",
+        payload?.error?.details,
       );
     }
     const payload =

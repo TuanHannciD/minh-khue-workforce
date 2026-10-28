@@ -48,6 +48,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/employees": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["EmployeesController_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/employees/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch: operations["EmployeesController_update"];
+    trace?: never;
+  };
   "/health": {
     parameters: {
       query?: never;
@@ -72,6 +104,55 @@ export interface components {
       error: components["schemas"]["ErrorDetailDto"];
       /** Format: uuid */
       requestId: string;
+    };
+    CreateEmployeeDto: {
+      /**
+       * Format: date
+       * @default null
+       */
+      endDate: string | null;
+      /** @description Trimmed, 1–200 Unicode code points */
+      name: string;
+      /** Format: date */
+      startDate: string;
+    };
+    EmployeeDto: {
+      /** Format: date */
+      endDate: string | null;
+      /** Format: uuid */
+      id: string;
+      name: string;
+      revision: string;
+      /** Format: date */
+      startDate: string;
+    };
+    EmploymentApiErrorDto: {
+      error: components["schemas"]["EmploymentErrorDto"];
+      /** Format: uuid */
+      requestId: string;
+    };
+    EmploymentCellKeyDto: {
+      /** Format: date */
+      date: string;
+      /** Format: uuid */
+      employeeId: string;
+      /** @enum {string} */
+      kind: "work" | "overtime";
+    };
+    EmploymentErrorDetailsDto: {
+      cells?: components["schemas"]["EmploymentCellKeyDto"][];
+      current?: components["schemas"]["EmployeeDto"];
+      fields?: components["schemas"]["EmploymentFieldErrorDto"][];
+    };
+    EmploymentErrorDto: {
+      code: string;
+      details?: components["schemas"]["EmploymentErrorDetailsDto"];
+      message: string;
+    };
+    EmploymentFieldErrorDto: {
+      code: string;
+      message: string;
+      path: string;
     };
     ErrorDetailDto: {
       code: string;
@@ -101,6 +182,15 @@ export interface components {
       /** Format: uuid */
       userId: string;
       username: string;
+    };
+    UpdateEmploymentDto: {
+      /** Format: date */
+      endDate?: string | null;
+      /** @description Opaque baseline revision */
+      expectedRevision: string;
+      name?: string;
+      /** Format: date */
+      startDate?: string;
     };
   };
   responses: never;
@@ -323,6 +413,182 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ApiErrorDto"];
+        };
+      };
+    };
+  };
+  EmployeesController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateEmployeeDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmployeeDto"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+    };
+  };
+  EmployeesController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateEmploymentDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmployeeDto"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmploymentApiErrorDto"];
         };
       };
     };

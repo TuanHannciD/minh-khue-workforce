@@ -17,6 +17,8 @@ export async function createDocument(): Promise<OpenAPIObject> {
         schema.additionalProperties = false;
     }
     document.openapi = "3.0.3";
+    const patch = document.components?.schemas?.UpdateEmploymentDto;
+    if (patch && !("$ref" in patch)) patch.minProperties = 2;
     return document;
   } finally {
     await app.close();
