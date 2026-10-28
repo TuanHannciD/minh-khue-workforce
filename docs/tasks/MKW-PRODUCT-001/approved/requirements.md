@@ -78,3 +78,8 @@ Người dùng duyệt: nếu mốc mới khiến ô đã nhập công hoặc t�
 Người dùng duyệt chọn nhiều ô/vùng không liền nhau qua nhiều người/ngày trong tháng đang xem: desktop Ctrl/Cmd + bấm thêm/bỏ ô, Ctrl/Cmd + kéo thêm vùng; điện thoại Chọn nhiều rồi chạm thêm/bỏ ô. Không bắt các ô nằm trong một chữ nhật chung; phần giao nhau chỉ tính một lần. Không đặt số ô chọn tối đa riêng theo yêu cầu này, cũng không suy thành chọn xuyên tháng hoặc cam kết hiệu năng không giới hạn.
 
 Có tay nắm kéo từ ô đã có giá trị để điền lặp cùng giá trị sang các ô khác, không tự tăng dãy; có cách không kéo cho điện thoại/bàn phím. Giữ hai chế độ điền trống/ghi đè, bỏ N/—, giữ màu nhắc từng ô, đếm số ô dự kiến và bấm Áp dụng trước khi thay đổi. Quy tắc số/giới hạn và xung đột dừng cả lần lưu áp chung cho tập ô đích. Phạm vi vẫn bản mẫu/đặc tả, chưa cho phép triển khai sản phẩm.
+
+
+## Kéo cảm ứng bằng nhấn giữ — 28/10/2026
+
+Người dùng chốt cả kéo chọn vùng và kéo điền trên điện thoại: giữ ô khoảng450ms để kích hoạt kéo chọn; giữ tay nắm ô nguồn khoảng450ms để kéo điền. Nếu di chuyển quá10px trước lúc kích hoạt, bỏ chờ kéo và giữ vuốt cuộn bình thường. Có viền báo khi kích hoạt; thả chỉ xem trước, Áp dụng mới ghi. Giữ cách chạm chọn rời/hai đầu và mọi quy tắc fill/replace, giới hạn số, reminder và xung đột đã duyệt.

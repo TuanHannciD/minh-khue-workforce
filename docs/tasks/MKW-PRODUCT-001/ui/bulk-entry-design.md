@@ -44,9 +44,18 @@ Impeccable shape sở hữu brief tương tác; UI UX Pro Max query `dragging al
 ## Mở rộng đã xác nhận: ô/vùng rời và điền lặp
 
 - Desktop Ctrl/Cmd + bấm thêm/bỏ ô; Ctrl/Cmd + kéo hợp thêm vùng. Các ô giao nhau chỉ tính một lần. Không ép chọn hình chữ nhật bao ngoài các ô rời.
-- Điện thoại Chọn nhiều mặc định Ô rời, chạm thêm/bỏ; có chế độ Vùng và Thêm vùng để chọn nhiều chữ nhật bằng đầu/cuối. Cuộn vẫn bình thường, không kéo cảm ứng toàn bảng.
+- Điện thoại Chọn nhiều mặc định Ô rời, chạm thêm/bỏ; có chế độ Vùng và Thêm vùng để chọn nhiều chữ nhật bằng đầu/cuối. Vuốt ngay để cuộn; nhấn giữ để kéo được bổ sung bên dưới.
 - Từ ô nguồn đã lưu có số hoặc F: kéo tay nắm điền lặp cùng giá trị sang vùng đích; có nút Điền từ ô này rồi chạm ô cuối thay cho kéo. Ô nguồn không bị ghi lại; không suy ra dãy tăng dần hoặc sao chép màu. Giá trị nguồn được đưa vào draft, đếm đích và chọn fill/replace trước Áp dụng.
 - Áp chung guard/draft/filter/đổi đơn vị/cancel/skip N/—/giới hạn số hiện có. Phạm vi tháng và các dòng hiển thị, không đặt giới hạn số ô riêng trong mẫu; không hứa quy mô vô hạn hoặc chọn xuyên tháng/bảng ẩn.
 
 
 Trạng thái hiện hành: đã đưa chọn rời/fill vào HTML trong bộ nhớ, tự review bằng headless preview; chờ người dùng thử, không là persistence/concurrency sản phẩm. `range.points` sở hữu ô rời, `range.base` hợp các vùng trước với chữ nhật hiện tại; `uniqueCells` bỏ trùng. `range.fill` giữ nguồn snapshot, `targets` loại nguồn khỏi ghi. Nguồn ẩn/trống không khởi tạo fill; native mouse click trong chế độ Vùng phải đi qua chọn hai đầu thay vì bị gesture nuốt. Bộ kiểm mới/fixture hồi quy ở validation.
+
+
+## Nhấn giữ để kéo trên cảm ứng — hiện hành28/10/2026
+
+Giữ ô450ms rồi kéo chọn; giữ tay nắm ô đã lưu450ms rồi kéo điền lặp. Di chuyển quá10px trước timer thì hủy chờ kéo, giữ pan native; đúng10px còn cho phép kích hoạt. Có thể chạm chọn rời/hai đầu như cũ. Trong Chọn nhiều, vùng kéo hợp với tập trước, không toggle bỏ ô khi chỉ giữ rồi thả.
+
+`touchHold` chỉ sở hữu timer/ngữ cảnh ứng viên, chưa thay dữ liệu hoặc selection; `clearTouchHold` hủy khi vuốt sớm/lift/cancel/scroll/context/blur. `beginGesture` dùng chung snapshot/targets với chuột, thêm touchId và viền khi giữ thành công. Touch listener không passive chỉ preventDefault cho kéo một ngón đã kích hoạt; không đổi touch-action giữa contact. Nếu native pan đã chiếm sự kiện không cancelable thì rollback thay vì cố cướp cuộn. Đa điểm hủy thao tác để nhường pinch; endGesture khôi phục snapshot khi hủy và không ghi dữ liệu. Bản nháp dirty chặn bắt đầu và không phát lại kéo cũ sau guard.
+
+Tay nắm hiển thị44px với any-pointer:coarse; desktop24px. Không khóa touch-action toàn bảng; nút thay thế cao44px. Mẫu540 dòng giữ chung lifecycle lựa chọn/draft/hủy; map bổ sung beginGesture/clearTouchHold và nhóm touchstart/move/end/cancel/scroll. Consumer và evidence ở validation; không là code sản phẩm.

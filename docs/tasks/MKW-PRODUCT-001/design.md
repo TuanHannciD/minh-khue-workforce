@@ -170,7 +170,7 @@ AC20 — Hai phiên cùng mở bảng tháng: một phiên lưu giá trị hoặ
 | Nghiệp vụ đã duyệt | Công/giờ độc lập, màu nhắc không đổi tổng; công0 thành F, bước0,5, trần30 công/24 giờ mỗi ô, dấu phẩy/chấm và giữ input lỗi; nhập ô/vùng rời và kéo điền lặp, hai chế độ, đếm ô trước Áp dụng, bỏ N/—; xung đột dừng cả vùng; đổi mốc bảo vệ nội dung và nhắc; Excel một sheet/tổng công thức; hai tài khoản tên/mật khẩu, khôi phục qua vận hành; cập nhật khoảng15 giây giữ draft |
 | Kiến trúc đã duyệt | ADR-001/002/003 là nền tảng/state/stack mục tiêu, chưa pin/cài/kiểm tương thích |
 | Đề xuất trình review cùng bản viết | Danh sách tháng theo khoảng làm việc giao tháng; editor ghi người/ngày/loại và Lưu/Hủy; điền trống xét nội dung rỗng, mặc định điền trống, nhập vùng giữ reminder; guard khi đổi ngữ cảnh |
-| Đã dựng/đã kiểm | HTML C độc lập với dữ liệu giả, tương tác bộ nhớ; các assertions/contrast/headless trong validation. Không coi toàn bộ AC01–AC22 sản phẩm đã đạt |
+| Đã dựng/đã kiểm | HTML C độc lập với dữ liệu giả, tương tác bộ nhớ; các assertions/contrast/headless trong validation. Không coi toàn bộ AC01–AC23 sản phẩm đã đạt |
 | Thiết kế tiếp theo trong kế hoạch | Contract/request/response/revision/transaction, schema/migration, phiên bản tương thích, auth/session/reset cụ thể, phục hồi sau timeout và cảnh báo ghi đè; UI các màn hình còn thiếu, layout Excel chi tiết, accessibility/thiết bị/hiệu năng |
 | Điều kiện trước vận hành | Target hosting/domain/TLS, backup/restore, người phụ trách và quy trình reset thực tế, danh sách thiết bị kiểm; chưa chọn hoặc được quyền thao tác hệ thống thật |
 
@@ -188,3 +188,12 @@ AC21 — Chọn ba ô không liền nhau rồi áp dụng chỉ thay ba ô đó;
 AC22 — Kéo điền từ ô nguồn số hoặc F, cả hai hướng, phải điền lặp giá trị; nguồn/nội dung màu không bị thay, nhắc của đích không bị sao chép/xóa. Chọn/kéo chưa ghi; Hủy/Esc/pointercancel không đổi dữ liệu; hai chế độ và N/—/giới hạn/bảo vệ draft vẫn áp dụng. Có thao tác không kéo. Kiểm lưu thật và touch thật: Not run; phạm vi prototype tại validation.
 
 Bổ sung này thay phần giới hạn chỉ một chữ nhật của checkpoint trước. Bản đặc tả viết gồm cả mục13 vẫn chờ người dùng review trước implementation plan; xác nhận feature không tự duyệt tất cả chi tiết kỹ thuật hoặc cấp quyền triển khai sản phẩm.
+
+
+## 14. Kéo cảm ứng bằng nhấn giữ — bổ sung28/10/2026
+
+Đã duyệt giữ450ms trên ô để kéo chọn, trên tay nắm nguồn để kéo điền; di chuyển quá10px trước đó thì hủy chờ kích hoạt và giữ cuộn bình thường. Không cần bật chế độ riêng. Khi kích hoạt có viền bảng/ô và thông báo; thả chỉ xem trước. Trong Chọn nhiều, giữ/kéo hợp thêm vùng với các ô đã chọn; không bỏ chọn ô vừa giữ khi thả. Hai ngón/hủy gesture/mất focus hủy kéo và khôi phục lựa chọn trước; bản nháp có thay đổi phải được bảo vệ trước khi bắt đầu. Tay nắm cảm ứng có vùng chạm44px; cách chạm chọn hai đầu và nút Điền từ ô này tiếp tục dùng được.
+
+AC23 — Trên iPhone và Android: vuốt ngay theo cả hai chiều không chọn ô hoặc điền dữ liệu; giữ450ms rồi kéo chọn đúng tập đích, giữ tay nắm kéo điền lặp số/F và tăng ca độc lập. Kích hoạt có dấu hiệu, thả chưa ghi, Áp dụng mới ghi; hủy/đa điểm/đổi ngữ cảnh không mất draft hoặc ghi nhầm. Kiểm hành vi sát ngưỡng10px, cuộn sát mép và pinch zoom. AC sản phẩm và thiết bị thật: Not run; chỉ các sự kiện tổng hợp trong prototype được kiểm ở validation.
+
+Mục này thay giới hạn không hỗ trợ kéo cảm ứng của bản mẫu trước. Không thay quyền triển khai sản phẩm hoặc gate review toàn bộ bản viết.

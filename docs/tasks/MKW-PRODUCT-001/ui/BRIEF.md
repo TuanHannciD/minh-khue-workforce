@@ -85,3 +85,10 @@ Người dùng duyệt bổ sung Ctrl/Cmd + bấm thêm/bỏ ô, Ctrl/Cmd + kéo
 Impeccable shape tái dùng brief đã được đồng ý, craft-floor/Operate giữ vocabulary và mật độ hiện có. UI UX Pro Max query `dragging movements alternative --domain ux` khớp Dragging Movements: có cách một con trỏ không kéo và bàn phím. Tay nắm desktop có vùng trỏ24px, dấu9px; không làm target cảm ứng duy nhất: hidden khi pointer coarse, nút thay thế cao44px. Không chứng nhận toàn bộ accessibility hoặc thiết bị thật từ CSS.
 
 Artifact hiện có union ô rời/chữ nhật không trùng, viền theo lân cận để không tô ô xen giữa. Fill snapshot nguồn chỉ đưa giá trị vào draft, không ghi nguồn hoặc sao chép reminder; targets/skip/count vẫn dùng hai chế độ trước Áp dụng. Guard giữ draft; lọc không được kéo theo nguồn/anchor của người bị ẩn. Các kiểm/chụp hiện hành tại validation; artifact496 dòng giữ tự chứa với map đã cập nhật, không là cấu trúc source sản phẩm.
+
+
+## Nhấn giữ cảm ứng — 28/10/2026
+
+Thiết kế bounded đã được người dùng chốt: giữ450ms để kéo chọn hoặc kéo tay nắm điền; di chuyển quá10px trước đó nhường cuộn. Impeccable adapt giữ ngữ cảnh web cảm ứng, UI UX Pro Max query `touch gesture scroll conflict --domain ux` khớp Touch/Gesture Conflicts: tránh chiếm vuốt thông thường. Không thêm nút bật chế độ. Hướng dẫn trong mẫu phân biệt vuốt ngay và giữ rồi kéo; viền và status báo kích hoạt. Tay nắm cảm ứng nay hiển thị với vùng chạm44px, thay giới hạn ẩn ở checkpoint ô rời trước. Giữ nút không kéo/bàn phím, không chặn zoom bằng viewport hoặc touch-action toàn bảng.
+
+Artifact540 dòng vẫn giữ tự chứa cho native HTML preview/render; bổ sung lifecycle touchHold/clearTouchHold/beginGesture cạnh gesture chuột. Không tách một vòng đời hủy/khôi phục selection thành module rời cho mẫu inline; source sản phẩm phải theo module như các nguồn kiến trúc. Map/invariant hiện hành ở header và brief nhập vùng. Chỉ kiểm mô phỏng; iPhone/Android thật cần người dùng thử và ghi evidence riêng.

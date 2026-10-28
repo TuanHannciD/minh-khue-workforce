@@ -200,7 +200,10 @@ th,td{border-right-color:var(--grid-line);border-bottom-color:var(--grid-line)}
 td .fill-handle{position:absolute;right:-1px;bottom:-1px;width:24px;height:24px;min-width:24px;min-height:24px;z-index:2;cursor:crosshair;padding:0;touch-action:none}
 td .fill-handle:before{content:"";position:absolute;right:2px;bottom:2px;width:9px;height:9px;background:var(--accent);border:1px solid white}
 td .fill-handle:after{display:none}
-@media(pointer:coarse){td .fill-handle{display:none}}
+@media(any-pointer:coarse){td .fill-handle{width:44px;height:44px;min-width:44px;min-height:44px;touch-action:auto}td .fill-handle:before{width:12px;height:12px}}
+#grid{-webkit-touch-callout:none}
+#grid [data-cell]{-webkit-user-select:none;user-select:none}
+#grid.touch-dragging{outline:2px solid var(--accent);outline-offset:2px;cursor:crosshair}
 #multi-select[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:var(--soft)}
 #grid table{user-select:none;-webkit-user-select:none}
 td[data-position]{position:relative}
@@ -251,16 +254,17 @@ Scope override: task BRIEF owns prototype visual record; self-review + user revi
 </section></div>
 <footer class="footer"><span>Chạm ô để nhập · Cuộn ngang để xem các ngày</span><button id="reset">Đặt lại dữ liệu mẫu</button></footer>
 </div></main>
-<details class="review-details"><summary>Phạm vi bản mẫu và điểm cần review</summary><p>Hướng C: một bảng lớn, chuyển Công/Tăng ca. Hướng thương hiệu xanh lá: đầu trang và thao tác chính dùng xanh rừng trầm, bảng trắng và vùng nhập xám nhạt. Ô nhắc kiểm tra dùng xanh lá sáng kèm dấu nhận biết; màu nhắc không đổi tổng. Mã màu và cách phân bổ cụ thể đang chờ review.</p><p>HTML minh họa chưa dùng shadcn/Radix thực tế, không có đăng nhập, API, lưu bền vững hay xuất Excel. Lỗi mạng/xung đột hai tài khoản và pinch zoom trên iPhone/Android thật chưa kiểm. Mở rộng chỉ tăng vùng bảng trong trang.</p><p>Thử kéo chọn vùng, chọn giá trị rồi áp dụng theo hai chế độ. Trên điện thoại bấm Chọn nhiều để thêm/bỏ ô rời, hoặc chọn Vùng chữ nhật và chạm hai đầu; vùng chọn chỉ gồm nhân sự đang hiển thị. Màu nhắc từng ô được giữ khi nhập vùng. Công mỗi ô tối đa 30; tăng ca mỗi ô tối đa 24 giờ; cùng bước 0,5. Nhập 0 công thành F. Contract lưu thật chưa triển khai.</p></details>
+<details class="review-details"><summary>Phạm vi bản mẫu và điểm cần review</summary><p>Hướng C: một bảng lớn, chuyển Công/Tăng ca. Hướng thương hiệu xanh lá: đầu trang và thao tác chính dùng xanh rừng trầm, bảng trắng và vùng nhập xám nhạt. Ô nhắc kiểm tra dùng xanh lá sáng kèm dấu nhận biết; màu nhắc không đổi tổng. Mã màu và cách phân bổ cụ thể đang chờ review.</p><p>HTML minh họa chưa dùng shadcn/Radix thực tế, không có đăng nhập, API, lưu bền vững hay xuất Excel. Lỗi mạng/xung đột hai tài khoản và pinch zoom trên iPhone/Android thật chưa kiểm. Mở rộng chỉ tăng vùng bảng trong trang.</p><p>Thử kéo chọn vùng, chọn giá trị rồi áp dụng theo hai chế độ. Trên điện thoại giữ ô 450 ms rồi kéo chọn vùng; giữ tay nắm ô nguồn rồi kéo để điền lặp. Vuốt ngay để cuộn. Có thể bấm Chọn nhiều để thêm/bỏ ô rời, hoặc chọn Vùng chữ nhật và chạm hai đầu; vùng chọn chỉ gồm nhân sự đang hiển thị. Màu nhắc từng ô được giữ khi nhập vùng. Công mỗi ô tối đa 30; tăng ca mỗi ô tối đa 24 giờ; cùng bước 0,5. Nhập 0 công thành F. Contract lưu thật chưa triển khai.</p></details>
 <script>
 'use strict';
-// File map: rangeCells/toggleCell/setRange → paintSelection/renderTable → renderEditor/loadDraft → startFill/trackPointer/endGesture → save handler.
+// File map: rangeCells/toggleCell/setRange → paintSelection/renderTable → renderEditor/loadDraft → startFill/beginGesture → touchHold lifecycle/trackPointer/endGesture → save handler.
 // Selection is a unique union of explicit points and an active rectangle; fill stores a saved source snapshot and excludes it from writes.
 // Review artifact only: synthetic data and memory, no product API or persistence.
 const $=id=>document.getElementById(id);
 const employees=Array.from({length:20},(_,id)=>({id,name:'Nhân sự '+String(id+1).padStart(2,'0'),start:id===17?15:1,end:id===18?20:31}));
 let data,kind='work',selected={id:3,day:25},draft,custom=false,pending=null;
 let range=null,multiMode=false,awaitingEnd=false,gesture=null,suppressClick=false,scrollFrame=0,pendingBase=null;
+let touchHold=null;
 const fmt=v=>typeof v==='number'?String(v).replace('.',','):v;
 const weekday=d=>['CN','T2','T3','T4','T5','T6','T7'][new Date(2026,9,d).getDay()];
 const active=(id,d)=>d>=employees[id].start&&d<=employees[id].end;
@@ -299,7 +303,7 @@ function markDraft(){
   $('save').disabled=awaitingEnd||targets().length===0||(!custom&&draft.value===null);
  }else $('save').disabled=!active(selected.id,selected.day);
 }
-function requestChange(action){if(dirty()){pending=action;$('guard').hidden=false;$('keep').focus();}else action();}
+function requestChange(action){clearTouchHold();if(gesture?.touchId!==undefined)endGesture(true);if(dirty()){pending=action;$('guard').hidden=false;$('keep').focus();}else action();}
 function loadDraft(){
  draft=range?{value:range.fill?range.fill.value:null,reminder:false}:{...data[kind][selected.id][selected.day-1]};
  custom=typeof draft.value==='number'&&draft.value>2.5;
@@ -355,7 +359,7 @@ function renderEditor(){
  $('add-range').hidden=!multiMode||$('selection-mode').value!=='rect'||!range||awaitingEnd||pendingBase!==null;
  $('fill-from-cell').hidden=!!range;
  $('fill-from-cell').disabled=!!range||!visibleEmployees().some(e=>e.id===selected.id)||!active(selected.id,selected.day)||data[kind][selected.id][selected.day-1].value==='';
- $('selection-hint').textContent=range?.fill?(awaitingEnd?'Chạm ô cuối để điền lặp · Esc để hủy.':'Giá trị nguồn đã sẵn sàng · Xem số ô rồi Áp dụng.'):multiMode?($('selection-mode').value==='cells'?'Chạm để thêm/bỏ từng ô · Không cần liền nhau.':awaitingEnd?'Chạm ô cuối để hoàn tất vùng.':pendingBase!==null?'Chạm ô đầu của vùng thêm.':'Chạm hai đầu vùng · Thêm vùng để chọn tiếp.'):'Kéo chọn vùng · Ctrl/Cmd + bấm/kéo để thêm · Điền từ ô này để lặp giá trị';
+ $('selection-hint').textContent=range?.fill?(awaitingEnd?'Chạm ô cuối để điền lặp · Esc để hủy.':'Giá trị nguồn đã sẵn sàng · Xem số ô rồi Áp dụng.'):multiMode?($('selection-mode').value==='cells'?'Chạm thêm/bỏ ô rời · Giữ 450 ms rồi kéo để thêm vùng.':awaitingEnd?'Chạm ô cuối để hoàn tất vùng.':pendingBase!==null?'Chạm ô đầu của vùng thêm.':'Chạm hai đầu vùng · Hoặc giữ rồi kéo.'):'Kéo chọn bằng chuột · Cảm ứng: giữ ô hoặc tay nắm 450 ms rồi kéo · Vuốt ngay để cuộn';
  document.querySelectorAll('[data-value]').forEach(b=>b.setAttribute('aria-pressed',String(!custom&&Number(b.dataset.value)===draft.value)));
  $('off').setAttribute('aria-pressed',String(!custom&&draft.value==='F'));$('clear').setAttribute('aria-pressed',String(!custom&&draft.value===''));
  $('custom-toggle').setAttribute('aria-pressed',String(custom));$('custom-toggle').setAttribute('aria-expanded',String(custom));$('custom').hidden=!custom;
@@ -422,12 +426,56 @@ function autoScroll(){
 function endGesture(cancelled=false){
  if(!gesture)return;
  const old=gesture;gesture=null;cancelAnimationFrame(scrollFrame);scrollFrame=0;
- if($('grid').hasPointerCapture(old.pointerId))$('grid').releasePointerCapture(old.pointerId);
+ $('grid').classList.remove('touch-dragging');
+ if(old.pointerId!==null&&$('grid').hasPointerCapture(old.pointerId))$('grid').releasePointerCapture(old.pointerId);
  if(cancelled){range=old.before.range;selected=old.before.selected;awaitingEnd=old.before.awaitingEnd;pendingBase=old.before.pendingBase;loadDraft();paintSelection();$('status').textContent='Đã hủy thao tác kéo.';}
- else if(!old.moved&&old.add){toggleCell(old.start,true);}
- else if(!old.moved&&old.fill){startFill();}
+ else if(!old.moved&&old.add&&old.touchId===undefined){toggleCell(old.start,true);}
+ else if(!old.moved&&old.fill&&old.touchId===undefined){startFill();}
  else{renderEditor();openEditor();if(old.moved)$('status').textContent='Đã chọn '+rangeCells().length+' ô; '+(old.fill?'giá trị nguồn đã sẵn sàng.':'chọn giá trị để áp dụng.');}
 }
+
+// Touch keeps native pan/zoom until a stationary hold wins. Non-passive touchmove
+// blocks single-finger moves after activation; never change touch-action mid-contact.
+function clearTouchHold(){if(touchHold){clearTimeout(touchHold.timer);touchHold=null;}}
+function beginGesture(point,x,y,{pointerId=null,touchId,fill=null,add=false}={}){
+ const base=add?(range?rangeCells():active(selected.id,selected.day)&&visibleEmployees().some(e=>e.id===selected.id)?[{...selected}]:[]):pendingBase||[];
+ gesture={start:point,rows:visibleEmployees().map(e=>e.id),x,y,moved:false,pointerId,touchId,base,fill,add,before:{range,selected:{...selected},awaitingEnd,pendingBase}};
+ if(!add){range=null;selected=point;awaitingEnd=false;pendingBase=null;loadDraft();paintSelection();}
+ if(touchId!==undefined){awaitingEnd=false;setRange(point,point,gesture.rows,base,fill);$('grid').classList.add('touch-dragging');$('status').textContent=fill?'Đã bật kéo điền. Kéo đến ô cuối rồi thả để xem trước.':'Đã bật kéo chọn. Kéo qua các ô rồi thả để xem trước.';}
+ else try{$('grid').setPointerCapture(pointerId);}catch{/* Synthetic preview or browser may decline capture. */}
+ scrollFrame=requestAnimationFrame(autoScroll);
+}
+$('grid').addEventListener('touchstart',e=>{
+ clearTouchHold();if(e.touches.length!==1)return;
+ const point=readPoint(e.target);if(!point)return;
+ const t=e.touches[0],handle=e.target.closest('[data-fill]');suppressClick=false;
+ const candidate={point,x:t.clientX,y:t.clientY,id:t.identifier,target:e.target,kind,range,selected:{...selected},timer:null};
+ candidate.timer=setTimeout(()=>{
+  if(touchHold!==candidate)return;touchHold=null;
+  if(!candidate.target.isConnected||kind!==candidate.kind||range!==candidate.range||selected.id!==candidate.selected.id||selected.day!==candidate.selected.day)return;
+  if(dirty()){requestChange(()=>loadDraft());return;}
+  const fill=handle?{...point,value:data[kind][point.id][point.day-1].value}:null;
+  if(fill&&(!active(point.id,point.day)||fill.value===''))return;
+  suppressClick=true;beginGesture(point,candidate.x,candidate.y,{touchId:candidate.id,fill,add:!fill&&multiMode&&!!range});
+ },450);touchHold=candidate;
+},{passive:false});
+document.addEventListener('touchstart',e=>{if(e.touches.length>1){clearTouchHold();if(gesture?.touchId!==undefined)endGesture(true);}},{passive:true,capture:true});
+document.addEventListener('touchmove',e=>{
+ if(touchHold){const t=[...e.touches].find(t=>t.identifier===touchHold.id);if(!t||e.touches.length!==1||Math.hypot(t.clientX-touchHold.x,t.clientY-touchHold.y)>10)clearTouchHold();}
+ if(gesture?.touchId===undefined)return;
+ const t=[...e.touches].find(t=>t.identifier===gesture.touchId);
+ if(!t||e.touches.length!==1||!e.cancelable){endGesture(true);return;}
+ e.preventDefault();trackPointer(t.clientX,t.clientY);
+},{passive:false});
+document.addEventListener('touchend',e=>{
+ clearTouchHold();if(gesture?.touchId===undefined)return;
+ const t=[...e.changedTouches].find(t=>t.identifier===gesture.touchId);if(!t)return;
+ if(e.cancelable)e.preventDefault();trackPointer(t.clientX,t.clientY);endGesture();
+},{passive:false});
+document.addEventListener('touchcancel',()=>{clearTouchHold();if(gesture?.touchId!==undefined)endGesture(true);},{passive:true});
+document.addEventListener('scroll',clearTouchHold,{passive:true,capture:true});
+$('grid').addEventListener('contextmenu',e=>{if(touchHold||gesture?.touchId!==undefined)e.preventDefault();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTouchHold();endGesture(true);}});
 document.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{
  if(kind===b.dataset.kind)return;
  requestChange(()=>{kind=b.dataset.kind;range=null;pendingBase=null;multiMode=false;awaitingEnd=false;document.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.kind===kind)));loadDraft();renderTable();$('status').textContent='Đang xem '+(kind==='work'?'công.':'tăng ca, đơn vị giờ.');});
@@ -445,17 +493,13 @@ $('grid').onpointerdown=e=>{
  e.preventDefault();suppressClick=true;
  if(dirty()){requestChange(()=>{if(handle){loadDraft();startFill();}else if(add)toggleCell(point,true);else{range=null;pendingBase=null;selected=point;awaitingEnd=false;loadDraft();paintSelection();openEditor();}});return;}
  const fill=handle?{...point,value:data[kind][point.id][point.day-1].value}:null;
- const base=add?(range?rangeCells():active(selected.id,selected.day)&&visibleEmployees().some(e=>e.id===selected.id)?[{...selected}]:[]):pendingBase||[];
- gesture={start:point,rows:visibleEmployees().map(e=>e.id),x:e.clientX,y:e.clientY,moved:false,pointerId:e.pointerId,base,fill,add,before:{range,selected:{...selected},awaitingEnd,pendingBase}};
- if(!add){range=null;selected=point;awaitingEnd=false;pendingBase=null;loadDraft();paintSelection();}
- try{$('grid').setPointerCapture(e.pointerId);}catch{/* Synthetic preview or browser may decline capture; document listeners still finish. */}
- scrollFrame=requestAnimationFrame(autoScroll);
+ beginGesture(point,e.clientX,e.clientY,{pointerId:e.pointerId,fill,add});
 };
 document.addEventListener('pointermove',e=>{if(gesture&&e.pointerId===gesture.pointerId){if(e.buttons===0){endGesture();return;}trackPointer(e.clientX,e.clientY);}});
 document.addEventListener('pointerup',e=>{if(gesture&&e.pointerId===gesture.pointerId){trackPointer(e.clientX,e.clientY);endGesture();}});
 document.addEventListener('pointercancel',e=>{if(gesture&&e.pointerId===gesture.pointerId)endGesture(true);});
-window.addEventListener('blur',()=>endGesture(true));
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&gesture){e.preventDefault();endGesture(true);}});
+window.addEventListener('blur',()=>{clearTouchHold();endGesture(true);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){clearTouchHold();if(gesture){e.preventDefault();endGesture(true);}}});
 $('grid').onclick=e=>{if(suppressClick){suppressClick=false;return;}if(e.target.closest('[data-fill]')){startFill();return;}const point=readPoint(e.target);if(point)chooseCell(point.id,point.day,e.shiftKey,e.ctrlKey||e.metaKey);};
 $('grid').onkeydown=e=>{
  if(e.key==='Escape'){if(gesture)endGesture(true);else requestChange(()=>{range=null;pendingBase=null;awaitingEnd=false;loadDraft();paintSelection();});return;}
@@ -482,7 +526,7 @@ $('save').onclick=()=>{
  if(range){const cells=targets(),skip=rangeCells().filter(c=>!active(c.id,c.day)).length;for(const c of cells)data[kind][c.id][c.day-1]={...data[kind][c.id][c.day-1],value:draft.value};range.fill=null;loadDraft();renderTable();$('status').textContent='Đã áp dụng thử '+cells.length+' ô; bỏ qua '+skip+' ô N/—. Chỉ lưu trong trang.';}
  else if(active(selected.id,selected.day)){data[kind][selected.id][selected.day-1]={...draft};loadDraft();renderTable();$('status').textContent='Đã cập nhật bản mẫu. Dữ liệu chỉ giữ trong trang này.';}
 };
-$('cancel').onclick=()=>{range=null;pendingBase=null;awaitingEnd=false;loadDraft();paintSelection();$('status').textContent='Đã bỏ thay đổi chưa lưu.';};
+$('cancel').onclick=()=>{clearTouchHold();endGesture(true);range=null;pendingBase=null;awaitingEnd=false;loadDraft();paintSelection();$('status').textContent='Đã bỏ thay đổi chưa lưu.';};
 $('keep').onclick=()=>{pending=null;$('guard').hidden=true;$('save').focus();};$('discard').onclick=()=>{const action=pending;pending=null;$('guard').hidden=true;if(action)action();};
 let acceptedSearch='';
 $('search').oninput=()=>{const next=$('search').value;$('search').value=acceptedSearch;requestChange(()=>{acceptedSearch=next;$('search').value=next;range=null;pendingBase=null;awaitingEnd=false;loadDraft();renderTable();});};
