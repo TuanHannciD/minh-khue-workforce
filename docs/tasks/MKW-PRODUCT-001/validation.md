@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## Gate hiện hành — Task3 review độc lập đạt
+
+Review R2 tại `08a867f59e8706b61a987e88b51e832d2c1592b0`: I1/I2/I3 Closed, spec và quality Approved, không regression mới. Backend/schema kế thừa review R1; checks final product38 tooling/24 web/5 API, docs52 đạt. Reports ignored `task-3-review-r1.md`, `task-3-fix-r1.md`, `task-3-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`; evidence `task3-auth/` và `task3-fix-r1/` dưới `.agent-runs/MKW-PRODUCT-001/`. Các đoạn Pending bên dưới là lịch sử. Continuity DTO chỉ nhận diện được userId + absolute deadline, không bảo đảm unique opaque session; mọi request vẫn server authorize. Business/device/Linux/production TLS/operator reset thật vẫn Not run. Tiếp tục Task4 theo quyền đã duyệt, không confirmation thường lệ.
+
 ## Task3 — sửa review R1, chờ fresh review R2
 
 Base `302b42ff7bccda638bd728bef891ba855ae7085f`, branch/worktree giữ nguyên; single writer, không agent con/primary/progress.md/Task4+. Đã đọc đầy đủ R1 (0 Critical/3 Important), kiểm chứng source rồi viết regression trước từng fix. Report ignored `.superpowers/sdd/implementation-plan/task-3-fix-r1.md`; evidence mới `.agent-runs/MKW-PRODUCT-001/task3-fix-r1/`. Main sở hữu review độc lập exact tip sau commit, chưa PASS từ self-review.

@@ -133,9 +133,14 @@ Task2 gate complete: independent review R2 tại `4dd3b4f428c39eaaaf248be3b1e477
 - [x] Chạy integration trên PostgreSQL thử mới, xác nhận RED chưa có module; viết UI test login lỗi giữ username nhưng không log password, lỗi auth không loop retry.
 - [x] Triển khai guard/session/login/logout + seed đúng hai account fixture, CLI reset có target check. Seed thật và danh tính người vận hành chỉ làm khi được quyền riêng; không ghi mật khẩu vào Git/log.
 - [x] Chạy GREEN API/UI; kiểm logout xóa Query cache và dữ liệu nhạy cảm, hết phiên ngừng polling và hiện đăng nhập lại; draft không được gửi nhầm sau đổi phiên. Kiểm cookie/CSRF theo môi trường thử, không lấy localhost làm bằng chứng TLS production.
-- [ ] Review độc lập auth/schema snapshot; commit `feat: add two-account authenticated sessions`; AC01/AC19 chỉ đổi Verified ở lớp thực sự đã chạy.
+- [x] Review độc lập auth/schema snapshot; commit `feat: add two-account authenticated sessions`; AC01/AC19 chỉ đổi Verified ở lớp thực sự đã chạy.
 
 Task3 implementation28/10: base `9d358609d9a6a0c4352fad957dfc8b5b4c354194`, single writer/không child. API integration12/12 trên DB mới và browser build thật đạt auth sandbox; guard tháng/write/export qua test-owned probes, draft qua seam memory chưa có nghiệp vụ Task4/5/9. CLI thực tế `scripts/product/auth-cli.mjs` với hai pnpm commands provision/reset; test API `.mjs` chạy compiled ESM theo Task2 để bắt lỗi runtime metadata/import. Không tạo TS CLI loader mới. Native form controls/tokens C; primitives thuộc Task6. Evidence `.agent-runs/MKW-PRODUCT-001/task3-auth/`, report ignored Task3; [validation](../validation.md) phân biệt scope Verified/Not run. Local commit bàn giao chưa thay independent auth/schema review; main thực hiện fresh review trước Task4.
+
+
+## Gate hiện hành — Task3 review độc lập đạt
+
+Review R2 tại `08a867f59e8706b61a987e88b51e832d2c1592b0`: I1/I2/I3 Closed, spec và quality Approved, không regression mới. Backend/schema kế thừa review R1; checks final product38 tooling/24 web/5 API, docs52 đạt. Reports ignored `task-3-review-r1.md`, `task-3-fix-r1.md`, `task-3-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`; evidence `task3-auth/` và `task3-fix-r1/` dưới `.agent-runs/MKW-PRODUCT-001/`. Các đoạn Pending bên dưới là lịch sử. Continuity DTO chỉ nhận diện được userId + absolute deadline, không bảo đảm unique opaque session; mọi request vẫn server authorize. Business/device/Linux/production TLS/operator reset thật vẫn Not run. Tiếp tục Task4 theo quyền đã duyệt, không confirmation thường lệ.
 
 ### Task 4: Nhân sự và bảo vệ mốc làm việc xuyên tháng
 
