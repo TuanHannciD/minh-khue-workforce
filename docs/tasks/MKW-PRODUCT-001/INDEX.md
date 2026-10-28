@@ -123,3 +123,7 @@ Người dùng “Agree” nhận cả dấu phẩy/chấm, hiển thị dấu p
 ## Bảo vệ ô trống có màu nhắc khi đổi mốc — 28/10/2026
 
 Người dùng “Agree” chặn đổi ngày vào/nghỉ nếu làm ô trống có reminder nằm ngoài mốc mới, chỉ rõ ô để xử lý trước. Base `5fe67fe`, workspace sạch. Scope requirements/design/architecture/validation/INDEX; acceptance giữ mốc cũ và reminder, kiểm cả Công/Tăng ca và tháng khác, không biến màu thành số hoặc trạng thái duyệt. Writer inline, tự review + người dùng, risk trung bình tài liệu; resource Markdown/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bước tiếp đăng nhập/khôi phục và cập nhật giữa hai tài khoản trước spec review/plan.
+
+## Chốt đăng nhập hai tài khoản tạo sẵn — 28/10/2026
+
+Người dùng “Agree” tên đăng nhập + mật khẩu, hai tài khoản tạo sẵn, không đăng ký công khai. Base `121d3d0`, workspace sạch. Scope requirements/design/architecture/validation/INDEX; acceptance ghi đúng phương thức/không public signup và giữ quyền chấm công ngang nhau, không tự tạo tài khoản hoặc mật khẩu thật. Writer inline, tự review + người dùng, risk trung bình tài liệu; resource Markdown/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bước tiếp chốt khôi phục khi quên mật khẩu và nhu cầu cập nhật hai tài khoản, rồi review đặc tả/plan.

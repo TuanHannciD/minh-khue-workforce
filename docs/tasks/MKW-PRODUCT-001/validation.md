@@ -249,3 +249,9 @@ Base `97270e1`, sạch trước sửa. Người dùng duyệt nhận dấu phẩ
 Base `5fe67fe`, workspace sạch. Người dùng duyệt chặn đổi mốc làm loại ô trống có màu nhắc. Đồng bộ requirements/design/architecture/INDEX; AC15 bổ sung reminder-only ở cả hai bảng và request bật nhắc cạnh tranh. Tự review giữ màu độc lập tổng, không tạo trạng thái duyệt, không tự xóa nhắc hoặc thêm quyền triển khai. Chỉ Markdown; không HTML/source sản phẩm/dependency/child/primary/resource mới, không chạy lại prototype/pilot suite. API/DB/transaction/sửa nhân sự và AC15 sản phẩm Not run; bản mẫu chưa có sửa mốc. Bước tiếp Q2 và cách cập nhật giữa hai tài khoản, rồi review đặc tả trước implementation plan.
 
 `npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và staged whitespace trước commit local; không có kiểm chứng triển khai mới.
+
+## Chốt đăng nhập tên và mật khẩu — 28/10/2026
+
+Base `121d3d0`, workspace sạch. Người dùng duyệt hai tài khoản tạo sẵn, tên đăng nhập + mật khẩu, không đăng ký công khai. Đồng bộ requirements/design/architecture/INDEX và AC01; giữ cùng quyền xem/nhập/sửa, không suy thành role quản trị hoặc cơ chế khôi phục đã duyệt. Phân biệt nghiệp vụ Accepted với session/cookie/thư viện auth còn Proposed. Chỉ Markdown; tự review + người dùng, không reviewer độc lập/source sản phẩm/dependency/child/primary/resource mới. Không tạo tài khoản/mật khẩu thật hoặc chạy app/prototype suite; auth/UI/API/security checks Not run. Bước tiếp khôi phục và cập nhật giữa hai tài khoản trước spec review/plan.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và staged whitespace trước commit local; chưa có kiểm chứng đăng nhập sản phẩm.
