@@ -1,6 +1,14 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
-Ngày lập: 25/10/2026. Trạng thái: **Đặc tả đã được người dùng duyệt toàn bộ ngày28/10/2026; kế hoạch triển khai đã duyệt; Task1 In review — G1 chưa duyệt**. Chưa được phép triển khai sản phẩm.
+Ngày lập: 25/10/2026. Trạng thái: **Đặc tả đã được người dùng duyệt toàn bộ ngày28/10/2026; kế hoạch triển khai đã duyệt; Task1 hoàn tất thiết kế/review kỹ thuật; Task2 chuẩn bị triển khai tuần tự**.
+
+## Quyền tiếp tục đến hết kế hoạch — 28/10/2026
+
+Người dùng yêu cầu: nếu không có vấn đề lớn cần hỏi lại thì không dừng, chạy lần lượt các task đến khi có thể xong toàn bộ. Yêu cầu mới thay bước chờ xác nhận G1 và các gate xác nhận kỹ thuật thông thường ở checkpoint cũ: main được xử lý lựa chọn kỹ thuật trong design/ADR/plan đã duyệt, dựa trên review độc lập; không giả người dùng đã duyệt riêng từng field/version. G1 đã PASS kỹ thuật tại95ce21a, không blocker lớn, đủ điều kiện tiếp tục Task2. Main chỉ điều phối; một agent triển khai hoặc review tại một thời điểm, tiếp tục task kế sau khi check/review gate đạt mà không hỏi lại từng bước.
+
+Phạm vi thực thi nay bao gồm code/tooling/dependencies project-local, runtime portable riêng, Git commit local, sandbox process/port/DB/browser và dữ liệu giả cần cho plan; ghi và xác minh ownership/target trước acquire, bảo toàn pilot và evidence. Chưa cấp quyền primary/merge-main/push/deploy/scheduler/global config/service hoặc hệ thống/nhân sự thật; Task11 chuẩn bị/diễn tập local, release vẫn cần target/quyền thực. Chỉ hỏi khi thiếu quyết định lớn ảnh hưởng nghiệp vụ/kiến trúc hoặc cần quyền ngoài scope; thiếu thiết bị/reader ghi Not run đúng gate, tiếp tục phần độc lập.
+
+Base trước cập nhật `45aa1481236b2bc371ed5be58f3dd946bf6cee26`, worktree sạch. Main ghi quyền/ledger/plan và commit baseline trước giao Task2; risk implementation/tooling trung bình–cao, implementer một writer, reviewer độc lập read-only đúng snapshot sau đó. Task2 acceptance theo plan/toolchain manifest, không thêm auth/employee/attendance sản phẩm trước task tương ứng. Bước tiếp: agent triển khai Task2 nền chạy/workspace/enforcement, rồi reviewer độc lập; main không nạp source implementation.
 
 ## G1 — review kỹ thuật đạt, chờ duyệt chi tiết — 28/10/2026
 

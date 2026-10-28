@@ -95,3 +95,7 @@ Người dùng chốt cả kéo chọn vùng và kéo điền trên điện tho�
 ## Duyệt kế hoạch triển khai — 28/10/2026
 
 Người dùng xác nhận “Tôi xác nhận duyệt kế hoạch” đối với implementation-plan.md đã trình. Kế hoạch Accepted; tiếp tục inline theo khuyến nghị, bắt đầu Task1 hoàn thiện thiết kế kỹ thuật cho review G1 trước cài/code phụ thuộc. Không hỏi lại đặc tả/kiến trúc/UI hoặc approval kế hoạch. Giữ gate review G1 và quyền dispatch/tích hợp/push/deploy/hệ thống thật như đã nêu trong plan.
+
+## Tiếp tục tự chủ tuần tự — 28/10/2026
+
+Người dùng yêu cầu không dừng hỏi lại nếu không có vấn đề lớn, chạy lần lượt task đến khi có thể xong toàn bộ. Main điều phối, agent con thực hiện/review tuần tự. Cho phép tiếp tục triển khai plan sau G1 review kỹ thuật PASS, xử lý kỹ thuật thường lệ trong phạm vi đã chốt mà không chờ phê duyệt từng chi tiết. Không suy ra quyền hệ thống thật/primary/push/deploy/global; giữ check/review/evidence và ghi rõ hạn chế thiết bị/reader. Hỏi lại chỉ vấn đề lớn ảnh hưởng nghiệp vụ/kiến trúc hoặc thao tác ngoài scope.
