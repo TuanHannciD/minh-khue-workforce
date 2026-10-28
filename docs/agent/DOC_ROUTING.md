@@ -15,6 +15,7 @@ Mặc định: [AGENTS](../../AGENTS.md) → [AUTHORITY_MAP](AUTHORITY_MAP.md) �
 | Đọc/sửa source, chia file hoặc refactor module | [SOURCE_NAVIGATION](../architecture/SOURCE_NAVIGATION.md), module README/file map nếu có; đọc source/dependency/consumer/test theo tác động, không nạp toàn repo hoặc chỉ đọc TOC |
 | DB/API | Yêu cầu đã duyệt, [API_CONTRACTS](../architecture/API_CONTRACTS.md), [ARCHITECTURE](../architecture/ARCHITECTURE.md) và contract/schema cụ thể khi có; chưa có thì làm rõ, không suy từ báo cáo khảo sát |
 | Chỉ sửa tài liệu | Nguồn sở hữu cần sửa, quyền/phạm vi và check tài liệu trong QUALITY_GATES |
+| Kế hoạch triển khai sản phẩm001 | [Design đã duyệt toàn bộ](../tasks/MKW-PRODUCT-001/design.md) → [implementation plan đã duyệt](../tasks/MKW-PRODUCT-001/technical/implementation-plan.md); giữ ADR/UI đã chốt, không suy approval đặc tả thành quyền code hoặc duyệt chi tiết kỹ thuật chưa viết |
 | Hỏi mức sẵn sàng hoặc chuẩn bị pilot | [READINESS](READINESS.md), validation đúng checkpoint |
 
 Mở báo cáo SellerFlow chỉ khi cần rationale/provenance. Gặp thiếu tài liệu ảnh hưởng tính đúng phải ghi thiếu và xử lý tại nguồn; không tạo placeholder rồi coi như đã có quyết định.

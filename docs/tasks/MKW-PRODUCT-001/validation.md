@@ -2,6 +2,16 @@
 
 Ngày 25/10/2026. Scope hiện tại chỉ tài liệu, không chứng nhận ứng dụng.
 
+## Hiện hành — duyệt đặc tả và lập kế hoạch28/10/2026
+
+Người dùng xác nhận chốt toàn bộ design.md, gồm đề xuất đã trình và mục13–14, giao writing-plans lập kế hoạch cho review; chưa triển khai sản phẩm. Cập nhật requirements/design/INDEX và nguồn định tuyến/trạng thái liên quan. Các phần phía dưới là evidence theo checkpoint; trạng thái chờ duyệt bản viết ở lịch sử đã được quyết định này thay, không thay kết quả kiểm cũ.
+
+Base `1870695a416c7832bee4f3c8900369dcce4a9f3a`, worktree agent-bootstrap sạch trước sửa, branch agent/mkw-agent-002. Writer inline; risk tài liệu trung bình, tự review + người dùng review plan; không child. Đã dùng writing-plans và verification-before-completion từ skill project-local; không giả auto-discovery hoặc kỹ thuật triển khai đã chạy. [Plan](technical/implementation-plan.md) Draft for review gồm11 task, G0–G4 và coverage14 mục/AC01–AC23. Task1 khóa contract/schema/auth/pin chi tiết trước code, phần sau có file/interface/test-cycle/check/review/commit dự kiến. Kiến trúc/UI đã duyệt được tái sử dụng, không khảo sát/hỏi lại.
+
+Tự review: đối chiếu coverage và năm Review Focus (timeout sau commit, sửa mốc đua ghi ô, stale source/tập đích, polling/hết phiên/draft, pan/pinch/touch); có test owner tương ứng. Interface/code/lệnh sản phẩm trong plan chỉ là đề xuất chờ review và tạo ở task tương ứng; chưa là contract Accepted hoặc command đã chạy. Kế hoạch không cấp quyền cài/code/dispatch/release. Review độc lập sản phẩm còn phải có quyền/reviewer ở scope triển khai, không thay bằng tự review tài liệu.
+
+Kiểm tài liệu tại `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`: `npm run check:docs` exit0,44 current documents, UTF-8/link/anchor/fence đạt; `git diff --check` exit0. Đối chiếu diff chỉ Markdown và file plan mới. Không chạy app/pilot suite/browser/DB hoặc sửa HTML vì thay đổi thuần tài liệu; AC sản phẩm, compatibility, trusted touch iPhone/Android, reader Excel và review độc lập code vẫn Not run. Không acquire resource mới, bảo toàn evidence ignored và primary. Đầu ra giữ local để người dùng review; next action là review plan và phạm vi/phương pháp thực hiện, chưa bắt đầu task1 kỹ thuật hay cài sản phẩm.
+
 ## Workspace và quyền
 
 Base `a502c982e07f45e77895833fd86144a474254080`, worktree `agent-bootstrap`, branch `agent/mkw-agent-002`, sạch trước khi viết. Không tạo worktree mới hoặc sửa primary. Không dispatch child; không tạo server/port/DB/browser, cài dependency, chạy app hoặc chép dữ liệu nhân sự thật vào Git.

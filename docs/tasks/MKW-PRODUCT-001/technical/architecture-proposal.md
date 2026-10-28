@@ -4,6 +4,8 @@ Ngày 25/10/2026. Trạng thái tiếp nối: **Phương án A và bộ công ng
 
 ## 1. Mục tiêu và giới hạn
 
+Cập nhật28/10/2026: người dùng đã chấp nhận bản mẫu C và duyệt toàn bộ [design](../design.md), gồm đề xuất và mục13–14; không mở lại kiến trúc/UI đã chốt. [Kế hoạch triển khai](implementation-plan.md) đang review, đưa contract/schema/auth/version chi tiết qua gate thiết kế trước code phụ thuộc. Các đoạn “trước kế hoạch”/“trình UI” phía dưới giữ checkpoint kiến trúc25/10, đã được bước tiếp nối này thay về trạng thái; chi tiết kỹ thuật Proposed chưa tự được duyệt, sản phẩm chưa cài/code/kiểm.
+
 Web chấm công toàn công ty, người dùng và sếp cùng quyền, thao tác đơn giản trên điện thoại và đầy đủ desktop. Cần nền đủ rõ để Agent thêm feature mà tìm đúng code, dùng lại UI và không phá contract. API phục vụ web hiện tại và Android sau này. Không thêm tính lương, phân bổ công trình, approval hoặc nhân viên tự check-in.
 
 Checkpoint ban đầu đề xuất các hướng bên dưới; người dùng sau đó chốt phương án A và bộ công cụ đã trình, phạm vi chính xác theo ADR-003. Giữ B/C làm rationale; các từ ứng viên/đề xuất trong bản thiết kế phải đọc cùng ADR-003, không coi mọi chi tiết luồng là đã duyệt. Chưa có bằng chứng các công cụ này cài/build/test tương thích trong project. Không dùng kết quả pilot thay kiểm sản phẩm.

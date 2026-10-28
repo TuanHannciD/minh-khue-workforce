@@ -12,8 +12,8 @@ Thay contract phải xét consumer web/Android cần hỗ trợ, compatibility v
 
 ## Các quyết định còn cần cụ thể hóa
 
-- Cách đăng nhập/khôi phục và kiểm cùng quyền của hai tài khoản; chưa chọn provider/token/cookie.
-- Cách biểu diễn công/giờ, trống/F/N/—, mốc ngày và tính tổng dựa trên yêu cầu đã duyệt; số công tùy chỉnh và các điểm mở vẫn cần quyết định đúng nguồn.
+- Tên đăng nhập/mật khẩu, hai tài khoản ngang quyền và reset qua vận hành đã duyệt; cơ chế auth/session/cookie và chi tiết thực thi cần thiết kế/review.
+- Cách biểu diễn công/giờ, trống/F/N/—, mốc ngày và tính tổng dựa trên yêu cầu đã duyệt; bước0,5, trần30 công/24 giờ, định dạng và lỗi nhập đã duyệt; kiểu wire/storage chi tiết cần thiết kế/review.
 - Cơ chế phát hiện hai người sửa cùng ô; hành vi báo người lưu sau đã chốt nhưng chưa chọn revision field/ETag/transaction contract.
 - Request/response/error, dữ liệu ngày và timezone, validation số, tương thích schema và quy mô truy vấn.
 - Công cụ generation/validation, kiểm drift và test contract sau khi có stack/schema thật.

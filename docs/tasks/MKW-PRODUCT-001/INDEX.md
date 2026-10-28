@@ -1,6 +1,16 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
-Ngày lập: 25/10/2026. Trạng thái: In review — đã viết/tự review đặc tả và kiểm tra tài liệu. Chưa phê duyệt đặc tả viết hoặc kế hoạch triển khai sản phẩm.
+Ngày lập: 25/10/2026. Trạng thái: **Đặc tả đã được người dùng duyệt toàn bộ ngày28/10/2026; kế hoạch triển khai đã duyệt; Task1 In progress**. Chưa được phép triển khai sản phẩm.
+
+## Tiếp tục sau duyệt kế hoạch — 28/10/2026
+
+Người dùng xác nhận “Tôi xác nhận duyệt kế hoạch”. Thực hiện inline theo đề xuất đã trình; không hỏi lại plan/kiến trúc/UI. Scope lượt tiếp nối: ghi approval, tạo baseline commit kế hoạch đã duyệt, hoàn thiện Task1 gồm contract/schema/auth/manifest/check matrix cho review G1. Chưa vượt G1 sang cài/scaffold/code sản phẩm; không cấp quyền dispatch, primary/push/deploy/hệ thống thật. Risk thiết kế trung bình–cao, writer inline; tự review tài liệu + người dùng review G1, gate code độc lập giữ nguyên. Resource: Git/check local, metadata package công khai chỉ đọc; ledger ignored theo plan, không server/DB/browser. Base trước sửa `1870695a416c7832bee4f3c8900369dcce4a9f3a`; các thay đổi Markdown/plan của lượt trước còn nguyên, xác minh task-owned trước commit. Acceptance: năm thiết kế có interface/giá trị/chính sách/test rõ, không báo tương thích Verified từ metadata; check docs/whitespace đạt. Bước tiếp: review G1 đã chuẩn bị cụ thể, không xin lại approval kế hoạch.
+
+## Checkpoint lập kế hoạch — 28/10/2026 (lịch sử)
+
+Nguồn quyết định: người dùng yêu cầu tiếp tục tại worktree này và xác nhận đã chốt toàn bộ design.md, gồm các đề xuất đã trình và mục13–14. Ghi nhận vào requirements/design; không khảo sát hoặc hỏi lại kiến trúc/UI đã duyệt. [Kế hoạch triển khai](technical/implementation-plan.md) là bản Draft for review, không phải quyền thực hiện.
+
+Base trước sửa: `1870695a416c7832bee4f3c8900369dcce4a9f3a`, branch `agent/mkw-agent-002`, worktree sạch. Mục tiêu/scope: ghi nhận approval, lập plan bằng writing-plans và cập nhật routing/trạng thái nguồn liên quan; chỉ Markdown. Acceptance: bao phủ design mục1–14/AC01–AC23, chỉ rõ task/file/interface/check/dependency và gate kỹ thuật còn mở, giữ nguyên giới hạn triển khai. Risk tài liệu trung bình; writer Agent chính inline, tự review + người dùng review plan; không dispatch child. Resource: file/check local có sẵn; không dependency/server/port/DB/browser mới, không sửa pilot/HTML/primary hoặc evidence ignored. Kiểm: `npm run check:docs`, `git diff --check` và đối chiếu coverage. Bước tiếp duy nhất: người dùng review kế hoạch; chỉ thực hiện phần phụ thuộc sau khi có phê duyệt và quyền tương ứng.
 
 ## Mục tiêu và acceptance
 
@@ -9,9 +19,9 @@ Chuyển cách chấm công Excel toàn công ty thành đặc tả web dễ dù
 ## Nguồn và phạm vi
 
 - [Yêu cầu đã thống nhất trong hội thoại](approved/requirements.md).
-- [Đặc tả để review](design.md).
+- [Đặc tả đã duyệt toàn bộ](design.md); [kế hoạch triển khai để review](technical/implementation-plan.md).
 - [Kiểm chứng và bàn giao](validation.md).
-- [Brief và ba phương án UI](ui/BRIEF.md), [khảo sát A/B/C](ui/attendance-concepts.html) và [bản C hiện hành](ui/attendance-c.html) — C mới đã tự review bản mẫu, chờ người dùng review diện mạo/luồng.
+- [Brief và ba phương án UI](ui/BRIEF.md), [khảo sát A/B/C](ui/attendance-concepts.html) và [bản C hiện hành](ui/attendance-c.html) — bản C hiện hành đã được người dùng chấp nhận; A/B/C khảo sát là lịch sử.
 - Nguồn quyền/routing: [AGENTS](../../../AGENTS.md), [authority map](../../agent/AUTHORITY_MAP.md), [execution rules](../../agent/EXECUTION_RULES.md), [permissions](../../agent/PERMISSIONS.md), [quality gates](../../agent/QUALITY_GATES.md).
 - Quyền hiện tại: đọc/viết/check tài liệu và commit local bản đặc tả theo bước brainstorming. Người dùng đã duyệt bắt đầu thiết kế trực quan: thêm HTML bản mẫu độc lập và kiểm bằng native HTML preview/render; không phải quyền triển khai ứng dụng sản phẩm. Không scaffold/code/cài dependency sản phẩm, tự chọn stack, dispatch child mới, tích hợp main, push/deploy hoặc dùng hệ thống nhân sự thật.
 - Phạm vi file: dossier này; thêm định tuyến tại authority map, README và docs/INDEX. Giữ nguyên pilot, PRODUCT.md/DESIGN.md của pilot, skill distribution, hồ sơ002 và evidence cũ.
@@ -28,7 +38,9 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 
 Đã chốt phương án A và bộ công nghệ mục tiêu tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md). Nền tảng ADR-001 và state ADR-002 giữ nguyên. Bộ stack chưa pin/cài/kiểm tương thích; auth/session chi tiết, hosting/schema và các thiết kế kỹ thuật chưa chốt vẫn mở; nghiệp vụ đã xác nhận được cập nhật tại đặc tả.
 
-Bước hiện tại: các quyết định nghiệp vụ đã xác nhận được tập hợp trong [đặc tả](design.md), cập nhật28/10/2026; gồm giới hạn/định dạng số, nhập vùng, xung đột, bảo vệ dữ liệu khi đổi mốc, Excel, tài khoản/khôi phục và tự cập nhật khoảng15 giây. Đã bổ sung ô/vùng rời và kéo điền lặp theo mục13, nhấn giữ cảm ứng theo mục14 của đặc tả. Bản C phối xanh có tương tác bộ nhớ đã kiểm; chưa có auth/API/DB hoặc polling sản phẩm. Mục12 của đặc tả phân biệt phần đã duyệt, đề xuất để review, đã dựng và đã kiểm. Bước tiếp: người dùng review đặc tả viết trước implementation plan; kế hoạch phải có các task chốt contract/schema/auth/phiên bản và kiểm chứng phù hợp. Không cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local. Chi tiết tại [validation](validation.md).
+Bước hiện tại: đặc tả đã được người dùng duyệt toàn bộ, gồm đề xuất đã trình và mục13–14. Đã lập [kế hoạch triển khai](technical/implementation-plan.md) bằng writing-plans để review; G0 là review/quyền thực hiện, G1 chốt contract/schema/auth/phiên bản trước code phụ thuộc. Tái sử dụng ADR-001/002/003 và UI C đã chấp nhận, không hỏi lại. Chưa cài/scaffold/code sản phẩm, dispatch, tích hợp primary, push/deploy. AC sản phẩm và trusted touch vẫn Not run. Chi tiết tại [validation](validation.md).
+
+Các mục checkpoint phía dưới là lịch sử theo ngày/commit, không thay trạng thái hiện hành ở đầu INDEX.
 
 ## Checkpoint UI trực quan
 

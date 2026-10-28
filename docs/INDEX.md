@@ -31,7 +31,7 @@
 - [Handoff/resume](templates/HANDOFF.md)
 - [Task MKW-AGENT-001](tasks/MKW-AGENT-001/INDEX.md)
 - [Task MKW-AGENT-002](tasks/MKW-AGENT-002/INDEX.md)
-- [Task MKW-PRODUCT-001](tasks/MKW-PRODUCT-001/INDEX.md): yêu cầu đã thống nhất và đặc tả chấm công để review.
+- [Task MKW-PRODUCT-001](tasks/MKW-PRODUCT-001/INDEX.md): đặc tả chấm công đã duyệt toàn bộ; [kế hoạch triển khai đã duyệt](tasks/MKW-PRODUCT-001/technical/implementation-plan.md).
 - [Rà soát cấu trúc code và nền UI tái sử dụng](tasks/MKW-PRODUCT-001/technical/maintainability-review.md): khảo sát trước quyết định nền tảng; các đề xuất chi tiết chưa chốt vẫn là đề xuất.
 
 - [Bản kiến trúc kỹ thuật cụ thể để review](tasks/MKW-PRODUCT-001/technical/architecture-proposal.md): stack ứng viên, cây source, state/lưu lỗi/xung đột và cách kiểm; chưa là implementation plan.
@@ -42,4 +42,4 @@
 - [Khảo sát nền tảng Agent SellerFlow ngày 22/10](reports/2026-10-22-ai-agent-foundation-audit.md)
 - [Khảo sát ban đầu có đề xuất sản phẩm/kiến trúc](reports/2026-10-22-sellerflow-audit-va-workflow-de-xuat.md)
 
-Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Yêu cầu chấm công đã thống nhất được ghi ở MKW-PRODUCT-001; bản thiết kế viết đang chờ review. Nền tảng đã chốt tại ADR-001; stack mục tiêu đã chốt tại ADR-003, phiên bản/auth/schema và contract API cụ thể chưa duyệt; nguồn sở hữu được định tuyến tại authority map.
+Báo cáo giữ nguyên trạng thái của thời điểm khảo sát. Đề xuất công nghệ/sản phẩm trong báo cáo chưa trở thành đặc tả hiện hành. Yêu cầu chấm công đã thống nhất được ghi ở MKW-PRODUCT-001; bản thiết kế viết đã được duyệt toàn bộ28/10/2026, kế hoạch triển khai đã duyệt, Task1 thiết kế đang thực hiện. Nền tảng đã chốt tại ADR-001; stack mục tiêu đã chốt tại ADR-003, phiên bản/auth/schema và contract API cụ thể chưa duyệt; nguồn sở hữu được định tuyến tại authority map.

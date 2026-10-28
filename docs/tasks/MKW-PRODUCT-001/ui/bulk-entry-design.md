@@ -1,6 +1,8 @@
 # Chọn vùng và nhập hàng loạt — luồng và bản mẫu
 
-Ngày27/10/2026. Trạng thái: **luồng chọn/nhập và bỏ qua N/— đã xác nhận; đã dựng bản mẫu HTML, chờ review thao tác**. Nguồn: [requirements](../approved/requirements.md); tiếp nối [bản C](attendance-c.html) và [brief UI](BRIEF.md). Chưa triển khai sản phẩm hoặc lưu thật.
+Ngày27/10/2026; cập nhật28/10/2026. Trạng thái hiện hành: **bản mẫu được chấp nhận, toàn bộ design.md và các đề xuất đã duyệt**, gồm trống xét nội dung, mặc định điền trống, giữ nhắc và guard ngữ cảnh. Contract/lưu thật vẫn cần thiết kế/review trong kế hoạch; không claim persistence hoặc trusted touch đã kiểm. Các phần chờ review ở checkpoint dưới là lịch sử.
+
+Trạng thái tại checkpoint ban đầu: **luồng chọn/nhập và bỏ qua N/— đã xác nhận; đã dựng bản mẫu HTML, chờ review thao tác**. Nguồn: [requirements](../approved/requirements.md); tiếp nối [bản C](attendance-c.html) và [brief UI](BRIEF.md). Chưa triển khai sản phẩm hoặc lưu thật.
 
 ## Tác vụ và phạm vi đã biết
 

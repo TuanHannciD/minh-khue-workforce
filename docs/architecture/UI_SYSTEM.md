@@ -1,6 +1,6 @@
 # Hệ UI Minh Khuê
 
-Nguồn quyết định: [ADR-001](decisions/ADR-001-product-foundation.md). Nền component web đã chọn: **shadcn/ui với Radix**, tùy biến nhất quán cho Minh Khuê. Trạng thái: chưa cài package/version; chưa duyệt thiết kế thị giác cuối. Dùng Impeccable chủ đạo, UI UX Pro Max bổ trợ theo [skill policy](../agent/SKILL_POLICY.md).
+Nguồn quyết định: [ADR-001](decisions/ADR-001-product-foundation.md). Nền component web đã chọn: **shadcn/ui với Radix**, tùy biến nhất quán cho Minh Khuê. Trạng thái: chưa cài package/version; người dùng đã chấp nhận bản mẫu C hiện hành và duyệt toàn bộ design.md28/10/2026. Màn hình sản phẩm chưa dựng vẫn cần cụ thể hóa theo cùng ngôn ngữ UI, không mở lại hướng đã duyệt. Dùng Impeccable chủ đạo, UI UX Pro Max bổ trợ theo [skill policy](../agent/SKILL_POLICY.md).
 
 ## Các lớp sở hữu
 
@@ -13,11 +13,11 @@ Không bắt buộc cài toàn bộ danh mục shadcn. Ưu tiên component cần
 
 ## Thiết kế cần hoàn thiện
 
-Cần một nguồn tokens cho màu thương hiệu, nền/chữ/viền, typography tiếng Việt và số, spacing, radius, elevation, focus và mật độ bảng. Người dùng đã xác nhận hướng thương hiệu thuộc nhóm xanh lá ngày27/10/2026; mã màu, sắc độ/phân bổ cụ thể, font và icon set chưa chốt. Không dùng style mặc định shadcn làm bằng chứng giao diện đã được người dùng duyệt.
+Cần một nguồn tokens cho màu thương hiệu, nền/chữ/viền, typography tiếng Việt và số, spacing, radius, elevation, focus và mật độ bảng. Người dùng đã xác nhận hướng thương hiệu thuộc nhóm xanh lá ngày27/10/2026; bản C hiện hành đã được chấp nhận làm tham chiếu thị giác; khi triển khai trích mã màu/font/spacing thực từ mẫu thành tokens có ownership, chi tiết màn hình chưa dựng phải theo cùng hệ UI. Không dùng style mặc định shadcn làm bằng chứng giao diện đã được người dùng duyệt.
 
 Chuẩn hóa variants/kích thước và các trạng thái thường/focus/disabled/loading/error/empty; label, nội dung dài, feedback và vùng chạm nhất quán. Có nơi xem/kiểm component khi triển khai; công cụ catalog như Storybook chưa được chọn/cài.
 
-Hướng **C** đã chọn: một bảng lớn, chuyển Công/Tăng ca. Giữ yêu cầu bảng/zoom/thiết bị tại [requirements](../tasks/MKW-PRODUCT-001/approved/requirements.md). Bản mẫu HTML khảo sát trước còn thô, chưa là UI cuối; cần bản mẫu thị giác hoàn thiện hơn để review trên điện thoại và desktop.
+Hướng **C** đã chọn: một bảng lớn, chuyển Công/Tăng ca. Giữ yêu cầu bảng/zoom/thiết bị tại [requirements](../tasks/MKW-PRODUCT-001/approved/requirements.md). Bản HTML khảo sát A/B/C giữ lịch sử; bản C hiện hành đã được người dùng chấp nhận. [Đặc tả](../tasks/MKW-PRODUCT-001/design.md) đã duyệt toàn bộ, [kế hoạch](../tasks/MKW-PRODUCT-001/technical/implementation-plan.md) đã duyệt; Task1 đang thiết kế, chưa triển khai hoặc kiểm UI sản phẩm trên điện thoại/desktop thật.
 
 Màu thương hiệu xanh lá không thay nghĩa ô nhắc: dùng sắc độ/độ sáng, dấu và nhãn để phân biệt. Màu xanh nhắc kiểm tra là semantic độc lập, không đổi tổng hoặc thành trạng thái duyệt/thành công. Công và tăng ca tách đơn vị. Chi tiết nghiệp vụ tiếp tục thuộc dossier sản phẩm, không do component library quyết định.
 

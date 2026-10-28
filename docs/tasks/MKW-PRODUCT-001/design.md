@@ -1,6 +1,6 @@
-# Đặc tả để review — Chấm công Minh Khuê phiên bản đầu
+# Đặc tả đã duyệt — Chấm công Minh Khuê phiên bản đầu
 
-Ngày lập:25/10/2026; cập nhật28/10/2026. Trạng thái: **Đã tổng hợp và tự review; chờ người dùng review bản đặc tả viết**. [Yêu cầu đã thống nhất](approved/requirements.md) là nguồn nghiệp vụ; phương án còn đề xuất và quyết định còn thiếu được đánh dấu rõ bên dưới. Chưa phải API/schema hoặc kế hoạch triển khai đã duyệt.
+Ngày lập:25/10/2026; cập nhật28/10/2026. Trạng thái: **Người dùng đã duyệt toàn bộ bản đặc tả viết, gồm các đề xuất đã trình và mục13–14**. [Yêu cầu đã thống nhất](approved/requirements.md) ghi nhận quyết định này. Các đề xuất nghiệp vụ/UI bên dưới nay thuộc phạm vi đã duyệt; chi tiết kỹ thuật chưa viết vẫn cần thiết kế/review. Chưa phải API/schema, kế hoạch triển khai đã duyệt hoặc quyền triển khai sản phẩm. Kế hoạch để review tại [implementation-plan](technical/implementation-plan.md).
 
 ## 1. Kết quả cần đạt
 
@@ -48,7 +48,7 @@ Thêm nhân sự với tên và ngày bắt đầu do người dùng chọn. Ví
 
 Nếu kết thúc20/10, ngày20 vẫn nhập được; ngày21–31 hiển thị `—`, không cộng công/tăng ca. Tháng11 trở đi không tiếp tục hiện người này; bảng tháng10 và số liệu đã nhập vẫn được giữ.
 
-**Đề xuất để review:** danh sách một tháng gồm người có khoảng làm việc giao với tháng đó; tháng bắt đầu vẫn có các ô `N` phía trước, tháng kết thúc vẫn có `—` phía sau. Không tự thêm người mới vào mọi tháng lịch sử trước tháng họ bắt đầu.
+**Đã duyệt cùng toàn bộ bản viết:** danh sách một tháng gồm người có khoảng làm việc giao với tháng đó; tháng bắt đầu vẫn có các ô `N` phía trước, tháng kết thúc vẫn có `—` phía sau. Không tự thêm người mới vào mọi tháng lịch sử trước tháng họ bắt đầu.
 
 Tên hiển thị không được dùng như lý do gộp hai nhân sự trùng tên. Đã chốt: chặn đổi ngày bắt đầu/kết thúc nếu mốc mới loại ô đã nhập công/tăng ca; chỉ rõ người/ngày/loại bảng của các ô cần xử lý, giữ nguyên mốc và dữ liệu cũ. Phải xét dữ liệu liên quan ở mọi tháng, không chỉ bảng đang xem. Trường hợp nghỉ rồi quay lại chưa được yêu cầu; ô trống có màu nhắc cũng chặn đổi mốc nếu bị loại, chỉ rõ để xử lý trước và không tự xóa nhắc.
 
@@ -65,7 +65,7 @@ Thiết kế đã được người dùng đồng ý:
 - Chạm một ô mở phần nhập dễ bấm; bảng công có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`, **Tùy chỉnh** cho số lớn hơn `2,5`, chọn `F` và bật/tắt màu xanh. `N`/`—` liên quan mốc ngày, không tự biến thành lựa chọn nghỉ.
 - Bảng tăng ca có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5` giờ và **Tùy chỉnh** cho số lớn hơn `2,5` giờ, theo bước `0,5` giờ. Công và tăng ca đều có đủ thao tác; không giới hạn điện thoại chỉ xem.
 
-**Đề xuất để review:** phần nhập cho biết tên người, ngày và loại công/tăng ca đang sửa, có Lưu/Hủy để hạn chế chạm nhầm. Chỉ báo đã lưu khi backend xác nhận; lỗi lưu giữ nội dung để thử lại, không giả tổng đã lưu. Đây là hành vi an toàn kỹ thuật đề xuất, chưa phải mockup hoặc màn hình đã kiểm chứng.
+**Đã duyệt cùng toàn bộ bản viết:** phần nhập cho biết tên người, ngày và loại công/tăng ca đang sửa, có Lưu/Hủy để hạn chế chạm nhầm. Chỉ báo đã lưu khi backend xác nhận; lỗi lưu giữ nội dung để thử lại, không giả tổng đã lưu. Hành vi đã duyệt chưa đồng nghĩa màn hình sản phẩm đã được triển khai hoặc kiểm chứng.
 
 “Toàn màn hình” là chế độ ưu tiên không gian bảng; cách dùng browser Fullscreen API hay mở rộng trong trang phụ thuộc hỗ trợ thiết bị. Không khóa browser zoom để làm bảng trông vừa màn hình. Giữ tên/ngày khi cuộn và nhận diện ô sau zoom cần kiểm thực tế, không hứa từ CSS chưa có.
 
@@ -79,7 +79,7 @@ Hai thiết bị dùng cùng nguồn dữ liệu. Đổi tháng/refresh phải �
 
 Có xuất file `.xlsx` cho tháng đang chọn, gồm công và tăng ca với tổng riêng. Giữ ký hiệu `F`, `N`, `—`, ô trống và màu xanh; màu không làm khác phép cộng giữa web và file.
 
-**Đã duyệt:** một sheet, bảng Công trên và Tăng ca dưới; các tổng dùng công thức để tiếp tục sửa trong Excel. Chi tiết trình bày đề xuất: có tháng/năm, ngày/thứ, tổng theo người/ngày và từng phần. Giá trị số được xuất thành ô số, ký hiệu thành chữ, ô trống được giữ trống; cần kiểm bằng ứng dụng đọc Excel thật khi triển khai.
+**Đã duyệt:** một sheet, bảng Công trên và Tăng ca dưới; các tổng dùng công thức để tiếp tục sửa trong Excel. Chi tiết trình bày đã duyệt cùng bản viết: có tháng/năm, ngày/thứ, tổng theo người/ngày và từng phần. Giá trị số được xuất thành ô số, ký hiệu thành chữ, ô trống được giữ trống; cần kiểm bằng ứng dụng đọc Excel thật khi triển khai.
 
 Đã chốt tổng bằng công thức, tính riêng trong từng bảng; ký hiệu F/N/— và ô trống không được cộng thành công/giờ, màu nhắc không ảnh hưởng phép cộng. Sửa số trong file phải tính lại tổng theo người/ngày và tổng từng phần. Chưa mặc định hỗ trợ nhập ngược Excel, đồng bộ hai chiều, tính lương hoặc file PDF. Không copy danh sách nhân sự thật từ ảnh vào fixture kiểm thử.
 
@@ -87,7 +87,7 @@ Có xuất file `.xlsx` cho tháng đang chọn, gồm công và tăng ca với 
 
 Yêu cầu đã có: web frontend và backend tách biệt, Android có thể dùng chung API về sau. Tổng và quy tắc dữ liệu cần nhất quán giữa các client. Đã chốt FE/BE tách ứng dụng trong cùng repository, shadcn/ui nền Radix và code theo feature/module tại [ADR-001](../../architecture/decisions/ADR-001-product-foundation.md). [Kiến trúc](../../architecture/ARCHITECTURE.md), [chuẩn code](../../architecture/CODE_CONVENTIONS.md), [hệ UI](../../architecture/UI_SYSTEM.md) và [nguyên tắc API](../../architecture/API_CONTRACTS.md) là nguồn hiện hành. Theo [ADR-002](../../architecture/decisions/ADR-002-state-management.md), TanStack Query quản lý dữ liệu API, state React giữ thao tác/bản nháp, Zustand có điều kiện; chưa cài. [Bản kiến trúc cụ thể](technical/architecture-proposal.md) trình stack/cây source/luồng chi tiết để review. Framework/backend/DB và bộ công cụ mục tiêu đã chốt tiếp nối tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md): React/Vite + NestJS/Express + PostgreSQL/Prisma. Phiên bản, contract/schema và cơ chế auth/session chi tiết chưa chốt; tên đăng nhập/mật khẩu và quy trình khôi phục qua vận hành đã chốt; công cụ enforce sản phẩm chưa cài.
 
-Không tái sử dụng lựa chọn Node22/SQLite experimental của pilot như một quyết định sản phẩm. Chưa cài dependency, scaffold ứng dụng hoặc thiết kế migration theo bản này. Tiếp theo review bản đặc tả viết và các đề xuất còn ghi rõ trước kế hoạch thực hiện; tái sử dụng lựa chọn stack đã duyệt.
+Không tái sử dụng lựa chọn Node22/SQLite experimental của pilot như một quyết định sản phẩm. Chưa cài dependency, scaffold ứng dụng hoặc thiết kế migration theo bản này. Bản viết đã duyệt; bước tiếp review kế hoạch thực hiện, tái sử dụng lựa chọn stack đã duyệt.
 
 ## 9. Tiêu chí nghiệm thu dự kiến khi có ứng dụng
 
@@ -131,7 +131,7 @@ Q5 — Đã chốt một sheet, Công trên/Tăng ca dưới, tổng dùng công
 
 Q6 — Đã biết hiện tại khoảng20 người mỗi tháng, sau này có thể tăng nhiều; chưa có số lượng mục tiêu tương lai. Đã xác nhận dùng cả iPhone và Android; mẫu máy/phiên bản/trình duyệt cụ thể chưa xác định và sẽ ghi rõ trong kế hoạch kiểm chứng. Thiết kế phải xét cả hai nhóm khi xử lý zoom, sticky và nhập cảm ứng. Mốc hiệu năng/quy mô kiểm thử sẽ đề xuất rõ khi có kiến trúc, không tự coi20 là trần hoặc hứa hỗ trợ không giới hạn.
 
-Các quyết định nghiệp vụ trên đã đủ để review phạm vi bản viết; các chi tiết kỹ thuật/vận hành còn mở phải thành task có acceptance và gate tương ứng trong kế hoạch. Bản này chưa cho phép Agent tự triển khai sản phẩm ngay.
+Các quyết định nghiệp vụ trên và toàn bộ phạm vi bản viết đã được người dùng duyệt; các chi tiết kỹ thuật/vận hành còn mở phải thành task có acceptance và gate tương ứng trong kế hoạch. Bản này chưa cho phép Agent tự triển khai sản phẩm ngay.
 
 ## 11. Bổ sung nhập vùng để review — 27/10/2026
 
@@ -169,12 +169,12 @@ AC20 — Hai phiên cùng mở bảng tháng: một phiên lưu giá trị hoặ
 | --- | --- |
 | Nghiệp vụ đã duyệt | Công/giờ độc lập, màu nhắc không đổi tổng; công0 thành F, bước0,5, trần30 công/24 giờ mỗi ô, dấu phẩy/chấm và giữ input lỗi; nhập ô/vùng rời và kéo điền lặp, hai chế độ, đếm ô trước Áp dụng, bỏ N/—; xung đột dừng cả vùng; đổi mốc bảo vệ nội dung và nhắc; Excel một sheet/tổng công thức; hai tài khoản tên/mật khẩu, khôi phục qua vận hành; cập nhật khoảng15 giây giữ draft |
 | Kiến trúc đã duyệt | ADR-001/002/003 là nền tảng/state/stack mục tiêu, chưa pin/cài/kiểm tương thích |
-| Đề xuất trình review cùng bản viết | Danh sách tháng theo khoảng làm việc giao tháng; editor ghi người/ngày/loại và Lưu/Hủy; điền trống xét nội dung rỗng, mặc định điền trống, nhập vùng giữ reminder; guard khi đổi ngữ cảnh |
+| Đề xuất đã được duyệt cùng toàn bộ bản viết28/10/2026 | Danh sách tháng theo khoảng làm việc giao tháng; editor ghi người/ngày/loại và Lưu/Hủy; điền trống xét nội dung rỗng, mặc định điền trống, nhập vùng giữ reminder; guard khi đổi ngữ cảnh |
 | Đã dựng/đã kiểm | HTML C độc lập với dữ liệu giả, tương tác bộ nhớ; các assertions/contrast/headless trong validation. Không coi toàn bộ AC01–AC23 sản phẩm đã đạt |
 | Thiết kế tiếp theo trong kế hoạch | Contract/request/response/revision/transaction, schema/migration, phiên bản tương thích, auth/session/reset cụ thể, phục hồi sau timeout và cảnh báo ghi đè; UI các màn hình còn thiếu, layout Excel chi tiết, accessibility/thiết bị/hiệu năng |
 | Điều kiện trước vận hành | Target hosting/domain/TLS, backup/restore, người phụ trách và quy trình reset thực tế, danh sách thiết bị kiểm; chưa chọn hoặc được quyền thao tác hệ thống thật |
 
-Bản review này chốt phạm vi/nghiệp vụ và các đề xuất được nêu rõ khi người dùng duyệt toàn bộ bản viết; không tự duyệt chi tiết API/schema chưa có. Kế hoạch triển khai sau đó phải chia các bước thiết kế kỹ thuật cần review, cài đặt có quyền và kiểm chứng theo risk; chưa có quyền scaffold/code sản phẩm, tích hợp primary, dispatch child, push hoặc deploy. Không thêm import Excel, tính lương, quy trình duyệt, offline hoặc nhiều giai đoạn nghỉ/quay lại vào bản đầu.
+Người dùng đã duyệt toàn bộ bản viết28/10/2026, chốt phạm vi/nghiệp vụ và các đề xuất được nêu rõ; không tự duyệt chi tiết API/schema chưa có. Kế hoạch triển khai phải chia các bước thiết kế kỹ thuật cần review, cài đặt có quyền và kiểm chứng theo risk; chưa có quyền scaffold/code sản phẩm, tích hợp primary, dispatch child, push hoặc deploy. Không thêm import Excel, tính lương, quy trình duyệt, offline hoặc nhiều giai đoạn nghỉ/quay lại vào bản đầu.
 
 
 ## 13. Chọn ô/vùng rời và kéo điền lặp — bổ sung28/10/2026
@@ -187,7 +187,7 @@ AC21 — Chọn ba ô không liền nhau rồi áp dụng chỉ thay ba ô đó;
 
 AC22 — Kéo điền từ ô nguồn số hoặc F, cả hai hướng, phải điền lặp giá trị; nguồn/nội dung màu không bị thay, nhắc của đích không bị sao chép/xóa. Chọn/kéo chưa ghi; Hủy/Esc/pointercancel không đổi dữ liệu; hai chế độ và N/—/giới hạn/bảo vệ draft vẫn áp dụng. Có thao tác không kéo. Kiểm lưu thật và touch thật: Not run; phạm vi prototype tại validation.
 
-Bổ sung này thay phần giới hạn chỉ một chữ nhật của checkpoint trước. Bản đặc tả viết gồm cả mục13 vẫn chờ người dùng review trước implementation plan; xác nhận feature không tự duyệt tất cả chi tiết kỹ thuật hoặc cấp quyền triển khai sản phẩm.
+Bổ sung này thay phần giới hạn chỉ một chữ nhật của checkpoint trước. Bản đặc tả viết gồm mục13 đã được duyệt toàn bộ28/10/2026; không tự duyệt tất cả chi tiết kỹ thuật hoặc cấp quyền triển khai sản phẩm.
 
 
 ## 14. Kéo cảm ứng bằng nhấn giữ — bổ sung28/10/2026
@@ -196,4 +196,4 @@ Bổ sung này thay phần giới hạn chỉ một chữ nhật của checkpoin
 
 AC23 — Trên iPhone và Android: vuốt ngay theo cả hai chiều không chọn ô hoặc điền dữ liệu; giữ450ms rồi kéo chọn đúng tập đích, giữ tay nắm kéo điền lặp số/F và tăng ca độc lập. Kích hoạt có dấu hiệu, thả chưa ghi, Áp dụng mới ghi; hủy/đa điểm/đổi ngữ cảnh không mất draft hoặc ghi nhầm. Kiểm hành vi sát ngưỡng10px, cuộn sát mép và pinch zoom. AC sản phẩm và thiết bị thật: Not run; chỉ các sự kiện tổng hợp trong prototype được kiểm ở validation.
 
-Mục này thay giới hạn không hỗ trợ kéo cảm ứng của bản mẫu trước. Không thay quyền triển khai sản phẩm hoặc gate review toàn bộ bản viết.
+Mục này thay giới hạn không hỗ trợ kéo cảm ứng của bản mẫu trước và thuộc toàn bộ bản viết đã duyệt28/10/2026. Không thay quyền triển khai sản phẩm hoặc gate review kế hoạch/kỹ thuật còn mở.

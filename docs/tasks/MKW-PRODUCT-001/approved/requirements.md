@@ -2,6 +2,14 @@
 
 Nguồn: hội thoại trực tiếp tiếp nối MKW-AGENT-002, ghi nhận ngày 25/10/2026. Tài liệu này chỉ tổng hợp ý định đã xác nhận; bao gồm nền tảng, state và stack mục tiêu đã chốt ở cuối tài liệu; chưa phê duyệt version/API/schema chi tiết hay triển khai code.
 
+## Duyệt toàn bộ đặc tả viết — 28/10/2026
+
+Người dùng xác nhận đã chốt toàn bộ [design.md](../design.md), gồm các đề xuất vừa trình và mục13–14, yêu cầu ghi nhận quyết định và dùng writing-plans lập kế hoạch cho review; không khảo sát/hỏi lại kiến trúc hoặc UI đã duyệt, chưa triển khai sản phẩm. Quyết định này thay trạng thái chờ duyệt bản viết tại các checkpoint trước.
+
+Các đề xuất trong bản viết nay đã Accepted: danh sách tháng theo khoảng làm việc giao tháng; editor hiển thị người/ngày/loại, Lưu/Hủy, chỉ báo đã lưu khi server xác nhận và giữ draft khi lỗi; điền trống xét nội dung rỗng kể cả có reminder, mặc định điền trống, nhập vùng giữ reminder từng ô; guard đổi ngữ cảnh; cách trình bày Excel nêu trong design. Giữ toàn bộ quy tắc chọn rời/fill/nhấn giữ và giới hạn đã ghi. Bản mẫu C hiện hành đã được người dùng chấp nhận ở checkpoint trước, không mở lại lựa chọn diện mạo/hướng tổ chức.
+
+Không suy approval này thành duyệt API/request/response/revision/schema/auth-session/phiên bản chi tiết chưa viết, kế hoạch triển khai, quyền cài/scaffold/code, dispatch, tích hợp/push/deploy hoặc gate thiết bị thật đã đạt. Các đoạn dưới giữ tiến trình xác nhận trước đây; trạng thái hiện tại đọc cùng cập nhật này và design mục12.
+
 ## Mục tiêu và người dùng
 
 - Công ty Minh Khuê hiện dùng bảng Excel tháng có phần công và phần tăng ca. Người dùng cung cấp ảnh làm tham khảo cấu trúc; không sao chép thông tin nhân sự trong ảnh vào repository.
@@ -83,3 +91,7 @@ Có tay nắm kéo từ ô đã có giá trị để điền lặp cùng giá tr
 ## Kéo cảm ứng bằng nhấn giữ — 28/10/2026
 
 Người dùng chốt cả kéo chọn vùng và kéo điền trên điện thoại: giữ ô khoảng450ms để kích hoạt kéo chọn; giữ tay nắm ô nguồn khoảng450ms để kéo điền. Nếu di chuyển quá10px trước lúc kích hoạt, bỏ chờ kéo và giữ vuốt cuộn bình thường. Có viền báo khi kích hoạt; thả chỉ xem trước, Áp dụng mới ghi. Giữ cách chạm chọn rời/hai đầu và mọi quy tắc fill/replace, giới hạn số, reminder và xung đột đã duyệt.
+
+## Duyệt kế hoạch triển khai — 28/10/2026
+
+Người dùng xác nhận “Tôi xác nhận duyệt kế hoạch” đối với implementation-plan.md đã trình. Kế hoạch Accepted; tiếp tục inline theo khuyến nghị, bắt đầu Task1 hoàn thiện thiết kế kỹ thuật cho review G1 trước cài/code phụ thuộc. Không hỏi lại đặc tả/kiến trúc/UI hoặc approval kế hoạch. Giữ gate review G1 và quyền dispatch/tích hợp/push/deploy/hệ thống thật như đã nêu trong plan.
