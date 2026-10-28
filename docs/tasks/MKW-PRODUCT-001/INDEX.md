@@ -111,3 +111,7 @@ Người dùng đồng ý một sheet gồm bảng Công/Tăng ca, tổng dùng 
 ## Giới hạn30 công mỗi ô — 28/10/2026
 
 Người dùng làm rõ tối đa30 công mỗi ô, không phải tổng tháng; tiếp tục yêu cầu thực hiện. Base `15939f8`, workspace sạch. Scope requirements/design/brief/HTML/validation; acceptance30 và29,5 hợp lệ,30,5/31 bị chặn không ghi hoặc làm tròn, giữ draft cho cả một ô/vùng; không suy trần cho tăng ca. Writer inline, tự review + người dùng, risk thấp prototype. Resource file/check local/native HTML preview-render, evidence ignored; không child/dependency/server/DB/tab/primary/source sản phẩm. Bước tiếp quyết định tăng ca và các phần còn mở trước spec/plan.
+
+## Giới hạn24 giờ tăng ca mỗi ô — 28/10/2026
+
+Người dùng chốt tối đa24 giờ tăng ca mỗi ô. Base `af14203`, workspace sạch. Scope requirements/design/brief/HTML/validation; acceptance23,5/24 nhận,24,5/25 từ chối giữ draft/không ghi cho một ô và vùng, trần công30 giữ nguyên. Writer inline, tự review + người dùng, risk thấp prototype không persistence. Resource file/check local/native HTML preview-render và evidence ignored; không child/dependency/server/DB/tab/primary/source sản phẩm. Bước tiếp quy tắc nhập số còn mở và nghiệp vụ/auth trước spec/plan.

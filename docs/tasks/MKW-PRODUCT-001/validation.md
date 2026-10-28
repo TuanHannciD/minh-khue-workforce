@@ -229,3 +229,11 @@ Base `15939f8`, workspace sạch. Người dùng làm rõ trần30 mỗi ô, kh�
 Evidence ignored ui-c-work-cap-checks.js và ui-c-work-cap-results.json trong `.agent-runs/MKW-PRODUCT-001/`, giữ evidence cũ. Writer inline, self-review + người dùng, không review độc lập. Không code sản phẩm/dependency/child/primary/server/DB/tab. API validation/persistence/Excel/actual devices vẫn Not run; AC16 lưu thật chưa Verified. Bước tiếp trần tăng ca và các quyết định còn mở trước review đặc tả/plan.
 
 `npm run check:docs` exit0,43 current documents; `git diff --check` exit0; evidence mới đã kiểm ignore. Đã trình HTML gốc đã preview qua native html_render “Minh Khuê · Tối đa 30 công mỗi ô”, frame1476px. Tự review scoped diff và staged whitespace trước commit local.
+
+## Giới hạn24 giờ tăng ca mỗi ô — 28/10/2026
+
+Base `af14203`, workspace sạch. Người dùng chốt trần24 giờ tăng ca mỗi ô. Đồng bộ requirements/design/brief/INDEX, thêm AC17 và sửa validator/help/error của HTML. Trần công30 riêng, không quy đổi công/giờ. TDD: ui-c-overtime-cap-checks.js RED `over24 must not write 24,5 false` trên mẫu cũ; GREEN native html_preview375/1200 light có20 check mới đạt (23,5/24 nhận,24,5/25 từ chối/giữ draft/không ghi cho một ô/vùng, công không đổi).129 checks trước cũng đạt mỗi viewport, tổng149, không console error. Đây là DOM/synthetic events trong headless preview, không trusted touch/API/DB.
+
+Evidence ignored ui-c-overtime-cap-checks.js và ui-c-overtime-cap-results.json trong `.agent-runs/MKW-PRODUCT-001/`; giữ evidence cũ. Writer inline, self-review + người dùng, không review độc lập. Không product code/dependency/child/primary/server/DB/tab. API validation/persistence/concurrency/export và actual devices vẫn Not run; AC17 sản phẩm chưa Verified. Bước tiếp định dạng/lỗi nhập và các quyết định còn mở trước spec/plan.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0; evidence mới đã kiểm ignore. Trình HTML gốc đã preview qua native html_render “Minh Khuê · Tối đa 24 giờ tăng ca mỗi ô”, frame1476px. Tự review scoped diff và staged whitespace trước commit local.

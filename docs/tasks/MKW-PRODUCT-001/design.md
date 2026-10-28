@@ -32,7 +32,7 @@ Mỗi ô có hai thông tin độc lập về mặt nghiệp vụ: **nội dung*
 
 ### Tăng ca
 
-Nhập số giờ tăng ca độc lập với số công, theo bước `0,5` giờ (nửa giờ). Chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5` giờ; số lớn hơn `2,5` giờ nhập qua **Tùy chỉnh**, vẫn theo bước `0,5` giờ. Không cần nhập bước15 phút và không dùng `2,5` làm trần giờ tăng ca. Ví dụ giả: cùng ngày có1,5 công và2 giờ tăng ca; tổng công tăng1,5 và tổng giờ tăng ca tăng2. Không có tỷ lệ quy đổi tăng ca thành công được phê duyệt.
+Nhập số giờ tăng ca độc lập với số công, theo bước `0,5` giờ (nửa giờ). Chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5` giờ; số lớn hơn `2,5` giờ nhập qua **Tùy chỉnh**, vẫn theo bước `0,5` giờ. Không cần nhập bước15 phút; trần là **24 giờ mỗi ô**, không dùng `2,5` làm trần giờ tăng ca. Ví dụ giả: cùng ngày có1,5 công và2 giờ tăng ca; tổng công tăng1,5 và tổng giờ tăng ca tăng2. Không có tỷ lệ quy đổi tăng ca thành công được phê duyệt.
 
 Ngày trước khi vào làm và sau khi kết thúc tuân mốc nhân sự, không phát sinh tổng tăng ca. Trong thời gian làm việc, ngày không tăng ca để ô trống, không tự điền `0` hoặc `F`; ô trống không cộng giờ vào tổng. `F` là ký hiệu nghỉ của bảng công, không dùng làm lựa chọn không tăng ca.
 
@@ -40,7 +40,7 @@ Ngày trước khi vào làm và sau khi kết thúc tuân mốc nhân sự, kh�
 
 Tổng chỉ cộng giá trị số của đúng loại dữ liệu. Không trừ ô màu xanh khỏi tổng, không tách thêm “tổng đã xác nhận”. Ví dụ giả trên bốn ngày:1 (xanh),0,5,`F` (xanh),trống cho tổng1,5 công; màu giữ nguyên ý nghĩa nhắc người dùng. `N` và `—` không tạo công hoặc giờ tăng ca.
 
-Lựa chọn nhanh của công/tăng ca và bước tăng ca `0,5` giờ đã được chốt; số công tùy chỉnh cũng theo bước `0,5`; trần công30 mỗi ô đã chốt, trần giờ tăng ca và xử lý số không hợp lệ còn phải chốt trước validation API và xuất số; không lấy giới hạn ngẫu nhiên của UI làm nghiệp vụ. Giao diện cần thể hiện dấu phẩy thập phân quen thuộc; cách chấp nhận dấu chấm và độ chính xác là quyết định ở mục10.
+Lựa chọn nhanh của công/tăng ca và bước tăng ca `0,5` giờ đã được chốt; số công tùy chỉnh cũng theo bước `0,5`; trần công30 và tăng ca24 giờ mỗi ô đã chốt; xử lý số không hợp lệ còn phải chốt trước validation API và xuất số; không lấy giới hạn ngẫu nhiên của UI làm nghiệp vụ. Giao diện cần thể hiện dấu phẩy thập phân quen thuộc; cách chấp nhận dấu chấm và độ chính xác là quyết định ở mục10.
 
 ## 4. Nhân sự và mốc làm việc
 
@@ -119,7 +119,7 @@ Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot
 
 ## 10. Các quyết định còn cần chốt
 
-Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Đã chốt số công tùy chỉnh cũng chỉ bước `0,5`. Đã chốt trần30 công mỗi ô, không giới hạn tổng tháng theo số30. Còn cần chốt trần giờ tăng ca, cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Đã chốt nhập số0 công tự chuẩn hóa thành `F`. Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
+Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Đã chốt số công tùy chỉnh cũng chỉ bước `0,5`. Đã chốt trần30 công mỗi ô, không giới hạn tổng tháng theo số30. Đã chốt trần24 giờ tăng ca mỗi ô. Còn cần chốt cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Đã chốt nhập số0 công tự chuẩn hóa thành `F`. Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
 
 Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập và sửa. Phương thức đăng nhập/khôi phục và nơi vận hành còn cần chốt theo nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
 
@@ -150,3 +150,6 @@ AC15 — Nhân sự có dữ liệu công hoặc tăng ca ngoài khoảng làm v
 
 
 AC16 — Nhập công29,5 và30 được nhận;30,5/31 bị từ chối, giữ draft và không ghi bất kỳ ô nào. Áp cùng quy tắc cho nhập một ô/nhập vùng, không tự làm tròn/cắt về30. Không áp30 thành giới hạn tổng tháng hoặc trần tăng ca. Kiểm API/DB/lưu đọc lại: Not run.
+
+
+AC17 — Nhập tăng ca23,5/24 giờ được nhận;24,5/25 bị từ chối, giữ draft và không ghi dữ liệu, không tự làm tròn/cắt về24. Áp một ô/nhập vùng, không đổi công; công vẫn có trần riêng30. API/DB/lưu đọc lại: Not run.

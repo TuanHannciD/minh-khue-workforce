@@ -39,4 +39,4 @@ Impeccable shape sở hữu brief tương tác; UI UX Pro Max query `dragging al
 
 ## Số công tùy chỉnh tiếp nối
 
-Đã chốt chỉ bước0,5 cho số công trên2,5, giống bước tăng ca nhưng độc lập đơn vị/tổng. Mẫu áp cùng validation cho một ô và vùng;3/3,5 được nhận,3,25 bị báo lỗi và giữ draft, không tự làm tròn. Nhập0 công tự chuyển thành F đã chốt tiếp nối, áp cùng hai chế độ và giữ reminder; không áp cho tăng ca. Trần công đã chốt30 mỗi ô, áp chung một ô/vùng; trần tăng ca còn mở ở Q1; chưa triển khai validation API.
+Đã chốt chỉ bước0,5 cho số công trên2,5, giống bước tăng ca nhưng độc lập đơn vị/tổng. Mẫu áp cùng validation cho một ô và vùng;3/3,5 được nhận,3,25 bị báo lỗi và giữ draft, không tự làm tròn. Nhập0 công tự chuyển thành F đã chốt tiếp nối, áp cùng hai chế độ và giữ reminder; không áp cho tăng ca. Trần công đã chốt30 mỗi ô, áp chung một ô/vùng; trần tăng ca đã chốt24 giờ mỗi ô, bước0,5; chưa triển khai validation API.
