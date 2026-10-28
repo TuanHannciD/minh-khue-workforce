@@ -50,7 +50,7 @@ Nếu kết thúc20/10, ngày20 vẫn nhập được; ngày21–31 hiển thị
 
 **Đề xuất để review:** danh sách một tháng gồm người có khoảng làm việc giao với tháng đó; tháng bắt đầu vẫn có các ô `N` phía trước, tháng kết thúc vẫn có `—` phía sau. Không tự thêm người mới vào mọi tháng lịch sử trước tháng họ bắt đầu.
 
-Tên hiển thị không được dùng như lý do gộp hai nhân sự trùng tên. Đã chốt: chặn đổi ngày bắt đầu/kết thúc nếu mốc mới loại ô đã nhập công/tăng ca; chỉ rõ người/ngày/loại bảng của các ô cần xử lý, giữ nguyên mốc và dữ liệu cũ. Phải xét dữ liệu liên quan ở mọi tháng, không chỉ bảng đang xem. Trường hợp nghỉ rồi quay lại chưa được yêu cầu; ô trống chỉ có nhắc còn cần làm rõ, không tự xóa nhắc.
+Tên hiển thị không được dùng như lý do gộp hai nhân sự trùng tên. Đã chốt: chặn đổi ngày bắt đầu/kết thúc nếu mốc mới loại ô đã nhập công/tăng ca; chỉ rõ người/ngày/loại bảng của các ô cần xử lý, giữ nguyên mốc và dữ liệu cũ. Phải xét dữ liệu liên quan ở mọi tháng, không chỉ bảng đang xem. Trường hợp nghỉ rồi quay lại chưa được yêu cầu; ô trống có màu nhắc cũng chặn đổi mốc nếu bị loại, chỉ rõ để xử lý trước và không tự xóa nhắc.
 
 ## 5. Thao tác trên điện thoại
 
@@ -125,7 +125,7 @@ Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập v�
 
 Q3 — Đã chốt: khi hai người sửa cùng một ô từ dữ liệu cũ, báo người lưu sau và hiển thị giá trị mới để quyết định sửa tiếp; không âm thầm ghi đè. Cơ chế kỹ thuật thuộc bước thiết kế API, chưa triển khai.
 
-Q4 — Đã chốt: chặn đổi mốc nếu loại ô đã nhập công/tăng ca, chỉ rõ ô liên quan để xử lý trước, giữ mốc cũ/dữ liệu. Chi tiết ô trống chỉ có reminder còn cần làm rõ. Trường hợp nghỉ/quay lại chưa được yêu cầu; không tự thêm nhiều hợp đồng/giai đoạn vào bản đầu.
+Q4 — Đã chốt: chặn đổi mốc nếu loại ô đã nhập công/tăng ca, chỉ rõ ô liên quan để xử lý trước, giữ mốc cũ/dữ liệu. Ô trống chỉ có reminder cũng được bảo vệ: chặn đổi mốc, chỉ rõ ô và giữ nguyên lời nhắc. Trường hợp nghỉ/quay lại chưa được yêu cầu; không tự thêm nhiều hợp đồng/giai đoạn vào bản đầu.
 
 Q5 — Đã chốt một sheet, Công trên/Tăng ca dưới, tổng dùng công thức để tiếp tục sửa trong Excel. Web vẫn hướng C, một bảng lớn và chuyển loại; phối xanh đã được chấp nhận làm cơ sở. Layout Excel chi tiết và tương thích ứng dụng đọc cần review/kiểm khi triển khai, không dùng HTML làm bằng chứng xuất file.
 
@@ -146,7 +146,7 @@ AC13 — Hai phiên cùng đọc một vùng, phiên A sửa một ô rồi phi�
 AC14 — Nhập0 công cho một ô hoặc vùng phải hiển thị/lưu thành F, không cộng công, giữ reminder và không đổi tăng ca. Điền trống vẫn giữ ô đã có dữ liệu, ghi đè chỉ áp lên ô hợp lệ; N/— vẫn bỏ qua. Không chuyển0 tăng ca thành F. Kiểm API/DB/lưu đọc lại: Not run; prototype chỉ kiểm trong bộ nhớ.
 
 
-AC15 — Nhân sự có dữ liệu công hoặc tăng ca ngoài khoảng làm việc được đề nghị (kể cả ở tháng khác). Lưu mốc phải bị từ chối, chỉ rõ ô liên quan; mốc cũ, nội dung/màu và tổng theo mốc cũ giữ nguyên. Thử riêng đổi ngày vào và ngày nghỉ, công số/F và tăng ca; không bỏ qua F chỉ vì không cộng tổng. Request lưu ô đồng thời với sửa mốc không được tạo dữ liệu ngoài khoảng hợp lệ. API/DB/luồng sửa nhân sự: **Not run**, prototype hiện chưa có màn hình sửa mốc.
+AC15 — Nhân sự có dữ liệu công hoặc tăng ca ngoài khoảng làm việc được đề nghị (kể cả ở tháng khác). Lưu mốc phải bị từ chối, chỉ rõ ô liên quan; mốc cũ, nội dung/màu và tổng theo mốc cũ giữ nguyên. Thử riêng đổi ngày vào và ngày nghỉ, công số/F, tăng ca và ô trống có reminder ở mỗi loại bảng; không bỏ qua F hoặc reminder-only chỉ vì không cộng tổng. Request lưu ô hoặc bật reminder đồng thời với sửa mốc không được tạo dữ liệu ngoài khoảng hợp lệ hoặc làm mất lời nhắc. API/DB/luồng sửa nhân sự: **Not run**, prototype hiện chưa có màn hình sửa mốc.
 
 
 AC16 — Nhập công29,5 và30 được nhận;30,5/31 bị từ chối, giữ draft và không ghi bất kỳ ô nào. Áp cùng quy tắc cho nhập một ô/nhập vùng, không tự làm tròn/cắt về30. Không áp30 thành giới hạn tổng tháng hoặc trần tăng ca. Kiểm API/DB/lưu đọc lại: Not run.

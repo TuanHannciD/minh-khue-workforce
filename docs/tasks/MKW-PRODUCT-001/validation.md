@@ -243,3 +243,9 @@ Evidence ignored ui-c-overtime-cap-checks.js và ui-c-overtime-cap-results.json 
 Base `97270e1`, sạch trước sửa. Người dùng duyệt nhận dấu phẩy/chấm, hiển thị dấu phẩy; sai bước/vượt trần báo lỗi, giữ input, không làm tròn. Đồng bộ requirements/design/architecture/INDEX, thêm AC18 và đóng phần Q1 tương ứng. Đọc parser trong handler save (regex [.,], replace dấu phẩy), fmt (hiển thị dấu phẩy), guard lỗi trước cập nhật data và aria-invalid giữ input: đã có trong HTML, không thay hành vi. Đây là đối chiếu source, không phải browser evidence mới; không chạy lại prototype hoặc viết test lặp cho thay đổi Markdown. Các preview/check trước giữ đúng checkpoint, không suy AC18 API/DB đã đạt. Self-review + người dùng, không review độc lập; không source sản phẩm/dependency/child/primary/resource mới. API/DB/compatibility và AC18 sản phẩm Not run. Bước tiếp Q4 reminder-only/Q2 trước spec review/plan.
 
 `npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và staged whitespace trước commit local, không có kiểm chứng hành vi mới.
+
+## Chốt bảo vệ reminder-only khi đổi mốc — 28/10/2026
+
+Base `5fe67fe`, workspace sạch. Người dùng duyệt chặn đổi mốc làm loại ô trống có màu nhắc. Đồng bộ requirements/design/architecture/INDEX; AC15 bổ sung reminder-only ở cả hai bảng và request bật nhắc cạnh tranh. Tự review giữ màu độc lập tổng, không tạo trạng thái duyệt, không tự xóa nhắc hoặc thêm quyền triển khai. Chỉ Markdown; không HTML/source sản phẩm/dependency/child/primary/resource mới, không chạy lại prototype/pilot suite. API/DB/transaction/sửa nhân sự và AC15 sản phẩm Not run; bản mẫu chưa có sửa mốc. Bước tiếp Q2 và cách cập nhật giữa hai tài khoản, rồi review đặc tả trước implementation plan.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và staged whitespace trước commit local; không có kiểm chứng triển khai mới.

@@ -69,4 +69,4 @@ Người dùng chốt xử lý xung đột khi lưu vùng: **dừng cả vùng, 
 
 ## Sửa ngày vào/nghỉ khi đã có dữ liệu — 27/10/2026
 
-Người dùng duyệt: nếu mốc mới khiến ô đã nhập công hoặc tăng ca nằm ngoài thời gian làm việc, **chặn thay đổi mốc và chỉ rõ các ô liên quan để người dùng xử lý trước**. Giữ nguyên mốc cũ và dữ liệu; không tự xóa, ẩn hoặc chuyển dữ liệu để ép khớp mốc mới. Quy tắc áp cho cả ngày vào và ngày kết thúc, không chỉ tháng đang xem. Cách xử lý ô chỉ có màu nhắc nhưng không có nội dung cần thiết kế rõ, không tự coi là dữ liệu có thể bỏ.
+Người dùng duyệt: nếu mốc mới khiến ô đã nhập công hoặc tăng ca nằm ngoài thời gian làm việc, **chặn thay đổi mốc và chỉ rõ các ô liên quan để người dùng xử lý trước**. Giữ nguyên mốc cũ và dữ liệu; không tự xóa, ẩn hoặc chuyển dữ liệu để ép khớp mốc mới. Quy tắc áp cho cả ngày vào và ngày kết thúc, không chỉ tháng đang xem. Người dùng chốt tiếp nối: ô trống chỉ có màu nhắc cũng chặn đổi mốc nếu nằm ngoài khoảng mới, áp cho cả Công và Tăng ca. Chỉ rõ ô để xử lý trước, giữ mốc cũ và lời nhắc; không tự xóa/ẩn nhắc.

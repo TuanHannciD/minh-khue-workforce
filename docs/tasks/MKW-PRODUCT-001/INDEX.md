@@ -119,3 +119,7 @@ Người dùng chốt tối đa24 giờ tăng ca mỗi ô. Base `af14203`, works
 ## Chốt định dạng số và lỗi nhập — 28/10/2026
 
 Người dùng “Agree” nhận cả dấu phẩy/chấm, hiển thị dấu phẩy, lỗi sai bước/vượt trần giữ input, không làm tròn. Base `97270e1`, workspace sạch. Mục tiêu/acceptance: requirements/design/architecture nhất quán, Q1 không còn gọi bước/trần/định dạng là chưa chốt; phân biệt chuẩn đã duyệt với validator sản phẩm chưa triển khai. Scope dossier Markdown; writer inline, self-review + người dùng, risk trung bình tài liệu. Resource file/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bản mẫu đã có parser/formatter/guard tương ứng nên không sửa hành vi hoặc thêm test lặp. Bước tiếp Q4 reminder-only và Q2/auth, hoàn thiện đặc tả trước review/plan.
+
+## Bảo vệ ô trống có màu nhắc khi đổi mốc — 28/10/2026
+
+Người dùng “Agree” chặn đổi ngày vào/nghỉ nếu làm ô trống có reminder nằm ngoài mốc mới, chỉ rõ ô để xử lý trước. Base `5fe67fe`, workspace sạch. Scope requirements/design/architecture/validation/INDEX; acceptance giữ mốc cũ và reminder, kiểm cả Công/Tăng ca và tháng khác, không biến màu thành số hoặc trạng thái duyệt. Writer inline, tự review + người dùng, risk trung bình tài liệu; resource Markdown/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bước tiếp đăng nhập/khôi phục và cập nhật giữa hai tài khoản trước spec review/plan.
