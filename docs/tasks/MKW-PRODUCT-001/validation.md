@@ -221,3 +221,11 @@ Base `ad615f3`, workspace sạch. Người dùng duyệt chặn sửa mốc làm
 Base `148eca4`, workspace sạch. Người dùng đồng ý một sheet gồm hai bảng Công/Tăng ca, tổng dùng công thức để sửa tiếp Excel. Đồng bộ requirements/design/architecture proposal/INDEX; mở rộng AC09 kiểm số/ký hiệu/màu, tổng ban đầu và recalc sau chỉnh file, giữ đơn vị độc lập. Sửa mô tả ExcelJS từ ứng viên thành công cụ mục tiêu đã duyệt tại ADR-003, vẫn chưa pin/cài/kiểm. Self-review tài liệu, không độc lập; không executable/source sản phẩm/dependency/child/primary hoặc resource mới. Không chạy prototype/pilot suite vì chỉ Markdown. Tạo/mở file Excel, formula engine/recalc/compatibility và export từ API/DB: Not run. Quyền thiết kế không là quyền cài/code sản phẩm.
 
 `npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và kiểm staged whitespace trước commit local; chưa có bằng chứng xuất Excel thực. Bước tiếp Q1/Q2/Q4 còn mở trước spec/plan.
+
+## Giới hạn30 công mỗi ô — 28/10/2026
+
+Base `15939f8`, workspace sạch. Người dùng làm rõ trần30 mỗi ô, không phải tổng tháng, rồi yêu cầu tiếp tục. Đồng bộ requirements/design/brief/INDEX và validator/help/error trong HTML. Không áp trần này cho giờ tăng ca. TDD tiếp nối: script ui-c-work-cap-checks.js RED trên bản cũ `over30 must not write 30,5 false`; GREEN native html_preview375/1200 light có16 check mới đạt về biên29,5/30 và từ chối30,5/31, giữ draft/không ghi cho một ô và vùng.28 hồi quy +12 contrast +21 bulk +13 gesture +8 half-step +31 zero cũng đạt ở mỗi viewport, không console error. Tổng129 assertions/viewport; các checks tổng hợp/headless, không trusted touch hay API/DB.
+
+Evidence ignored ui-c-work-cap-checks.js và ui-c-work-cap-results.json trong `.agent-runs/MKW-PRODUCT-001/`, giữ evidence cũ. Writer inline, self-review + người dùng, không review độc lập. Không code sản phẩm/dependency/child/primary/server/DB/tab. API validation/persistence/Excel/actual devices vẫn Not run; AC16 lưu thật chưa Verified. Bước tiếp trần tăng ca và các quyết định còn mở trước review đặc tả/plan.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0; evidence mới đã kiểm ignore. Đã trình HTML gốc đã preview qua native html_render “Minh Khuê · Tối đa 30 công mỗi ô”, frame1476px. Tự review scoped diff và staged whitespace trước commit local.

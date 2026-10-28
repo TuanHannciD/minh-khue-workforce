@@ -234,7 +234,7 @@ Scope override: task BRIEF owns prototype visual record; self-review + user revi
 <div class="bulk-panel" id="bulk-panel" hidden><p class="range-summary" id="range-summary"></p><label for="bulk-mode">Cách áp dụng</label><select id="bulk-mode"><option value="fill">Chỉ điền ô trống</option><option value="replace">Ghi đè cả vùng</option></select><p class="help" id="apply-preview"></p></div>
 <span class="field-label" id="value-label">Chọn số công</span><div class="values" role="group" aria-labelledby="value-label"><button data-value="0.5" aria-pressed="false">0,5</button><button data-value="1" aria-pressed="true">1</button><button data-value="1.5" aria-pressed="false">1,5</button><button data-value="2" aria-pressed="false">2</button><button data-value="2.5" aria-pressed="false">2,5</button></div>
 <div class="secondary"><button id="off" aria-pressed="false">F · Nghỉ</button><button id="clear" aria-pressed="false">Để trống</button><button id="custom-toggle" aria-pressed="false" aria-expanded="false" aria-controls="custom">Tùy chỉnh</button></div>
-<div class="custom" id="custom" hidden><label class="field-label" id="custom-label" for="custom-value">Số công tùy chỉnh</label><input id="custom-value" inputmode="decimal" type="text" aria-describedby="custom-help error"><p class="help" id="custom-help">Trên 2,5 theo bước 0,5. Nhập 0 sẽ chuyển thành F · nghỉ cả ngày.</p></div>
+<div class="custom" id="custom" hidden><label class="field-label" id="custom-label" for="custom-value">Số công tùy chỉnh</label><input id="custom-value" inputmode="decimal" type="text" aria-describedby="custom-help error"><p class="help" id="custom-help">Trên 2,5 đến tối đa 30 công, bước 0,5. Nhập 0 chuyển thành F · nghỉ cả ngày.</p></div>
 <p class="error" id="error" role="alert"></p>
 <label class="reminder" id="reminder-field"><input type="checkbox" id="reminder"><span>Nhắc kiểm tra ô này<small>Tô xanh để nhớ hỏi lại.<br>Giá trị vẫn được cộng vào tổng.</small></span></label>
 <p id="bulk-reminder-note" hidden>Giữ màu nhắc riêng của từng ô. Ô N/— được bỏ qua.</p>
@@ -243,7 +243,7 @@ Scope override: task BRIEF owns prototype visual record; self-review + user revi
 </section></div>
 <footer class="footer"><span>Chạm ô để nhập · Cuộn ngang để xem các ngày</span><button id="reset">Đặt lại dữ liệu mẫu</button></footer>
 </div></main>
-<details class="review-details"><summary>Phạm vi bản mẫu và điểm cần review</summary><p>Hướng C: một bảng lớn, chuyển Công/Tăng ca. Hướng thương hiệu xanh lá: đầu trang và thao tác chính dùng xanh rừng trầm, bảng trắng và vùng nhập xám nhạt. Ô nhắc kiểm tra dùng xanh lá sáng kèm dấu nhận biết; màu nhắc không đổi tổng. Mã màu và cách phân bổ cụ thể đang chờ review.</p><p>HTML minh họa chưa dùng shadcn/Radix thực tế, không có đăng nhập, API, lưu bền vững hay xuất Excel. Lỗi mạng/xung đột hai tài khoản và pinch zoom trên iPhone/Android thật chưa kiểm. Mở rộng chỉ tăng vùng bảng trong trang.</p><p>Thử kéo chọn vùng, chọn giá trị rồi áp dụng theo hai chế độ. Trên điện thoại bấm Chọn nhiều và chạm hai đầu; vùng chọn chỉ gồm nhân sự đang hiển thị. Màu nhắc từng ô được giữ khi nhập vùng. Công tùy chỉnh lớn hơn 2,5 theo bước 0,5; giới hạn và contract lưu thật còn cần thiết kế.</p></details>
+<details class="review-details"><summary>Phạm vi bản mẫu và điểm cần review</summary><p>Hướng C: một bảng lớn, chuyển Công/Tăng ca. Hướng thương hiệu xanh lá: đầu trang và thao tác chính dùng xanh rừng trầm, bảng trắng và vùng nhập xám nhạt. Ô nhắc kiểm tra dùng xanh lá sáng kèm dấu nhận biết; màu nhắc không đổi tổng. Mã màu và cách phân bổ cụ thể đang chờ review.</p><p>HTML minh họa chưa dùng shadcn/Radix thực tế, không có đăng nhập, API, lưu bền vững hay xuất Excel. Lỗi mạng/xung đột hai tài khoản và pinch zoom trên iPhone/Android thật chưa kiểm. Mở rộng chỉ tăng vùng bảng trong trang.</p><p>Thử kéo chọn vùng, chọn giá trị rồi áp dụng theo hai chế độ. Trên điện thoại bấm Chọn nhiều và chạm hai đầu; vùng chọn chỉ gồm nhân sự đang hiển thị. Màu nhắc từng ô được giữ khi nhập vùng. Công mỗi ô tối đa 30, bước 0,5; nhập 0 thành F. Contract lưu thật chưa triển khai.</p></details>
 <script>
 'use strict';
 // File map: model/selection → table → editor/draft → pointer/keyboard → apply.
@@ -341,7 +341,7 @@ function renderEditor(){
  $('off').setAttribute('aria-pressed',String(!custom&&draft.value==='F'));$('clear').setAttribute('aria-pressed',String(!custom&&draft.value===''));
  $('custom-toggle').setAttribute('aria-pressed',String(custom));$('custom-toggle').setAttribute('aria-expanded',String(custom));$('custom').hidden=!custom;
  $('custom-label').textContent=kind==='work'?'Số công tùy chỉnh':'Số giờ lớn hơn 2,5';
- $('custom-help').textContent=kind==='work'?'Trên 2,5 theo bước 0,5. Nhập 0 sẽ chuyển thành F · nghỉ cả ngày.':'Nhập theo bước 0,5 giờ. Ví dụ: 3,5 giờ.';markDraft();
+ $('custom-help').textContent=kind==='work'?'Trên 2,5 đến tối đa 30 công, bước 0,5. Nhập 0 chuyển thành F · nghỉ cả ngày.':'Nhập theo bước 0,5 giờ. Ví dụ: 3,5 giờ.';markDraft();
 }
 function openEditor(){
  $('screen').classList.remove('full');syncExpand();
@@ -431,7 +431,7 @@ $('custom-value').oninput=markDraft;$('reminder').onchange=()=>{draft.reminder=$
 $('save').onclick=()=>{
  if($('save').disabled)return;
  if(custom){const raw=$('custom-value').value.trim(),n=/^\d+(?:[.,]\d+)?$/.test(raw)?Number(raw.replace(',','.')):NaN;
-  if(!Number.isFinite(n)||(n<=2.5&&!(kind==='work'&&n===0))||!Number.isInteger(n*2)){$('error').textContent=kind==='work'?'Nhập 0 để chuyển thành F hoặc số công trên 2,5 theo bước 0,5.':'Nhập số giờ lớn hơn 2,5 theo bước 0,5, ví dụ 3,5.';$('custom-value').setAttribute('aria-invalid','true');$('custom-value').focus();return;}draft.value=kind==='work'&&n===0?'F':n;
+  if(!Number.isFinite(n)||(kind==='work'&&n>30)||(n<=2.5&&!(kind==='work'&&n===0))||!Number.isInteger(n*2)){$('error').textContent=kind==='work'?'Nhập 0 để chuyển thành F hoặc số công trên 2,5 đến 30, bước 0,5.':'Nhập số giờ lớn hơn 2,5 theo bước 0,5, ví dụ 3,5.';$('custom-value').setAttribute('aria-invalid','true');$('custom-value').focus();return;}draft.value=kind==='work'&&n===0?'F':n;
  }
  if(range){const cells=targets(),skip=rangeCells().filter(c=>!active(c.id,c.day)).length;for(const c of cells)data[kind][c.id][c.day-1]={...data[kind][c.id][c.day-1],value:draft.value};loadDraft();renderTable();$('status').textContent='Đã áp dụng thử '+cells.length+' ô; bỏ qua '+skip+' ô N/—. Chỉ lưu trong trang.';}
  else if(active(selected.id,selected.day)){data[kind][selected.id][selected.day-1]={...draft};loadDraft();renderTable();$('status').textContent='Đã cập nhật bản mẫu. Dữ liệu chỉ giữ trong trang này.';}

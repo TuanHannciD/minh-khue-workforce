@@ -24,7 +24,7 @@ Mỗi ô có hai thông tin độc lập về mặt nghiệp vụ: **nội dung*
 
 ### Công
 
-- Số công có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; `0,5` tương ứng một buổi. Với số lớn hơn `2,5`, chọn **Tùy chỉnh** để tự nhập. Không dùng `2,5` làm trần; nhiều công trong ngày vẫn theo chỉ đạo của sếp. Số công tùy chỉnh chỉ theo bước `0,5`; giới hạn trên chưa chốt.
+- Số công có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; `0,5` tương ứng một buổi. Với số lớn hơn `2,5`, chọn **Tùy chỉnh** để tự nhập. Không dùng `2,5` làm trần; nhiều công trong ngày vẫn theo chỉ đạo của sếp. Số công tùy chỉnh chỉ theo bước `0,5`; tối đa **30 công mỗi ô**, không phải tổng tháng.
 - `F` nghĩa nghỉ cả ngày, không cộng công. Dùng `F` làm cách ghi thống nhất thay cho `0,0` cũ; nhập trực tiếp số0 công tự chuyển thành `F`, cả một ô và nhập vùng. Giữ màu nhắc riêng, không cộng công.
 - `N` chỉ ngày trước khi bắt đầu làm, không cộng công; không dùng để chỉ nghỉ trong thời gian làm việc.
 - `—` chỉ ngày sau khi kết thúc làm việc, không cộng công.
@@ -40,7 +40,7 @@ Ngày trước khi vào làm và sau khi kết thúc tuân mốc nhân sự, kh�
 
 Tổng chỉ cộng giá trị số của đúng loại dữ liệu. Không trừ ô màu xanh khỏi tổng, không tách thêm “tổng đã xác nhận”. Ví dụ giả trên bốn ngày:1 (xanh),0,5,`F` (xanh),trống cho tổng1,5 công; màu giữ nguyên ý nghĩa nhắc người dùng. `N` và `—` không tạo công hoặc giờ tăng ca.
 
-Lựa chọn nhanh của công/tăng ca và bước tăng ca `0,5` giờ đã được chốt; số công tùy chỉnh cũng theo bước `0,5`; giới hạn và xử lý số không hợp lệ còn phải chốt trước validation API và xuất số; không lấy giới hạn ngẫu nhiên của UI làm nghiệp vụ. Giao diện cần thể hiện dấu phẩy thập phân quen thuộc; cách chấp nhận dấu chấm và độ chính xác là quyết định ở mục10.
+Lựa chọn nhanh của công/tăng ca và bước tăng ca `0,5` giờ đã được chốt; số công tùy chỉnh cũng theo bước `0,5`; trần công30 mỗi ô đã chốt, trần giờ tăng ca và xử lý số không hợp lệ còn phải chốt trước validation API và xuất số; không lấy giới hạn ngẫu nhiên của UI làm nghiệp vụ. Giao diện cần thể hiện dấu phẩy thập phân quen thuộc; cách chấp nhận dấu chấm và độ chính xác là quyết định ở mục10.
 
 ## 4. Nhân sự và mốc làm việc
 
@@ -119,7 +119,7 @@ Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot
 
 ## 10. Các quyết định còn cần chốt
 
-Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Đã chốt số công tùy chỉnh cũng chỉ bước `0,5`. Còn cần chốt giới hạn, cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Đã chốt nhập số0 công tự chuẩn hóa thành `F`. Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
+Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Đã chốt số công tùy chỉnh cũng chỉ bước `0,5`. Đã chốt trần30 công mỗi ô, không giới hạn tổng tháng theo số30. Còn cần chốt trần giờ tăng ca, cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Đã chốt nhập số0 công tự chuẩn hóa thành `F`. Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
 
 Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập và sửa. Phương thức đăng nhập/khôi phục và nơi vận hành còn cần chốt theo nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
 
@@ -147,3 +147,6 @@ AC14 — Nhập0 công cho một ô hoặc vùng phải hiển thị/lưu thành
 
 
 AC15 — Nhân sự có dữ liệu công hoặc tăng ca ngoài khoảng làm việc được đề nghị (kể cả ở tháng khác). Lưu mốc phải bị từ chối, chỉ rõ ô liên quan; mốc cũ, nội dung/màu và tổng theo mốc cũ giữ nguyên. Thử riêng đổi ngày vào và ngày nghỉ, công số/F và tăng ca; không bỏ qua F chỉ vì không cộng tổng. Request lưu ô đồng thời với sửa mốc không được tạo dữ liệu ngoài khoảng hợp lệ. API/DB/luồng sửa nhân sự: **Not run**, prototype hiện chưa có màn hình sửa mốc.
+
+
+AC16 — Nhập công29,5 và30 được nhận;30,5/31 bị từ chối, giữ draft và không ghi bất kỳ ô nào. Áp cùng quy tắc cho nhập một ô/nhập vùng, không tự làm tròn/cắt về30. Không áp30 thành giới hạn tổng tháng hoặc trần tăng ca. Kiểm API/DB/lưu đọc lại: Not run.

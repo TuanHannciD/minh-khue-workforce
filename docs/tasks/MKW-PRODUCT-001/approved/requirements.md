@@ -18,7 +18,7 @@ Nguồn: hội thoại trực tiếp tiếp nối MKW-AGENT-002, ghi nhận ngà
 
 - `0,0` và `F` từng cùng nghĩa nghỉ cả ngày; người dùng chuyển sang quy chuẩn `F` và chốt nhập số0 công tự chuẩn hóa thành `F`, áp dụng cả một ô và nhập vùng. Không áp quy tắc này cho tăng ca. Không tự đưa import dữ liệu Excel cũ vào scope chỉ vì có giá trị cũ.
 - `0,5` là làm một buổi. Có thể nhận nhiều hơn một công trong một ngày theo chỉ đạo của sếp.
-- Số công có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; nếu lớn hơn `2,5` thì chọn **Tùy chỉnh** để tự nhập. `2,5` không phải trần số công. Số công tùy chỉnh cũng chỉ theo bước `0,5` (người dùng xác nhận27/10/2026); giới hạn trên chưa chốt, không tự làm tròn giá trị ngoài bước.
+- Số công có lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; nếu lớn hơn `2,5` thì chọn **Tùy chỉnh** để tự nhập. `2,5` không phải trần số công. Số công tùy chỉnh cũng chỉ theo bước `0,5` (người dùng xác nhận27/10/2026); tối đa **30 công mỗi ô** (xác nhận28/10/2026), không tự làm tròn giá trị ngoài bước hoặc vượt giới hạn. Đây không phải trần tổng tháng và không áp thành trần giờ tăng ca.
 - Tăng ca tính theo giờ, có bước nửa giờ (`0,5` giờ), không cần bước15 phút. Chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5` giờ; lớn hơn `2,5` giờ thì tự nhập qua **Tùy chỉnh**, vẫn theo bước `0,5` giờ.
 - Ngày không tăng ca để ô tăng ca trống, không tự điền `0` hoặc `F`; ô trống không cộng giờ vào tổng.
 - Số công và số giờ tăng ca độc lập. Một ngày có thể vừa nhiều công vừa có giờ tăng ca; không quy đổi/gộp hai loại.

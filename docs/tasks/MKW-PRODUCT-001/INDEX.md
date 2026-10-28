@@ -107,3 +107,7 @@ Người dùng “Approve” đề xuất chặn đổi ngày vào/nghỉ khi l�
 ## Chốt bố cục và công thức Excel — 27/10/2026
 
 Người dùng đồng ý một sheet gồm bảng Công/Tăng ca, tổng dùng công thức để tiếp tục sửa Excel. Base `148eca4`, workspace sạch. Mục tiêu/acceptance: đồng bộ yêu cầu, đặc tả, kiến trúc và tiêu chí kiểm file; tổng công/giờ độc lập, giá trị/màu/ký hiệu giữ đúng. Writer inline, self-review + người dùng; risk trung bình tài liệu. Scope dossier Markdown; resource file/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Không tạo file Excel hoặc claim ExcelJS đã cài/kiểm. Bước tiếp phần còn mở Q1/Q2/Q4 và review đặc tả trước plan.
+
+## Giới hạn30 công mỗi ô — 28/10/2026
+
+Người dùng làm rõ tối đa30 công mỗi ô, không phải tổng tháng; tiếp tục yêu cầu thực hiện. Base `15939f8`, workspace sạch. Scope requirements/design/brief/HTML/validation; acceptance30 và29,5 hợp lệ,30,5/31 bị chặn không ghi hoặc làm tròn, giữ draft cho cả một ô/vùng; không suy trần cho tăng ca. Writer inline, tự review + người dùng, risk thấp prototype. Resource file/check local/native HTML preview-render, evidence ignored; không child/dependency/server/DB/tab/primary/source sản phẩm. Bước tiếp quyết định tăng ca và các phần còn mở trước spec/plan.
