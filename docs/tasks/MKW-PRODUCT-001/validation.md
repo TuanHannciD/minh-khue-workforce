@@ -289,3 +289,13 @@ Giới hạn Not run: trusted mouse/actual touch/pinch zoom trên thiết bị, 
 Đã xuất bản bằng native html_render đúng source HTML hiện hành, không chèn test: “Minh Khuê · Chọn ô rời và kéo điền nhanh”, frame cao1555; attachment `b1e8d7d6-44cd-4a40-819f-58b7c1a7b236-febd7d06-748a-41e7-83b8-793d0e755bb7-html`. Render là bản mẫu để review, không mở rộng phạm vi kiểm chứng ở trên. Tự review scoped diff và kiểm lại evidence đã lưu; không render hoặc chạy lại hành vi khi chỉ bổ sung ghi nhận tài liệu.
 
 Kiểm chốt tại worktree agent-bootstrap: `npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Staged whitespace được kiểm trước commit local. Giữ nguyên evidence ignored và công việc ngoài scope; bản viết vẫn chờ review trước implementation plan.
+
+## Chẩn đoán kéo trên điện thoại — 28/10/2026
+
+Người dùng báo kéo trên điện thoại không hoạt động. Base `6887e26`, workspace sạch; scope chẩn đoán bản mẫu hiện hành, writer inline, tự review; không thay thiết kế tương tác hoặc triển khai sản phẩm. Skill systematic-debugging: truy nguyên CSS/handler trước khi sửa. `preview_status` trả available=false, chưa có tab; không mở tab mới vì scope tài nguyên hiện hành chỉ native HTML preview/render, không kết luận công cụ browser không khả dụng.
+
+Nguyên nhân xác định trong source: handler pointerdown bỏ qua mọi pointerType khác mouse; CSS @media(pointer:coarse) ẩn fill-handle. Đây là giới hạn triển khai theo brief trước (cảm ứng dùng chạm thêm/bỏ và hai đầu), không phải trục trặc lưu dữ liệu. Hướng dẫn mặc định “Kéo chọn vùng” chưa phân biệt thiết bị nên có thể gây kỳ vọng sai. Không coi pass viewport375 của checkpoint trước là hỗ trợ kéo cảm ứng.
+
+Native html_preview width375 với source hiện hành và script chẩn đoán: touch pointerdown không khởi tạo gesture, số ô vùng0, dữ liệu giữ nguyên. Chạm hai ô rời tạo tập2 ô; Điền từ ô này rồi chọn endpoint tạo snapshot nguồn1, kết thúc chọn và có4 đích theo chế độ điền trống; cả hai chưa ghi trước Áp dụng. Console không có lỗi. Runtime preview có coarsePointer=false, vì vậy phần ẩn handle được đối chiếu source CSS, không giả đã mô phỏng thiết bị cảm ứng thật. Evidence ignored: `.agent-runs/MKW-PRODUCT-001/ui-c-touch-diagnosis.js` và `ui-c-touch-diagnosis.json`.
+
+Trusted touch/iPhone/Android thật: Not run. Chưa sửa hành vi; cần xác định người dùng đang kéo chọn vùng, kéo fill hoặc cả hai trước khi chốt thiết kế kéo cảm ứng và quy tắc phân biệt kéo với cuộn. Các cách chạm hiện hành vẫn giữ nguyên. Kiểm chốt: `npm run check:docs` và `git diff --check`, kết quả ghi trong commit tương ứng.
