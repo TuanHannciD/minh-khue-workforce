@@ -1,6 +1,6 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
-Ngày lập: 25/10/2026. Trạng thái: **Đặc tả/kế hoạch đã duyệt; Task1 review kỹ thuật đạt; Task2 implementation và kiểm chứng bootstrap/tooling đạt, chờ main review code độc lập**.
+Ngày lập: 25/10/2026. Trạng thái: **Đặc tả/kế hoạch đã duyệt; Task1 review kỹ thuật đạt; Task2 bootstrap/tooling và review độc lập đạt; tiếp tục Task3 theo kế hoạch**.
 
 ## Task2 — nền chạy và enforcement, 28/10/2026
 
