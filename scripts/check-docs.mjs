@@ -4,7 +4,7 @@ import { resolve, dirname, join } from 'node:path';
 async function collect(dir) {
   const paths = [];
   for (const item of await readdir(dir, { withFileTypes: true })) {
-    if (['.git', '.agents', '.worktrees', 'node_modules', '.agent-runs', '.superpowers'].includes(item.name)) continue;
+    if (['.git', '.agents', '.worktrees', 'node_modules', '.pnpm-store', 'dist', 'coverage', '.agent-runs', '.superpowers'].includes(item.name)) continue;
     const path = join(dir, item.name);
     if (item.isDirectory()) paths.push(...await collect(path));
     else if (path.endsWith('.md')) paths.push(path);

@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+
+engineStrict: true
+strictPeerDependencies: true
+autoInstallPeers: false
+saveExact: true
+storeDir: .pnpm-store
+strictDepBuilds: true
+allowBuilds:
+  "@nestjs/core": true
+  esbuild: true
+  # Telemetry-only postinstall; not a native/runtime build (reviewed report.js).
+  "@scarf/scarf": false

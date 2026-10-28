@@ -1,6 +1,31 @@
 # Validation — MKW-PRODUCT-001
 
-Ngày 25/10/2026. Scope hiện tại chỉ tài liệu, không chứng nhận ứng dụng.
+Ngày lập25/10/2026. Scope hiện hành Task2 bootstrap/tooling ở mục đầu; các checkpoint tài liệu bên dưới giữ lịch sử.
+
+## Hiện hành — Task2 bootstrap/tooling, 28/10/2026
+
+Base `da340cc8bc1f5e574aa177d8d3b9b63dcbd273cb`, branch `agent/mkw-agent-002`, linked worktree `agent-bootstrap` sạch trước sửa. Một implementation sub-agent, không child/reviewer tự dispatch. Quyền mới cho phép runtime/dependency/sandbox local và quyết định thường lệ, supersede chờ G1/inline cũ; không đổi nghiệp vụ/stack hoặc quyền primary/push/deploy/live/global. File zone/acceptance/risk/resource ghi trước code trong ignored report `.superpowers/sdd/implementation-plan/task-2-implementation.md`; main giữ progress/review route.
+
+Evidence root: `.agent-runs/MKW-PRODUCT-001/task2-toolchain/`. Product chạy trên portable Node24.22.1 + native pnpm12.15.0, kiểm checksum/integrity HTTPS upstream và executable identity; pilot giữ executable Node22.12.0 gốc. [Manifest](technical/toolchain-manifest.md) phân biệt package đã cài và pin tương lai. Không dependency auth/employee/attendance hoặc schema sản phẩm.
+
+- `tooling-red.log`:2 pass/11 fail do no-op enforcement; `lint-red.log`:restricted import assertion fail. `cache-red.log` và `transport-red.log` ghi regression cache/transport fail trước sửa. Đây là behavioral RED, không tính lỗi download/install là RED.
+- `tooling-green.log`:14/14 fixture boundary/public alias/deep/cross-app/shared/cycle/unresolved/ESLint/drift đạt. `strict-fixtures.log`:compiler consumer generated valid pass, invalid wire/implicit-any trả TS2322/TS7006. Full product run cuối bổ sung fixture này.
+- `product-check.log`:exit0 lint/format/strict type/build web và API riêng, tooling14/14, web2/2, API2/2 HTTP thật, graph/contract regenerated drift. Code final còn được check lại sau self-review/docs.
+- `frozen-install.log` + `frozen-fresh.log`:exit0, lock hash không đổi; fresh node_modules offline từ store project-local. `install.log` ban đầu Failed do telemetry script chưa review; `install-approved.log` exit0 sau deny riêng Scarf, strict engine/peer/build checks giữ nguyên. Audit0 advisory ở registry snapshot; license tree trong `licenses.json`, không thay security/legal review.
+- `pilot-check-first22.log`:exit0/10 tests. Baseline fail vì3 ignored Python cache được giữ nguyên; fixture checker cache RED→GREEN, vẫn chặn extra source. `pilot-e2e-first22.log`:Failed vì browser executable chưa có trong pnpm path mới, đang khắc phục bằng cài Chromium project-local.
+- `browser-smoke.json`:T3 incognito tab task-owned, React shell tại55772, transport gọi Nest/Express health tại55773, response status ok. Owner record `browser-owner.json` hiện released, tab đã đóng. Đây là web→API bootstrap, chưa DB/business flow.
+- `staged-e2e.log`/`staged-benchmark.log`:Not run/exit2; `staged-integration.log`:Not run/inner exit2, pnpm filter trả1. Các script tồn tại và fail rõ prerequisite, không no-tests pass. Auth/DB permissions/concurrency, gesture, product E2E/benchmark/Excel/thiết bị thuộc task sau, chưa được chứng minh.
+
+Kết quả chốt Task2 (supersede các checkpoint “đang” ở các bullet trên):
+
+- `product-check-final.log`:exit0, tooling17/17 (thêm custom cross-app type alias và Node builtin RED→GREEN), web2/2, API2/2, lint/format/strict/build/cycle/drift. `pilot-check-final22.log`:exit0/10 tests; `pilot-e2e-final22.log`:exit0/2 tests desktop/mobile dưới22.12.0, real SQLite/UI/reload/retry không trùng. Browser prerequisite đã gỡ; không đổi pilot source/test suite nghiệp vụ.
+- `spike-install.log`:Failed required peers từ Prisma Studio; `studio-peer-metadata.json` xác nhận peers, `spike-install-peers.log`:exit0 sau thêm React/DOM19.3.1 dev sandbox. Native Prisma engine postinstall chạy thật. `spike-generate.log`, `spike-type-build.log`, `spike-migrate-clean.log`, `spike-runtime.log`:exit0, generated client7.10.1, TS5.9 strict NodeNext/ESM, migration DB trống, Nest health200 trong cùng process, Prisma write/new-client read và pg query độc lập PASS.
+- PostgreSQL17.11 từ EDB portable, local archive fingerprint/source/size/unsigned status tại `postgres-provenance.json`; checksum sidecar403 nên không claim đối chiếu publisher checksum. Identity ở `postgres-identity.log`/`spike-runtime.log`:cluster/data directory task-owned, role mkw_task2, loopback56449, DB v2. Lần đầu SQL lẫn CLI banner do combined redirect (`spike-migrate.log`:Failed42601); giữ database đầu, dùng `migrate diff --output` và database v2 mới, không reset. PG start harness cũ giữ pipe đến shutdown và lỗi ghép argument port; lệnh tiếp dùng argument tách và identity thật, không bỏ qua lỗi để báo PASS.
+- `postgres-stop.log` và `postgres-owner.json`:released bằng pg_ctl đúng data directory/postmaster PID; giữ data cả hai DB và evidence. T3 tab/Node web/API sandbox đã release. Không service/global config/runtime thay thế, không dữ liệu nhân sự hoặc hệ thống thật.
+- Đã giữ npm lock baseline nguyên SHA qua frozen/product/pilot checks và tự review transition, sao lưu byte-for-byte `package-lock.pilot-baseline.json` trong ignored evidence trước bỏ active npm lock; baseline còn ở Git base. Root `pnpm-lock.yaml` active duy nhất, pilot exact direct deps/scripts và hành vi giữ nguyên. Independent review **code/lock transition chưa hoàn tất**, main xem final snapshot.
+- Self-review phát hiện Git Windows checkout CRLF làm generated `.d.ts` drift dù source không đổi: `checkout-eol-red.log` fail1 bằng `git -c core.autocrlf=true checkout-index` thật vào thư mục task-owned. Thêm LF attributes cho TS/TSX/YAML và app env examples; cùng checkout/contract compare đạt0 tại `checkout-eol-green.log`. `generation-determinism.log` so hash trước/sau hai lượt generate giống nhau. `frozen-final.log` đạt sau bỏ npm active lock, hash lock giữ nguyên.
+
+Full report/rulings: `.superpowers/sdd/implementation-plan/task-2-implementation.md`. Gate code review Task2 **Pending — main thực hiện sau implementation report**, không tự coi self-review/full check là review độc lập. Các integration nghiệp vụ/gesture/Excel/benchmark/task10 tiếp tục Not run, không Task3 code trong snapshot này.
 
 ## Hiện hành — G1 re-review R2 ngày28/10/2026
 

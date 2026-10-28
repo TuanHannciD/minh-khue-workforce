@@ -114,11 +114,13 @@ Cập nhật sau chỉ dẫn tiếp tục tự chủ: thiết kế và independe
 
 **Interfaces:** Consumes G1 exact pins/engine/command map. Produces runnable web/API riêng, transport origin cấu hình, scripts được định nghĩa ở bảng lệnh dưới; chưa có dữ liệu nhân sự.
 
-- [ ] Viết fixture test boundary `rejects_cross_app_deep_feature_and_cycle`: FE→API/Prisma, shared→feature, feature→nội bộ feature khác, cycle bị chặn; public import hợp lệ/alias đúng đạt. Thêm fixture drift cho OpenAPI/generated type cũ.
-- [ ] Chạy test tooling, xác nhận RED do enforcement chưa có; ghi nguyên nhân, không coi lỗi cài môi trường là RED hành vi.
-- [ ] Cài đúng pins đã duyệt trong scope được cấp, tạo tối thiểu hai app và scripts; tách pnpm product từ npm/pilot trong đường chuyển đã chốt. Cấu hình strict/lint/cycle/restricted imports, generator pipeline và origin. Không tạo feature rỗng hàng loạt.
-- [ ] Chạy tooling tests GREEN; chạy từng app typecheck/build riêng, generator lặp cho cùng output và fixture drift FAIL. Chạy lại `npm run check`, `npm run test:e2e` của pilot theo LOCAL_RUN nếu root/tooling ảnh hưởng, ghi runtime và kết quả thật. pnpm frozen install phải tái lập được.
+- [x] Viết fixture test boundary `rejects_cross_app_deep_feature_and_cycle`: FE→API/Prisma, shared→feature, feature→nội bộ feature khác, cycle bị chặn; public import hợp lệ/alias đúng đạt. Thêm fixture drift cho OpenAPI/generated type cũ.
+- [x] Chạy test tooling, xác nhận RED do enforcement chưa có; ghi nguyên nhân, không coi lỗi cài môi trường là RED hành vi.
+- [x] Cài đúng pins đã duyệt trong scope được cấp, tạo tối thiểu hai app và scripts; tách pnpm product từ npm/pilot trong đường chuyển đã chốt. Cấu hình strict/lint/cycle/restricted imports, generator pipeline và origin. Không tạo feature rỗng hàng loạt.
+- [x] Chạy tooling tests GREEN; chạy từng app typecheck/build riêng, generator lặp cho cùng output và fixture drift FAIL. Chạy lại `npm run check`, `npm run test:e2e` của pilot theo LOCAL_RUN nếu root/tooling ảnh hưởng, ghi runtime và kết quả thật. pnpm frozen install phải tái lập được.
 - [ ] Review độc lập tooling snapshot; commit scoped `build: establish isolated product toolchain`, cập nhật command map đã chạy. Nếu thiếu quyền reviewer ghi gate Blocked, không chuyển kết quả build thành hoàn tất review.
+
+Task2 implementation28/10: base `da340cc8bc1f5e574aa177d8d3b9b63dcbd273cb`, một delegated writer, local commit handoff; independent review **Pending/main next**, chưa đánh dấu toàn Task2 gate complete. Product check đạt17 tooling +2 web +2 API bootstrap tests; strict/build độc lập, fresh frozen install và deterministic generation đạt. Pilot22 check10/10/E2E2/2 đạt. PostgreSQL17.11/Prisma7.10.1 compatibility spike đạt trên sandbox riêng/DB trống và readback độc lập, cluster đã release; không business code. Chi tiết/rulings/limits tại [manifest](toolchain-manifest.md), [validation](../validation.md), ignored `.superpowers/sdd/implementation-plan/task-2-implementation.md`. Không chuyển sang Task3 trước handoff/review do main sở hữu.
 
 ### Task 3: Đăng nhập, phiên và reset qua vận hành
 
@@ -231,17 +233,17 @@ Cập nhật sau chỉ dẫn tiếp tục tự chủ: thiết kế và independe
 
 ## Lệnh kiểm dự kiến và ý nghĩa
 
-Hiện **chỉ** `npm run check:docs` và `git diff --check` được dùng cho lượt viết plan. Các lệnh `pnpm` dưới đây là hợp đồng script để task2 tạo/kiểm, **chưa tồn tại hoặc chạy**, không phải bằng chứng đạt.
+Checkpoint viết plan chỉ có docs/whitespace. Task2 nay tạo/kiểm các lệnh dưới đây; trạng thái đúng scope ở cột cuối, không thay acceptance task sau. Runtime/engine/commands cụ thể theo [LOCAL_RUN](../../../agent/LOCAL_RUN.md).
 
-| Lệnh tương lai | Nội dung/điều kiện đạt |
-| --- | --- |
-| `pnpm install --frozen-lockfile` | Cài tái lập pins G1 trong engine đã chọn, không đổi lockfile |
-| `pnpm run product:check` | lint + strict typecheck + unit/component + boundary/contract drift + build từng app, exit0 |
-| `pnpm --filter @mkw/api test:integration` | Supertest/PostgreSQL run-owned, schema/permission/concurrency assertions đều đạt |
-| `pnpm --filter @mkw/web test --run` | Vitest/Testing Library/gesture clock, assertions GREEN |
-| `pnpm run product:contract:check` | Sinh snapshot/types vào artifact tạm, diff với tracked output không drift |
-| `pnpm run product:test:e2e` | Playwright product config start/stop đúng resource, web→API→PostgreSQL readback, exit0 |
-| `pnpm run product:benchmark` | Script benchmark in cấu hình/dataset/kết quả so ngân sách G1; đạt theo số đo, không theo exit đơn lẻ |
+| Lệnh | Nội dung/điều kiện đạt | Trạng thái Task2 |
+| --- | --- | --- |
+| `pnpm install --frozen-lockfile` | Cài tái lập pins G1 trong engine đã chọn, không đổi lockfile | Verified cả fresh node_modules offline |
+| `pnpm run product:check` | lint + strict typecheck + unit/component + boundary/contract drift + build từng app, exit0 | Verified bootstrap/tooling17 +web2 +API2; component nghiệp vụ chưa có |
+| `pnpm --filter @mkw/api test:integration` | Supertest/PostgreSQL run-owned, schema/permission/concurrency assertions đều đạt | Not run; staged script exit2, wrapper1; cần Task3–5 |
+| `pnpm --filter @mkw/web test --run` | Vitest/Testing Library/gesture clock, assertions GREEN | Verified2 transport HTTP/config; DOM/gesture Not run đến Task6–8 |
+| `pnpm run product:contract:check` | Sinh snapshot/types vào artifact tạm, diff với tracked output không drift | Verified3.0.3 +generated web types, stale fixture bị chặn |
+| `pnpm run product:test:e2e` | Playwright product config start/stop đúng resource, web→API→PostgreSQL readback, exit0 | Not run; staged exit2, cần Task10 |
+| `pnpm run product:benchmark` | Script benchmark in cấu hình/dataset/kết quả so ngân sách G1; đạt theo số đo, không theo exit đơn lẻ | Not run; staged exit2, cần dữ liệu/UI Task10 |
 
 Scripts start/stop/reset-fixture và env chính xác phải ghi từ task2 sau khi chạy thật; không sao chép port/lệnh pilot sang sản phẩm. npm pilot giữ hướng dẫn LOCAL_RUN và chứng minh hồi quy nếu root bị thay đổi. Mỗi RED ghi assertion fail mong đợi; lỗi prerequisite giữ Failed/Blocked môi trường, không gọi là RED nghiệp vụ.
 

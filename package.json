@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.12 <23"
+    "node": ">=22.12 <23 || >=24.22.1 <25"
   },
   "scripts": {
     "check:skills": "node scripts/check-skills.mjs",
@@ -13,8 +13,21 @@
     "test": "node --experimental-sqlite --test --test-concurrency=1 tests/*.test.mjs",
     "test:e2e": "node scripts/e2e.mjs",
     "pilot": "node --experimental-sqlite pilot/serve.mjs",
-    "check": "npm run check:skills && npm run check:docs && npm run lint && npm test"
+    "check": "npm run check:skills && npm run check:docs && npm run lint && npm test",
+    "product:lint": "eslint apps scripts/product tests/product-tooling",
+    "product:format:check": "prettier --check apps scripts/product tests/product-tooling contracts tsconfig.base.json pnpm-workspace.yaml",
+    "product:typecheck": "pnpm --filter @mkw/web typecheck && pnpm --filter @mkw/api typecheck",
+    "product:build": "pnpm --filter @mkw/web build && pnpm --filter @mkw/api build",
+    "product:test:tooling": "node --test tests/product-tooling/*.test.mjs",
+    "product:boundaries": "node scripts/product/check-boundaries.mjs",
+    "product:contract:generate": "pnpm --filter @mkw/api build && node scripts/product/generate-contract.mjs",
+    "product:contract:check": "pnpm --filter @mkw/api build && node scripts/product/check-contract.mjs",
+    "product:test": "pnpm run product:test:tooling && pnpm --filter @mkw/web test --run && pnpm --filter @mkw/api test",
+    "product:check": "pnpm run product:lint && pnpm run product:format:check && pnpm run product:typecheck && pnpm run product:build && pnpm run product:test && pnpm run product:boundaries && pnpm run product:contract:check",
+    "product:test:e2e": "node scripts/product/staged-gate.mjs product-e2e Task10",
+    "product:benchmark": "node scripts/product/staged-gate.mjs product-benchmark Task10"
   },
+  "packageManager": "pnpm@12.15.0",
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "@playwright/test": "1.64.1",
@@ -23,6 +36,13 @@
     "domutils": "4.0.2",
     "eslint": "9.39.5",
     "globals": "16.5.0",
-    "htmlparser2": "12.0.0"
+    "htmlparser2": "12.0.0",
+    "@types/node": "24.19.2",
+    "dependency-cruiser": "18.7.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1"
   }
 }

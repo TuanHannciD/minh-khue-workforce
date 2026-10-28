@@ -1,6 +1,12 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
-Ngày lập: 25/10/2026. Trạng thái: **Đặc tả đã được người dùng duyệt toàn bộ ngày28/10/2026; kế hoạch triển khai đã duyệt; Task1 hoàn tất thiết kế/review kỹ thuật; Task2 chuẩn bị triển khai tuần tự**.
+Ngày lập: 25/10/2026. Trạng thái: **Đặc tả/kế hoạch đã duyệt; Task1 review kỹ thuật đạt; Task2 implementation và kiểm chứng bootstrap/tooling đạt, chờ main review code độc lập**.
+
+## Task2 — nền chạy và enforcement, 28/10/2026
+
+Implementation sub-agent duy nhất trên linked worktree `agent-bootstrap`, branch `agent/mkw-agent-002`, base `da340cc8bc1f5e574aa177d8d3b9b63dcbd273cb`, ban đầu sạch. Phạm vi: root pnpm/config/tooling, hai bootstrap `apps/web`/`apps/api`, generated contracts, fixtures, LOCAL_RUN/manifest/plan và hồ sơ này. Acceptance: build/run riêng strict, exact lock/frozen install, boundary/cycle/restricted import/drift RED–GREEN, giữ pilot22 và regression. Risk engine/peer/native/ESM/alias/contract/lock migration; không Task3+ nghiệp vụ. Report chi tiết ignored `.superpowers/sdd/implementation-plan/task-2-implementation.md`, evidence task-owned `.agent-runs/MKW-PRODUCT-001/task2-toolchain/`.
+
+Product check đạt17 tooling +2 web +2 API bootstrap tests; frozen install thường/fresh node_modules và generation deterministic đạt. T3 browser React→API health thật đạt và đã release. Pilot22 check10/10/E2E desktop-mobile2/2 đạt, direct versions/scripts giữ nguyên; pnpm là lock active duy nhất, npm baseline giữ trong Git/evidence sau kiểm chuyển. PostgreSQL17.11/Prisma7.10.1 spike migration từ trống/readback qua client mới và pg độc lập đạt trong sandbox ignored; cluster đã release, data/evidence giữ nguyên. Đây chưa là schema/dependency/acceptance nghiệp vụ sản phẩm. Trạng thái cuối ở [validation](validation.md). Main sở hữu review độc lập snapshot, chưa đạt gate từ self-review. Bước tiếp review immutable local commit; không triển khai Task3 trong lượt này.
 
 ## Quyền tiếp tục đến hết kế hoạch — 28/10/2026
 
