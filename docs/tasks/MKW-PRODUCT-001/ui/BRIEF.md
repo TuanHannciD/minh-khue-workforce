@@ -77,3 +77,11 @@ CSS token action/reminder được đặt tên theo vai trò thay tên navy/gree
 ## Tiếp nối nhập vùng — 27/10/2026
 
 Người dùng chấp nhận phối xanh hiện tại làm cơ sở tiếp tục, yêu cầu kéo chọn nhiều ô và chọn hai chế độ điền trống/ghi đè vùng. [Brief nhập vùng](bulk-entry-design.md) sở hữu luồng đã xác nhận và cách thể hiện để review. HTML hiện đã kéo chọn chữ nhật, Chọn nhiều/chạm hai đầu, Shift + bấm/phím mũi tên; đếm ô, điền trống/ghi đè, bỏ qua N/— và giữ màu nhắc. Hủy vùng hoặc guard khi đổi ngữ cảnh bảo vệ draft; dữ liệu chỉ ở bộ nhớ. Các checkpoint thị giác trước không thay phản hồi chấp nhận phối xanh mới nhất. Gợi ý bulk edit từng bị loại vì chưa được yêu cầu nay đã có yêu cầu trực tiếp; không giữ giới hạn cũ như một lệnh cấm. Chưa suy chấp nhận phối màu thành duyệt đầy đủ đặc tả/API hoặc quyền triển khai sản phẩm.
+
+## Ô/vùng rời và điền lặp — 28/10/2026
+
+Người dùng duyệt bổ sung Ctrl/Cmd + bấm thêm/bỏ ô, Ctrl/Cmd + kéo hợp vùng và kéo tay nắm điền lặp từ ô đã lưu. Chọn nhiều trên điện thoại nay mặc định Ô rời; chọn Vùng chữ nhật và Thêm vùng để tiếp tục cách hai đầu cũ. Nút Điền từ ô này cho thao tác không kéo, endpoint có thể chạm hoặc kích hoạt bằng bàn phím; Ctrl/Cmd + Space thêm/bỏ ô. Không thay thế phối xanh/hướng C, không tăng dãy hoặc auto-apply khi thả chuột.
+
+Impeccable shape tái dùng brief đã được đồng ý, craft-floor/Operate giữ vocabulary và mật độ hiện có. UI UX Pro Max query `dragging movements alternative --domain ux` khớp Dragging Movements: có cách một con trỏ không kéo và bàn phím. Tay nắm desktop có vùng trỏ24px, dấu9px; không làm target cảm ứng duy nhất: hidden khi pointer coarse, nút thay thế cao44px. Không chứng nhận toàn bộ accessibility hoặc thiết bị thật từ CSS.
+
+Artifact hiện có union ô rời/chữ nhật không trùng, viền theo lân cận để không tô ô xen giữa. Fill snapshot nguồn chỉ đưa giá trị vào draft, không ghi nguồn hoặc sao chép reminder; targets/skip/count vẫn dùng hai chế độ trước Áp dụng. Guard giữ draft; lọc không được kéo theo nguồn/anchor của người bị ẩn. Các kiểm/chụp hiện hành tại validation; artifact496 dòng giữ tự chứa với map đã cập nhật, không là cấu trúc source sản phẩm.

@@ -71,3 +71,10 @@ Người dùng chốt xử lý xung đột khi lưu vùng: **dừng cả vùng, 
 ## Sửa ngày vào/nghỉ khi đã có dữ liệu — 27/10/2026
 
 Người dùng duyệt: nếu mốc mới khiến ô đã nhập công hoặc tăng ca nằm ngoài thời gian làm việc, **chặn thay đổi mốc và chỉ rõ các ô liên quan để người dùng xử lý trước**. Giữ nguyên mốc cũ và dữ liệu; không tự xóa, ẩn hoặc chuyển dữ liệu để ép khớp mốc mới. Quy tắc áp cho cả ngày vào và ngày kết thúc, không chỉ tháng đang xem. Người dùng chốt tiếp nối: ô trống chỉ có màu nhắc cũng chặn đổi mốc nếu nằm ngoài khoảng mới, áp cho cả Công và Tăng ca. Chỉ rõ ô để xử lý trước, giữ mốc cũ và lời nhắc; không tự xóa/ẩn nhắc.
+
+
+## Chọn rời và kéo điền nhanh — 28/10/2026
+
+Người dùng duyệt chọn nhiều ô/vùng không liền nhau qua nhiều người/ngày trong tháng đang xem: desktop Ctrl/Cmd + bấm thêm/bỏ ô, Ctrl/Cmd + kéo thêm vùng; điện thoại Chọn nhiều rồi chạm thêm/bỏ ô. Không bắt các ô nằm trong một chữ nhật chung; phần giao nhau chỉ tính một lần. Không đặt số ô chọn tối đa riêng theo yêu cầu này, cũng không suy thành chọn xuyên tháng hoặc cam kết hiệu năng không giới hạn.
+
+Có tay nắm kéo từ ô đã có giá trị để điền lặp cùng giá trị sang các ô khác, không tự tăng dãy; có cách không kéo cho điện thoại/bàn phím. Giữ hai chế độ điền trống/ghi đè, bỏ N/—, giữ màu nhắc từng ô, đếm số ô dự kiến và bấm Áp dụng trước khi thay đổi. Quy tắc số/giới hạn và xung đột dừng cả lần lưu áp chung cho tập ô đích. Phạm vi vẫn bản mẫu/đặc tả, chưa cho phép triển khai sản phẩm.

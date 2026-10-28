@@ -135,7 +135,7 @@ Các quyết định nghiệp vụ trên đã đủ để review phạm vi bản
 
 ## 11. Bổ sung nhập vùng để review — 27/10/2026
 
-Người dùng chấp nhận phối xanh hiện tại làm cơ sở tiếp tục, chốt hai chế độ điền trống/ghi đè và đồng ý luồng chọn vùng → giá trị → chế độ → số ô → Áp dụng, bỏ qua N/— và báo số bỏ qua. Điện thoại dùng Chọn nhiều/chạm hai đầu. [Brief nhập vùng](ui/bulk-entry-design.md) ghi tương tác và ranh giới; HTML đã có bản mẫu trong bộ nhớ, chưa có API/lưu thật. Nhập hàng loạt giữ màu nhắc riêng từng ô, tổng công/giờ độc lập.
+Người dùng chấp nhận phối xanh hiện tại làm cơ sở tiếp tục, chốt hai chế độ điền trống/ghi đè và đồng ý luồng chọn vùng → giá trị → chế độ → số ô → Áp dụng, bỏ qua N/— và báo số bỏ qua. Điện thoại Chọn nhiều mặc định chạm thêm/bỏ ô rời; chế độ Vùng chữ nhật dùng chạm hai đầu, Thêm vùng để hợp thêm vùng. [Brief nhập vùng](ui/bulk-entry-design.md) ghi tương tác và ranh giới; HTML đã có bản mẫu trong bộ nhớ, chưa có API/lưu thật. Nhập hàng loạt giữ màu nhắc riêng từng ô, tổng công/giờ độc lập.
 
 Acceptance bổ sung cho sản phẩm (Not run): vùng chỉ tác động dòng/ngày đang chọn; điền trống giữ dữ liệu có sẵn, ghi đè chỉ tác động ô hợp lệ; N/— bị bỏ qua và có số đếm; chọn/chỉnh draft chưa lưu dữ liệu; đổi ngữ cảnh không áp nhầm người/đơn vị. Đã kiểm các hành vi tương ứng bằng DOM/pointer tổng hợp của prototype, không đổi AC sản phẩm thành Verified. Đã chốt: một ô xung đột thì dừng cả vùng, không ghi ô nào, giữ draft và chỉ rõ các ô xung đột; không tự thử lại ghi đè. Phục hồi sau lỗi mạng và cảnh báo ghi đè vẫn cần thiết kế trước contract/implementation plan.
 
@@ -167,11 +167,24 @@ AC20 — Hai phiên cùng mở bảng tháng: một phiên lưu giá trị hoặ
 
 | Nhóm | Trạng thái và phạm vi |
 | --- | --- |
-| Nghiệp vụ đã duyệt | Công/giờ độc lập, màu nhắc không đổi tổng; công0 thành F, bước0,5, trần30 công/24 giờ mỗi ô, dấu phẩy/chấm và giữ input lỗi; nhập vùng hai chế độ, đếm ô trước Áp dụng, bỏ N/—; xung đột dừng cả vùng; đổi mốc bảo vệ nội dung và nhắc; Excel một sheet/tổng công thức; hai tài khoản tên/mật khẩu, khôi phục qua vận hành; cập nhật khoảng15 giây giữ draft |
+| Nghiệp vụ đã duyệt | Công/giờ độc lập, màu nhắc không đổi tổng; công0 thành F, bước0,5, trần30 công/24 giờ mỗi ô, dấu phẩy/chấm và giữ input lỗi; nhập ô/vùng rời và kéo điền lặp, hai chế độ, đếm ô trước Áp dụng, bỏ N/—; xung đột dừng cả vùng; đổi mốc bảo vệ nội dung và nhắc; Excel một sheet/tổng công thức; hai tài khoản tên/mật khẩu, khôi phục qua vận hành; cập nhật khoảng15 giây giữ draft |
 | Kiến trúc đã duyệt | ADR-001/002/003 là nền tảng/state/stack mục tiêu, chưa pin/cài/kiểm tương thích |
 | Đề xuất trình review cùng bản viết | Danh sách tháng theo khoảng làm việc giao tháng; editor ghi người/ngày/loại và Lưu/Hủy; điền trống xét nội dung rỗng, mặc định điền trống, nhập vùng giữ reminder; guard khi đổi ngữ cảnh |
-| Đã dựng/đã kiểm | HTML C độc lập với dữ liệu giả, tương tác bộ nhớ; các assertions/contrast/headless trong validation. Không coi toàn bộ AC01–AC20 sản phẩm đã đạt |
+| Đã dựng/đã kiểm | HTML C độc lập với dữ liệu giả, tương tác bộ nhớ; các assertions/contrast/headless trong validation. Không coi toàn bộ AC01–AC22 sản phẩm đã đạt |
 | Thiết kế tiếp theo trong kế hoạch | Contract/request/response/revision/transaction, schema/migration, phiên bản tương thích, auth/session/reset cụ thể, phục hồi sau timeout và cảnh báo ghi đè; UI các màn hình còn thiếu, layout Excel chi tiết, accessibility/thiết bị/hiệu năng |
 | Điều kiện trước vận hành | Target hosting/domain/TLS, backup/restore, người phụ trách và quy trình reset thực tế, danh sách thiết bị kiểm; chưa chọn hoặc được quyền thao tác hệ thống thật |
 
 Bản review này chốt phạm vi/nghiệp vụ và các đề xuất được nêu rõ khi người dùng duyệt toàn bộ bản viết; không tự duyệt chi tiết API/schema chưa có. Kế hoạch triển khai sau đó phải chia các bước thiết kế kỹ thuật cần review, cài đặt có quyền và kiểm chứng theo risk; chưa có quyền scaffold/code sản phẩm, tích hợp primary, dispatch child, push hoặc deploy. Không thêm import Excel, tính lương, quy trình duyệt, offline hoặc nhiều giai đoạn nghỉ/quay lại vào bản đầu.
+
+
+## 13. Chọn ô/vùng rời và kéo điền lặp — bổ sung28/10/2026
+
+Đã duyệt chọn rời qua nhiều người/ngày trong tháng hiện tại: Ctrl/Cmd + bấm để thêm/bỏ ô, Ctrl/Cmd + kéo để hợp thêm vùng; các phần giao nhau không bị đếm/ghi nhiều lần. Trên điện thoại, Chọn nhiều mặc định Ô rời; có Vùng chữ nhật và Thêm vùng để chọn bằng hai đầu. Các ô nằm giữa các điểm rời không được tự đưa vào tập áp dụng. Mẫu chỉ chọn dòng đang hiển thị; đổi lọc/loại bảng qua guard nếu có draft, rồi bỏ chọn cũ để không áp nhầm người/đơn vị.
+
+Kéo tay nắm của ô đã lưu có số/F tạo draft điền lặp đúng giá trị nguồn; không suy dãy tăng dần. Cách thay thế: chọn nguồn → Điền từ ô này → chạm ô cuối. Cách thể hiện của mẫu: nguồn không bị ghi lại, không sao chép màu nhắc; giữ màu của từng đích, đếm đích theo fill/replace, Áp dụng mới ghi. Nguồn trống/không hợp lệ/bị ẩn không khởi tạo fill. Chi tiết revision của nguồn chỉ đọc và nguồn thay đổi trong lúc thao tác cần review trong contract; không dùng mẫu bộ nhớ để quyết định concurrency thật.
+
+AC21 — Chọn ba ô không liền nhau rồi áp dụng chỉ thay ba ô đó; bỏ chọn một ô còn hai. Hợp vùng trùng không nhân số ô/tổng hoặc ghi lặp. Kiểm cả Ctrl/Cmd + bấm/kéo, điện thoại chạm, bàn phím và nhiều nhân sự/ngày; không đặt giới hạn số ô chọn riêng ngoài phạm vi dữ liệu/khả năng kiểm chứng. AC sản phẩm: Not run.
+
+AC22 — Kéo điền từ ô nguồn số hoặc F, cả hai hướng, phải điền lặp giá trị; nguồn/nội dung màu không bị thay, nhắc của đích không bị sao chép/xóa. Chọn/kéo chưa ghi; Hủy/Esc/pointercancel không đổi dữ liệu; hai chế độ và N/—/giới hạn/bảo vệ draft vẫn áp dụng. Có thao tác không kéo. Kiểm lưu thật và touch thật: Not run; phạm vi prototype tại validation.
+
+Bổ sung này thay phần giới hạn chỉ một chữ nhật của checkpoint trước. Bản đặc tả viết gồm cả mục13 vẫn chờ người dùng review trước implementation plan; xác nhận feature không tự duyệt tất cả chi tiết kỹ thuật hoặc cấp quyền triển khai sản phẩm.

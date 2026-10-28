@@ -31,12 +31,22 @@ Bản mẫu HTML dùng dữ liệu giả: thử vùng nhiều dòng/cột, kéo 
 
 ## Điều hướng artifact và ngưỡng độ dài
 
-Giữ attendance-c.html tự chứa (450 dòng tại checkpoint này) vì native preview/render nhận một tài liệu inline, không cần bundler/server/dependency; CSS, DOM và vòng đời pointer/draft cùng phục vụ một mẫu dùng dữ liệu giả. Đã xét tách theo SOURCE_NAVIGATION; source sản phẩm sau này vẫn phải tách theo feature, không dùng artifact này làm cấu trúc app.
+Giữ attendance-c.html tự chứa (496 dòng sau bổ sung ô/vùng rời; checkpoint nhập vùng đầu450 dòng) vì native preview/render nhận một tài liệu inline, không cần bundler/server/dependency; CSS, DOM và vòng đời pointer/draft cùng phục vụ một mẫu dùng dữ liệu giả. Đã xét tách theo SOURCE_NAVIGATION; source sản phẩm sau này vẫn phải tách theo feature, không dùng artifact này làm cấu trúc app.
 
-File map theo symbol hiện có: CSS `.selection-tools`/`.in-range` và DOM `#bulk-panel` thể hiện vùng; `rangeCells`/`targets` xác định tập ô; `markDraft`/`loadDraft`/`requestChange` bảo vệ draft; `renderTable`/`renderEditor`/`paintSelection` hiển thị; `chooseCell`/`setRange` điều phối chọn; `trackPointer`/`autoScroll`/`endGesture` quản lý kéo và cleanup; handler `save` chỉ cập nhật bộ nhớ. Consumer là native HTML preview/render; scripts kiểm ignored được định tuyến tại validation.
+File map theo symbol hiện có: CSS `.selection-tools`/`.in-range` và DOM `#bulk-panel` thể hiện vùng; `uniqueCells`/`rangeCells`/`targets` xác định tập ô; `markDraft`/`loadDraft`/`requestChange` bảo vệ draft; `renderTable`/`renderEditor`/`paintSelection` hiển thị; `chooseCell`/`toggleCell`/`setRange` điều phối chọn rời/chữ nhật, `startFill` tạo draft từ nguồn; `trackPointer`/`autoScroll`/`endGesture` quản lý kéo và cleanup; handler `save` chỉ cập nhật bộ nhớ. Consumer là native HTML preview/render; scripts kiểm ignored được định tuyến tại validation.
 
 Impeccable shape sở hữu brief tương tác; UI UX Pro Max query `dragging alternative selection --domain ux` khớp Dragging Movements: có lựa chọn không kéo và keyboard. Đây là tham khảo accessibility, không tự quyết nghiệp vụ batch. Writer inline, self-review + người dùng; không child hoặc nguồn chuẩn cạnh tranh.
 
 ## Số công tùy chỉnh tiếp nối
 
 Đã chốt chỉ bước0,5 cho số công trên2,5, giống bước tăng ca nhưng độc lập đơn vị/tổng. Mẫu áp cùng validation cho một ô và vùng;3/3,5 được nhận,3,25 bị báo lỗi và giữ draft, không tự làm tròn. Nhập0 công tự chuyển thành F đã chốt tiếp nối, áp cùng hai chế độ và giữ reminder; không áp cho tăng ca. Trần công đã chốt30 mỗi ô, áp chung một ô/vùng; trần tăng ca đã chốt24 giờ mỗi ô, bước0,5; chưa triển khai validation API.
+
+## Mở rộng đã xác nhận: ô/vùng rời và điền lặp
+
+- Desktop Ctrl/Cmd + bấm thêm/bỏ ô; Ctrl/Cmd + kéo hợp thêm vùng. Các ô giao nhau chỉ tính một lần. Không ép chọn hình chữ nhật bao ngoài các ô rời.
+- Điện thoại Chọn nhiều mặc định Ô rời, chạm thêm/bỏ; có chế độ Vùng và Thêm vùng để chọn nhiều chữ nhật bằng đầu/cuối. Cuộn vẫn bình thường, không kéo cảm ứng toàn bảng.
+- Từ ô nguồn đã lưu có số hoặc F: kéo tay nắm điền lặp cùng giá trị sang vùng đích; có nút Điền từ ô này rồi chạm ô cuối thay cho kéo. Ô nguồn không bị ghi lại; không suy ra dãy tăng dần hoặc sao chép màu. Giá trị nguồn được đưa vào draft, đếm đích và chọn fill/replace trước Áp dụng.
+- Áp chung guard/draft/filter/đổi đơn vị/cancel/skip N/—/giới hạn số hiện có. Phạm vi tháng và các dòng hiển thị, không đặt giới hạn số ô riêng trong mẫu; không hứa quy mô vô hạn hoặc chọn xuyên tháng/bảng ẩn.
+
+
+Trạng thái hiện hành: đã đưa chọn rời/fill vào HTML trong bộ nhớ, tự review bằng headless preview; chờ người dùng thử, không là persistence/concurrency sản phẩm. `range.points` sở hữu ô rời, `range.base` hợp các vùng trước với chữ nhật hiện tại; `uniqueCells` bỏ trùng. `range.fill` giữ nguồn snapshot, `targets` loại nguồn khỏi ghi. Nguồn ẩn/trống không khởi tạo fill; native mouse click trong chế độ Vùng phải đi qua chọn hai đầu thay vì bị gesture nuốt. Bộ kiểm mới/fixture hồi quy ở validation.
