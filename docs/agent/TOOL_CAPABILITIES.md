@@ -28,6 +28,8 @@ MKW-AGENT-002 đã tạo Git baseline và worktree riêng, tooling Node 22/npm t
 
 Catalog phiên khảo sát 22/10 từng công bố điều phối và scheduler. Mỗi lần thực hiện phải discovery lại; khả năng và tên model/provider thay đổi theo phiên. Có tool không phải quyền tạo task/lịch.
 
+Chọn subagent phải tuân [giới hạn cứng model](SKILL_POLICY.md#giới-hạn-cứng-model-subagent): tối đa Sol reasoning `high`, cấm Astra trong mọi trường hợp kể cả review cuối/escalation/fallback. Catalog có model không đồng nghĩa được phép dùng; chỉ định model và reasoning rõ ràng cho mỗi lần giao hoặc tiếp tục việc.
+
 Khi dùng T3: child task khác top-level conversation; lưu task ID, dùng status/cancel đúng đối tượng; review round mới là delegated task mới theo chỉ dẫn runtime. Chọn công cụ native chỉ khi hỗ trợ đúng model và scope. Không sửa thread/provider chung để chứng minh readiness.
 
 ## Công cụ bổ sung theo nhu cầu

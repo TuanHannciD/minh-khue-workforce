@@ -32,6 +32,18 @@ Task được giao phải bao phủ cài đặt và quyền cần thiết. Xác 
 5. Bảo toàn evidence/resource theo EXECUTION_RULES trước khi dọn artifact/worktree; không gộp hai loại workspace.
 6. UI tuân brief và design authority hiện hành. Giới hạn polish không cho phép bỏ lỗi acceptance còn tồn tại; xử lý trong scope hoặc báo gate còn mở.
 
+## Giới hạn cứng model subagent
+
+Nguồn: chỉ dẫn trực tiếp của người dùng ngày 28/10/2026; hiệu lực ngay và tiếp tục áp dụng khi resume project.
+
+- Mọi subagent chỉ được dùng tối đa model Sol với reasoning `high`. Lựa chọn tối đa đã xác định trong runtime hiện tại là `gpt-6.1-sol` với `reasoningEffort: high`; có thể dùng Sol ở mức reasoning thấp hơn. Không dùng model mạnh hơn, reasoning cao hơn `high` hoặc model khác chưa được người dùng cho phép rõ ràng.
+- **Cấm Astra trong mọi trường hợp**, mọi phiên bản/alias/provider; không dùng cho implementation, review độc lập, kiến trúc, review cuối nhánh, escalation, fallback hoặc Agent con lồng nhau. Không chuyển sang Astra khi Sol gặp khó hoặc không có sẵn.
+- Quy tắc này override mọi khuyến nghị chọn model mạnh nhất/nâng tier trong skill và kế hoạch/ledger cũ. Giữ nguyên byte skill upstream; không sửa skill để tạo bản phân phối khác.
+- Trước mỗi dispatch/resume, đối chiếu catalog live rồi chỉ định rõ model và reasoning hợp lệ; không để kế thừa ngầm. Prompt bàn giao phải nêu giới hạn này và truyền xuống mọi cấp delegation được phép. Nếu không có model hợp lệ, ghi thiếu khả năng và tiếp tục phần độc lập; không tự vượt trần.
+- Task đang chạy bằng Sol hợp lệ được tiếp tục sau khi nhận chỉ dẫn mới. Nếu phát hiện task Astra hoặc vượt trần còn hoạt động, dừng task đó bằng cơ chế runtime và giữ nguyên công việc/evidence; chỉ giao lại bằng cấu hình hợp lệ. Các lượt Astra đã kết thúc trước chỉ dẫn này là lịch sử, không phải tiền lệ được phép tiếp tục.
+
+Đây là ràng buộc điều phối của project, không phải claim đã cài bộ chặn model ở runtime/provider hoặc thay cấu hình global.
+
 ## Khi chưa có skill
 
 Ghi Not installed/Blocked cho khả năng phụ thuộc. Công việc tài liệu/bootstrap độc lập đã giao vẫn tiếp tục theo rule hiện hành. Không báo đã invoke một skill chỉ vì đọc mô tả trong khảo sát, không nạp toàn bộ bộ skill vào mọi task.
