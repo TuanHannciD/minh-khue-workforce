@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const checker = resolve("scripts/product/check-boundaries.mjs");
-async function fixture(files, app = "web") {
+async function fixture(files, app = "web", links = {}) {
   await mkdir(".agent-runs/MKW-PRODUCT-001/task2-toolchain/fixtures", {
     recursive: true,
   });
@@ -26,6 +26,10 @@ async function fixture(files, app = "web") {
   })) {
     await mkdir(join(root, file, ".."), { recursive: true });
     await writeFile(join(root, file), body);
+  }
+  for (const [link, target] of Object.entries(links)) {
+    await mkdir(join(root, link, ".."), { recursive: true });
+    await symlink(join(root, target), join(root, link), "junction");
   }
   return spawnSync(process.execPath, [checker, "--root", root, "--app", app], {
     encoding: "utf8",
@@ -49,7 +53,136 @@ test("accepts public feature imports, same-feature internals and aliases", async
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
 
-for (const [name, files, rule, app] of [
+test("accepts generated contract types and browser dependencies without traversing packages", async () => {
+  const result = await fixture({
+    "apps/web/src/main.ts":
+      "import type { components } from '@/shared/api/generated/schema.js'; import { browser } from '../node_modules/browser/index.js'; export type H = components['schemas']['HealthDto']; export { browser };",
+    "apps/web/src/shared/api/generated/schema.d.ts": await readFile(
+      "apps/web/src/shared/api/generated/schema.d.ts",
+      "utf8",
+    ),
+    "apps/web/node_modules/browser/index.js":
+      "export { browser } from './missing-vendor-internal.js';",
+  });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+// Catch src-only ownership, discarded dependency edges and junction identity loss.
+for (const [name, files, rule, app, links] of [
+  [
+    "cross-app compiled declaration type",
+    {
+      "apps/web/src/main.tsx":
+        "import type { HealthDto } from '../../api/dist/health.controller.js'; export type H = HealthDto;",
+      "apps/api/dist/health.controller.d.ts":
+        "export declare class HealthDto { status: 'ok' }",
+    },
+    "cross-app",
+    "web",
+  ],
+  [
+    "cross-app dependency type",
+    {
+      "apps/web/src/main.tsx":
+        "import type { Controller } from '../../api/node_modules/@nestjs/common/index.js'; export type C = typeof Controller;",
+      "apps/api/node_modules/@nestjs/common/index.d.ts":
+        "export declare function Controller(): void;",
+    },
+    "cross-app",
+    "web",
+  ],
+  [
+    "cross-app output through normalized alias",
+    {
+      "apps/web/tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          baseUrl: ".",
+          paths: { "@output/*": ["../api/dist/*"] },
+        },
+      }),
+      "apps/web/src/main.ts":
+        "export type { Api } from '@output/nested/../api.js';",
+      "apps/api/dist/api.d.ts": "export interface Api { value: string }",
+    },
+    "cross-app",
+    "web",
+  ],
+  [
+    "API to web output outside src",
+    {
+      "apps/api/src/main.ts": "export { web } from '../../web/build/main.js';",
+      "apps/web/build/main.js": "export const web = 1;",
+    },
+    "cross-app",
+    "api",
+  ],
+  [
+    "cross-app dependency junction to neutral store",
+    {
+      "apps/web/src/main.ts":
+        "export type { Shared } from '../../api/node_modules/shared/index.js';",
+      "node_modules/.pnpm/shared@1/node_modules/shared/index.d.ts":
+        "export interface Shared { value: string }",
+    },
+    "cross-app",
+    "web",
+    {
+      "apps/api/node_modules/shared":
+        "node_modules/.pnpm/shared@1/node_modules/shared",
+    },
+  ],
+  [
+    "server dependency behind neutral junction alias",
+    {
+      "apps/web/tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          baseUrl: ".",
+          paths: { "@vendor/*": ["./vendor/*"] },
+        },
+      }),
+      "apps/web/src/main.ts":
+        "export type { Controller } from '@vendor/index.js';",
+      "node_modules/.pnpm/common@1/node_modules/@nestjs/common/index.d.ts":
+        "export declare function Controller(): void;",
+    },
+    "web-server-package",
+    "web",
+    {
+      "apps/web/vendor":
+        "node_modules/.pnpm/common@1/node_modules/@nestjs/common",
+    },
+  ],
+  [
+    "cross-app dependency junction through tsconfig alias",
+    {
+      "apps/web/tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          baseUrl: ".",
+          paths: { "@dependency/*": ["../api/node_modules/shared/*"] },
+        },
+      }),
+      "apps/web/src/main.ts":
+        "export type { Shared } from '@dependency/index.js';",
+      "node_modules/.pnpm/shared@1/node_modules/shared/index.d.ts":
+        "export interface Shared { value: string }",
+    },
+    "cross-app",
+    "web",
+    {
+      "apps/api/node_modules/shared":
+        "node_modules/.pnpm/shared@1/node_modules/shared",
+    },
+  ],
+  [
+    "cross-app output behind neutral junction",
+    {
+      "apps/web/src/main.ts": "export type { Api } from '../vendor/api.js';",
+      "apps/api/dist/api.d.ts": "export interface Api { value: string }",
+    },
+    "cross-app",
+    "web",
+    { "apps/web/vendor": "apps/api/dist" },
+  ],
   [
     "cross-app custom type alias",
     {
@@ -160,8 +293,22 @@ for (const [name, files, rule, app] of [
   ],
 ]) {
   test(`rejects_cross_app_deep_feature_and_cycle: ${name}`, async () => {
-    const result = await fixture(files, app);
+    const result = await fixture(files, app, links);
     assert.equal(result.status, 1, result.stdout + result.stderr);
     assert.match(result.stdout + result.stderr, new RegExp(rule));
   });
 }
+
+test(
+  "Windows app ownership follows case-insensitive filesystem identity",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const result = await fixture({
+      "apps/web/src/main.ts":
+        "export type { Api } from '../../API/dist/api.js';",
+      "apps/api/dist/api.d.ts": "export interface Api { value: string }",
+    });
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stdout + result.stderr, /cross-app/);
+  },
+);

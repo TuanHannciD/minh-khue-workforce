@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import hooks from 'eslint-plugin-react-hooks';
+import { crossAppImports } from './scripts/product/lint-boundaries.mjs';
 
 const webPackages = ['@prisma/*', 'prisma', 'prisma/*', '@nestjs/*', '@mkw/api', '@mkw/api/*', 'pg'];
 const deepAlias = '@/features/*/*';
@@ -16,7 +17,8 @@ export default [
   {
     files: ['apps/**/*.ts', 'apps/**/*.tsx'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
-    rules: { '@typescript-eslint/consistent-type-imports': 'error', '@typescript-eslint/no-explicit-any': 'error' },
+    plugins: { 'product-boundaries': { rules: { 'cross-app': crossAppImports } } },
+    rules: { '@typescript-eslint/consistent-type-imports': 'error', '@typescript-eslint/no-explicit-any': 'error', 'product-boundaries/cross-app': 'error' },
   },
   {
     files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx'],

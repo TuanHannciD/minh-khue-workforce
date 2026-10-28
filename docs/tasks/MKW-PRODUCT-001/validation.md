@@ -2,6 +2,16 @@
 
 Ngày lập25/10/2026. Scope hiện hành Task2 bootstrap/tooling ở mục đầu; các checkpoint tài liệu bên dưới giữ lịch sử.
 
+## Hiện hành — Task2 sửa review R1, 28/10/2026
+
+Base sửa `4a1eb8ba57ed22c7bddb86c21653a7ea4f6cb5db`, branch/worktree giữ nguyên. Implementer duy nhất, không agent con; main sở hữu fresh independent re-review sau local commit. Review R1 ghi I1 Important: ownership chỉ bao phủ src và bỏ cạnh node_modules trước phân loại. Đã sửa rule toàn app root, giữ dependency edges, kiểm identity thực cùng đường TypeScript resolve giữ symlink, chuẩn hóa case Windows; lint dùng cùng ownership cho đường tương đối. Không đổi stack/UI/contract hoặc Task3.
+
+Evidence mới: `.agent-runs/MKW-PRODUCT-001/task2-fix-r1/`; report `.superpowers/sdd/implementation-plan/task-2-fix-r1.md` ghi scope/risk/resources trước sửa và kết quả/giới hạn. `ownership-red.log`:15 pass/10 fail, gồm cả hai bypass type-only của reviewer; `ownership-green-final.log`:25/25. `identity-red.log`/`lint-identity-red.log` bắt bypass case Windows; `identity-green.log`:3/3. Giữ cả log trung gian glob lint chặn nhầm generated contract; cách glob đó đã được bỏ. Fixtures kiểm output/declaration, hai chiều app, alias, pnpm junction, resolved server package và generated contract hợp lệ; public imports/cycle/restrictions và strict consumer cũ vẫn được chạy.
+
+`product-check.log` mới exit0 trên portable Node24.22.1/pnpm12.15.0: tooling35/35, web2/2, API2/2; lint/format/strict type/build từng app, graph boundary/cycle và regenerated contract đều đạt. `pilot-check22.log` exit0/10 tests cùng50 current docs; `pilot-e2e22.log` exit0/2 desktop/mobile trên Node22.12.0. Mỗi gate tổng chạy một lần sau fix. Hai E2E owner released, worker không còn và cổng đã đóng; artifact giữ trong worktree qua MKW_E2E_RUN riêng. Lock không đổi. Đây là kiểm chứng bootstrap/tooling và pilot, không phải acceptance nghiệp vụ.
+
+M1 Minor về NO_COLOR/FORCE_COLOR **deferred nonblocking**: thuộc environment/harness pilot hiện hữu, không sửa harness hoặc chạy lại suite chỉ để xóa noise. Gate review độc lập Task2 **chưa PASS**, main phải review exact tip mới; không diễn giải self-review/tests xanh thành review độc lập. Không chạy lại install/audit/Prisma/PostgreSQL/browser sản phẩm hoặc Task3–10 vì fix không đổi các phần đó.
+
 ## Hiện hành — Task2 bootstrap/tooling, 28/10/2026
 
 Base `da340cc8bc1f5e574aa177d8d3b9b63dcbd273cb`, branch `agent/mkw-agent-002`, linked worktree `agent-bootstrap` sạch trước sửa. Một implementation sub-agent, không child/reviewer tự dispatch. Quyền mới cho phép runtime/dependency/sandbox local và quyết định thường lệ, supersede chờ G1/inline cũ; không đổi nghiệp vụ/stack hoặc quyền primary/push/deploy/live/global. File zone/acceptance/risk/resource ghi trước code trong ignored report `.superpowers/sdd/implementation-plan/task-2-implementation.md`; main giữ progress/review route.

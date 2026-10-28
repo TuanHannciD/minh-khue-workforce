@@ -40,8 +40,8 @@ export async function checkBoundaries(root, apps = ["web", "api"]) {
         validate: true,
         tsConfig: { fileName: configFile },
         tsPreCompilationDeps: true,
-        doNotFollow: { path: "node_modules" },
-        exclude: { path: "node_modules" },
+        // Keep dependency edges for ownership/package checks, stop only traversal.
+        doNotFollow: { path: "(?:^|/)node_modules/" },
         enhancedResolveOptions: {
           alias: aliases,
           extensions: [".js", ".jsx", ".ts", ".tsx", ".d.ts", ".json"],
@@ -63,17 +63,33 @@ export async function checkBoundaries(root, apps = ["web", "api"]) {
     if (typeof result.output === "string")
       throw new Error("Expected dependency graph");
     const normalize = (path) =>
-      (path.startsWith(root) ? relative(root, path) : path).replaceAll(
-        "\\",
-        "/",
-      );
+      relative(root, resolve(root, path)).replaceAll("\\", "/");
+    // The graph uses real paths for cycles/package identity. Also resolve with
+    // symlinks preserved so a path through another app's dependencies retains
+    // that app's ownership even when pnpm links it to a shared store.
+    const ownershipOptions = { ...parsed.options, preserveSymlinks: true };
+    const resolutionCache = ts.createModuleResolutionCache(
+      root,
+      (path) => path,
+      ownershipOptions,
+    );
     for (const module of result.output.modules) {
       const from = normalize(module.source);
       for (const dependency of module.dependencies) {
         const to = normalize(dependency.resolved);
         const specifier = dependency.module;
-        for (const rule of checkDependency(from, to, specifier))
-          errors.push(`${rule}: ${from} -> ${specifier}`);
+        const ownership = ts.resolveModuleName(
+          specifier,
+          resolve(root, module.source),
+          ownershipOptions,
+          ts.sys,
+          resolutionCache,
+        ).resolvedModule;
+        const targets = new Set([to]);
+        if (ownership) targets.add(normalize(ownership.resolvedFileName));
+        for (const target of targets)
+          for (const rule of checkDependency(from, target, specifier))
+            errors.push(`${rule}: ${from} -> ${specifier}`);
         if (dependency.couldNotResolve)
           errors.push(`unresolved: ${from} -> ${specifier}`);
       }
