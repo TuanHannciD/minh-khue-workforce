@@ -40,7 +40,7 @@ Ngày trước khi vào làm và sau khi kết thúc tuân mốc nhân sự, kh�
 
 Tổng chỉ cộng giá trị số của đúng loại dữ liệu. Không trừ ô màu xanh khỏi tổng, không tách thêm “tổng đã xác nhận”. Ví dụ giả trên bốn ngày:1 (xanh),0,5,`F` (xanh),trống cho tổng1,5 công; màu giữ nguyên ý nghĩa nhắc người dùng. `N` và `—` không tạo công hoặc giờ tăng ca.
 
-Lựa chọn nhanh của công/tăng ca và bước tăng ca `0,5` giờ đã được chốt; số công tùy chỉnh cũng theo bước `0,5`; trần công30 và tăng ca24 giờ mỗi ô đã chốt; xử lý số không hợp lệ còn phải chốt trước validation API và xuất số; không lấy giới hạn ngẫu nhiên của UI làm nghiệp vụ. Giao diện cần thể hiện dấu phẩy thập phân quen thuộc; cách chấp nhận dấu chấm và độ chính xác là quyết định ở mục10.
+Lựa chọn nhanh của công/tăng ca và bước tăng ca `0,5` giờ đã được chốt; số công tùy chỉnh cũng theo bước `0,5`; trần công30 và tăng ca24 giờ mỗi ô đã chốt. Nhận dấu phẩy hoặc dấu chấm thập phân, hiển thị dấu phẩy. Sai bước/vượt trần báo lỗi, giữ input/draft, không ghi dữ liệu hoặc tự làm tròn/cắt về trần. Áp cho một ô và nhập vùng; validation API còn phải triển khai/kiểm, không lấy UI làm bằng chứng server enforce.
 
 ## 4. Nhân sự và mốc làm việc
 
@@ -111,7 +111,7 @@ AC09 — Excel tháng có một sheet, bảng Công trên/Tăng ca dưới; số
 
 AC10 — Khi lỗi lưu không báo thành công giả, không mất bản nháp; dữ liệu qua web–API–DB thật còn sau reload. Validation số và sửa mốc ngày phải có acceptance bổ sung sau khi được chốt.
 
-AC11 — Bảng công có đủ năm lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; chọn **Tùy chỉnh** nhập được số lớn hơn `2,5` (ví dụ3 công), lưu/đọc lại và cộng tổng đúng. Giờ tăng ca có cùng các lựa chọn nhanh nhưng đơn vị và tổng riêng; nhập tùy chỉnh3,5 giờ phải lưu/đọc lại đúng và cộng3,5 giờ, không đổi số công. Bước nhập tăng ca là0,5 giờ; không tự làm tròn số không hợp lệ khi chưa chốt cách xử lý. Số công tùy chỉnh cũng chỉ bước0,5:3/3,5 hợp lệ,3,25 không hợp lệ, không tự làm tròn; áp dụng cho một ô và nhập vùng. Validation chi tiết còn lại theo Q1.
+AC11 — Bảng công có đủ năm lựa chọn nhanh `0,5`, `1`, `1,5`, `2`, `2,5`; chọn **Tùy chỉnh** nhập được số lớn hơn `2,5` (ví dụ3 công), lưu/đọc lại và cộng tổng đúng. Giờ tăng ca có cùng các lựa chọn nhanh nhưng đơn vị và tổng riêng; nhập tùy chỉnh3,5 giờ phải lưu/đọc lại đúng và cộng3,5 giờ, không đổi số công. Bước nhập tăng ca là0,5 giờ; không tự làm tròn số không hợp lệ khi chưa chốt cách xử lý. Số công tùy chỉnh cũng chỉ bước0,5:3/3,5 hợp lệ,3,25 không hợp lệ, không tự làm tròn; áp dụng cho một ô và nhập vùng. Định dạng và xử lý lỗi theo Q1 đã chốt; API validation chưa triển khai.
 
 AC12 — Hai phiên đăng nhập đọc cùng một ô: phiên thứ nhất lưu1,5 công, phiên thứ hai thử lưu2 công từ dữ liệu cũ. Phiên thứ hai phải nhận thông báo ô đã thay đổi và thấy giá trị1,5 mới; lần lưu đó không âm thầm thay thành2. Người dùng vẫn có thể quyết định sửa tiếp sau khi xem giá trị mới, không qua duyệt.
 
@@ -119,7 +119,7 @@ Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot
 
 ## 10. Các quyết định còn cần chốt
 
-Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Đã chốt số công tùy chỉnh cũng chỉ bước `0,5`. Đã chốt trần30 công mỗi ô, không giới hạn tổng tháng theo số30. Đã chốt trần24 giờ tăng ca mỗi ô. Còn cần chốt cách xử lý dấu phẩy/chấm và số không hợp lệ; không tự làm tròn. Đã chốt nhập số0 công tự chuẩn hóa thành `F`. Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
+Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Đã chốt số công tùy chỉnh cũng chỉ bước `0,5`. Đã chốt trần30 công mỗi ô, không giới hạn tổng tháng theo số30. Đã chốt trần24 giờ tăng ca mỗi ô. Đã chốt nhận dấu phẩy/chấm, hiển thị dấu phẩy; sai bước/vượt trần báo lỗi, giữ nội dung nhập và không tự làm tròn. Đã chốt nhập số0 công tự chuẩn hóa thành `F`. Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
 
 Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập và sửa. Phương thức đăng nhập/khôi phục và nơi vận hành còn cần chốt theo nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
 
@@ -153,3 +153,6 @@ AC16 — Nhập công29,5 và30 được nhận;30,5/31 bị từ chối, giữ 
 
 
 AC17 — Nhập tăng ca23,5/24 giờ được nhận;24,5/25 bị từ chối, giữ draft và không ghi dữ liệu, không tự làm tròn/cắt về24. Áp một ô/nhập vùng, không đổi công; công vẫn có trần riêng30. API/DB/lưu đọc lại: Not run.
+
+
+AC18 — Với cùng số công/giờ hợp lệ, nhập3,5 hoặc3.5 phải cho giá trị số bằng nhau và hiển thị3,5. Nhập3,25/3.25 hoặc giá trị vượt trần tương ứng phải báo lỗi, giữ chuỗi người dùng nhập để sửa, không ghi bất kỳ ô nào hay tự làm tròn. Kiểm cho một ô và vùng; API/DB và tải lại dữ liệu sản phẩm: Not run.

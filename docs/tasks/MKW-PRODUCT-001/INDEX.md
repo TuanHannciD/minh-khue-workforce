@@ -115,3 +115,7 @@ Người dùng làm rõ tối đa30 công mỗi ô, không phải tổng tháng;
 ## Giới hạn24 giờ tăng ca mỗi ô — 28/10/2026
 
 Người dùng chốt tối đa24 giờ tăng ca mỗi ô. Base `af14203`, workspace sạch. Scope requirements/design/brief/HTML/validation; acceptance23,5/24 nhận,24,5/25 từ chối giữ draft/không ghi cho một ô và vùng, trần công30 giữ nguyên. Writer inline, tự review + người dùng, risk thấp prototype không persistence. Resource file/check local/native HTML preview-render và evidence ignored; không child/dependency/server/DB/tab/primary/source sản phẩm. Bước tiếp quy tắc nhập số còn mở và nghiệp vụ/auth trước spec/plan.
+
+## Chốt định dạng số và lỗi nhập — 28/10/2026
+
+Người dùng “Agree” nhận cả dấu phẩy/chấm, hiển thị dấu phẩy, lỗi sai bước/vượt trần giữ input, không làm tròn. Base `97270e1`, workspace sạch. Mục tiêu/acceptance: requirements/design/architecture nhất quán, Q1 không còn gọi bước/trần/định dạng là chưa chốt; phân biệt chuẩn đã duyệt với validator sản phẩm chưa triển khai. Scope dossier Markdown; writer inline, self-review + người dùng, risk trung bình tài liệu. Resource file/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bản mẫu đã có parser/formatter/guard tương ứng nên không sửa hành vi hoặc thêm test lặp. Bước tiếp Q4 reminder-only và Q2/auth, hoàn thiện đặc tả trước review/plan.

@@ -237,3 +237,9 @@ Base `af14203`, workspace sạch. Người dùng chốt trần24 giờ tăng ca 
 Evidence ignored ui-c-overtime-cap-checks.js và ui-c-overtime-cap-results.json trong `.agent-runs/MKW-PRODUCT-001/`; giữ evidence cũ. Writer inline, self-review + người dùng, không review độc lập. Không product code/dependency/child/primary/server/DB/tab. API validation/persistence/concurrency/export và actual devices vẫn Not run; AC17 sản phẩm chưa Verified. Bước tiếp định dạng/lỗi nhập và các quyết định còn mở trước spec/plan.
 
 `npm run check:docs` exit0,43 current documents; `git diff --check` exit0; evidence mới đã kiểm ignore. Trình HTML gốc đã preview qua native html_render “Minh Khuê · Tối đa 24 giờ tăng ca mỗi ô”, frame1476px. Tự review scoped diff và staged whitespace trước commit local.
+
+## Chốt định dạng và lỗi nhập số — 28/10/2026
+
+Base `97270e1`, sạch trước sửa. Người dùng duyệt nhận dấu phẩy/chấm, hiển thị dấu phẩy; sai bước/vượt trần báo lỗi, giữ input, không làm tròn. Đồng bộ requirements/design/architecture/INDEX, thêm AC18 và đóng phần Q1 tương ứng. Đọc parser trong handler save (regex [.,], replace dấu phẩy), fmt (hiển thị dấu phẩy), guard lỗi trước cập nhật data và aria-invalid giữ input: đã có trong HTML, không thay hành vi. Đây là đối chiếu source, không phải browser evidence mới; không chạy lại prototype hoặc viết test lặp cho thay đổi Markdown. Các preview/check trước giữ đúng checkpoint, không suy AC18 API/DB đã đạt. Self-review + người dùng, không review độc lập; không source sản phẩm/dependency/child/primary/resource mới. API/DB/compatibility và AC18 sản phẩm Not run. Bước tiếp Q4 reminder-only/Q2 trước spec review/plan.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và staged whitespace trước commit local, không có kiểm chứng hành vi mới.
