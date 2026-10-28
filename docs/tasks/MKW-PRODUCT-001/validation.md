@@ -255,3 +255,9 @@ Base `5fe67fe`, workspace sạch. Người dùng duyệt chặn đổi mốc là
 Base `121d3d0`, workspace sạch. Người dùng duyệt hai tài khoản tạo sẵn, tên đăng nhập + mật khẩu, không đăng ký công khai. Đồng bộ requirements/design/architecture/INDEX và AC01; giữ cùng quyền xem/nhập/sửa, không suy thành role quản trị hoặc cơ chế khôi phục đã duyệt. Phân biệt nghiệp vụ Accepted với session/cookie/thư viện auth còn Proposed. Chỉ Markdown; tự review + người dùng, không reviewer độc lập/source sản phẩm/dependency/child/primary/resource mới. Không tạo tài khoản/mật khẩu thật hoặc chạy app/prototype suite; auth/UI/API/security checks Not run. Bước tiếp khôi phục và cập nhật giữa hai tài khoản trước spec review/plan.
 
 `npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và staged whitespace trước commit local; chưa có kiểm chứng đăng nhập sản phẩm.
+
+## Chốt khôi phục mật khẩu qua vận hành — 28/10/2026
+
+Base `ee530b5`, sạch trước sửa. Người dùng duyệt người phụ trách vận hành xác minh và đặt lại khi quên mật khẩu; bản đầu chưa cần email/SMS. Đồng bộ requirements/design/architecture/INDEX, thêm AC19. Self-review tách yêu cầu đã duyệt khỏi cơ chế kỹ thuật/quy trình xác minh/người phụ trách chưa xác định; không tự thêm role, màn hình admin hoặc chạy reset thật. Chỉ Markdown, không HTML/source sản phẩm/dependency/child/primary/resource mới; không app/prototype suite. Auth/reset/phiên/security tests Not run; không review độc lập hoặc claim đã triển khai. Bước tiếp nhu cầu cập nhật giữa hai tài khoản và hoàn thiện spec để review trước plan.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và staged whitespace trước commit local, chưa có bằng chứng thực thi khôi phục tài khoản.

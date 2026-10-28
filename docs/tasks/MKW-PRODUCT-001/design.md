@@ -12,7 +12,7 @@ Thành công được đánh giá bằng việc thêm nhân sự, nhập/sửa c
 
 Người chấm chính và sếp cùng quyền trên bảng toàn công ty: nhập, sửa số liệu/màu và quản lý ngày làm việc của nhân sự. Không có bước gửi duyệt hoặc mở khóa dữ liệu đã chốt. “Chốt” trong trao đổi là quyết định nhập/sửa của người dùng, không tạo trạng thái hệ thống riêng.
 
-Đã thống nhất hai tài khoản riêng cho người chấm chính và sếp, cùng quyền xem, nhập và sửa dữ liệu chấm công toàn công ty. Đã chốt hai tài khoản tạo sẵn, tên đăng nhập + mật khẩu, không có đăng ký công khai. Khôi phục khi quên mật khẩu còn phải chốt ở mục10. Audit log chưa là tính năng bắt buộc; không tự đưa màn hình lịch sử/phê duyệt vào scope.
+Đã thống nhất hai tài khoản riêng cho người chấm chính và sếp, cùng quyền xem, nhập và sửa dữ liệu chấm công toàn công ty. Đã chốt hai tài khoản tạo sẵn, tên đăng nhập + mật khẩu, không có đăng ký công khai. Khi quên mật khẩu, người phụ trách vận hành xác minh và đặt lại; bản đầu chưa cần luồng email/SMS. Audit log chưa là tính năng bắt buộc; không tự đưa màn hình lịch sử/phê duyệt vào scope.
 
 ## 3. Bảng tháng và ý nghĩa ô
 
@@ -91,7 +91,7 @@ Không tái sử dụng lựa chọn Node22/SQLite experimental của pilot như
 
 ## 9. Tiêu chí nghiệm thu dự kiến khi có ứng dụng
 
-AC01 — Người chấm chính và sếp dùng hai tài khoản riêng, cùng quyền xem, nhập/sửa trực tiếp dữ liệu chấm công toàn công ty; không bị buộc qua quy trình duyệt/mở lại. Đăng nhập bằng tên đăng nhập + mật khẩu của hai tài khoản tạo sẵn; không có đăng ký công khai. Kiểm quyền cả UI và API, từ chối truy cập dữ liệu khi chưa đăng nhập. Thư viện auth/phiên và khôi phục chưa chốt; kiểm sản phẩm Not run.
+AC01 — Người chấm chính và sếp dùng hai tài khoản riêng, cùng quyền xem, nhập/sửa trực tiếp dữ liệu chấm công toàn công ty; không bị buộc qua quy trình duyệt/mở lại. Đăng nhập bằng tên đăng nhập + mật khẩu của hai tài khoản tạo sẵn; không có đăng ký công khai. Kiểm quyền cả UI và API, từ chối truy cập dữ liệu khi chưa đăng nhập. Khôi phục qua người phụ trách vận hành xác minh/đặt lại đã chốt; thư viện auth/phiên và cơ chế đặt lại cụ thể chưa chọn; kiểm sản phẩm Not run.
 
 AC02 — Cùng ngày lưu1,5 công và2 giờ tăng ca: refresh/thiết bị khác đọc lại đúng hai giá trị và hai tổng riêng.
 
@@ -121,7 +121,7 @@ Các AC là tiêu chí thiết kế, **Not run**; không dùng kết quả pilot
 
 Q1 — Đã chốt lựa chọn nhanh công và tăng ca `0,5; 1; 1,5; 2; 2,5`, tự nhập khi lớn hơn `2,5`; tăng ca theo bước `0,5` giờ. Đã chốt số công tùy chỉnh cũng chỉ bước `0,5`. Đã chốt trần30 công mỗi ô, không giới hạn tổng tháng theo số30. Đã chốt trần24 giờ tăng ca mỗi ô. Đã chốt nhận dấu phẩy/chấm, hiển thị dấu phẩy; sai bước/vượt trần báo lỗi, giữ nội dung nhập và không tự làm tròn. Đã chốt nhập số0 công tự chuẩn hóa thành `F`. Không tăng ca đã chốt để trống, không tự điền `0` hoặc `F`.
 
-Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập và sửa. Đã chốt tên đăng nhập + mật khẩu, hai tài khoản tạo sẵn, không đăng ký công khai. Khôi phục khi quên mật khẩu và nơi vận hành còn cần chốt theo nhu cầu thực tế; chưa thiết kế từ giả định có dịch vụ email/hosting.
+Q2 — Đã thống nhất hai tài khoản riêng, cùng quyền xem, nhập và sửa. Đã chốt tên đăng nhập + mật khẩu, hai tài khoản tạo sẵn, không đăng ký công khai. Đã chốt khôi phục qua người phụ trách vận hành xác minh và đặt lại; bản đầu chưa cần email/SMS. Danh tính người phụ trách, quy trình xác minh/bàn giao mật khẩu và hạ tầng cần cụ thể hóa trước vận hành, không tự thêm role/màn hình admin hoặc giả định có dịch vụ email/hosting.
 
 Q3 — Đã chốt: khi hai người sửa cùng một ô từ dữ liệu cũ, báo người lưu sau và hiển thị giá trị mới để quyết định sửa tiếp; không âm thầm ghi đè. Cơ chế kỹ thuật thuộc bước thiết kế API, chưa triển khai.
 
@@ -156,3 +156,6 @@ AC17 — Nhập tăng ca23,5/24 giờ được nhận;24,5/25 bị từ chối, 
 
 
 AC18 — Với cùng số công/giờ hợp lệ, nhập3,5 hoặc3.5 phải cho giá trị số bằng nhau và hiển thị3,5. Nhập3,25/3.25 hoặc giá trị vượt trần tương ứng phải báo lỗi, giữ chuỗi người dùng nhập để sửa, không ghi bất kỳ ô nào hay tự làm tròn. Kiểm cho một ô và vùng; API/DB và tải lại dữ liệu sản phẩm: Not run.
+
+
+AC19 — Quên mật khẩu được xử lý qua người phụ trách vận hành xác minh và đặt lại đúng tài khoản; không yêu cầu email/SMS để hoàn tất luồng bản đầu. Không cung cấp khả năng đặt lại trái phép hoặc tự thêm quyền quản trị cho hai tài khoản chấm công. Quy trình xác minh, bàn giao thông tin và xử lý phiên sau đặt lại cần thiết kế/kiểm trước vận hành; kiểm thực thi auth: Not run.

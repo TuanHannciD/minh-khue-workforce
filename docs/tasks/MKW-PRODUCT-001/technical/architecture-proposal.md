@@ -141,7 +141,7 @@ Lưu thành công nghĩa dữ liệu đã qua API vào DB; reload/thiết bị k
 
 Đề xuất REST JSON với OpenAPI snapshot sinh từ DTO API là đường đi cụ thể hóa nguyên tắc [API_CONTRACTS](../../../architecture/API_CONTRACTS.md). Request/response/error/date format và pagination phải review trước code; chưa viết endpoint/field giả làm yêu cầu. Date công là ngày lịch, không tùy tiện đổi qua UTC làm lệch ngày; thời điểm kỹ thuật cần quy tắc timezone riêng.
 
-Đã duyệt hai tài khoản tạo sẵn, đăng nhập bằng tên đăng nhập và mật khẩu, không mở đăng ký công khai. Thiết kế kỹ thuật đề xuất: web dùng phiên đăng nhập do API xác minh, cookie HttpOnly/Secure và chính sách SameSite/CSRF phù hợp topology. Đây là phương án để review, chưa chọn thư viện auth hoặc cách khôi phục. Không tự viết thuật toán mã hóa/hash; chọn implementation được duy trì và kiểm security. Không lưu token web vào Zustand/localStorage chỉ vì thuận tiện.
+Đã duyệt hai tài khoản tạo sẵn, đăng nhập bằng tên đăng nhập và mật khẩu, không mở đăng ký công khai. Thiết kế kỹ thuật đề xuất: web dùng phiên đăng nhập do API xác minh, cookie HttpOnly/Secure và chính sách SameSite/CSRF phù hợp topology. Session/cookie là phương án để review, chưa chọn thư viện auth. Nghiệp vụ khôi phục đã chốt: người phụ trách vận hành xác minh và đặt lại, bản đầu chưa cần email/SMS. Cơ chế thao tác được kiểm soát, xác minh/bàn giao và thu hồi phiên sau reset cần thiết kế cụ thể trước vận hành; không suy thành quyền tạo admin UI/tài khoản mới hoặc chạy reset trên hệ thống thật. Không tự viết thuật toán mã hóa/hash; chọn implementation được duy trì và kiểm security. Không lưu token web vào Zustand/localStorage chỉ vì thuận tiện.
 
 Web/API là hai app nhưng có thể đặt sau cùng một domain qua reverse proxy để đơn giản cookie/CORS. Vẫn build/chạy riêng. Hosting, domain, TLS, secret management, backup/restore và cơ chế session production phải thiết kế trước phát hành; không tự deploy. Android sau này cần luồng đăng nhập/token phù hợp native, không coi cookie web là đã giải quyết xong Android auth.
 
@@ -166,7 +166,7 @@ Review độc lập cho code/tooling theo [QUALITY_GATES](../../../agent/QUALITY
 ## 9. Điểm cần review trước kế hoạch triển khai
 
 1. Đã chốt hướng A và bộ công nghệ mục tiêu theo ADR-003; chốt/kiểm phiên bản tương thích ở bước tooling, không kế thừa pin pilot một cách tự động.
-2. Đăng nhập tên/mật khẩu và hai tài khoản tạo sẵn đã chốt; chốt khôi phục và nhu cầu cập nhật giữa hai tài khoản; lựa chọn hạ tầng vận hành/backup trước release.
+2. Đăng nhập tên/mật khẩu và hai tài khoản tạo sẵn đã chốt; khôi phục qua vận hành xác minh/đặt lại đã chốt, còn thiết kế chi tiết; chốt nhu cầu cập nhật giữa hai tài khoản; lựa chọn hạ tầng vận hành/backup trước release.
 3. Q1 đã chốt bước/trần/định dạng/lỗi nhập; Q4 đã chốt cả reminder-only khi đổi mốc; Q5 đã chốt bố cục/công thức Excel; trình bản UI C hoàn thiện bằng Impeccable + UI UX Pro Max.
 4. Review contract/request/response, concurrency, migrations và gate kiểm đúng phạm vi. Chưa đủ quyết định để Agent tự triển khai toàn bộ sản phẩm.
 5. Sau khi bản đặc tả viết đủ và được duyệt, mới viết implementation plan, chia task có ownership/check/review/resume. Không chuyển tài liệu này thành danh sách lệnh cài rồi thực hiện ngay.

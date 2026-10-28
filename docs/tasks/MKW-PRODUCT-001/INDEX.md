@@ -127,3 +127,7 @@ Người dùng “Agree” chặn đổi ngày vào/nghỉ nếu làm ô trống
 ## Chốt đăng nhập hai tài khoản tạo sẵn — 28/10/2026
 
 Người dùng “Agree” tên đăng nhập + mật khẩu, hai tài khoản tạo sẵn, không đăng ký công khai. Base `121d3d0`, workspace sạch. Scope requirements/design/architecture/validation/INDEX; acceptance ghi đúng phương thức/không public signup và giữ quyền chấm công ngang nhau, không tự tạo tài khoản hoặc mật khẩu thật. Writer inline, tự review + người dùng, risk trung bình tài liệu; resource Markdown/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bước tiếp chốt khôi phục khi quên mật khẩu và nhu cầu cập nhật hai tài khoản, rồi review đặc tả/plan.
+
+## Chốt khôi phục mật khẩu qua vận hành — 28/10/2026
+
+Người dùng “Agree” người phụ trách vận hành xác minh và đặt lại khi quên mật khẩu, bản đầu chưa cần email/SMS. Base `ee530b5`, workspace sạch. Scope requirements/design/architecture/validation/INDEX; acceptance phân biệt quy trình đã duyệt với cơ chế kỹ thuật chưa thiết kế, không tự thêm role/màn hình quản trị hoặc thao tác tài khoản thật. Writer inline, tự review + người dùng, risk trung bình tài liệu. Resource Markdown/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bước tiếp nhu cầu cập nhật giữa hai tài khoản, hoàn thiện đặc tả để review trước plan.
