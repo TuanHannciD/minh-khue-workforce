@@ -1,5 +1,17 @@
 # Validation — MKW-PRODUCT-001
 
+## Task3 — sửa review R1, chờ fresh review R2
+
+Base `302b42ff7bccda638bd728bef891ba855ae7085f`, branch/worktree giữ nguyên; single writer, không agent con/primary/progress.md/Task4+. Đã đọc đầy đủ R1 (0 Critical/3 Important), kiểm chứng source rồi viết regression trước từng fix. Report ignored `.superpowers/sdd/implementation-plan/task-3-fix-r1.md`; evidence mới `.agent-runs/MKW-PRODUCT-001/task3-fix-r1/`. Main sở hữu review độc lập exact tip sau commit, chưa PASS từ self-review.
+
+- I1: `i1-red.log`4/4 failed ở lifecycle/failure recovery, `i1-green.log` web14/14. Self-review sửa fixture để mỗi HTTP call có Response body riêng và thêm đúng lịch reviewer không có GET trước logout: `i1-exact-orders-red.log` chạy baseline R1,4/4 response schedules failed (authenticated/active sau logout), `web-final.log`24/24 GREEN trên source sửa. Transition fence chặn refresh/login mới trong logout, dừng timer, đóng boundary/cache ở start/completion; lỗi unavailable chỉ phục hồi qua server check mới, giữ draft.
+- I2: `i2-red.log`1 failed/7 passed, focus refresh tăng epoch3→4 dù cùng phiên; `i2-green.log` web18/18. Continuity giữ cache/draft lease/pending protected write; reauth cùng DTO, đổi user/absolute deadline vẫn invalidate. Không rebase mọi draft; giới hạn nhận diện theo DTO G1 ghi tại README session.
+- I3: `i3-red.log`3 failed/1 passed: delay0 khi client ahead3giờ, double request sau clock jump tiến, timer vượt32bit sau clock jump lùi; `i3-green.log` web22/22. Scheduling bounded và fallback1phút khi server200/deadline client đã qua; không thay absolute expiry/contract,401 fail closed.
+
+`product-check-final.log` exit0 sau fixture cuối:38 tooling/24 web/5 API, lint/format/type/build/boundary/drift; `docs-check.log` exit0/52 current docs, whitespace đạt. `product-check.log` là run trước cải thiện fixture I1 (22 web). `browser-validation.json`: T3 tab incognito1280px, web build thật + HTTP fixture điều khiển (không Nest/DB); loading trong logout, focus không thêm GET,500→unavailable, Thử lại mới GET200, logout204→login. Có diagnostic HTTP500 chủ động và ERR_ABORTED sau204 trong snapshot; server xác nhận đúng2 POST logout. `resource-release.json`: tab đóng, xác minh owner/executable/listener rồi dừng đúng PID25764, cổng53381 đóng; không acquire DB hoặc service khác.
+
+Không replay install hoặc PostgreSQL/pilot suite: chỉ web lifecycle/test/docs thay đổi, backend/schema/root/tooling giữ nguyên. Whole-product business/draft editor, Linux native, TLS production, operator/reset thật và thiết bị/reader vẫn Not run. R1 xác nhận frozen-final.log cũ thiếu cặp hash artifact trước/sau: không coi claim hash lịch sử đã được xác minh độc lập, không rerun install để tạo lại evidence lịch sử. Task2 M1 color-env accepted deferred giữ nguyên.
+
 ## Gate hiện hành — Task3 auth/session sandbox, chờ review độc lập
 
 Base sạch `9d358609d9a6a0c4352fad957dfc8b5b4c354194`; single writer Task3 tại linked worktree, không child/Task4+/primary. Task1/G1 và Task2 review PASS giữ nguyên. Main thực hiện fresh independent auth/schema review sau local commit; self-review của implementer không thay gate này. Chi tiết commands/rulings/failed runs/resources tại ignored `.superpowers/sdd/implementation-plan/task-3-implementation.md`.
