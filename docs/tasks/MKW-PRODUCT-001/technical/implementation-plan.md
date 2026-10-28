@@ -10,6 +10,8 @@
 
 **Spec:** [design.md](../design.md) toàn bộ mục1–14 và AC01–AC23, được người dùng duyệt ngày28/10/2026; [requirements](../approved/requirements.md), [architecture proposal](architecture-proposal.md) đọc cùng [ADR-003](../../../architecture/decisions/ADR-003-product-stack.md). Proposal không tự biến mọi thiết kế kỹ thuật thành Accepted.
 
+**Phương pháp thực thi hiện hành28/10/2026:** người dùng yêu cầu main chỉ điều phối và thực hiện tuần tự. Áp dụng subagent-driven-development: một implementer hoặc reviewer tại một thời điểm, fresh scoped context, report/ledger để resume; main không triển khai source. Chỉ dẫn inline ở header và checkpoint dưới được phương pháp mới này thay về execution route, không thay nội dung/gate task. Quyền dispatch phạm vi plan đã có; không có quyền tích hợp/push/deploy hoặc hệ thống thật. Reviewer G1 đang đọc snapshot Task1, chưa tự đánh dấu G1 Accepted.
+
 **Trạng thái:** Accepted — người dùng xác nhận “Tôi xác nhận duyệt kế hoạch” ngày28/10/2026. Tiếp tục inline bằng executing-plans; Task1 thiết kế đang thực hiện, G1 chưa duyệt, chưa cài/code sản phẩm. Plan nằm trong dossier theo EXECUTION_RULES, thay vị trí mặc định docs/superpowers/plans. Base tài liệu `1870695a416c7832bee4f3c8900369dcce4a9f3a`, worktree `.worktrees/agent-bootstrap`, branch `agent/mkw-agent-002` sạch trước sửa. Base thực thi phải là commit chứa plan đã duyệt, ghi SHA thực khi bắt đầu; không lấy base trước plan làm snapshot giao việc.
 
 ## Global Constraints

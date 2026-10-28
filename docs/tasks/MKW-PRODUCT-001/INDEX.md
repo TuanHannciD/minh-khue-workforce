@@ -2,7 +2,11 @@
 
 Ngày lập: 25/10/2026. Trạng thái: **Đặc tả đã được người dùng duyệt toàn bộ ngày28/10/2026; kế hoạch triển khai đã duyệt; Task1 In review — G1 chưa duyệt**. Chưa được phép triển khai sản phẩm.
 
-## Tiếp tục sau duyệt kế hoạch — 28/10/2026
+## Điều phối tuần tự theo yêu cầu mới — 28/10/2026
+
+Người dùng yêu cầu “Lần lượt thực hiện tuần tự đi. Main chỉ nên điều phối tránh đầy context phải nén nhiều lần”. Phương pháp chuyển từ inline sang agent con tuần tự: một task hoạt động tại một thời điểm, reviewer độc lập sau phần triển khai, main chỉ giao việc/ledger/gate/handoff; không nạp toàn bộ source vào main hoặc dispatch song song. Quyền delegation trong phạm vi plan nay đã có, thay các dòng “chưa có quyền dispatch/inline” ở checkpoint cũ; không mở rộng sang primary/push/deploy/hệ thống thật hoặc tự coi G1 đã duyệt chi tiết. Bước hiện tại: reviewer độc lập review G1 trên snapshot `6cfc3645f43ae1a1d0cb3b9c0811384671feb8c6..4ce4c6f1e10039d481366fda182a24e9b25b4d2c`, xử lý findings trước phần phụ thuộc. Base trước cập nhật điều phối `4ce4c6f1e10039d481366fda182a24e9b25b4d2c`, workspace sạch. File zone main: INDEX/ledger/phương pháp trong plan; risk điều phối trung bình; kiểm docs/whitespace. Reviewer chỉ đọc snapshot, chỉ ghi report ignored riêng; không server/DB/browser/code mới. Implementer sau đó một writer tại worktree này hoặc checkout cách ly riêng nếu cần; main không sửa vùng implementer đang sở hữu.
+
+## Tiếp tục sau duyệt kế hoạch — 28/10/2026 (lịch sử)
 
 Người dùng xác nhận “Tôi xác nhận duyệt kế hoạch”. Thực hiện inline theo đề xuất đã trình; không hỏi lại plan/kiến trúc/UI. Scope lượt tiếp nối: ghi approval, tạo baseline commit kế hoạch đã duyệt, hoàn thiện Task1 gồm contract/schema/auth/manifest/check matrix cho review G1. Chưa vượt G1 sang cài/scaffold/code sản phẩm; không cấp quyền dispatch, primary/push/deploy/hệ thống thật. Risk thiết kế trung bình–cao, writer inline; tự review tài liệu + người dùng review G1, gate code độc lập giữ nguyên. Resource: Git/check local, metadata package công khai chỉ đọc; ledger ignored theo plan, không server/DB/browser. Base trước sửa `1870695a416c7832bee4f3c8900369dcce4a9f3a`; các thay đổi Markdown/plan của lượt trước còn nguyên, xác minh task-owned trước commit. Acceptance: năm thiết kế có interface/giá trị/chính sách/test rõ, không báo tương thích Verified từ metadata; check docs/whitespace đạt. Bước tiếp: review G1 đã chuẩn bị cụ thể, không xin lại approval kế hoạch.
 
