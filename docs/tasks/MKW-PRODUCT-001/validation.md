@@ -261,3 +261,13 @@ Base `121d3d0`, workspace sạch. Người dùng duyệt hai tài khoản tạo 
 Base `ee530b5`, sạch trước sửa. Người dùng duyệt người phụ trách vận hành xác minh và đặt lại khi quên mật khẩu; bản đầu chưa cần email/SMS. Đồng bộ requirements/design/architecture/INDEX, thêm AC19. Self-review tách yêu cầu đã duyệt khỏi cơ chế kỹ thuật/quy trình xác minh/người phụ trách chưa xác định; không tự thêm role, màn hình admin hoặc chạy reset thật. Chỉ Markdown, không HTML/source sản phẩm/dependency/child/primary/resource mới; không app/prototype suite. Auth/reset/phiên/security tests Not run; không review độc lập hoặc claim đã triển khai. Bước tiếp nhu cầu cập nhật giữa hai tài khoản và hoàn thiện spec để review trước plan.
 
 `npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và staged whitespace trước commit local, chưa có bằng chứng thực thi khôi phục tài khoản.
+
+## Chốt cập nhật15 giây và rà bản đặc tả viết — 28/10/2026
+
+Base `762125f`, workspace sạch. Người dùng “Ảgee” chốt tự cập nhật dữ liệu đã lưu khoảng15 giây khi hai người cùng mở bảng, giữ draft. Đồng bộ requirements/design/architecture/INDEX, thêm AC20. Không thêm polling vào HTML giả; hai phiên/refetch/API/DB/lỗi mạng: Not run. Session/contract/schema và cơ chế timer/refetch cụ thể là thiết kế tiếp theo, không tự đánh dấu đã triển khai hoặc Accepted mọi chi tiết kỹ thuật.
+
+Tự review bản đặc tả: sửa trạng thái cũ về phối xanh, giới hạn số, đăng nhập/khôi phục, chỉ rõ scope đề xuất tại mục12, các AC01–AC20 và phạm vi Not run. Phân biệt ADR stack mục tiêu với cài/kiểm tương thích; DOM prototype với kiểm web–API–DB thật; danh sách tháng/editor/default fill/reminder/guard là đề xuất trình review cùng bản viết. Quét TODO/TBD/FIXME không có placeholder; phần còn mở có owner/giai đoạn ở mục12, không chọn thay yêu cầu nghiệp vụ. Giữ tài liệu checkpoint cũ ở đúng mốc, không đổi pilot/skill/source sản phẩm/dependency/primary hoặc acquire child/server/DB/tab. Writer inline, self-review + người dùng; không review độc lập.
+
+Gate tiếp theo: người dùng review bản design.md đã cập nhật trước writing-plans, theo brainstorming User Review Gate “Only proceed once the user approves.” Các xác nhận từng quyết định không tự trở thành duyệt toàn bộ bản viết/phương án còn Proposed. Sau review mới lập implementation plan gồm các bước thiết kế kỹ thuật cần review và kiểm phù hợp; vẫn không suy quyền cài/code sản phẩm/push/deploy. Không chạy app/prototype suite vì chỉ Markdown.
+
+`npm run check:docs` exit0,43 current documents; `git diff --check` exit0. Tự review scoped diff và staged whitespace trước commit local. Bản viết chờ người dùng review; implementation plan chưa viết, API/DB/polling chưa triển khai.

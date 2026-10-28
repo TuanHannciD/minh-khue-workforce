@@ -26,9 +26,9 @@ Resource: file Markdown/HTML local, checker hiện có và native T3 HTML previe
 
 ## Bước tiếp
 
-Đã chốt phương án A và bộ công nghệ mục tiêu tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md). Nền tảng ADR-001 và state ADR-002 giữ nguyên. Bộ stack chưa pin/cài/kiểm tương thích; auth/hosting/schema và nghiệp vụ chưa chốt vẫn mở.
+Đã chốt phương án A và bộ công nghệ mục tiêu tại [ADR-003](../../architecture/decisions/ADR-003-product-stack.md). Nền tảng ADR-001 và state ADR-002 giữ nguyên. Bộ stack chưa pin/cài/kiểm tương thích; auth/session chi tiết, hosting/schema và các thiết kế kỹ thuật chưa chốt vẫn mở; nghiệp vụ đã xác nhận được cập nhật tại đặc tả.
 
-Bước hiện tại: bản phối xanh được chấp nhận làm cơ sở; luồng chọn vùng, hai chế độ và bỏ qua N/— đã xác nhận. [Bản C](ui/attendance-c.html) đã có tương tác nhập vùng trong bộ nhớ, được tự review bằng native HTML preview; chờ người dùng thử. [Brief nhập vùng](ui/bulk-entry-design.md) ghi cách dùng và giới hạn. Tiếp theo làm rõ nghiệp vụ còn mở, sau quyết định dừng cả vùng khi xung đột, rồi review đặc tả viết trước implementation plan. Không cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local. Chi tiết check/giới hạn tại [validation](validation.md).
+Bước hiện tại: các quyết định nghiệp vụ đã xác nhận được tập hợp trong [đặc tả](design.md), cập nhật28/10/2026; gồm giới hạn/định dạng số, nhập vùng, xung đột, bảo vệ dữ liệu khi đổi mốc, Excel, tài khoản/khôi phục và tự cập nhật khoảng15 giây. Bản C phối xanh có tương tác bộ nhớ đã kiểm; chưa có auth/API/DB hoặc polling sản phẩm. Mục12 của đặc tả phân biệt phần đã duyệt, đề xuất để review, đã dựng và đã kiểm. Bước tiếp: người dùng review đặc tả viết trước implementation plan; kế hoạch phải có các task chốt contract/schema/auth/phiên bản và kiểm chứng phù hợp. Không cài/scaffold/code sản phẩm hoặc tích hợp primary; commit giữ local. Chi tiết tại [validation](validation.md).
 
 ## Checkpoint UI trực quan
 
@@ -131,3 +131,7 @@ Người dùng “Agree” tên đăng nhập + mật khẩu, hai tài khoản t
 ## Chốt khôi phục mật khẩu qua vận hành — 28/10/2026
 
 Người dùng “Agree” người phụ trách vận hành xác minh và đặt lại khi quên mật khẩu, bản đầu chưa cần email/SMS. Base `ee530b5`, workspace sạch. Scope requirements/design/architecture/validation/INDEX; acceptance phân biệt quy trình đã duyệt với cơ chế kỹ thuật chưa thiết kế, không tự thêm role/màn hình quản trị hoặc thao tác tài khoản thật. Writer inline, tự review + người dùng, risk trung bình tài liệu. Resource Markdown/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Bước tiếp nhu cầu cập nhật giữa hai tài khoản, hoàn thiện đặc tả để review trước plan.
+
+## Chốt cập nhật15 giây và chuẩn bị review đặc tả — 28/10/2026
+
+Người dùng “Ảgee” tự cập nhật dữ liệu đã lưu khoảng15 giây khi hai người cùng mở bảng, giữ bản nháp. Base `762125f`, workspace sạch. Scope requirements/design/architecture/INDEX/validation và brief nhập vùng nếu cần nhất quán; acceptance đồng bộ quyết định, thêm AC20, sửa trạng thái cũ mâu thuẫn và phân biệt đề xuất/đã duyệt/đã dựng/đã kiểm trước review spec. Writer inline, tự review + người dùng, risk trung bình tài liệu; resource Markdown/check local, không child/dependency/HTML/source sản phẩm/server/DB/tab/primary. Không thêm polling giả vào HTML hoặc dùng prototype làm chứng cứ concurrency. Bước tiếp review đặc tả viết theo brainstorming trước writing-plans; chưa có quyền triển khai sản phẩm.

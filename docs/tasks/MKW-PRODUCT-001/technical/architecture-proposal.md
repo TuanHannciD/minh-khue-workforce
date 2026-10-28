@@ -131,7 +131,7 @@ Acceptance tương lai: hai request tranh chấp trên PostgreSQL thật phải 
 
 ## 6. Cập nhật giữa hai tài khoản và độ bền
 
-Đề xuất bản đầu refetch khi mở màn hình, trở lại tab và kết nối mạng trở lại; có thao tác tải lại rõ ràng. Nếu cần thấy thay đổi trong lúc cả hai cùng mở bảng, thêm polling với khoảng thời gian được thống nhất hoặc SSE sau khi review nhu cầu/chi phí. Không mặc định chọn WebSocket. **Cách cập nhật giữa thiết bị chưa chốt; không cam kết tức thời.** Concurrency backend vẫn bắt buộc ngay cả khi có realtime.
+Đã chốt tự cập nhật dữ liệu đã lưu khoảng mỗi15 giây khi hai người cùng mở bảng, giữ draft đang nhập. Thiết kế đề xuất: TanStack Query refetch interval khoảng15 giây khi màn hình bảng đang hoạt động, kèm refetch lúc mở/trở lại tab/kết nối lại và thao tác tải lại rõ ràng. Không khởi tạo timer trùng theo từng ô hoặc tài khoản. Background refetch cập nhật snapshot, không ghi đè draft hoặc đổi phiên bản nền của draft để che xung đột. Khi tab bị browser hạn chế hoặc mất mạng, không cam kết đúng15 giây; hiện trạng thái tải/lỗi/độ mới phù hợp. Không cần tự thêm SSE/WebSocket. Concurrency backend vẫn bắt buộc. Polling sản phẩm chưa triển khai/kiểm chứng.
 
 Query retry đọc cần phân loại lỗi: lỗi auth/validation không retry vô ích; lỗi mạng tạm có giới hạn và feedback. Background refetch lỗi có thể giữ snapshot cũ nhưng cần báo độ mới; lần tải đầu thất bại phải có trạng thái lỗi/thử lại, không trình bảng rỗng như không có dữ liệu.
 
@@ -155,7 +155,7 @@ Các mục sau là acceptance cho tooling/implementation plan tương lai; **ch�
 - Boundary check chặn shared→feature, web→server, deep import xuyên feature và cycle; fixture cố ý vi phạm phải thất bại, fixture hợp lệ phải đạt. Loại trừ generated code có phạm vi/lý do, không loại trừ toàn feature để làm xanh.
 - Contract generation tái tạo snapshot/types ổn định; CI/check phát hiện drift khi đổi DTO mà chưa cập nhật output. Request/response thực và validation phải được test, không chỉ compile types.
 - Unit logic công/giờ/mốc ngày theo phần Q1/Q4 đã chốt và tiếp tục làm rõ phần mở; test màu không đổi tổng, công/tăng ca không gộp và tổng ngày/người nhất quán.
-- Component tests cho draft/lỗi, chuyển bảng, chọn ô và hành vi keyboard; không test lại nội bộ Radix chỉ để tăng số lượng.
+- Component tests cho draft/lỗi, chuyển bảng, chọn ô, refetch khoảng15 giây không làm mất draft hoặc che xung đột, và hành vi keyboard; không test lại nội bộ Radix chỉ để tăng số lượng.
 - API integration có quyền, validation, transaction và hai request cập nhật cùng phiên bản; kiểm một lần đạt và lần còn lại báo xung đột, không ghi đè âm thầm. Test sửa màu/giá trị đồng thời và thay mốc cần xét theo contract.
 - Browser web–API–PostgreSQL thật: thêm nhân sự giả, nhập công/giờ/màu, lỗi/thử lại, reload/persistence, hai phiên tranh chấp, xuất Excel/mở kiểm nội dung. Không thay bằng API mock hoặc file tồn tại.
 - Kiểm iPhone/Android thật cho zoom/touch/xoay/sticky và desktop cho chuột/Enter/Tab. Thiếu thiết bị ghi Not run. Accessibility không suy ra từ thư viện component.
@@ -166,7 +166,7 @@ Review độc lập cho code/tooling theo [QUALITY_GATES](../../../agent/QUALITY
 ## 9. Điểm cần review trước kế hoạch triển khai
 
 1. Đã chốt hướng A và bộ công nghệ mục tiêu theo ADR-003; chốt/kiểm phiên bản tương thích ở bước tooling, không kế thừa pin pilot một cách tự động.
-2. Đăng nhập tên/mật khẩu và hai tài khoản tạo sẵn đã chốt; khôi phục qua vận hành xác minh/đặt lại đã chốt, còn thiết kế chi tiết; chốt nhu cầu cập nhật giữa hai tài khoản; lựa chọn hạ tầng vận hành/backup trước release.
+2. Đăng nhập tên/mật khẩu và hai tài khoản tạo sẵn đã chốt; khôi phục qua vận hành xác minh/đặt lại đã chốt, còn thiết kế chi tiết; tự cập nhật khoảng15 giây và giữ draft đã chốt; lựa chọn hạ tầng vận hành/backup trước release.
 3. Q1 đã chốt bước/trần/định dạng/lỗi nhập; Q4 đã chốt cả reminder-only khi đổi mốc; Q5 đã chốt bố cục/công thức Excel; trình bản UI C hoàn thiện bằng Impeccable + UI UX Pro Max.
 4. Review contract/request/response, concurrency, migrations và gate kiểm đúng phạm vi. Chưa đủ quyết định để Agent tự triển khai toàn bộ sản phẩm.
 5. Sau khi bản đặc tả viết đủ và được duyệt, mới viết implementation plan, chia task có ownership/check/review/resume. Không chuyển tài liệu này thành danh sách lệnh cài rồi thực hiện ngay.
