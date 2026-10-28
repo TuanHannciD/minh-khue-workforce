@@ -52,8 +52,14 @@ export async function checkBoundaries(root, apps = ["web", "api"]) {
             {
               name: "cycle",
               severity: "error",
-              from: {},
+              from: { pathNot: "^apps/api/src/infrastructure/db/generated/" },
               to: { circular: true },
+            },
+            {
+              name: "cycle-generated-runtime",
+              severity: "error",
+              from: { path: "^apps/api/src/infrastructure/db/generated/" },
+              to: { circular: true, dependencyTypesNot: ["type-only"] },
             },
           ],
         },

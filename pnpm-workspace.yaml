@@ -12,3 +12,9 @@ allowBuilds:
   esbuild: true
   # Telemetry-only postinstall; not a native/runtime build (reviewed report.js).
   "@scarf/scarf": false
+  argon2: true
+  "@prisma/engines": true
+  prisma: true
+minimumReleaseAgeExclude:
+  - react-router-dom@7.18.5
+  - react-router@7.18.5

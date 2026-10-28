@@ -9,8 +9,13 @@ export async function createDocument(): Promise<OpenAPIObject> {
     const config = new DocumentBuilder()
       .setTitle("Minh Khuê bootstrap API")
       .setVersion("0.0.0")
+      .addCookieAuth("mkw_session")
       .build();
     const document = SwaggerModule.createDocument(app, config);
+    for (const schema of Object.values(document.components?.schemas ?? {})) {
+      if (!("$ref" in schema) && schema.type === "object")
+        schema.additionalProperties = false;
+    }
     document.openapi = "3.0.3";
     return document;
   } finally {

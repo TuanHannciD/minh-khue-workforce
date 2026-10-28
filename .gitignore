@@ -13,3 +13,4 @@ dist/
 coverage/
 *.tsbuildinfo
 .pnpm-store/
+apps/api/src/infrastructure/db/generated/

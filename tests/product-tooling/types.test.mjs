@@ -5,7 +5,7 @@ import { resolve, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 test("strict compiler accepts generated contract consumer and rejects invalid wire type / implicit any", async () => {
-  const runs = resolve(".agent-runs/MKW-PRODUCT-001/task2-toolchain/fixtures");
+  const runs = resolve(".agent-runs/MKW-PRODUCT-001/task3-auth/fixtures");
   await mkdir(runs, { recursive: true });
   const root = await mkdtemp(join(runs, "strict-"));
   const schema = resolve(

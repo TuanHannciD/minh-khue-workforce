@@ -1,11 +1,72 @@
 {
   "components": {
     "schemas": {
+      "ApiErrorDto": {
+        "additionalProperties": false,
+        "properties": {
+          "error": { "$ref": "#/components/schemas/ErrorDetailDto" },
+          "requestId": { "format": "uuid", "type": "string" }
+        },
+        "required": ["error", "requestId"],
+        "type": "object"
+      },
+      "ErrorDetailDto": {
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" }
+        },
+        "required": ["code", "message"],
+        "type": "object"
+      },
       "HealthDto": {
+        "additionalProperties": false,
         "properties": { "status": { "enum": ["ok"], "type": "string" } },
         "required": ["status"],
         "type": "object"
+      },
+      "LoginDto": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "description": "Maximum 1024 UTF-8 bytes; never trimmed",
+            "format": "password",
+            "maxLength": 1024,
+            "type": "string",
+            "writeOnly": true
+          },
+          "username": { "maxLength": 64, "minLength": 1, "type": "string" }
+        },
+        "required": ["username", "password"],
+        "type": "object"
+      },
+      "LogoutDto": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "SessionDto": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": { "format": "date-time", "type": "string" },
+          "idleExpiresAt": { "format": "date-time", "type": "string" },
+          "user": { "$ref": "#/components/schemas/SessionIdentityDto" }
+        },
+        "required": ["user", "expiresAt", "idleExpiresAt"],
+        "type": "object"
+      },
+      "SessionIdentityDto": {
+        "additionalProperties": false,
+        "properties": {
+          "userId": { "format": "uuid", "type": "string" },
+          "username": { "type": "string" }
+        },
+        "required": ["userId", "username"],
+        "type": "object"
       }
+    },
+    "securitySchemes": {
+      "cookie": { "in": "cookie", "name": "mkw_session", "type": "apiKey" }
     }
   },
   "info": {
@@ -16,6 +77,221 @@
   },
   "openapi": "3.0.3",
   "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SessionDto" }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": "",
+            "headers": { "Retry-After": { "schema": { "type": "integer" } } }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LogoutDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": { "description": "" },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [{ "cookie": [] }],
+        "tags": ["auth"]
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "operationId": "AuthController_session",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SessionDto" }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiErrorDto" }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [{ "cookie": [] }],
+        "tags": ["auth"]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_read",

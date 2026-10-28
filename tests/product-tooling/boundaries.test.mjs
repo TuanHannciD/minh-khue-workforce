@@ -6,11 +6,11 @@ import { spawnSync } from "node:child_process";
 
 const checker = resolve("scripts/product/check-boundaries.mjs");
 async function fixture(files, app = "web", links = {}) {
-  await mkdir(".agent-runs/MKW-PRODUCT-001/task2-toolchain/fixtures", {
+  await mkdir(".agent-runs/MKW-PRODUCT-001/task3-auth/fixtures", {
     recursive: true,
   });
   const root = await mkdtemp(
-    resolve(".agent-runs/MKW-PRODUCT-001/task2-toolchain/fixtures/boundary-"),
+    resolve(".agent-runs/MKW-PRODUCT-001/task3-auth/fixtures/boundary-"),
   );
   const config = {
     compilerOptions: {
@@ -65,6 +65,53 @@ test("accepts generated contract types and browser dependencies without traversi
       "export { browser } from './missing-vendor-internal.js';",
   });
   assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test("allows Prisma-generated type cycles only inside its exact generator output", async () => {
+  const result = await fixture(
+    {
+      "apps/api/src/main.ts":
+        "import type { A } from './infrastructure/db/generated/a.js'; export type Value = A;",
+      "apps/api/src/infrastructure/db/generated/a.ts":
+        "import type { B } from './b.js'; export interface A { b: B }",
+      "apps/api/src/infrastructure/db/generated/b.ts":
+        "import type { A } from './a.js'; export interface B { a: A }",
+    },
+    "api",
+  );
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test("generated folder exemption cannot hide a cycle through handwritten source or cross-app import", async () => {
+  const result = await fixture(
+    {
+      "apps/api/src/main.ts":
+        "export { value } from './infrastructure/db/generated/a.js'; export const manual = 1;",
+      "apps/api/src/infrastructure/db/generated/a.ts":
+        "import { manual } from '../../../main.js'; export const value = manual; export type { Web } from '../../../../../web/dist/api.d.ts';",
+      "apps/web/dist/api.d.ts": "export interface Web { value: string }",
+    },
+    "api",
+  );
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout + result.stderr, /cycle/);
+  assert.match(result.stdout + result.stderr, /cross-app/);
+});
+
+test("rejects runtime cycles entirely inside Prisma generator output", async () => {
+  const result = await fixture(
+    {
+      "apps/api/src/main.ts":
+        "export { a } from './infrastructure/db/generated/a.js';",
+      "apps/api/src/infrastructure/db/generated/a.ts":
+        "import { b } from './b.js'; export const a: number = b;",
+      "apps/api/src/infrastructure/db/generated/b.ts":
+        "import { a } from './a.js'; export const b: number = a;",
+    },
+    "api",
+  );
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout + result.stderr, /cycle-generated-runtime/);
 });
 
 // Catch src-only ownership, discarded dependency edges and junction identity loss.

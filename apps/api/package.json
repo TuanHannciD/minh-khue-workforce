@@ -12,10 +12,14 @@
   "scripts": {
     "dev": "tsc --watch --preserveWatchOutput",
     "start": "node dist/main.js",
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test test/*.test.mjs",
-    "test:integration": "node ../../scripts/product/staged-gate.mjs api-integration Task3-5"
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/bootstrap.test.mjs test/auth.contract.test.mjs test/auth.unit.test.mjs",
+    "test:integration": "node --test test/auth.integration.test.mjs",
+    "db:generate": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "auth:provision": "node ../../scripts/product/auth-cli.mjs provision",
+    "auth:reset-password": "node ../../scripts/product/auth-cli.mjs reset-password"
   },
   "dependencies": {
     "@nestjs/common": "12.3.2",
@@ -24,11 +28,25 @@
     "@nestjs/swagger": "12.0.5",
     "express": "5.3.0",
     "reflect-metadata": "0.2.2",
-    "rxjs": "7.8.2"
+    "rxjs": "7.8.2",
+    "@nestjs/throttler": "6.7.1",
+    "@prisma/client": "7.10.1",
+    "@prisma/adapter-pg": "7.10.1",
+    "pg": "8.23.1",
+    "argon2": "0.45.1",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.15.1",
+    "cookie-parser": "1.4.7",
+    "helmet": "8.3.0"
   },
   "devDependencies": {
     "@types/express": "5.0.6",
     "@types/node": "24.19.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "prisma": "7.10.1",
+    "@types/pg": "8.23.1",
+    "@types/cookie-parser": "1.4.10",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   }
 }

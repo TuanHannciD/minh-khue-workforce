@@ -10,7 +10,7 @@ let candidate = value("--candidate-dir");
 // Explicit candidate-dir supports isolated negative fixtures; the normal gate
 // always regenerates from the compiled Nest source in a fresh retained directory.
 if (!candidate) {
-  const runs = resolve(".agent-runs/MKW-PRODUCT-001/task2-toolchain/contracts");
+  const runs = resolve(".agent-runs/MKW-PRODUCT-001/task3-auth/contracts");
   await mkdir(runs, { recursive: true });
   candidate = await mkdtemp(join(runs, "generation-"));
   const { generateContract } = await import("./generate-contract.mjs");

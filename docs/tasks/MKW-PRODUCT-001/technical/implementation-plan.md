@@ -129,11 +129,13 @@ Task2 gate complete: independent review R2 tại `4dd3b4f428c39eaaaf248be3b1e477
 
 **Interfaces:** Consumes G1 session contract, task2 DB/config/transport. Produces `requireSession(request): Promise<AuthenticatedSession>`, current-session API và `clearSessionCache(): void` tại providers; credential/session chỉ đi theo thiết kế G1, không localStorage token.
 
-- [ ] Viết `auth_rejects_anonymous_and_equal_accounts_can_edit` và `reset_revokes_sessions_without_admin_role`: unauthorized tháng/write/export; hai tài khoản giả cùng quyền; login sai không lộ account, CSRF/login flooding theo G1; logout/reset khiến cookie cũ bị từ chối. Không có public signup/reset endpoint vô quyền.
-- [ ] Chạy integration trên PostgreSQL thử mới, xác nhận RED chưa có module; viết UI test login lỗi giữ username nhưng không log password, lỗi auth không loop retry.
-- [ ] Triển khai guard/session/login/logout + seed đúng hai account fixture, CLI reset có target check. Seed thật và danh tính người vận hành chỉ làm khi được quyền riêng; không ghi mật khẩu vào Git/log.
-- [ ] Chạy GREEN API/UI; kiểm logout xóa Query cache và dữ liệu nhạy cảm, hết phiên ngừng polling và hiện đăng nhập lại; draft không được gửi nhầm sau đổi phiên. Kiểm cookie/CSRF theo môi trường thử, không lấy localhost làm bằng chứng TLS production.
+- [x] Viết `auth_rejects_anonymous_and_equal_accounts_can_edit` và `reset_revokes_sessions_without_admin_role`: unauthorized tháng/write/export; hai tài khoản giả cùng quyền; login sai không lộ account, CSRF/login flooding theo G1; logout/reset khiến cookie cũ bị từ chối. Không có public signup/reset endpoint vô quyền.
+- [x] Chạy integration trên PostgreSQL thử mới, xác nhận RED chưa có module; viết UI test login lỗi giữ username nhưng không log password, lỗi auth không loop retry.
+- [x] Triển khai guard/session/login/logout + seed đúng hai account fixture, CLI reset có target check. Seed thật và danh tính người vận hành chỉ làm khi được quyền riêng; không ghi mật khẩu vào Git/log.
+- [x] Chạy GREEN API/UI; kiểm logout xóa Query cache và dữ liệu nhạy cảm, hết phiên ngừng polling và hiện đăng nhập lại; draft không được gửi nhầm sau đổi phiên. Kiểm cookie/CSRF theo môi trường thử, không lấy localhost làm bằng chứng TLS production.
 - [ ] Review độc lập auth/schema snapshot; commit `feat: add two-account authenticated sessions`; AC01/AC19 chỉ đổi Verified ở lớp thực sự đã chạy.
+
+Task3 implementation28/10: base `9d358609d9a6a0c4352fad957dfc8b5b4c354194`, single writer/không child. API integration12/12 trên DB mới và browser build thật đạt auth sandbox; guard tháng/write/export qua test-owned probes, draft qua seam memory chưa có nghiệp vụ Task4/5/9. CLI thực tế `scripts/product/auth-cli.mjs` với hai pnpm commands provision/reset; test API `.mjs` chạy compiled ESM theo Task2 để bắt lỗi runtime metadata/import. Không tạo TS CLI loader mới. Native form controls/tokens C; primitives thuộc Task6. Evidence `.agent-runs/MKW-PRODUCT-001/task3-auth/`, report ignored Task3; [validation](../validation.md) phân biệt scope Verified/Not run. Local commit bàn giao chưa thay independent auth/schema review; main thực hiện fresh review trước Task4.
 
 ### Task 4: Nhân sự và bảo vệ mốc làm việc xuyên tháng
 
@@ -240,7 +242,7 @@ Checkpoint viết plan chỉ có docs/whitespace. Task2 nay tạo/kiểm các l�
 | --- | --- | --- |
 | `pnpm install --frozen-lockfile` | Cài tái lập pins G1 trong engine đã chọn, không đổi lockfile | Verified cả fresh node_modules offline |
 | `pnpm run product:check` | lint + strict typecheck + unit/component + boundary/contract drift + build từng app, exit0 | Verified bootstrap/tooling17 +web2 +API2; component nghiệp vụ chưa có |
-| `pnpm --filter @mkw/api test:integration` | Supertest/PostgreSQL run-owned, schema/permission/concurrency assertions đều đạt | Not run; staged script exit2, wrapper1; cần Task3–5 |
+| `pnpm --filter @mkw/api test:integration` | HTTP/PostgreSQL run-owned, schema/permission/concurrency assertions đều đạt | Task3 auth12/12; cần owner record, Task4–5 nghiệp vụ chưa chạy |
 | `pnpm --filter @mkw/web test --run` | Vitest/Testing Library/gesture clock, assertions GREEN | Verified2 transport HTTP/config; DOM/gesture Not run đến Task6–8 |
 | `pnpm run product:contract:check` | Sinh snapshot/types vào artifact tạm, diff với tracked output không drift | Verified3.0.3 +generated web types, stale fixture bị chặn |
 | `pnpm run product:test:e2e` | Playwright product config start/stop đúng resource, web→API→PostgreSQL readback, exit0 | Not run; staged exit2, cần Task10 |

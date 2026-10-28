@@ -1,5 +1,20 @@
 # Validation — MKW-PRODUCT-001
 
+## Gate hiện hành — Task3 auth/session sandbox, chờ review độc lập
+
+Base sạch `9d358609d9a6a0c4352fad957dfc8b5b4c354194`; single writer Task3 tại linked worktree, không child/Task4+/primary. Task1/G1 và Task2 review PASS giữ nguyên. Main thực hiện fresh independent auth/schema review sau local commit; self-review của implementer không thay gate này. Chi tiết commands/rulings/failed runs/resources tại ignored `.superpowers/sdd/implementation-plan/task-3-implementation.md`.
+
+Evidence mới `.agent-runs/MKW-PRODUCT-001/task3-auth/`:
+
+- `auth-red.log` và `integration-red-http.log`: auth route chưa có trả404 thay401. `ui-red.log`, session-state/deadline RED và draft-owner RED bắt thiếu form, gửi read sau expiry, thiếu recheck deadline và nhận draft owner sai. Không tính lỗi harness/cwd/install là behavioral RED.
+- `integration-cli-green.log`:12/12 trên PostgreSQL17.11, DB mới/migration từ trống; hai fixture ngang quyền, independent SQL hash/schema readback, CSRF/JSON/unknown DTO, cookie rotation/expiry/revocation/logout/reset, quota dùng chung hai app và transaction fences có barrier xác định. CLI chạy qua pnpm wrapper, target check, missing-user refusal và rollback; không secret trong argv/log. `cli-wrapper-red.log` bắt separator pnpm trước sửa parser; `cli-wrapper-first.log` là lỗi cwd harness đã sửa, DB/evidence cũ được giữ.
+- `browser-validation.json`, `browser-independent-readback.log` và screenshots: T3 preview incognito/build thật/API/DB mới; login sai giữ username/xóa password, login đúng/logout/SQL idle expiry rồi focus yêu cầu đăng nhập lại. Readback2 User/2 Session/1 revoked. Viewport1280/375px không tràn, keyboard/focus và44px controls; không localStorage token, HttpOnly cookie không đọc từ JS. Browser listener/tab đã release.
+- Native Argon2 Windows x64 chạy thật đúng params G1 (`argon2-native.json`); hai mẫu local không là benchmark tải. Linux native **Not run** vì Docker daemon unavailable; không khởi động global service để vượt quyền.
+- `late-body-red.log` → `late-body-green.log`: self-review phát hiện body response tới sau logout vẫn có thể trả dữ liệu dù headers tới trước; transport kiểm epoch lại sau đọc body. `product-check-handoff.log` exit0:38 tooling/10 web/5 API, lint/format/type/build/boundary/drift. `integration-handoff.log` exit0/12 tests, thêm SQL readback reset missing User không tạo account. `frozen-final.log` exit0, lock hash trước/sau giữ nguyên. `pilot-check22.log` exit0/10 tests,52 current docs; `pilot-e2e22.log` exit0/2 desktop/mobile. Không thay pilot source.
+- `postgres-stop.log`, `resource-release.log`, `release-audit.json`: xác minh identity thực rồi pg_ctl stop đúng cluster Task3,7 cổng task-owned đóng,4 browser/pilot owner records released, cluster released và data retained. Startup shell cũ giữ inherited pipe tới shutdown đã thoát; state running cũ bị shell ghi muộn được sửa theo audit thực. Log constraint giữ lỗi/context, redact fixture hash/row; không xóa DB/evidence cũ.
+
+AC01 **Verified riêng auth sandbox/guard seam**, AC19 **Verified riêng CLI reset/revoke sandbox**. Route tháng/write/export là test-owned probes, chưa có business endpoints Task4/5/9; draft là memory seam chưa có chấm công thật. Whole-product AC01/AC19, identity operator/reset thật, production TLS/cookie trên HTTPS deployment, Linux native và real device/reader **Not run**. Không đổi toàn bộ AC sang đạt hoặc claim release-ready. Kết quả gate tổng/pilot cuối và release được ghi trong report Task3; main review còn Pending.
+
 ## Gate hiện hành — Task2 review độc lập đạt
 
 Task2 gate complete: independent review R2 tại `4dd3b4f428c39eaaaf248be3b1e477292287de8f` xác nhận I1 Closed, spec/code quality Approved, không finding mới. M1 color-env warning deferred nonblocking. Evidence và reports giữ tại `.superpowers/sdd/implementation-plan/task-2-review-r2.md` và `.agent-runs/MKW-PRODUCT-001/task2-fix-r1/`; checks product35+2+2, pilot10/E2E2, docs50. Các đoạn Pending phía trên là lịch sử handoff. Tiếp tục Task3 theo quyền người dùng, không thêm confirmation thường lệ; business/device/production gates chưa đạt từ bootstrap.

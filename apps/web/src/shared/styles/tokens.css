@@ -1,0 +1,169 @@
+/* Extracted from approved attendance-c.html; product Operate surface. */
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  font-size: 16px;
+  color-scheme: light;
+  --ink: #292e38;
+  --quiet: #5c6472;
+  --action: #1b6248;
+  --action-hover: #153e30;
+  --soft: #eaf3ee;
+  --paper: #fff;
+  --wash: #f3f4f6;
+  --line: #d9dde4;
+  --danger: #a52d27;
+  --radius: 14px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  color: var(--ink);
+  background: var(--wash);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input {
+  font: inherit;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+button {
+  padding: 10px 16px;
+  color: var(--ink);
+  background: var(--paper);
+  cursor: pointer;
+  font-weight: 600;
+}
+button:hover {
+  background: var(--wash);
+}
+button:active {
+  background: var(--soft);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+input {
+  padding: 10px 12px;
+  min-width: 0;
+  width: 100%;
+  color: var(--ink);
+  background: var(--paper);
+  caret-color: var(--action);
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--action);
+  outline-offset: 3px;
+}
+::selection {
+  color: var(--ink);
+  background: var(--soft);
+}
+h1 {
+  font-size: 1.75rem;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+p {
+  line-height: 1.6;
+}
+.muted {
+  color: var(--quiet);
+}
+.primary {
+  background: var(--action);
+  color: var(--paper);
+  border-color: var(--action);
+}
+.primary:hover,
+.primary:active {
+  background: var(--action-hover);
+}
+.error {
+  color: var(--danger);
+}
+.login-layout {
+  max-width: 440px;
+  padding: 48px var(--space-3);
+  margin: 0 auto;
+}
+.brand {
+  color: var(--action-hover);
+  font-weight: 750;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  margin-bottom: var(--space-4);
+}
+.login-panel {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}
+.login-panel > p {
+  margin: var(--space-1) 0 var(--space-3);
+}
+.login-panel form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.login-panel label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.login-panel input + label {
+  margin-top: var(--space-2);
+}
+.login-panel form button {
+  margin-top: var(--space-2);
+}
+.login-panel .login-help {
+  font-size: 0.875rem;
+  margin-top: var(--space-3);
+  margin-bottom: 0;
+}
+.session-layout {
+  max-width: 960px;
+  margin: var(--space-4) auto;
+  padding: var(--space-3);
+  background: var(--paper);
+  border-radius: var(--radius);
+}
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+.session-layout section button + button {
+  margin: var(--space-1);
+}
+@media (max-width: 480px) {
+  .login-layout {
+    padding: var(--space-3) var(--space-2);
+  }
+  .login-panel {
+    padding: var(--space-3);
+  }
+  .session-layout {
+    margin: var(--space-2);
+    padding: var(--space-2);
+  }
+}

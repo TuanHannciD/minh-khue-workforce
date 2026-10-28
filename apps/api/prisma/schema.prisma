@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/infrastructure/db/generated"
+  moduleFormat = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id String @id @db.Uuid
+  username String @unique @db.VarChar(64)
+  passwordHash String
+  authVersion BigInt @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @db.Timestamptz(3)
+  sessions Session[]
+}
+
+model Session {
+  id String @id @db.Uuid
+  tokenHash Bytes @unique
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  authVersion BigInt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  lastSeenAt DateTime @default(now()) @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AuthThrottle {
+  bucketKey Bytes
+  windowStart DateTime @db.Timestamptz(3)
+  attempts Int
+  expiresAt DateTime @db.Timestamptz(3)
+  @@id([bucketKey, windowStart])
+  @@index([expiresAt])
+}

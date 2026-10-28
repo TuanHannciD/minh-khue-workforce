@@ -18,7 +18,7 @@ npm run test:e2e
 
 Playwright Chromium nằm trong `.local-browsers` của package `playwright-core` project-local (pnpm resolve dưới `node_modules/.pnpm`), không sửa browser/global config. Khi chuyển package manager cần cài browser lại tại đường dẫn mới. Wrapper tự đặt browser path và cờ SQLite cho workers. Hai viewport desktop/mobile dùng server/DB riêng, không intercept/mock API, retries=0; trace/report/screenshot và SQLite fake-data được giữ theo run.
 
-## Product Task2 — runtime và lệnh có thật
+## Product Task2–3 — runtime và lệnh có thật
 
 Runtime portable đã provision ở ignored `.agent-runs/MKW-PRODUCT-001/task2-toolchain/`, không thay Node global/PATH máy. [Manifest](../tasks/MKW-PRODUCT-001/technical/toolchain-manifest.md) ghi nguồn/checksum và phân biệt phần cài với phần chỉ được đề xuất. Trong **shell product riêng** từ root worktree:
 
@@ -38,21 +38,46 @@ PATH trên chỉ có hiệu lực process shell và các child; dùng shell22 ri
 Chạy web và API ở hai terminal product riêng:
 
 ```powershell
-pnpm --filter @mkw/web dev # loopback5173, strictPort; đọc VITE_API_ORIGIN
+pnpm --filter @mkw/web dev # loopback5173, strictPort; API_PROXY_TARGET cho auth
 ```
 
 ```powershell
 pnpm --filter @mkw/api build
 $env:PORT='3001'
 $env:WEB_ORIGIN='http://127.0.0.1:5173'
+# DATABASE_URL và AUTH_THROTTLE_SECRET phải được cấp riêng trong process.
+# Xem apps/api/.env.example; không ghi secret vào lệnh/log hoặc Git.
 pnpm --filter @mkw/api start
 ```
 
-Dừng foreground bằng Ctrl+C trong đúng terminal sở hữu. Không kill theo cổng tìm thấy. `api dev` chỉ watch compiler; chạy `start` riêng sau build. `apps/*/.env.example` là mẫu cấu hình; Vite đọc `.env`, API đọc biến process (không tự load file secret). Cổng trên là mặc định tài liệu, phải kiểm còn trống trước acquire; sandbox Task2 đã dùng cổng ngẫu nhiên và owner record. Bootstrap API chỉ có GET `/health`; không mở Swagger UI, auth hoặc endpoint nghiệp vụ.
+Dừng foreground bằng Ctrl+C trong đúng terminal sở hữu. Không kill theo cổng tìm thấy. `api dev` chỉ watch compiler; chạy `start` riêng sau build. `apps/*/.env.example` là mẫu cấu hình; Vite đọc `.env`, API đọc biến process (không tự load file secret). Cổng trên là mặc định tài liệu, phải kiểm còn trống trước acquire. API có `/health` và `/api/v1/auth/{login,logout,session}`; không mở Swagger UI hoặc endpoint nghiệp vụ. Vite proxy `/api` về API cùng origin với browser; `API_PROXY_TARGET` đọc từ process Vite, `VITE_API_ORIGIN` chỉ còn dùng health transport bootstrap.
 
-Web alias `@/` thuộc src web. API dùng native package imports `#app/*` với `.js` ESM, được kiểm trên compiled runtime; không có alias xuyên app. Contract được sinh từ Nest health DTO thành OpenAPI3.0.3 và web types; không sửa hai output bằng tay. [Tooling map](../../scripts/product/README.md) định vị generator/boundary/fixtures.
+Web alias `@/` thuộc src web. API dùng native package imports `#app/*` với `.js` ESM, được kiểm trên compiled runtime; không có alias xuyên app. Contract được sinh từ Nest DTO thành OpenAPI3.0.3 và web types; không sửa hai output bằng tay. [Tooling map](../../scripts/product/README.md) định vị generator/boundary/fixtures.
 
-`product:check` chạy lint/format/strict types/build từng app, tooling fixtures, web Vitest, API bootstrap HTTP, cycle/boundary và regenerated drift check. Các lệnh `@mkw/api test:integration`, `product:test:e2e`, `product:benchmark` hiện báo **Not run, nonzero** vì cần Task3–10 (script exit2, pnpm filter có thể trả1); không nằm trong kết luận bootstrap đạt. Web test hiện kiểm transport HTTP/config, chưa là DOM/gesture acceptance. PostgreSQL/Prisma compatibility spike đã đạt trong sandbox ignored độc lập và cluster đã dừng; không tạo schema/migration sản phẩm ở Task2. npm lock baseline được giữ qua checks, sao lưu byte-for-byte trong ignored evidence và lịch sử Git trước khi bỏ lock npm active.
+`product:check` chạy lint/format/strict types/build từng app, tooling fixtures, web Vitest/DOM/session, API bootstrap/auth HTTP/native, cycle/boundary và regenerated drift check. `product:test:e2e` và `product:benchmark` vẫn **Not run, nonzero** đến Task10. Integration auth chạy riêng trên PostgreSQL17.11 thật như dưới; không phải acceptance toàn sản phẩm. npm lock baseline được giữ trong ignored evidence và lịch sử Git trước khi bỏ lock npm active.
+
+### Sandbox auth Task3
+
+Chỉ dùng cluster task-owned mới, loopback, role giả `mkw_task3`, data directory `.agent-runs/MKW-PRODUCT-001/task3-auth/pg-data`. Owner record phải có owner `MKW-PRODUCT-001/Task3`, scope `fake-sandbox`, alias `task3-auth`, host/port/user/database/dataDirectory; CLI đối chiếu identity/version thực trước thao tác. Không trỏ sang DB chưa rõ ownership. Cluster evidence đã dừng sau handoff; muốn chạy lại phải xác minh owner/port/data trước khởi động đúng cluster, không tự tạo service hoặc reset dữ liệu.
+
+```powershell
+$env:MKW_TEST_CLUSTER_OWNER=(Resolve-Path '.agent-runs/MKW-PRODUCT-001/task3-auth/cluster-owner.json').Path
+pnpm --filter @mkw/api build
+pnpm --filter @mkw/api test:integration
+```
+
+Harness tạo DB `mkw_auth_<uuid>` mới mỗi lần, ghi target record trước CREATE, chạy migration deploy rồi readback SQL độc lập; không reset/drop DB cũ. `db:generate` không cần DB; `db:deploy` chỉ được chạy sau xác minh target/URL riêng. Không dùng migrate reset hoặc seed thật.
+
+CLI đã kiểm qua đúng pnpm wrapper:
+
+```powershell
+pnpm --filter @mkw/api auth:provision -- --target <target-record> --alias task3-auth
+pnpm --filter @mkw/api auth:reset-password -- --target <target-record> --alias task3-auth --username <fake-username>
+```
+
+CLI đọc mật khẩu TTY ẩn; automation dùng `--secret-stdin` qua private pipe JSON (`accounts` gồm đúng hai username/password cho provision; `password` cho reset). Không đặt password trong argv/env, shell history hoặc log; không dùng echo với secret literal. Provision chỉ DB chưa có User; reset chỉ User tồn tại và revoke mọi session trong cùng transaction. Không signup/reset HTTP, không role quản trị. CLI hiện từ chối target thật; xác minh danh tính vận hành và enrollment production chưa được cấp quyền/kiểm.
+
+Evidence Task3 tại `.agent-runs/MKW-PRODUCT-001/task3-auth/`: integration, native Windows Argon2, browser login lỗi/đúng/logout/expiry và readback. Guard tháng/write/export chỉ qua route test-owned; Task4/5/9 phải kiểm lại endpoint thật. Sandbox HTTP không chứng minh TLS production; Linux native, thiết bị thật và quy trình reset thật Not run.
 
 ## Thao tác thử
 

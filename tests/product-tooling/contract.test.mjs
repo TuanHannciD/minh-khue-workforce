@@ -10,11 +10,11 @@ for (const changed of [
   "apps/web/src/shared/api/generated/schema.d.ts",
 ]) {
   test(`contract comparison ${changed ? `rejects stale ${changed}` : "accepts deterministic output"}`, async () => {
-    await mkdir(".agent-runs/MKW-PRODUCT-001/task2-toolchain/fixtures", {
+    await mkdir(".agent-runs/MKW-PRODUCT-001/task3-auth/fixtures", {
       recursive: true,
     });
     const root = await mkdtemp(
-      resolve(".agent-runs/MKW-PRODUCT-001/task2-toolchain/fixtures/contract-"),
+      resolve(".agent-runs/MKW-PRODUCT-001/task3-auth/fixtures/contract-"),
     );
     for (const dir of ["tracked", "candidate"]) {
       for (const [file, content] of Object.entries({

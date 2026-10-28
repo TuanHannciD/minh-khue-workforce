@@ -1,4 +1,10 @@
-# Toolchain manifest — pins G1 và kiểm chứng Task2
+# Toolchain manifest — pins G1 và kiểm chứng Task2–3
+
+## Hiện hành Task3 — consumers auth/session
+
+Đã cài đúng pins được duyệt cho Prisma client/adapter/CLI7.10.1, pg8.23.1, Argon2 0.45.1, throttler6.7.1, class-validator/transformer, cookie-parser/Helmet; web Query/Router và Testing Library/jsdom theo package/lock exact. Không cài phần UI primitives/forms/Excel chưa có consumer. Prisma CLI Studio required peers React/DOM19.3.1 là API devDependencies, không mở Studio; engine/peer/native strict giữ nguyên. pnpm thêm minimumReleaseAgeExclude đúng hai pins react-router/react-router-dom7.18.5 theo yêu cầu consumer đã duyệt, không bỏ release-age toàn registry.
+
+Windows Node24.22.1/native Argon2 và Prisma generate/build/migration/readback PostgreSQL17.11 đã chạy thật. Prisma generated ESM có type-only cycles nội bộ: graph checker miễn đúng cycle đó trong generated path, fixture vẫn chặn runtime/manual cycles và xuyên app. Linux native Not run vì Docker daemon không sẵn; portability config không thay evidence runtime. Evidence và rulings tại `.agent-runs/MKW-PRODUCT-001/task3-auth/` và report Task3 ignored. Các mục Task2/chưa cài bên dưới là checkpoint lịch sử; independent auth/schema review Task3 do main thực hiện, chưa PASS.
 
 Ngày28/10/2026. Bộ pin Task1 đã qua independent G1 reviewR2 tại95ce21a; quyền hiện hành cho phép Task2 cài/kiểm mà không chờ confirmation thường lệ. Dùng stack ADR-003, không install latest. Bảng toàn bộ stack bên dưới vẫn gồm dependency tương lai chưa có consumer; không được hiểu là tất cả đã cài. Independent review **code Task2 còn Pending**, do main điều phối.
 

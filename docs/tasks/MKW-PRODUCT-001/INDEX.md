@@ -1,6 +1,12 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
-Ngày lập: 25/10/2026. Trạng thái: **Đặc tả/kế hoạch đã duyệt; Task1 review kỹ thuật đạt; Task2 bootstrap/tooling và review độc lập đạt; tiếp tục Task3 theo kế hoạch**.
+Ngày lập: 25/10/2026. Trạng thái: **Đặc tả/kế hoạch đã duyệt; Task1/G1 và Task2 review độc lập đạt; Task3 triển khai auth/session, chờ main review độc lập**.
+
+## Task3 — auth/session sandbox, 28/10/2026
+
+Base sạch `9d358609d9a6a0c4352fad957dfc8b5b4c354194`, branch `agent/mkw-agent-002`, worktree duy nhất `agent-bootstrap`. Single writer, không child; main giữ progress và fresh independent auth/schema review exact local tip. Scope/acceptance/risk/resources trước sửa và kết quả chi tiết tại ignored `.superpowers/sdd/implementation-plan/task-3-implementation.md`; evidence mới `.agent-runs/MKW-PRODUCT-001/task3-auth/`. Không Task4+, primary, push/merge/deploy hoặc dữ liệu thật.
+
+Đã triển khai Prisma auth migration, login/logout/current-session, guard/transaction fence, PostgreSQL flooding, đúng hai fixture ngang quyền, CLI target check/reset và web login/cache/session/draft seam. Integration PostgreSQL mới đạt12/12, browser thật login lỗi/đúng/logout/expiry và SQL readback; trạng thái từng lớp/check/giới hạn ở [validation](validation.md). Guard tháng/write/export chỉ test-owned seam; whole-product AC01/AC19 và production/reset thật chưa đạt. Browser và cluster task-owned được release khi bàn giao, data/evidence giữ nguyên. Bước tiếp duy nhất: main review độc lập auth/schema snapshot; không suy self-review thành PASS, không làm Task4 trong lượt implementer này.
 
 ## Task2 — nền chạy và enforcement, 28/10/2026
 
