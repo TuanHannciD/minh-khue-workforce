@@ -2,7 +2,17 @@
 
 Ngày 25/10/2026. Scope hiện tại chỉ tài liệu, không chứng nhận ứng dụng.
 
-## Hiện hành — duyệt kế hoạch và thiết kế Task1/G1 ngày28/10/2026
+## Hiện hành — G1 re-review R2 ngày28/10/2026
+
+Main nhận thông báo terminal và đọc task_status cho fixR1/reviewR2; kiểm log/status và report, không đọc lại toàn bộ source hoặc chạy lại suite để tái tạo evidence. FixR1 commit `95ce21a107d4d98fde267993f2f951a4f870ef0d`, đúng năm tài liệu technical (API/data/auth/matrix/plan). Fixer ghi `npm run check:docs` exit0/49 tài liệu, whitespace unstaged/staged/commit exit0,19 JSON blocks parse và fixture tháng đủ56 ô/tổng công1,5/giờ2. Đó là evidence tài liệu, không HTTP/runtime validation.
+
+Reviewer độc lập R2 scoped delta `e41b317027fcc6069a0d9faa976437f5057f716d..95ce21a107d4d98fde267993f2f951a4f870ef0d`, tham chiếu R1 và phản hồi fixer, xác nhận I1/I2/I3/M1 Addressed, không blocker mới; spec/quality PASS trong phạm vi re-review thiết kế. Không tự thay whole-branch/runtime gate. Reports ignored tại `.superpowers/sdd/implementation-plan/g1-review-r1.md`, `g1-fix-r1.md`, `g1-review-r2.md`. Ledger có native reviewer và T3 task IDs đầy đủ, fresh round riêng; không dùng backing childThreadId để review tiếp. Reviewer chỉ đọc checkout, chỉ ghi report được giao; không code/install/resource mới.
+
+G1 kỹ thuật đã review, human approval Pending theo implementation-plan; chưa Task1 complete hoặc Task2. Product compatibility/auth/DB/concurrency/browser/touch/Excel/performance đều Not run. Main cập nhật INDEX/plan/validation, kiểm tài liệu và commit scoped local; không acquire process/cổng/DB/browser, không primary/push/deploy. Next action: trình đúng bộ G1 cụ thể cho người dùng duyệt, không xin lại quyền delegation/plan/nghiệp vụ/UI đã chốt.
+
+Kiểm hồ sơ sau cập nhật tại worktree agent-bootstrap: `npm run check:docs` exit0,49 current documents; `git diff --check` và staged whitespace exit0. Kết quả này chỉ chứng minh UTF-8/link/anchor/fence/whitespace trong scope Markdown. Commit tiếp nối xem Git log.
+
+## Checkpoint — duyệt kế hoạch và thiết kế Task1/G1 ngày28/10/2026
 
 Người dùng xác nhận “Tôi xác nhận duyệt kế hoạch”; đã ghi Accepted và tiếp tục inline bằng executing-plans. Commit local baseline spec/plan/approval `6cfc3645f43ae1a1d0cb3b9c0811384671feb8c6`. Worktree linked agent-bootstrap/agent/mkw-agent-002 xác minh git-dir khác common-dir, không submodule, primary không sửa. Các Markdown dirty và plan untracked của lượt trước được xác minh task-owned và commit; không bỏ thay đổi/evidence. Chưa tích hợp/push/deploy hoặc dispatch.
 

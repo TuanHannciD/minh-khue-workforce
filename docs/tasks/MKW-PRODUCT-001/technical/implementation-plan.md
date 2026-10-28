@@ -70,6 +70,8 @@ Các đường dẫn sản phẩm bên dưới **chưa tồn tại**, chỉ tạ
 
 ## Bộ thiết kế Task1 trình review G1
 
+Cập nhật28/10/2026: snapshot `95ce21a107d4d98fde267993f2f951a4f870ef0d` đã qua independent re-review R2, I1/I2/I3/M1 Addressed, không blocker mới trong phạm vi fix. Review kỹ thuật thiết kế PASS; người dùng chưa duyệt G1, các chi tiết vẫn Proposed. Không coi review này thay runtime/compatibility hoặc cấp quyền nhảy sang Task2. Report/ID round ở ledger và validation.
+
 - [Contract API](api-contract.md): endpoint/DTO/error, field thiếu/null, revision ô trống, batch/fill/source, timeout và query.
 - [Data model](data-model.md): nửa đơn vị nguyên, tombstone revision, schema/migration và transaction/lock order.
 - [Auth/session](auth-session.md): phiên server/cookie/Origin, hash/quota và reset vận hành.
