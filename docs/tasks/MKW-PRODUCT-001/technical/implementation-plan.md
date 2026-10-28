@@ -155,7 +155,12 @@ Review R1 Task4 yêu cầu sửa I1 (lifecycle clear chưa xóa input RHF) và M
 - [x] Viết `employee_accepted_noop_fences_delayed_patch` theo barrier A-read-B-thả A của matrix ca6: B same-field200 đổi revision, A409; đảo order B409. Reject patch chỉ expectedRevision, missing/null theo contract. `read_by_ids_survives_month_exit` đọc ID vẫn thấy mốc/revision sau PATCH sang tháng11, tombstone không bị xóa; form giữ ID/draft khi người biến mất khỏi tháng. Recovery HTTP/E2E dùng reconcile của task5/7.
 - [x] Triển khai phạm vi tháng/mốc server và form React Hook Form/Zod kế thừa UI C; form hiện vị trí cần xử lý, không tự xóa/cascade/ẩn dữ liệu. Tên/ngày chỉ validate theo contract G1, không thêm field nghiệp vụ.
 - [x] Chạy GREEN qua API/DB reload + UI lỗi/keyboard; migration từ baseline auth giữ tài khoản. Để test cạnh tranh thực với write service tại task5, không claim AC15 toàn bộ đã đạt trước đó.
-- [ ] Review độc lập migration/nhân sự; commit `feat: manage employment dates without data loss`.
+- [x] Review độc lập migration/nhân sự; commit `feat: manage employment dates without data loss`.
+
+
+## Gate hiện hành — Task4 review độc lập đạt, 29/10/2026
+
+Review R2 tại `c181b7865a99d594d1acc2eb36e5e1d9ba786671`: I1 và M1 Closed, spec/quality Approved, không regression mới. Final product39 tooling/35 web/7 API, docs54, generated determinism/drift đạt; persistence/migration kế thừa evidence PostgreSQL Task4, không gọi là fresh replay. Reports ignored `task-4-review-r1.md`, `task-4-fix-r1.md`, `task-4-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Browser vòng sửa dùng HTTP fixture, giới hạn lưu assertions được giữ trong report; không claim console-clean/Nest/PG mới. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task5 theo kế hoạch đã duyệt; recovery UI Task7, whole AC15/device/Linux/TLS/operator thật còn Not run. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
 
 ### Task 5: Snapshot tháng, validation và ghi ô/batch nguyên tử
 

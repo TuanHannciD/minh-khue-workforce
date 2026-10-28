@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## Gate hiện hành — Task4 review độc lập đạt, 29/10/2026
+
+Review R2 tại `c181b7865a99d594d1acc2eb36e5e1d9ba786671`: I1 và M1 Closed, spec/quality Approved, không regression mới. Final product39 tooling/35 web/7 API, docs54, generated determinism/drift đạt; persistence/migration kế thừa evidence PostgreSQL Task4, không gọi là fresh replay. Reports ignored `task-4-review-r1.md`, `task-4-fix-r1.md`, `task-4-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Browser vòng sửa dùng HTTP fixture, giới hạn lưu assertions được giữ trong report; không claim console-clean/Nest/PG mới. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task5 theo kế hoạch đã duyệt; recovery UI Task7, whole AC15/device/Linux/TLS/operator thật còn Not run. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
+
 ## Task4 — sửa review R1, 29/10/2026 (chờ main re-review)
 
 Base `d8de46b493041663f317239588b2e8abf6ce9cc5`; workspace `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`, branch `agent/mkw-agent-002`, tracked status clean trước sửa. Writer duy nhất Sol/high, không agent con/model khác/primary/progress.md/Task5+. Review R1 có0 Critical/1 Important/1 Minor; scope sửa cả I1/M1 theo yêu cầu đã duyệt, không đổi G1/stack/UI C. Hồ sơ trước sửa và full base/tip sau commit tại ignored `.superpowers/sdd/implementation-plan/task-4-fix-r1.md`; evidence mới `.agent-runs/MKW-PRODUCT-001/task4-fix-r1/`. Các lệnh dưới chạy từ worktree bằng Node24.22.1/pnpm12.15.0 portable Task2, PATH chỉ process, không đổi pilot22/global.

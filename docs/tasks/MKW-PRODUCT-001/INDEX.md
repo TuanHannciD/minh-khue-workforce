@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Gate hiện hành — Task4 review độc lập đạt, 29/10/2026
+
+Review R2 tại `c181b7865a99d594d1acc2eb36e5e1d9ba786671`: I1 và M1 Closed, spec/quality Approved, không regression mới. Final product39 tooling/35 web/7 API, docs54, generated determinism/drift đạt; persistence/migration kế thừa evidence PostgreSQL Task4, không gọi là fresh replay. Reports ignored `task-4-review-r1.md`, `task-4-fix-r1.md`, `task-4-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Browser vòng sửa dùng HTTP fixture, giới hạn lưu assertions được giữ trong report; không claim console-clean/Nest/PG mới. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task5 theo kế hoạch đã duyệt; recovery UI Task7, whole AC15/device/Linux/TLS/operator thật còn Not run. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
+
 ## Task4 — sửa review R1, chờ main fresh exact-SHA re-review
 
 Base sửa `d8de46b493041663f317239588b2e8abf6ce9cc5`, workspace/branch giữ nguyên, single writer Sol/high, không agent con hoặc Task5+. I1 dùng lifecycle token chỉ đổi khi draft clear để remount form, xóa cả input/local state và giữ generation fence; publish/refresh thường giữ raw draft/error. M1 sửa metadata riêng endDate rồi sinh lại contract, không đổi runtime missing/null hoặc generator toàn cục.
