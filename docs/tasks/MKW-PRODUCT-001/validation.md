@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## Task9 clearance độc lập R1 — 29/10/2026
+
+Base `a1be6d4fda8e13eacc9d5ec02ca19bd03b597a28`, reviewed tip `11a276ab828e19b833f643b9ed405c3258564f5a`; fresh reviewer gpt-6.1-sol/high, không child/Astra. Report ignored `.superpowers/sdd/implementation-plan/task-9-review-r1.md`: spec/quality Approved, không Critical/Important; source/consumers/assertions và retained logs/artifacts đã đối chiếu. Product42 tooling/161 web/16 API, export/auth/PG snapshot/E2E/T3 và Microsoft Excel desktop16.0.20527.20088 edit/recalc hai bảng có evidence đúng scope. Reviewer không replay suite/browser/PG/reader, không suy engine COM thành interactive reader UI hoặc mọi thiết bị. M1 thiếu license provenance buffers0.1.1, M2 sáu transitive deprecated còn mở: main theo dõi cùng consumer ExcelJS trong Task11 trước phân phối, không tự nâng pin hoặc legal clearance. M3 bundle573.04kB tiếp tục Task10 benchmark. Main kiểm HEAD/workspace sạch, chỉ cập nhật hồ sơ, risk thấp, docs/whitespace trước commit scoped. Các checkpoint Pending bên dưới là lịch sử; tiếp tục Task10/11 nhưng không nâng G3/full matrix/whole-branch hoặc release thành đạt.
+
 ## Task9 Excel — implemented/self-reviewed, main independent review Pending, 29/10/2026
 
 Base sạch `a1be6d4fda8e13eacc9d5ec02ca19bd03b597a28`, cwd `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`, branch `agent/mkw-agent-002`, single writer gpt-6.1-sol/high, không child/đổi model/primary source/progress.md. Scope/mục tiêu/acceptance/risk/writer-review/resources đã ghi trước sửa tại ignored `.superpowers/sdd/implementation-plan/task-9-implementation.md`, full tip sau commit ở cùng report. Evidence prefix mọi path dưới bảng là `.agent-runs/MKW-PRODUCT-001/task9-export/`.

@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task9 hoàn tất review độc lập — 29/10/2026
+
+Review R1 tại `11a276ab828e19b833f643b9ed405c3258564f5a`: spec/quality Approved, không Critical/Important. Báo cáo ignored `.superpowers/sdd/implementation-plan/task-9-review-r1.md` đối chiếu source/assertions/retained evidence, gồm Excel desktop16.0.20527.20088 edit/recalc hai bảng; không replay suite hoặc reader. M1 provenance license buffers0.1.1 và M2 sáu transitive deprecated giữ mở, main sở hữu theo dõi qua runbook Task11 trước quyết định phân phối; không tự đổi approved pin hoặc claim legal clearance. M3 bundle573.04kB chuyển benchmark Task10. Các đoạn Pending bên dưới là lịch sử. Bước tiếp Task10 kiểm xuyên suốt/G3, sau đó Task11 local và whole-branch review theo quyền hiện hành; không gọi sản phẩm Done khi còn gate bắt buộc. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
+
 ## Task9 — implemented, chờ main review độc lập exact SHA, 29/10/2026
 
 Base sạch `a1be6d4fda8e13eacc9d5ec02ca19bd03b597a28`, branch `agent/mkw-agent-002`, chỉ worktree `agent-bootstrap`; một implementer gpt-6.1-sol/high, không agent con/đổi model/primary source/progress.md. Scope/acceptance/risk/ownership/resources ghi trước sửa tại ignored `.superpowers/sdd/implementation-plan/task-9-implementation.md`, full tip sau commit cũng ở đó. Task9 thêm ExcelJS4.4.0 API-only, authenticated GET export dùng đúng readMonth rồi đóng transaction trước build; một sheet Công/Tăng ca, typed cells/SUM/caches/recalc và nút pending/error/retry không gửi draft/cache hoặc auto-save. Không schema/business/Task10/11 hoặc UI C redesign.

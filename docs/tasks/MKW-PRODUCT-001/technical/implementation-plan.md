@@ -246,6 +246,8 @@ Review R2 tại `a7d19c3383467e110a3e337a3ee5f9b14f4644fe`: I1/I2/I3 Closed, spe
 
 Implementation/self-review Task9; independent review do main trên exact SHA vẫn **Pending**, checkbox không là independent PASS. Final product42 tooling/161 web/16 API, actual export/auth/snapshot/SQL/browser và Microsoft Excel desktop16.0.20527.20088 engine edit/recalc có evidence tại [validation](../validation.md); full tip sau commit ở ignored `task-9-implementation.md`. Giữ concern transitive buffers0.1.1 thiếu license metadata và bundle573.04kB; không tự chuyển Task10.
 
+Review độc lập Task9 R1 tại `11a276ab828e19b833f643b9ed405c3258564f5a`: spec/quality Approved, không Critical/Important. Report ignored `task-9-review-r1.md`; đoạn Pending trên là lịch sử. M1 license provenance buffers0.1.1/M2 sáu transitive deprecated giữ mở qua Task11 trước phân phối; M3 bundle573.04kB chuyển benchmark Task10. Không tự thay approved pin hoặc claim legal clearance. Tiếp tục Task10 theo quyền hiện hành; mọi subagent tối đa Sol/high, cấm Astra.
+
 ### Task 10: Kiểm xuyên suốt, accessibility, thiết bị và hiệu năng — G3
 
 **Files:** Create `tests/product-e2e/{acceptance,two-sessions,recovery}.spec.ts`, `scripts/product/benchmark.mjs`, `playwright.product.config.ts`; Modify `technical/verification-matrix.md`, dossier validation và LOCAL_RUN. Evidence run-owned ignored, fixture chỉ nhân sự giả.
