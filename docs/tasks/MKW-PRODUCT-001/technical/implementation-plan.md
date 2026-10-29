@@ -229,7 +229,9 @@ Review R2 tại `a7153b471d4f38cb39ff5533410e3f5252d293cd`: I1/M1 Closed, spec/q
 - [ ] Triển khai gesture/selection UI kế thừa hành vi mẫu: touch handle44px, thả chỉ preview, Áp dụng mới submit một batch; có cách không kéo, không khóa browser zoom hoặc cướp pan trước hold. Source ẩn/trống không khởi tạo fill; source revision đổi báo đối chiếu giữ draft, filter/tháng/loại đổi không áp tập cũ.
 - [ ] Chạy GREEN unit/component, E2E batch một ô conflict→toàn bộ không ghi; hai phiên fill source change/target change→giữ draft và không tự force/retry. Kiểm browser chuột/bàn phím, cuộn sát mép, touch synthetic ghi đúng lớp; phần iPhone/Android thật chuyển task10, thiếu không gọi Verified.
 - [ ] Kiểm recovery fill theo matrix ca7/8: nguồn bị clear rồi đổi mốc ra khỏi tháng vẫn được reconcile bằng key cũ, không bị tái thêm vào bảng; giữ draft và yêu cầu quyết định mới. Đích fill-empty bị loại và nguồn read-only không tăng revision, eligible0 không thành saved/fence; không tự đổi mode hoặc tạo thao tác reminder hàng loạt.
-- [ ] Review độc lập gesture/lifecycle/batch final snapshot; commit `feat: support disjoint selection and repeat fill`.
+- [x] Review độc lập gesture/lifecycle/batch final snapshot; commit `feat: support disjoint selection and repeat fill`.
+
+Review R2 tại `a7d19c3383467e110a3e337a3ee5f9b14f4644fe`: I1/I2/I3 Closed, spec/quality Approved, không regression mới trong fix delta. Reports ignored `task-8-review-r1.md`, `task-8-fix-r1.md`, `task-8-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`; source/assertions/retained logs và ảnh đã đối chiếu, không replay suite/browser/PG. Tiếp tục Task9; device/native pan/zoom/SR/full matrix/performance và bundle570.87kB còn Task10. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
 
 ### Task 9: Excel từ snapshot nhất quán với tổng công thức
 

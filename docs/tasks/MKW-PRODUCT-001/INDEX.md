@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task8 hoàn tất review độc lập — 29/10/2026
+
+Review R2 tại `a7d19c3383467e110a3e337a3ee5f9b14f4644fe`: I1/I2/I3 Closed, spec/quality Approved, không regression mới trong fix delta. Reviewer đã đối chiếu source, assertions, logs và ảnh; không replay suite/browser/PG. Reports ignored `task-8-review-r1.md`, `task-8-fix-r1.md`, `task-8-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`; evidence và giới hạn tại [validation](validation.md). Các checkpoint Pending bên dưới là lịch sử. Bước tiếp Task9 Excel theo kế hoạch đã duyệt, một implementer rồi reviewer độc lập; mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp. Full matrix, thiết bị thật/native pan/zoom/SR và performance vẫn Not run; cảnh báo bundle570.87kB tiếp tục Task10. Không push/merge/deploy hoặc hệ thống thật.
+
 ## Task8 sửa R1 — chờ main review độc lập R2, 29/10/2026
 
 Base sửa `233e66caeca96d88fe4e804b945d3ef13560bfef`, cùng worktree/branch, một writer gpt-6.1-sol/high, không agent con. I1 liệt kê mọi ô conflict và nguồn/đích đối chiếu với ID/tên/ngày/loại/current/reminder/N/—/raw. I2 kết thúc pending fill/anchor/base theo owner generation/epoch khi Save/recovery/hủy, không hồi sinh qua reauth. I3 touchstart chỉ chốt ứng viên; dirty guard tại450ms sau kiểm lifetime, pan/scroll/multitouch/thả sớm hủy không mở guard. Giữ C, G1, keys/mode/raw, source CAS và một write; không Task9+ hoặc sửa progress.md/primary.
