@@ -1,5 +1,11 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task6 — sửa review R1, chờ main fresh exact-tip re-review
+
+Base sửa `39f7660f4aff7f7dc065fdb8a21c999f858e043e`, cùng worktree/branch, single writer Sol/high, không agent con hoặc Task7+. I1 giữ editor subtree, raw/custom/reminder/identity/baseline qua loading/error ở Page và preview; snapshot hồi phục đổi/thiếu giữ phần nhập và chặn intent, không triển khai recovery/persistence. M1 parse hai YAML documents:607 package keys cũ giữ nguyên,106 thêm thành713; sửa tally676/107 sai và giữ log lịch sử.
+
+Final `product:check`39 tooling/77 web/13 API đạt; browser fixture375/728/1200 đạt12 vòng state toggle với raw hợp lệ/sai và keyboard, ảnh đã xem; [validation](validation.md) ghi chi tiết/giới hạn. Full tip trong ignored report `.superpowers/sdd/implementation-plan/task-6-fix-r1.md`; evidence `.agent-runs/MKW-PRODUCT-001/task6-fix-r1/`. Tài nguyên mới đã release, DB/cache/log cũ giữ nguyên. Không install hoặc PG/pilot replay vì không đổi root tooling/dependencies/backend. Đây là implementation/self-review, chưa independent PASS; dừng để main re-review đúng tip, không Task7/dispatch/push/merge/deploy.
+
 ## Task6 — UI C implemented, chờ main review độc lập exact SHA
 
 Base `8a4e4f5e1d473caae2259c8b59508bd80980eb10`, worktree duy nhất `agent-bootstrap`, branch `agent/mkw-agent-002`; writer Sol/high tuần tự, không Agent con, không sửa primary hoặc progress.md. Đã có semantic bảng tháng Công/Tăng ca, lịch/parser, reminder riêng, editor intent/raw/keyboard, mở rộng trong trang và primitives shadcn/Radix/Tailwind theo C. Login/employee dùng chung Button/Input, giữ lifecycle hiện hữu. Route `/preview/attendance` chỉ UI fixture giả, không gọi API hoặc lưu thật; ứng dụng chưa dùng attendance query/persistence Task7.

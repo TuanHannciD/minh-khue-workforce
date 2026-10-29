@@ -21,12 +21,14 @@ export function CellEditor({
   onSubmit,
   onCancel,
   submitLabel = "Lưu",
+  blockedReason,
 }: {
   cell: CellSnapshotDto;
   employee: EmployeeDto;
   onSubmit: (intent: CellEditorIntent, advance?: "enter" | "tab") => void;
   onCancel: () => void;
   submitLabel?: string;
+  blockedReason?: string | undefined;
 }) {
   const id = useId();
   const [raw, setRaw] = useState(formatAttendanceValue(cell.value));
@@ -43,6 +45,7 @@ export function CellEditor({
   }, []);
   function save(event: FormEvent, advance?: "enter" | "tab") {
     event.preventDefault();
+    if (blockedReason) return;
     const parsed = parseNumberInput(raw, cell.kind);
     if (!parsed.valid) {
       setError(parsed.message);
@@ -52,6 +55,7 @@ export function CellEditor({
     onSubmit({ cell, value: parsed.value, reminder, raw }, advance);
   }
   function inputKeys(event: KeyboardEvent<HTMLInputElement>) {
+    if (blockedReason) return; // Native Tab remains available, including Hủy.
     // Shift+Tab and Tab on all other controls keep normal browser navigation.
     if (event.key === "Tab" && !event.shiftKey) {
       const parsed = parseNumberInput(raw, cell.kind);
@@ -84,6 +88,11 @@ export function CellEditor({
         <span className="unit">{work ? "Số công" : "Số giờ tăng ca"}</span>
       </div>
       <form onSubmit={save} noValidate>
+        {blockedReason && (
+          <p className="error" role="alert">
+            {blockedReason}
+          </p>
+        )}
         <span className="field-label" id={`${id}-values`}>
           Chọn {work ? "số công" : "số giờ"}
         </span>
@@ -168,7 +177,11 @@ export function CellEditor({
         </label>
         <div className="actions">
           <Button onClick={onCancel}>Hủy</Button>
-          <Button variant="primary" type="submit">
+          <Button
+            variant="primary"
+            type="submit"
+            disabled={Boolean(blockedReason)}
+          >
             {submitLabel}
           </Button>
         </div>

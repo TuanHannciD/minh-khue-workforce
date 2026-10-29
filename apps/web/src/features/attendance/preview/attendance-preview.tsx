@@ -52,7 +52,6 @@ export function AttendancePreview() {
         </Button>
       </div>
       <AttendancePage
-        key={`${status}/${empty}`}
         status={status}
         month={
           empty
