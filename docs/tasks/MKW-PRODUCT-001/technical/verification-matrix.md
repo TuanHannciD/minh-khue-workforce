@@ -1,5 +1,7 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+Checkpoint hiện hành Task9 ở cuối tài liệu: workbook/API/auth/PG/browser download/T3 và Microsoft Excel desktop16.0.20527.20088 edit/recalc đã kiểm scoped; main independent review Pending. Các trạng thái trước giữ lịch sử, không thay evidence Task9 hoặc full matrix Task10.
+
 ## Checkpoint Task8 sửa R1, 29/10/2026
 
 I1 rendered + actual stale-second-target/source E2E hiện mọi identity/current/reminder/nháp và source N ngoài tháng trước recovery. I2 model/rendered và actual Save/recovery SQL chứng minh pending fill kết thúc, focus về nguồn, click thường mở đúng một ô; cancel/reauth không hồi sinh endpoint. I3 controlled dirty449/450ms,10/11px, scroll/multitouch/release/owner/epoch cancellation và discard/no replay đạt; Chromium TouchEvent là synthetic, không thay native pan/zoom. Final product41 tooling/155 web/13 API; actual bulk10/input8 nhóm đạt với verified Task8 PG reacquire, DB UUID mới, SQL thật. Không đổi rulings ca6–9, keys/mode/raw/source CAS/one-write/fence; full matrix/thiết bị/SR/performance vẫn Not run Task10. [Validation](../validation.md) ghi failed attempts, check/evidence/release; main independent exact-tip R2 Pending, không writer independent PASS.
@@ -116,3 +118,7 @@ Dataset giả20/200/1.000 nhân sự, tháng31 ngày, cả hai loại, tỷ lệ
 Task1 đã có review độc lập G1 R1 với findings I1/I2/I3/M1; fix tài liệu phải được re-review độc lập trên tip mới rồi chờ người dùng phê duyệt G1. Quyền dispatch tuần tự đã có theo INDEX/chỉ dẫn phiên; main điều phối, một implementer hoặc reviewer tại một thời điểm. Không tự đóng Task1/G1 hoặc chuyển Task2 từ kết quả check docs. G2/G3 code/tooling/auth/migration cần reviewer độc lập read-only với full SHA base..tip, requirements/contract, diff/tests/evidence và findings severity. Reviewer xem tip mới sau sửa theo QUALITY_GATES.
 
 Task11 backup/restore vào DB thử mới, so counts/values/mốc/nhắc/tổng và session revoke sau restore; target/secret/vận hành thật chưa có quyền. Done local, integrated và released khác nhau. Bàn giao nêu rõ Verified lớp nào, Failed/Not run/Blocked gì, nguồn gỡ gate và resource giữ lại; không biến ngoại lệ thành pass.
+
+## Task9 checkpoint — 29/10/2026
+
+AC09 đã kiểm ở các lớp: workbook typed data/style/SUM/cached zero/XML/fullCalcOnLoad; authenticated Nest–PG snapshot cạnh tranh và SQL; actual built-web download/error/pending/retry/không auto-save draft; T3 Chrome154 tại1280/375; Microsoft Excel desktop16.0.20527.20088 mở file browser, sửa Công2,5→5,5 và Tăng ca4→6,5, CalculateFullRebuild kiểm tổng hàng/ngày/phần và bảng còn lại giữ nguyên. Reader là engine Excel thật qua COM instance riêng, không ExcelJS hoặc UI người dùng; interactive reader UI và reader khác Not run. Evidence chi tiết tại [validation](../validation.md). Main independent exact-SHA review Pending; không suy toàn bộ AC/full matrix Task10, trusted devices/native zoom/SR/Linux/TLS/operator đã đạt. Các checkpoint Not run cũ bên dưới là lịch sử.

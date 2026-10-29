@@ -239,10 +239,12 @@ Review R2 tại `a7d19c3383467e110a3e337a3ee5f9b14f4644fe`: I1/I2/I3 Closed, spe
 
 **Interfaces:** Consumes `readMonth` snapshot server cùng luật tổng task5/G1; produces `buildAttendanceWorkbook(month: MonthDto): Promise<Buffer>` và API download xác thực; export chỉ dữ liệu đã lưu, không tự gửi draft trước tải.
 
-- [ ] Viết assertions một worksheet, Công trên/Tăng ca dưới, tháng/ngày/thứ, numeric cells là số, F/N/— là text, trống/reminder-only giữ trống và màu. Mỗi tổng hàng/cột/từng phần là công thức SUM đúng phạm vi, cached result khớp tổng server và workbook yêu cầu recalc; đơn vị không gộp. Tên giả chứa `=`, `+`, tiếng Việt hoặc rất dài vẫn là text an toàn, không công thức do tên.
-- [ ] Chạy RED; triển khai ExcelJS theo layout G1, snapshot nhất quán cả hai bảng trong khi có người sửa; không lấy browser cache/draft làm nguồn export. Button có pending/error/retry download, không báo thành công chỉ vì bắt đầu request.
-- [ ] Chạy GREEN unit/integration và browser download, parse lại file để kiểm dữ liệu/formula/style + anonymous export bị từ chối. Mở trên reader Excel thật được ghi tên/version, sửa số để tổng tính lại đúng bảng và bảng còn lại giữ nguyên; không dùng ExcelJS đọc lại thay engine tính Excel. Chưa có reader ghi Not run gate AC09.
-- [ ] Review export/auth/snapshot; commit `feat: export editable monthly attendance workbook`.
+- [x] Viết assertions một worksheet, Công trên/Tăng ca dưới, tháng/ngày/thứ, numeric cells là số, F/N/— là text, trống/reminder-only giữ trống và màu. Mỗi tổng hàng/cột/từng phần là công thức SUM đúng phạm vi, cached result khớp tổng server và workbook yêu cầu recalc; đơn vị không gộp. Tên giả chứa `=`, `+`, tiếng Việt hoặc rất dài vẫn là text an toàn, không công thức do tên.
+- [x] Chạy RED; triển khai ExcelJS theo layout G1, snapshot nhất quán cả hai bảng trong khi có người sửa; không lấy browser cache/draft làm nguồn export. Button có pending/error/retry download, không báo thành công chỉ vì bắt đầu request.
+- [x] Chạy GREEN unit/integration và browser download, parse lại file để kiểm dữ liệu/formula/style + anonymous export bị từ chối. Mở trên reader Excel thật được ghi tên/version, sửa số để tổng tính lại đúng bảng và bảng còn lại giữ nguyên; không dùng ExcelJS đọc lại thay engine tính Excel. Chưa có reader ghi Not run gate AC09.
+- [x] Review export/auth/snapshot; commit `feat: export editable monthly attendance workbook`.
+
+Implementation/self-review Task9; independent review do main trên exact SHA vẫn **Pending**, checkbox không là independent PASS. Final product42 tooling/161 web/16 API, actual export/auth/snapshot/SQL/browser và Microsoft Excel desktop16.0.20527.20088 engine edit/recalc có evidence tại [validation](../validation.md); full tip sau commit ở ignored `task-9-implementation.md`. Giữ concern transitive buffers0.1.1 thiếu license metadata và bundle573.04kB; không tự chuyển Task10.
 
 ### Task 10: Kiểm xuyên suốt, accessibility, thiết bị và hiệu năng — G3
 

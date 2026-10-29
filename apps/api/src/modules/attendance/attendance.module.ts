@@ -3,6 +3,7 @@ import type { DynamicModule } from "@nestjs/common";
 import { AttendanceController } from "./attendance.controller.js";
 import { AttendanceService } from "./attendance.service.js";
 import { AttendanceRepository } from "./attendance.repository.js";
+import { AttendanceExportService } from "./export/attendance-export.service.js";
 
 @Module({})
 export class AttendanceModule {
@@ -14,7 +15,11 @@ export class AttendanceModule {
       module: AttendanceModule,
       imports: [authModule, employeesModule],
       controllers: [AttendanceController],
-      providers: [AttendanceService, AttendanceRepository],
+      providers: [
+        AttendanceService,
+        AttendanceRepository,
+        AttendanceExportService,
+      ],
       exports: [AttendanceService],
     };
   }

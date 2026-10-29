@@ -42,6 +42,7 @@ export async function apiRequest<T>(
     expectedEpoch?: number;
     boundary?: SessionBoundary;
     timeoutMs?: number;
+    read?: (response: Response) => Promise<T>;
   } = {},
 ): Promise<T> {
   const boundary = options.boundary ?? sessionBoundary;
@@ -102,7 +103,9 @@ export async function apiRequest<T>(
     const payload =
       response.status === 204
         ? (undefined as T)
-        : ((await response.json()) as T);
+        : options.read
+          ? await options.read(response)
+          : ((await response.json()) as T);
     assertCurrentSession();
     return payload;
   } finally {

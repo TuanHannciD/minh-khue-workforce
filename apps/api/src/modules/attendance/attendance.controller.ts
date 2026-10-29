@@ -7,6 +7,7 @@ import {
   Post,
   Query,
   Req,
+  StreamableFile,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -21,6 +22,7 @@ import {
 import { SessionGuard } from "../auth/index.js";
 import type { SessionRequest } from "../auth/index.js";
 import { AttendanceService } from "./attendance.service.js";
+import { AttendanceExportService } from "./export/attendance-export.service.js";
 import {
   AbsenceValueDto,
   AttendanceApiErrorDto,
@@ -60,7 +62,33 @@ import {
 export class AttendanceController {
   constructor(
     @Inject(AttendanceService) private readonly service: AttendanceService,
+    @Inject(AttendanceExportService)
+    private readonly exporter: AttendanceExportService,
   ) {}
+  @Get("export")
+  @ApiQuery({
+    name: "month",
+    required: true,
+    schema: { type: "string", pattern: "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$" },
+  })
+  @ApiOkResponse({
+    content: {
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+        schema: { type: "string", format: "binary" },
+      },
+    },
+    headers: { "Content-Disposition": { schema: { type: "string" } } },
+  })
+  @ApiResponse({ status: 500, type: AttendanceApiErrorDto })
+  async export(@Query() query: unknown) {
+    const month = parseMonthQuery(query);
+    const bytes = await this.exporter.download(month);
+    return new StreamableFile(bytes, {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      disposition: `attachment; filename="minh-khue-${month}.xlsx"`,
+      length: bytes.length,
+    });
+  }
   @Get("month")
   @ApiQuery({
     name: "month",

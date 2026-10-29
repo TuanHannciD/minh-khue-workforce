@@ -1,5 +1,20 @@
 # Chạy tooling và pilot local
 
+## Sandbox Excel Task9
+
+Task9 có API export thật `/api/v1/attendance/export?month=YYYY-MM` và nút tải dữ liệu đã lưu, không auto-save draft. Dùng shell product process-only Node24.22.1/pnpm12.15.0 như bên dưới; cluster mới owner `MKW-PRODUCT-001/Task9`, alias `task9-export`, role `mkw_task9`, loopback port ghi trong `.agent-runs/MKW-PRODUCT-001/task9-export/cluster-owner.json`, data `task9-export/pg-data`, PostgreSQL17.11. Đã release khi handoff; chỉ reacquire sau kiểm record/path/port/process và actual identity, không reset/drop hoặc dùng cluster khác.
+
+```powershell
+$env:MKW_PRODUCT_CLUSTER_OWNER=(Resolve-Path '.agent-runs/MKW-PRODUCT-001/task9-export/cluster-owner.json').Path
+$env:PLAYWRIGHT_BROWSERS_PATH='0'
+pnpm run product:build
+pnpm --filter @mkw/api test:export
+node scripts/product/e2e.mjs --export
+# Browser T3 riêng: node scripts/product/e2e.mjs --serve --export
+```
+
+Mỗi lệnh sandbox tạo DB `mkw_export_<uuid>` mới, migrate/provision hai fake accounts chỉ memory và kiểm identity thật trước CREATE; E2E là documented Playwright regression, tách khỏi T3 direct UI. Test workbook/OpenAPI trong `pnpm --filter @mkw/api test`; ExcelJS readback không là engine recalc. Task9 đã dùng Microsoft Excel desktop16.0.20527.20088 qua hidden COM instance riêng mở file browser/edit/recalc cả hai bảng; `reader-check.ps1` ignored chỉ là evidence run, không product workflow/operator UI. Reader UI tương tác/reader khác vẫn Not run. Dừng serve bằng `stop` vào exact run `stop.request`; kiểm `http-released.json`/`fixture-invalidated.json` (rotate2,0 unrevoked), own tab closed và PG stop sau identity/process validation. Giữ DB/workbooks/logs; evidence `.agent-runs/MKW-PRODUCT-001/task9-export/`.
+
 Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session, POST/PATCH nhân sự, GET tháng/POST changes/reconcile, Task7 query/draft/lưu một ô/recovery và Task8 selection/batch/fill thật; Excel thuộc Task9. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
 
 ## Chuẩn bị và check

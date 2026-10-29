@@ -1,5 +1,7 @@
 # Contract API v1 — thiết kế cho G1
 
+Task9 ngày29/10/2026 triển khai GET export với session guard/query strict, no-store, attachment ASCII theo section5. Nguồn duy nhất `readMonth` → đóng read transaction → workbook Buffer → stream; build lỗi trả JSON500 `EXPORT_FAILED` trước attachment, DB/read lỗi503. Nest controller sở hữu content xlsx200/binary và JSON error; pipeline sinh lại OpenAPI/web types, không hand-edit hoặc DTO binary giả. Snapshot/Auth/SQL/browser download và Microsoft Excel desktop16.0.20527.20088 sửa/recalc hai bảng có evidence tại validation; main independent exact-SHA review Pending, không nâng whole-product gates. Các checkpoint cũ bên dưới giữ lịch sử.
+
 Cập nhật Task5, 29/10/2026: contract tháng/changes/reconcile đã có runtime HTTP và PostgreSQL sandbox, Nest DTO→OpenAPI3.0.3→web types; bốn fixture write đầy đủ và fixture tháng56 ô được đối chiếu thực. Export và UI attendance/recovery chưa triển khai. Chi tiết lớp kiểm/evidence ở [validation](../validation.md); review độc lập Task5 chờ main trên SHA cuối. Đoạn Proposed bên dưới là checkpoint Task1, không mô tả readiness hiện tại.
 
 Ngày28/10/2026. **Proposed for G1 review**, thuộc Task1 của [plan đã duyệt](implementation-plan.md); chưa endpoint/DTO/OpenAPI/code sản phẩm nào tồn tại. Nghiệp vụ theo [design đã duyệt](../design.md), nguyên tắc theo [API_CONTRACTS](../../../architecture/API_CONTRACTS.md). Các tên/giá trị kỹ thuật dưới đây là đề xuất cụ thể để review, không bổ sung nghiệp vụ.

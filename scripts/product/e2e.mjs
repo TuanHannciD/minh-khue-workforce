@@ -6,17 +6,25 @@ import { chromium } from "@playwright/test";
 const interactive = process.argv.includes("--serve");
 const reviewR1 = process.argv.includes("--review-r1");
 const selection = process.argv.includes("--selection");
-const sandbox = await startSandbox({ interactive, reviewR1, selection });
+const exporting = process.argv.includes("--export");
+const sandbox = await startSandbox({
+  interactive,
+  reviewR1,
+  selection,
+  exporting,
+});
 try {
   if (interactive) {
     await writeFile(
       resolve(sandbox.runDir, "interactive.json"),
       JSON.stringify({
-        owner: selection
-          ? "MKW-PRODUCT-001/Task8"
-          : reviewR1
-            ? "MKW-PRODUCT-001/Task7FixR1"
-            : "MKW-PRODUCT-001/Task7",
+        owner: exporting
+          ? "MKW-PRODUCT-001/Task9"
+          : selection
+            ? "MKW-PRODUCT-001/Task8"
+            : reviewR1
+              ? "MKW-PRODUCT-001/Task7FixR1"
+              : "MKW-PRODUCT-001/Task7",
         webOrigin: sandbox.webOrigin,
         apiOrigin: sandbox.apiOrigin,
         runDir: sandbox.runDir,
@@ -24,7 +32,7 @@ try {
       }),
     );
     process.stdout.write(
-      `${selection ? "Task8" : "Task7"} fake sandbox ${sandbox.webOrigin}\nRun ${sandbox.runDir}\n`,
+      `${exporting ? "Task9" : selection ? "Task8" : "Task7"} fake sandbox ${sandbox.webOrigin}\nRun ${sandbox.runDir}\n`,
     );
     await new Promise((resolveStop) => {
       const timer = setInterval(async () => {
@@ -44,7 +52,11 @@ try {
   } else {
     const browser = await chromium.launch({ headless: true });
     try {
-      if (selection && !reviewR1) {
+      if (exporting) {
+        const { runExport } =
+          await import("../../tests/product-e2e/export.spec.ts");
+        await runExport(sandbox, browser);
+      } else if (selection && !reviewR1) {
         const { runBulkEntry } =
           await import("../../tests/product-e2e/bulk-entry.spec.ts");
         const { runSelectionInput } =

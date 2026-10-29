@@ -1,5 +1,9 @@
 # Toolchain manifest — pins G1 và kiểm chứng Task2–3
 
+## Task9 — consumer Excel API
+
+Đã cài exact `exceljs4.4.0` MIT đúng pin G1, chỉ API (`export/attendance-workbook.ts`); không browser dependency mới. pnpm12.15.0/Node24.22.1 process-only, không npm install/ci hoặc global changes. Parse hai YAML documents bằng js-yaml4.3.2:713 package keys cũ và snapshots giữ deep semantic equality, thêm146 thành859; evidence `.agent-runs/MKW-PRODUCT-001/task9-export/dependency-audit.json`. Đây là keys lock, không đếm runtime packages. Metadata licenses:131 MIT,7 ISC,2 Apache-2.0,1 BSD-3-Clause,1 Unlicense,1 MIT/X11,1 MIT OR GPL-3.0-or-later,1 MIT AND Zlib; `buffers0.1.1` không khai license và không LICENSE trong tarball, giữ concern cho reviewer, không tự coi MIT. Sáu transitive deprecated từ ExcelJS được ghi install.log; không tự đổi approved pin. Reader engine Microsoft Excel16.0.20527.20088 kiểm thật qua hidden COM, tách khỏi ExcelJS roundtrip; interactive reader UI/reader khác Not run. Kiểm/full gates tại validation, review độc lập main Pending.
+
 ## Hiện hành Task6 — consumers UI C
 
 Web cài đúng pins G1: radix-ui1.8.1, class-variance-authority0.7.1, clsx2.1.1, tailwind-merge3.7.0, lucide-react1.63.0; Tailwind/@tailwindcss/vite4.3.3. Consumer Button/Input/Tabs + Lucide icons có thật; không scaffold Dialog hoặc cài shadcn CLI khi không cần generator. Registry shadcn được lấy qua HTTPS, hash nội dung/license/custom delta ở [shared UI README](../../../../apps/web/src/shared/ui/README.md). CLI4.23.0 vẫn chỉ pin được duyệt, không claim đã chạy.

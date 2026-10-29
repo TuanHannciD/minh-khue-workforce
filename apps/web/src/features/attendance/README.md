@@ -1,6 +1,8 @@
 # Chấm công tháng — Task7–8
 
-Nguồn nghiệp vụ/visual là dossier MKW-PRODUCT-001 đã duyệt. DTO alias từ `shared/api/generated/schema.d.ts`; web không import backend. Task8 nối chọn rời/vùng/fill vào draft Task7; Excel thuộc Task9.
+Nguồn nghiệp vụ/visual là dossier MKW-PRODUCT-001 đã duyệt. DTO alias từ `shared/api/generated/schema.d.ts`; web không import backend. Task8 nối chọn rời/vùng/fill vào draft Task7; Task9 nối tải Excel đã lưu.
+
+Task9: `api/export.ts` dùng query type generated và shared `apiRequest.read` để nhận đầy đủ Blob đúng MIME, kiểm session epoch sau body, không retry ngầm. `ui/export-button.tsx`/CSS giữ nút C ở Workspace cạnh tháng: pending khóa, lỗi có Thử xuất lại, chỉ thông báo đã nhận/chuyển browser sau body và handoff; không claim ghi thành công vào ổ đĩa. Download không đọc/cache/draft/save; abort khi unmount/đổi tháng/session, key `export-${month}` khác key Page. `export-button.test.tsx` kiểm raw/baseline/guard không bị đổi, duplicate pending, body lỗi/sai MIME, late session và một nút sau đổi tháng. Browser actual `tests/product-e2e/export.spec.ts` theo `node scripts/product/e2e.mjs --export`, không là T3 hoặc reader engine.
 
 - `api/attendance.ts`, `query-keys.ts`, `use-attendance-month.ts`: GET snapshot key tháng + user + session epoch; polling15.000ms khi mounted/visible, refocus/reconnect. Read retry tối đa2 ở1s/3s;4xx dừng tự refetch, nút thử lại chủ ý vẫn có. Snapshot lỗi đầu khác bảng trống; lỗi nền giữ snapshot và độ mới.
 - `model/attendance-draft.ts`: app giữ một owner trong memory, riêng Query cache. Original cell/employee revision, raw/reminder/custom/error/targets/mode/source không đổi bởi polling. `use-attendance-draft.ts` chỉ subscribe owner đã tạo, không nhận snapshot để tránh rebase. Đây là adaptation signature của plan theo seam EmployeeDraft/SessionRuntime; không thêm Zustand hoặc bản sao server cache.

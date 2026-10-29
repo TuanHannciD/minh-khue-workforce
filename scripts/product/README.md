@@ -1,4 +1,6 @@
-# Tooling sản phẩm — Task2–8
+# Tooling sản phẩm — Task2–9
+
+Task9: `e2e.mjs --export` chỉ chạy `export.spec.ts` với Task9 sandbox, `--serve --export` mở cùng lớp built web–Nest–PG cho T3. Allowlist owner `MKW-PRODUCT-001/Task9`, alias `task9-export`, role `mkw_task9`, data `task9-export/pg-data`, DB `mkw_export_<uuid>`; identity checker kiểm server17.11/database/user/host/port/path trước CREATE. Mọi run rotate2/revoke fixture và release HTTP; giữ DB/evidence. Không replay Task1–8 hoặc dùng reader giả. `test:export` ở API cũng tạo DB Task9 mới qua cùng sandbox; workbook unit dùng Node24 strip types, implementation luôn compiled. Navigation/source/tests tại attendance README và LOCAL_RUN.
 
 Root npm scripts giữ pilot; nhóm `product:*` chạy bằng Node24/pnpm12 theo [LOCAL_RUN](../../docs/agent/LOCAL_RUN.md). Hai app có bootstrap/auth/session, nhân sự và chấm công; Excel/benchmark thuộc Task9/10.
 

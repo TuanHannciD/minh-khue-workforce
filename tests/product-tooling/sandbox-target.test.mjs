@@ -4,6 +4,49 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { openSandboxTarget } from "../../scripts/product/sandbox-target.mjs";
 
+test("Task9 export sandbox rejects crossed owner/role/database/path/host and accepts only enrolled fake identity", async () => {
+  const directory = resolve(
+    ".agent-runs/MKW-PRODUCT-001/task9-export/enrollment",
+  );
+  await mkdir(directory, { recursive: true });
+  const target = {
+    owner: "MKW-PRODUCT-001/Task9",
+    scope: "fake-sandbox",
+    alias: "task9-export",
+    host: "127.0.0.1",
+    port: 1,
+    user: "mkw_task9",
+    database: "mkw_export_abc",
+    dataDirectory: resolve(".agent-runs/MKW-PRODUCT-001/task9-export/pg-data"),
+  };
+  const file = resolve(directory, "valid-shape.json");
+  await writeFile(file, JSON.stringify(target));
+  await assert.rejects(openSandboxTarget(file, "task9-export"), /ECONNREFUSED/);
+  for (const change of [
+    { owner: "MKW-PRODUCT-001/Task8" },
+    { user: "mkw_task8" },
+    { database: "mkw_selection_abc" },
+    {
+      dataDirectory: resolve(
+        ".agent-runs/MKW-PRODUCT-001/task8-selection/pg-data",
+      ),
+    },
+    { host: "192.0.2.1" },
+    { scope: "live" },
+    { alias: "task8-selection" },
+  ]) {
+    const invalid = resolve(
+      directory,
+      `invalid-${Object.keys(change)[0]}.json`,
+    );
+    await writeFile(invalid, JSON.stringify({ ...target, ...change }));
+    await assert.rejects(
+      openSandboxTarget(invalid, "task9-export"),
+      /outside the authorized allowlist/,
+    );
+  }
+});
+
 test("Task8 enrollment accepts only its own fake target shape before attempting a connection", async () => {
   const directory = resolve(
     ".agent-runs/MKW-PRODUCT-001/task8-selection/enrollment",

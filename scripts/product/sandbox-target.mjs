@@ -17,42 +17,49 @@ const normalized = (value) => {
 export async function openSandboxTarget(recordPath, alias) {
   const target = JSON.parse(await readFile(recordPath, "utf8"));
   const policy =
-    alias === "task3-auth"
+    alias === "task9-export"
       ? {
-          owner: "MKW-PRODUCT-001/Task3",
-          directory: "task3-auth",
-          user: "mkw_task3",
-          databases: /^(?:postgres|mkw_auth_[a-f0-9_]+)$/,
+          owner: "MKW-PRODUCT-001/Task9",
+          directory: "task9-export",
+          user: "mkw_task9",
+          databases: /^(?:postgres|mkw_export_[a-f0-9_]+)$/,
         }
-      : alias === "task5-attendance"
+      : alias === "task3-auth"
         ? {
-            owner: "MKW-PRODUCT-001/Task5",
-            directory: "task5-attendance",
-            user: "mkw_task5",
-            databases: /^(?:postgres|mkw_attendance_[a-f0-9_]+)$/,
+            owner: "MKW-PRODUCT-001/Task3",
+            directory: "task3-auth",
+            user: "mkw_task3",
+            databases: /^(?:postgres|mkw_auth_[a-f0-9_]+)$/,
           }
-        : alias === "task7-persistence"
+        : alias === "task5-attendance"
           ? {
-              owner: "MKW-PRODUCT-001/Task7",
-              directory: "task7-persistence",
-              user: "mkw_task7",
-              databases: /^(?:postgres|mkw_persistence_[a-f0-9_]+)$/,
+              owner: "MKW-PRODUCT-001/Task5",
+              directory: "task5-attendance",
+              user: "mkw_task5",
+              databases: /^(?:postgres|mkw_attendance_[a-f0-9_]+)$/,
             }
-          : alias === "task7-fix-r1"
+          : alias === "task7-persistence"
             ? {
-                owner: "MKW-PRODUCT-001/Task7FixR1",
-                directory: "task7-fix-r1",
-                user: "mkw_task7_r1",
-                databases: /^(?:postgres|mkw_task7_r1_[a-f0-9_]+)$/,
+                owner: "MKW-PRODUCT-001/Task7",
+                directory: "task7-persistence",
+                user: "mkw_task7",
+                databases: /^(?:postgres|mkw_persistence_[a-f0-9_]+)$/,
               }
-            : alias === "task8-selection"
+            : alias === "task7-fix-r1"
               ? {
-                  owner: "MKW-PRODUCT-001/Task8",
-                  directory: "task8-selection",
-                  user: "mkw_task8",
-                  databases: /^(?:postgres|mkw_selection_[a-f0-9_]+)$/,
+                  owner: "MKW-PRODUCT-001/Task7FixR1",
+                  directory: "task7-fix-r1",
+                  user: "mkw_task7_r1",
+                  databases: /^(?:postgres|mkw_task7_r1_[a-f0-9_]+)$/,
                 }
-              : undefined;
+              : alias === "task8-selection"
+                ? {
+                    owner: "MKW-PRODUCT-001/Task8",
+                    directory: "task8-selection",
+                    user: "mkw_task8",
+                    databases: /^(?:postgres|mkw_selection_[a-f0-9_]+)$/,
+                  }
+                : undefined;
   if (!policy)
     throw new Error("Sandbox alias is outside the authorized allowlist");
   const runRoot = fileURLToPath(

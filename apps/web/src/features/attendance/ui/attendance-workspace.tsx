@@ -10,6 +10,7 @@ import { attendanceKeys } from "../api/query-keys";
 import { useAttendanceDraft } from "../model/use-attendance-draft";
 import { AttendancePage } from "./attendance-page";
 import { ConfirmDiscard } from "@/shared/ui/confirm-discard";
+import { ExportButton } from "./export-button";
 
 export function AttendanceWorkspace({
   draft: owner,
@@ -19,7 +20,7 @@ export function AttendanceWorkspace({
   onEmployee: (employee: EmployeeDto) => void;
 }) {
   const draft = useAttendanceDraft(owner);
-  const { session } = useSession();
+  const { session, runtime } = useSession();
   const queryClient = useQueryClient();
   const [month, setMonth] = useState(
     () =>
@@ -59,6 +60,11 @@ export function AttendanceWorkspace({
           Tải lại bảng
         </Button>
       </div>
+      <ExportButton
+        key={`export-${month}`}
+        month={month}
+        boundary={runtime.boundary}
+      />
       {nextMonth && (
         <ConfirmDiscard
           title="Đổi tháng khi có phần nhập"
