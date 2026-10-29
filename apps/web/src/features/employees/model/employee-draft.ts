@@ -34,6 +34,10 @@ export class EmployeeDraft {
   values: EmployeeFields;
   outcome: EmployeeOutcome = { type: "editing" };
   current: Employee | null = null;
+  // Recovery provenance outlives the outcome of any newer PATCH. In particular,
+  // a rejected PATCH cannot turn a lost POST back into an unsent create.
+  private unresolvedWrite = false;
+  confirmedId: string | null = null;
   readError = "";
   reconciling = false;
   pending = false;
@@ -73,13 +77,15 @@ export class EmployeeDraft {
   dirty = () =>
     this.pending ||
     JSON.stringify(this.values) !== JSON.stringify(fields(this.baseline)) ||
-    ["unknown", "conflict"].includes(this.outcome.type);
+    this.requiresReconciliation;
   clear = () => {
     this.generation++;
     this.baseline = null;
     this.values = fields(null);
     this.outcome = { type: "editing" };
     this.current = null;
+    this.unresolvedWrite = false;
+    this.confirmedId = null;
     this.readError = "";
     this.pending = false;
     this.reconciling = false;
@@ -99,6 +105,9 @@ export class EmployeeDraft {
       !this.boundary.canWrite(this.epoch)
     );
   }
+  get requiresReconciliation() {
+    return this.unresolvedWrite;
+  }
   get recoveryReady() {
     return (
       this.current !== null &&
@@ -110,7 +119,7 @@ export class EmployeeDraft {
       this.baseline ||
       this.pending ||
       this.reconciling ||
-      ["unknown", "conflict"].includes(this.outcome.type) ||
+      this.requiresReconciliation ||
       !this.boundary.isActive()
     )
       return false;
@@ -134,6 +143,8 @@ export class EmployeeDraft {
     }
     this.pending = false;
     this.baseline = { ...employee };
+    this.unresolvedWrite = false;
+    this.confirmedId = null;
     this.values = fields(employee);
     this.outcome = { type: "saved" };
     this.publish();
@@ -158,6 +169,8 @@ export class EmployeeDraft {
             message:
               "Chưa xác định kết quả lưu. Giữ bản nháp và kiểm tra dữ liệu đã lưu trước khi tạo lần lưu mới.",
           };
+    if (["unknown", "conflict"].includes(this.outcome.type))
+      this.unresolvedWrite = true;
     this.publish();
   }
   async reconcile(
@@ -170,7 +183,7 @@ export class EmployeeDraft {
       (this.connected && !this.boundary.isActive())
     )
       return;
-    const employeeId = this.baseline?.id ?? id;
+    const employeeId = this.baseline?.id ?? this.confirmedId ?? id;
     if (!employeeId) {
       this.readError =
         "Chưa có ID để đối chiếu. Tải lại danh sách và tự xác định đúng ID; tên trùng không chứng minh đã tạo.";
@@ -192,6 +205,7 @@ export class EmployeeDraft {
       if (this.connected && !this.boundary.canWrite(epoch))
         throw new Error("Session transition");
       this.current = result.employees.find((e) => e.id === employeeId) ?? null;
+      if (this.current && !this.baseline) this.confirmedId = employeeId;
       this.readEpoch = epoch;
       if (!this.current)
         this.readError =

@@ -66,8 +66,7 @@ function EmployeeFormFields({
     draft.pending ||
     draft.reconciling ||
     draft.needsRecovery ||
-    outcome.type === "unknown" ||
-    outcome.type === "conflict";
+    draft.requiresReconciliation;
   const hasError =
     validationError ||
     ["rejected", "conflict", "unknown"].includes(outcome.type);
@@ -255,7 +254,7 @@ function EmployeeFormFields({
               pending ||
               draft.pending ||
               draft.reconciling ||
-              outcome.type === "unknown"
+              draft.requiresReconciliation
             }
             onClick={() => {
               draft.clear();
@@ -266,8 +265,7 @@ function EmployeeFormFields({
         </div>
         {outcome.type === "saved" && <p role="status">Đã lưu nhân sự.</p>}
       </form>
-      {(["unknown", "conflict"].includes(outcome.type) ||
-        draft.needsRecovery) && (
+      {(draft.requiresReconciliation || draft.needsRecovery) && (
         <EmployeeRecovery
           draft={draft}
           save={save}

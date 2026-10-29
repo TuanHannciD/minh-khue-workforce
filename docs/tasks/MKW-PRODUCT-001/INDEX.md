@@ -1,5 +1,11 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task7 sửa review R1 — chờ main fresh exact-tip re-review
+
+Base sửa `f077f92490358c7f4dc3df5943fb0041a88f84aa`, cùng worktree/branch, một writer Sol/high, không agent con hoặc sửa progress.md/primary. I1 giữ recovery provenance và confirmed ID qua PATCH422/400, chặn POST lại và resume create chưa gửi; raw/original baseline giữ, recovery cần fresh read/session epoch. M1 Keep/Escape trả focus opener khả dụng, giữ raw/ID/đơn vị và không giành focus đích discard/modal kế tiếp; tabs manual khi có draft để không mở lại guard khi trả focus. Giữ C/G1, không backend business/schema/contract hoặc Task8+.
+
+`product:check`40 tooling/114 web/13 API đạt; targeted built web–API–PG R1 kiểm POST1/PATCH422/PATCH200, SQL revision/row count và Page/Workspace focus; T3 kiểm422 và focus, confirmation asset cuối `index-CGyJlqxI.js`. [Validation](validation.md) ghi scope/giới hạn; report ignored `.superpowers/sdd/implementation-plan/task-7-fix-r1.md` chứa full base/tip sau commit. Evidence mới `.agent-runs/MKW-PRODUCT-001/task7-fix-r1/`; cluster/DB riêng,7 port đã release,3 HTTP run đã rotate/revoke fixture, DB/logs giữ nguyên. Chưa independent PASS; main exact-tip re-review là bước tiếp theo. Các checkpoint Task7 gốc bên dưới giữ lịch sử, không ghi đè R1.
+
 ## Task7 — implemented, chờ main fresh exact-SHA review, 29/10/2026
 
 Base `7c677f06bf43c5e95daa442ff1830b899cb08f62`, worktree duy nhất `agent-bootstrap`, branch `agent/mkw-agent-002`; single writer Sol/high, không agent con/primary/progress.md. Query month+session/poll15s, draft owner riêng, một Save atomic patch-cell và unknown/conflict/reconcile/explicit no-op recovery; Employee PATCH ngoài tháng và create mất ID có đường an toàn theo G1. Không Task8/bulk/hold/Excel hoặc backend/schema/contract mới.

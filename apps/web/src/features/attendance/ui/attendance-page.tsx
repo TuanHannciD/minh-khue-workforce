@@ -190,6 +190,7 @@ export function AttendancePage({
         </div>
         <Tabs
           value={kind}
+          activationMode={active && draft ? "manual" : "automatic"}
           onValueChange={(value) => {
             requestContext(() => {
               close();

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AttendancePage } from "./attendance-page";
 import { AttendanceDraft } from "../model/attendance-draft";
@@ -54,17 +54,25 @@ it("context_change_requires_draft_decision with protected focus and Escape keeps
   );
   await user.click(screen.getByRole("button", { name: "Tùy chỉnh" }));
   await user.type(screen.getByLabelText("Số công tùy chỉnh"), "3,25");
-  await user.click(screen.getByRole("tab", { name: "Tăng ca" }));
+  const opener = screen.getByRole("tab", { name: "Tăng ca" });
+  const original = structuredClone(draft.edit);
+  await user.click(opener);
   expect(screen.getByRole("alertdialog").getAttribute("aria-modal")).toBe(
     "true",
   );
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("alertdialog")).toBeNull();
+  await waitFor(() => expect(document.activeElement).toBe(opener));
   expect(screen.getByLabelText("Số công tùy chỉnh")).toHaveProperty(
     "value",
     "3,25",
   );
   expect(draft.edit?.cell.kind).toBe("work");
+  expect(draft.edit).toEqual(original);
+  await user.click(opener);
+  await user.click(screen.getByRole("button", { name: "Giữ phần nhập" }));
+  await waitFor(() => expect(document.activeElement).toBe(opener));
+  expect(draft.edit).toEqual(original);
   await user.click(screen.getByRole("tab", { name: "Tăng ca" }));
   await user.click(
     screen.getByRole("button", { name: "Bỏ phần nhập và tiếp tục" }),

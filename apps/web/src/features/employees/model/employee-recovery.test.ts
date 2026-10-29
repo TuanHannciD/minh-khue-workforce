@@ -2,6 +2,9 @@ import { expect, it, vi } from "vitest";
 import { EmployeeDraft } from "./employee-draft";
 import { ApiError } from "@/shared/api/transport";
 import type { EmployeeIntent } from "../api/employees";
+import { QueryClient } from "@tanstack/react-query";
+import { SessionRuntime } from "@/features/session/index";
+import { SessionBoundary } from "@/shared/api/session-boundary";
 const employee = {
   id: "00000000-0000-4000-8000-000000000101",
   name: "Giả",
@@ -75,3 +78,86 @@ it("create unknown without ID never retries or resolves by duplicate name", asyn
   expect(write).not.toHaveBeenCalled();
   expect(draft.baseline).toBeNull();
 });
+
+it.each([400, 422])(
+  "rejected recovery %s retains unknown create provenance and confirmed ID across reauthentication",
+  async (status) => {
+    const boundary = new SessionBoundary();
+    const runtime = new SessionRuntime(new QueryClient(), boundary);
+    vi.stubGlobal("fetch", async () =>
+      Response.json({
+        user: { userId: "owner", username: "owner" },
+        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        idleExpiresAt: new Date(Date.now() + 3600000).toISOString(),
+      }),
+    );
+    await runtime.refresh();
+    const draft = new EmployeeDraft();
+    const disconnect = draft.connect(runtime);
+    try {
+      draft.change({ name: " raw ", startDate: "2026-10-15", endDate: "" });
+      draft.reject(new TypeError("lost POST"), draft.begin());
+      const read = vi.fn(async () => ({
+        fetchedAt: "now",
+        employees: [employee],
+        cells: [],
+        missingEmployeeIds: [],
+      }));
+      await draft.reconcile(employee.id, read);
+      draft.change({ ...draft.values, endDate: "2026-10-01" });
+      expect(
+        await draft.recover("draft", async () => {
+          throw new ApiError(status, "VALIDATION", "invalid interval");
+        }),
+      ).toBe(false);
+      draft.change({ ...draft.values, endDate: "2026-10-20" });
+      expect(draft.requiresReconciliation).toBe(true);
+      expect(draft.confirmedId).toBe(employee.id);
+      expect(draft.baseline).toBeNull();
+      expect(draft.values).toEqual({
+        name: " raw ",
+        startDate: "2026-10-15",
+        endDate: "2026-10-20",
+      });
+      expect(draft.current).toBeNull();
+      expect(draft.recoveryReady).toBe(false);
+      runtime.expire();
+      await runtime.refresh();
+      expect(draft.resumeUnsentCreate()).toBe(false);
+      const writes: EmployeeIntent[] = [];
+      const save = async (intent: EmployeeIntent) => {
+        writes.push(intent);
+        return { ...employee, revision: "accepted" };
+      };
+      expect(await draft.recover("draft", save)).toBe(false);
+      await draft.reconcile(undefined, read);
+      expect(read.mock.calls.at(-1)).toEqual([
+        { employeeIds: [employee.id], cells: [] },
+        boundary.current(),
+      ]);
+      runtime.expire();
+      await runtime.refresh();
+      expect(await draft.recover("draft", save)).toBe(false);
+      expect(writes).toHaveLength(0);
+      await draft.reconcile(undefined, read);
+      expect(await draft.recover("draft", save)).toBe(true);
+      expect(writes).toEqual([
+        {
+          id: employee.id,
+          expectedEpoch: boundary.current(),
+          input: {
+            expectedRevision: "old",
+            name: "raw",
+            startDate: "2026-10-15",
+            endDate: "2026-10-20",
+          },
+        },
+      ]);
+      expect(draft.requiresReconciliation).toBe(false);
+    } finally {
+      disconnect();
+      runtime.expire();
+      vi.unstubAllGlobals();
+    }
+  },
+);

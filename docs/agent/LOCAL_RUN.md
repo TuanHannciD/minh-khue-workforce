@@ -168,3 +168,15 @@ Runner tạo DB `mkw_persistence_<uuid>` mới, migrate, provision hai account g
 `node scripts/product/e2e.mjs --serve` tạo sandbox tương tác T3; URL/runDir tại stdout và `interactive.json`. Fixture-only account route ở wrapper test, không product router; tự điền login trong browser memory, không in credential/snapshot lúc mật khẩu còn trên form. Dừng đúng run bằng ghi `stop` vào `<runDir>/stop.request`; runner revoke/reset fixture secrets trong memory, đóng HTTP/pools, ghi `http-released.json`; DB/evidence giữ lại. Stop cluster bằng đúng portable `pg_ctl -D <owned-data> stop -m fast` sau kiểm actual data/owner/process, kiểm stopped riêng. Không kill theo port/PID tình cờ.
 
 Regressions Task3/4/5 có thể tạo DB mới trên cluster Task7 qua `MKW_ATTENDANCE_CLUSTER_OWNER` trỏ owner record này (auth/employee harness tái dùng identity checker Task5/7). Attendance suite có một target-enrollment test chuyên Task5; Task7 chạy ba file integration HTTP/transaction thay vì đổi assertion đó. Chi tiết lệnh/kết quả ở task validation.
+
+### Regression tập trung Task7 review R1
+
+R1 dùng cluster mới riêng `.agent-runs/MKW-PRODUCT-001/task7-fix-r1/pg-data`, owner `MKW-PRODUCT-001/Task7FixR1`, alias `task7-fix-r1`, role `mkw_task7_r1`. Xác minh owner/actual identity và port trước acquire, không reset/restart tài nguyên Task7 cũ. Sau build trong shell product24:
+
+```powershell
+$env:MKW_PRODUCT_CLUSTER_OWNER=(Resolve-Path '.agent-runs/MKW-PRODUCT-001/task7-fix-r1/cluster-owner.json').Path
+$env:PLAYWRIGHT_BROWSERS_PATH='0'
+pnpm run product:test:e2e -- --review-r1
+```
+
+Chỉ chạy nhánh unknown create→ID→PATCH422→sửa input→normal Save bị khóa→fresh reconcile/PATCH cùng ID, SQL độc lập kiểm422 không đổi revision và tổng POST1; Page/Workspace Keep/Escape kiểm focus/raw/đơn vị. Đây không là replay full matrix/10 nhóm cũ. `node scripts/product/e2e.mjs --serve --review-r1` mở sandbox T3; setup session riêng chỉ memory, không điền password vào DOM hoặc echo response fixture accounts. Dừng đúng run bằng stop.request như trên; R1 rotate/revoke cả hai fixture và ghi `fixture-invalidated.json`, release HTTP/PG đúng owner, giữ DB/logs/evidence.

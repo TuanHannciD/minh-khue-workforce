@@ -4,13 +4,16 @@ import { startSandbox } from "../../tests/product-e2e/sandbox.mjs";
 import { chromium } from "@playwright/test";
 
 const interactive = process.argv.includes("--serve");
-const sandbox = await startSandbox({ interactive });
+const reviewR1 = process.argv.includes("--review-r1");
+const sandbox = await startSandbox({ interactive, reviewR1 });
 try {
   if (interactive) {
     await writeFile(
       resolve(sandbox.runDir, "interactive.json"),
       JSON.stringify({
-        owner: "MKW-PRODUCT-001/Task7",
+        owner: reviewR1
+          ? "MKW-PRODUCT-001/Task7FixR1"
+          : "MKW-PRODUCT-001/Task7",
         webOrigin: sandbox.webOrigin,
         apiOrigin: sandbox.apiOrigin,
         runDir: sandbox.runDir,
@@ -38,9 +41,15 @@ try {
   } else {
     const browser = await chromium.launch({ headless: true });
     try {
-      const { runAttendanceE2E } =
-        await import("../../tests/product-e2e/attendance-save.spec.ts");
-      await runAttendanceE2E(sandbox, browser);
+      if (reviewR1) {
+        const { runEmployeeRecoveryR1 } =
+          await import("../../tests/product-e2e/employee-recovery-r1.spec.ts");
+        await runEmployeeRecoveryR1(sandbox, browser);
+      } else {
+        const { runAttendanceE2E } =
+          await import("../../tests/product-e2e/attendance-save.spec.ts");
+        await runAttendanceE2E(sandbox, browser);
+      }
     } finally {
       await browser.close();
     }

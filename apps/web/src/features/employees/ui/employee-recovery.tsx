@@ -26,19 +26,18 @@ export function EmployeeRecovery({
       </p>
       {!draft.baseline && (
         <>
-          {draft.needsRecovery &&
-            !["unknown", "conflict"].includes(draft.outcome.type) && (
-              <>
-                <p>
-                  Bản nháp tạo mới chưa có yêu cầu chưa xác định. Sau khi đăng
-                  nhập lại cùng tài khoản, chọn tiếp tục để tự kiểm tra và lưu.
-                </p>
-                <Button onClick={() => draft.resumeUnsentCreate()}>
-                  Tiếp tục sửa bản nháp tạo mới
-                </Button>
-              </>
-            )}
-          {["unknown", "conflict"].includes(draft.outcome.type) && (
+          {draft.needsRecovery && !draft.requiresReconciliation && (
+            <>
+              <p>
+                Bản nháp tạo mới chưa có yêu cầu chưa xác định. Sau khi đăng
+                nhập lại cùng tài khoản, chọn tiếp tục để tự kiểm tra và lưu.
+              </p>
+              <Button onClick={() => draft.resumeUnsentCreate()}>
+                Tiếp tục sửa bản nháp tạo mới
+              </Button>
+            </>
+          )}
+          {draft.requiresReconciliation && (
             <>
               <p>
                 Lần tạo chưa trả ID: kết quả chưa xác định. Không tự gửi lại
@@ -51,7 +50,8 @@ export function EmployeeRecovery({
               </label>
               <Input
                 id="recovery-employee-id"
-                value={knownId}
+                value={draft.confirmedId ?? knownId}
+                readOnly={draft.confirmedId !== null}
                 onChange={(event) => setKnownId(event.target.value)}
                 disabled={busy}
               />
@@ -59,10 +59,18 @@ export function EmployeeRecovery({
           )}
         </>
       )}
+      {draft.requiresReconciliation && !draft.current && (
+        <p>
+          Đối chiếu lại theo ID trước khi chọn lần lưu mới. Bản nháp và ID đã
+          xác nhận được giữ; việc đọc hoặc một lần lưu bị từ chối không hủy yêu
+          cầu trước.
+        </p>
+      )}
       <Button
         disabled={
           busy ||
           (!draft.baseline &&
+            !draft.confirmedId &&
             !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(knownId))
         }
         onClick={() => {

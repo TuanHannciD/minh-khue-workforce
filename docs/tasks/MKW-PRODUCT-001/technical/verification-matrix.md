@@ -1,5 +1,9 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Checkpoint Task7 sửa review R1, 29/10/2026
+
+Regression tập trung thêm nhánh unknown Employee POST→confirmed ID→recovery PATCH422/400→sửa raw, không mở POST mới hoặc unsent-create resume; fresh read/session epoch trước recovery tiếp theo. Model và rendered form dùng fixtures; targeted built web–Nest–PG kiểm422 không đổi revision, PATCH200 đúng ID và tổng POST1, SQL độc lập. Primitive Radix/Page/Workspace Keep/Escape giữ focus/raw/ID/đơn vị; discard/modal kế tiếp không bị giành focus. `product:check`40 tooling/114 web/13 API; [validation](../validation.md) và evidence `task7-fix-r1` ghi command/lớp/giới hạn. I1/M1 implemented trong scope, chưa independent PASS; main re-review exact tip. Không replay full10 nhóm hoặc mở claim toàn AC/ca6–9/device/zoom.
+
 ## Checkpoint Task7 — lớp web/API/PostgreSQL, 29/10/2026
 
 Task7 đã chạy controlled unit/component và10 nhóm E2E thật cho polling/draft, atomic patch-cell, conflict, unknown/read-only reconcile/explicit no-op fence, Employee PATCH ngoài tháng/create mất ID; SQL độc lập và T3 built UI có bằng chứng tại [validation](../validation.md). Ca6–9 bên dưới là nguồn assertions: Task5 API/PG kiểm source/skip/eligible0/tombstone/both orders; Task7 chỉ consumer editor một ô, chưa source/bulk UI Task8 hoặc full matrix Task10. Các câu Not run ở checkpoint thiết kế bên dưới là lịch sử của lớp đó, không ghi đè kết quả scoped mới và không nâng mọi AC thành Verified. Independent state/transport/concurrency/UI review Task7 chờ main exact SHA; thiết bị/reader/Excel/zoom/Linux/TLS/operator thật Not run.

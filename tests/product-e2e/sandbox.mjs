@@ -14,10 +14,6 @@ import {
 } from "../../apps/api/dist/modules/auth/auth-operations.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-export const evidenceRoot = resolve(
-  root,
-  ".agent-runs/MKW-PRODUCT-001/task7-persistence",
-);
 const requireWeb = createRequire(
   new URL("../../apps/web/package.json", import.meta.url),
 );
@@ -32,12 +28,17 @@ async function freePort() {
   return port;
 }
 
-export async function startSandbox({ interactive = false } = {}) {
+export async function startSandbox({
+  interactive = false,
+  reviewR1 = false,
+} = {}) {
+  const alias = reviewR1 ? "task7-fix-r1" : "task7-persistence";
+  const evidenceRoot = resolve(root, `.agent-runs/MKW-PRODUCT-001/${alias}`);
   const cluster = await openSandboxTarget(
     process.env.MKW_PRODUCT_CLUSTER_OWNER,
-    "task7-persistence",
+    alias,
   );
-  const databaseName = `mkw_persistence_${randomUUID().replaceAll("-", "_")}`;
+  const databaseName = `${reviewR1 ? "mkw_task7_r1" : "mkw_persistence"}_${randomUUID().replaceAll("-", "_")}`;
   const runDir = resolve(evidenceRoot, databaseName);
   await mkdir(runDir);
   const targetFile = resolve(runDir, "target.json");
@@ -59,7 +60,7 @@ export async function startSandbox({ interactive = false } = {}) {
   } finally {
     await cluster.pool.end();
   }
-  const db = await openSandboxTarget(targetFile, "task7-persistence");
+  const db = await openSandboxTarget(targetFile, alias);
   const migration = await command(
     process.platform === "win32" ? "pnpm.exe" : "pnpm",
     ["--filter", "@mkw/api", "db:deploy"],
@@ -75,7 +76,7 @@ export async function startSandbox({ interactive = false } = {}) {
   const webOrigin = `http://127.0.0.1:${webPort}`;
   const apiOrigin = `http://127.0.0.1:${apiPort}`;
   const owner = {
-    owner: "MKW-PRODUCT-001/Task7",
+    owner: cluster.target.owner,
     runDir,
     pid: process.pid,
     webOrigin,
@@ -145,14 +146,27 @@ export async function startSandbox({ interactive = false } = {}) {
       apiOrigin,
       runDir,
       targetFile,
+      alias,
       async stop() {
-        if (interactive)
+        if (interactive || reviewR1)
           for (const account of accounts)
             await resetPassword(
               database,
               account.username,
               randomBytes(32).toString("base64url"),
             );
+        if (reviewR1) {
+          const { rows } = await db.pool.query(
+            'SELECT count(*)::int AS count FROM "Session" WHERE "revokedAt" IS NULL',
+          );
+          await writeFile(
+            resolve(runDir, "fixture-invalidated.json"),
+            JSON.stringify({
+              passwordsRotated: 2,
+              unrevokedSessions: rows[0].count,
+            }),
+          );
+        }
         await web.close();
         await app.close();
         await database.onModuleDestroy();
