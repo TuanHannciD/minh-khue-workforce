@@ -14,24 +14,36 @@ import { saveEmployee } from "../api/employees";
 import type { EmployeeDraft } from "../model/employee-draft";
 import type { EmployeeFields } from "../model/employee-draft";
 import { employeeSchema } from "../model/employee-schema";
+import { EmployeeRecovery } from "./employee-recovery";
 
 export function EmployeeForm({
   draft,
   save = saveEmployee,
+  onSaved,
 }: {
   draft: EmployeeDraft;
   save?: (intent: EmployeeIntent) => Promise<Employee>;
+  onSaved?: () => void;
 }) {
   useSyncExternalStore(draft.subscribe, draft.snapshot);
-  return <EmployeeFormFields key={draft.lifecycle} draft={draft} save={save} />;
+  return (
+    <EmployeeFormFields
+      key={draft.lifecycle}
+      draft={draft}
+      save={save}
+      onSaved={onSaved}
+    />
+  );
 }
 
 function EmployeeFormFields({
   draft,
   save,
+  onSaved,
 }: {
   draft: EmployeeDraft;
   save: (intent: EmployeeIntent) => Promise<Employee>;
+  onSaved: (() => void) | undefined;
 }) {
   const id = useId();
   const summary = useRef<HTMLDivElement>(null);
@@ -50,7 +62,12 @@ function EmployeeFormFields({
   });
   const outcome = draft.outcome;
   const blocked =
-    pending || outcome.type === "unknown" || outcome.type === "conflict";
+    pending ||
+    draft.pending ||
+    draft.reconciling ||
+    draft.needsRecovery ||
+    outcome.type === "unknown" ||
+    outcome.type === "conflict";
   const hasError =
     validationError ||
     ["rejected", "conflict", "unknown"].includes(outcome.type);
@@ -58,7 +75,7 @@ function EmployeeFormFields({
     if (hasError) summary.current?.focus();
   }, [hasError, outcome]);
   async function submit(values: EmployeeFields) {
-    if (blocked) return;
+    if (blocked || draft.pending || draft.reconciling) return;
     draft.change(values);
     setValidationError(false);
     setPending(true);
@@ -72,11 +89,18 @@ function EmployeeFormFields({
       ? {
           id: draft.baseline.id,
           input: { ...input, expectedRevision: draft.baseline.revision },
+          ...(draft.epoch === undefined ? {} : { expectedEpoch: draft.epoch }),
         }
-      : { input };
+      : {
+          input,
+          ...(draft.epoch === undefined ? {} : { expectedEpoch: draft.epoch }),
+        };
     try {
       const result = await save(intent);
-      if (draft.accept(result, generation)) reset(draft.values);
+      if (draft.accept(result, generation)) {
+        reset(draft.values);
+        onSaved?.();
+      }
     } catch (error) {
       draft.reject(error, generation);
     } finally {
@@ -184,7 +208,7 @@ function EmployeeFormFields({
             aria-invalid={Boolean(errors.name)}
             aria-describedby={errors.name ? `${id}-name-error` : undefined}
             autoComplete="off"
-            disabled={pending}
+            disabled={pending || draft.pending || draft.reconciling}
           />
           {errors.name && (
             <p className="error" id={`${id}-name-error`}>
@@ -206,7 +230,7 @@ function EmployeeFormFields({
                 inputMode="text"
                 aria-invalid={Boolean(errors[field])}
                 aria-describedby={`${id}-${field}-help${errors[field] ? ` ${id}-${field}-error` : ""}`}
-                disabled={pending}
+                disabled={pending || draft.pending || draft.reconciling}
               />
               <p className="muted" id={`${id}-${field}-help`}>
                 {field === "startDate"
@@ -227,7 +251,12 @@ function EmployeeFormFields({
           </Button>
           <Button
             type="button"
-            disabled={pending || outcome.type === "unknown"}
+            disabled={
+              pending ||
+              draft.pending ||
+              draft.reconciling ||
+              outcome.type === "unknown"
+            }
             onClick={() => {
               draft.clear();
             }}
@@ -237,6 +266,17 @@ function EmployeeFormFields({
         </div>
         {outcome.type === "saved" && <p role="status">Đã lưu nhân sự.</p>}
       </form>
+      {(["unknown", "conflict"].includes(outcome.type) ||
+        draft.needsRecovery) && (
+        <EmployeeRecovery
+          draft={draft}
+          save={save}
+          onRecovered={() => {
+            reset(draft.values);
+            onSaved?.();
+          }}
+        />
+      )}
     </section>
   );
 }

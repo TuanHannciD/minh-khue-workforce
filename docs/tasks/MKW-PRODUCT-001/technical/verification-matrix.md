@@ -1,5 +1,9 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Checkpoint Task7 — lớp web/API/PostgreSQL, 29/10/2026
+
+Task7 đã chạy controlled unit/component và10 nhóm E2E thật cho polling/draft, atomic patch-cell, conflict, unknown/read-only reconcile/explicit no-op fence, Employee PATCH ngoài tháng/create mất ID; SQL độc lập và T3 built UI có bằng chứng tại [validation](../validation.md). Ca6–9 bên dưới là nguồn assertions: Task5 API/PG kiểm source/skip/eligible0/tombstone/both orders; Task7 chỉ consumer editor một ô, chưa source/bulk UI Task8 hoặc full matrix Task10. Các câu Not run ở checkpoint thiết kế bên dưới là lịch sử của lớp đó, không ghi đè kết quả scoped mới và không nâng mọi AC thành Verified. Independent state/transport/concurrency/UI review Task7 chờ main exact SHA; thiết bị/reader/Excel/zoom/Linux/TLS/operator thật Not run.
+
 ## Checkpoint Task5 — API/PostgreSQL, 29/10/2026
 
 Đã kiểm lớp API/DB của snapshot/values/totals/patch/batch/fill-source/CAS/no-op/reconcile theo ca6–9, trên cluster PostgreSQL17.11 mới. Suite attendance61 assertions/test cases tính cả parent groups; auth regression12 và employees10 có command/evidence trong [validation](../validation.md). Unit/contract kiểm JSON đầy đủ với runtime/OpenAPI/generated web types; full month56 ô và bốn write fixture chạy HTTP thật. Không thay toàn bộ AC thành Verified: AC12/13/15 cần hai phiên UI ở Task7/10; editor/draft/polling/fill UI/Excel/thiết bị/reader/Linux/TLS/operator thật còn Not run. Independent transaction/schema/contract review Task5 chờ main exact SHA; bảng Not run bên dưới giữ checkpoint thiết kế Task1.

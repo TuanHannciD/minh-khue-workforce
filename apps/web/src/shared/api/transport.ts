@@ -41,6 +41,7 @@ export async function apiRequest<T>(
     signal?: AbortSignal;
     expectedEpoch?: number;
     boundary?: SessionBoundary;
+    timeoutMs?: number;
   } = {},
 ): Promise<T> {
   const boundary = options.boundary ?? sessionBoundary;
@@ -49,6 +50,12 @@ export async function apiRequest<T>(
   const auth = path.startsWith("/auth/");
   if (!auth && !boundary.isActive())
     throw new ApiError(401, "SESSION_REQUIRED", "Vui lòng đăng nhập lại.");
+  if (
+    !auth &&
+    options.expectedEpoch !== undefined &&
+    epoch !== options.expectedEpoch
+  )
+    throw new ApiError(401, "SESSION_CHANGED", "Phiên đã thay đổi.");
   if (!auth && method !== "GET" && !boundary.canWrite(options.expectedEpoch))
     throw new ApiError(
       401,
@@ -57,9 +64,11 @@ export async function apiRequest<T>(
     );
   const controller = new AbortController();
   const untrack = auth ? () => {} : boundary.track(controller);
-  const signal = options.signal
-    ? AbortSignal.any([options.signal, controller.signal])
-    : controller.signal;
+  const signal = AbortSignal.any([
+    controller.signal,
+    AbortSignal.timeout(options.timeoutMs ?? 15000),
+    ...(options.signal ? [options.signal] : []),
+  ]);
   try {
     const response = await fetch(`/api/v1${path}`, {
       method,

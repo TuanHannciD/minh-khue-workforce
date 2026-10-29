@@ -2,7 +2,10 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Pool } from "../../../scripts/product/sandbox-target.mjs";
+import {
+  Pool,
+  openSandboxTarget,
+} from "../../../scripts/product/sandbox-target.mjs";
 import { command } from "./auth-sandbox.mjs";
 import { createApp } from "../dist/bootstrap.js";
 import { Database } from "../dist/infrastructure/db/database.js";
@@ -17,6 +20,8 @@ export const origin = "http://127.0.0.1:5173";
 const normalized = (p) => resolve(p).replaceAll("\\", "/").toLowerCase();
 export async function openAttendanceTarget(recordPath) {
   const target = JSON.parse(await readFile(recordPath, "utf8"));
+  if (target.alias === "task7-persistence")
+    return openSandboxTarget(recordPath, "task7-persistence");
   if (
     target.owner !== "MKW-PRODUCT-001/Task5" ||
     target.scope !== "fake-sandbox" ||
@@ -56,8 +61,14 @@ export async function attendanceSandbox() {
   const cluster = await openAttendanceTarget(
     process.env.MKW_ATTENDANCE_CLUSTER_OWNER,
   );
-  const database = `mkw_attendance_${randomUUID().replaceAll("-", "_")}`;
-  const evidence = resolve(evidenceRoot, database);
+  const task7 = cluster.target.alias === "task7-persistence";
+  const database = `${task7 ? "mkw_persistence" : "mkw_attendance"}_${randomUUID().replaceAll("-", "_")}`;
+  const evidence = resolve(
+    task7
+      ? resolve(root, ".agent-runs/MKW-PRODUCT-001/task7-persistence")
+      : evidenceRoot,
+    database,
+  );
   const targetFile = resolve(evidence, "target.json");
   try {
     await mkdir(evidence);
@@ -130,7 +141,7 @@ export async function fixture(db) {
     await writeFile(
       resolve(db.evidence, "http-owner.json"),
       JSON.stringify({
-        owner: "MKW-PRODUCT-001/Task5",
+        owner: db.target.owner,
         pid: process.pid,
         host: "127.0.0.1",
         portPolicy: "ephemeral",
@@ -155,7 +166,7 @@ export async function fixture(db) {
     await writeFile(
       resolve(db.evidence, "http-owner.json"),
       JSON.stringify({
-        owner: "MKW-PRODUCT-001/Task5",
+        owner: db.target.owner,
         pid: process.pid,
         origins: await Promise.all(apps.map((a) => a.getUrl())),
         state: "running",
@@ -171,7 +182,7 @@ export async function fixture(db) {
         await database.onModuleDestroy();
         await writeFile(
           resolve(db.evidence, "http-released.json"),
-          JSON.stringify({ owner: "MKW-PRODUCT-001/Task5", state: "released" }),
+          JSON.stringify({ owner: db.target.owner, state: "released" }),
         );
       },
     };

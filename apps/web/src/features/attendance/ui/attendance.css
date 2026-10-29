@@ -543,3 +543,36 @@
     transition: none !important;
   }
 }
+.editor-fields {
+  display: grid;
+  gap: var(--space-3);
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.editor-column {
+  min-width: 0;
+}
+.save-feedback,
+.snapshot-freshness,
+.month-control {
+  margin-block: var(--space-3);
+  overflow-wrap: anywhere;
+}
+.save-feedback {
+  padding: var(--space-3);
+  background: var(--paper);
+}
+.save-feedback p {
+  margin-block: var(--space-2);
+}
+.month-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.month-control input {
+  width: auto;
+}

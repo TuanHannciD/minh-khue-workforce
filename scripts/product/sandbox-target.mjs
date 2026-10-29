@@ -12,7 +12,7 @@ const normalized = (value) => {
   return process.platform === "win32" ? path.toLowerCase() : path;
 };
 
-// CLI supports only the explicitly enrolled fake Task3/Task5 sandboxes.
+// CLI supports only the explicitly enrolled fake Task3/Task5/Task7 sandboxes.
 // Production target enrollment belongs to the separately approved operations runbook.
 export async function openSandboxTarget(recordPath, alias) {
   const target = JSON.parse(await readFile(recordPath, "utf8"));
@@ -31,7 +31,14 @@ export async function openSandboxTarget(recordPath, alias) {
             user: "mkw_task5",
             databases: /^(?:postgres|mkw_attendance_[a-f0-9_]+)$/,
           }
-        : undefined;
+        : alias === "task7-persistence"
+          ? {
+              owner: "MKW-PRODUCT-001/Task7",
+              directory: "task7-persistence",
+              user: "mkw_task7",
+              databases: /^(?:postgres|mkw_persistence_[a-f0-9_]+)$/,
+            }
+          : undefined;
   if (!policy)
     throw new Error("Sandbox alias is outside the authorized allowlist");
   const runRoot = fileURLToPath(

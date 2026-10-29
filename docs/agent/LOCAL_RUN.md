@@ -1,6 +1,6 @@
 # Chạy tooling và pilot local
 
-Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session, Task4 POST/PATCH nhân sự và Task5 GET tháng/POST changes/reconcile; Task6 có bảng/editor UI fixture, query/lưu thật thuộc Task7 và Excel thuộc Task9. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
+Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session, POST/PATCH nhân sự, GET tháng/POST changes/reconcile và Task7 query/draft/lưu một ô/recovery thật; Excel thuộc Task9. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
 
 ## Chuẩn bị và check
 
@@ -54,7 +54,7 @@ Dừng foreground bằng Ctrl+C trong đúng terminal sở hữu. Không kill th
 
 Web alias `@/` thuộc src web. API dùng native package imports `#app/*` với `.js` ESM, được kiểm trên compiled runtime; không có alias xuyên app. Contract được sinh từ Nest DTO thành OpenAPI3.0.3 và web types; không sửa hai output bằng tay. [Tooling map](../../scripts/product/README.md) định vị generator/boundary/fixtures.
 
-`product:check` chạy lint/format/strict types/build từng app, tooling fixtures, web Vitest/DOM/session, API bootstrap/auth HTTP/native, cycle/boundary và regenerated drift check. `product:test:e2e` và `product:benchmark` vẫn **Not run, nonzero** đến Task10. Integration auth chạy riêng trên PostgreSQL17.11 thật như dưới; không phải acceptance toàn sản phẩm. npm lock baseline được giữ trong ignored evidence và lịch sử Git trước khi bỏ lock npm active.
+`product:check` chạy lint/format/strict types/build từng app, tooling fixtures, web Vitest/DOM/session, API bootstrap/auth HTTP/native, cycle/boundary và regenerated drift check. Task7 đã thay `product:test:e2e` bằng runner thật dưới đây; `product:benchmark` vẫn **Not run, nonzero** đến Task10. Integration auth chạy riêng trên PostgreSQL17.11 thật như dưới; không phải acceptance toàn sản phẩm. npm lock baseline được giữ trong ignored evidence và lịch sử Git trước khi bỏ lock npm active.
 
 ### Sandbox auth Task3
 
@@ -149,3 +149,22 @@ Mỗi CLI/test run tạo thư mục mới dưới **primary** `.agent-runs/MKW-A
 - UI detector chỉ là heuristic. Bản đầy đủ cần htmlparser2/css-select/css-tree/domutils đã ghim dependency; kiểm tra browser vẫn bắt buộc.
 - ESLint 9.39.5 có cảnh báo upstream hết hỗ trợ; pin để tương thích Node 22.12 hiện tại (ESLint 10 yêu cầu Node mới hơn). Nâng Node/lint ở task bảo trì riêng; không suy từ audit sạch thành không có rủi ro.
 - Không tự dọn evidence. Retention/cleanup và nâng dependency theo task riêng có scope.
+
+## Sandbox persistence Task7 — product E2E thật
+
+Dùng PG17.11 portable cùng binaries đã có nhưng **cluster mới** owner `MKW-PRODUCT-001/Task7`, alias `task7-persistence`, role `mkw_task7`, data `.agent-runs/MKW-PRODUCT-001/task7-persistence/pg-data`. Owner record ghi loopback port; adapter kiểm database/user/host/port/data_directory/version thật trước CREATE. Cluster đã release khi handoff; chỉ khởi động lại đúng identity/owner/port đã kiểm, không tự chiếm port hoặc reset/drop DB/evidence cũ. Không service/global config.
+
+Trong shell product24 ở worktree, sau khi cluster được khởi động đúng owner và đã kiểm identity:
+
+```powershell
+$env:MKW_PRODUCT_CLUSTER_OWNER=(Resolve-Path '.agent-runs/MKW-PRODUCT-001/task7-persistence/cluster-owner.json').Path
+$env:PLAYWRIGHT_BROWSERS_PATH='0'
+pnpm run product:build
+pnpm run product:test:e2e
+```
+
+Runner tạo DB `mkw_persistence_<uuid>` mới, migrate, provision hai account giả bằng secret random chỉ memory, Nest thật và Vite built preview trên port trống của run. Node24 type stripping import spec `.ts` trong cùng coordinator để không serialize credential ra config/env/report. Playwright Chromium project-local phải có theo bước chuẩn bị trên.10 nhóm assertions kiểm Save atomic/SQL, polling hai context,409, missing/null, commit-response-loss, delayed-lock no-op fence, lỗi nền/đầu/reload, overtime và employee PATCH ngoài tháng/create mất ID. Fault chỉ đổi delivery hoặc barrier trước lock; không mock successful persistence. Full matrix Task10/thiết bị/reader/Excel không được suy đạt.
+
+`node scripts/product/e2e.mjs --serve` tạo sandbox tương tác T3; URL/runDir tại stdout và `interactive.json`. Fixture-only account route ở wrapper test, không product router; tự điền login trong browser memory, không in credential/snapshot lúc mật khẩu còn trên form. Dừng đúng run bằng ghi `stop` vào `<runDir>/stop.request`; runner revoke/reset fixture secrets trong memory, đóng HTTP/pools, ghi `http-released.json`; DB/evidence giữ lại. Stop cluster bằng đúng portable `pg_ctl -D <owned-data> stop -m fast` sau kiểm actual data/owner/process, kiểm stopped riêng. Không kill theo port/PID tình cờ.
+
+Regressions Task3/4/5 có thể tạo DB mới trên cluster Task7 qua `MKW_ATTENDANCE_CLUSTER_OWNER` trỏ owner record này (auth/employee harness tái dùng identity checker Task5/7). Attendance suite có một target-enrollment test chuyên Task5; Task7 chạy ba file integration HTTP/transaction thay vì đổi assertion đó. Chi tiết lệnh/kết quả ở task validation.

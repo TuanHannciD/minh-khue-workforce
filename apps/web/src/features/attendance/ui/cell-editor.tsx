@@ -8,6 +8,7 @@ import type {
   CellValueDto,
   EmployeeDto,
 } from "../model/types";
+import type { EditingCell } from "../model/attendance-draft";
 
 export interface CellEditorIntent {
   cell: CellSnapshotDto;
@@ -22,6 +23,9 @@ export function CellEditor({
   onCancel,
   submitLabel = "Lưu",
   blockedReason,
+  editing,
+  onEdit,
+  pending = false,
 }: {
   cell: CellSnapshotDto;
   employee: EmployeeDto;
@@ -29,14 +33,35 @@ export function CellEditor({
   onCancel: () => void;
   submitLabel?: string;
   blockedReason?: string | undefined;
+  editing?: EditingCell | undefined;
+  onEdit?:
+    | ((
+        fields: Partial<
+          Pick<EditingCell, "raw" | "reminder" | "custom" | "error">
+        >,
+      ) => void)
+    | undefined;
+  pending?: boolean;
 }) {
   const id = useId();
-  const [raw, setRaw] = useState(formatAttendanceValue(cell.value));
-  const [reminder, setReminder] = useState(cell.reminder);
-  const [custom, setCustom] = useState(
+  const [localRaw, localSetRaw] = useState(formatAttendanceValue(cell.value));
+  const [localReminder, localSetReminder] = useState(cell.reminder);
+  const [localCustom, localSetCustom] = useState(
     cell.value?.type === "number" && cell.value.value > 2.5,
   );
-  const [error, setError] = useState("");
+  const [localError, localSetError] = useState("");
+  const raw = editing?.raw ?? localRaw;
+  const reminder = editing?.reminder ?? localReminder;
+  const custom = editing?.custom ?? localCustom;
+  const error = editing?.error ?? localError;
+  const setRaw = (value: string) =>
+    onEdit ? onEdit({ raw: value }) : localSetRaw(value);
+  const setReminder = (value: boolean) =>
+    onEdit ? onEdit({ reminder: value }) : localSetReminder(value);
+  const setCustom = (value: boolean) =>
+    onEdit ? onEdit({ custom: value }) : localSetCustom(value);
+  const setError = (value: string) =>
+    onEdit ? onEdit({ error: value }) : localSetError(value);
   const title = useRef<HTMLHeadingElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const work = cell.kind === "work";
@@ -45,7 +70,7 @@ export function CellEditor({
   }, []);
   function save(event: FormEvent, advance?: "enter" | "tab") {
     event.preventDefault();
-    if (blockedReason) return;
+    if (blockedReason || pending) return;
     const parsed = parseNumberInput(raw, cell.kind);
     if (!parsed.valid) {
       setError(parsed.message);
@@ -55,7 +80,7 @@ export function CellEditor({
     onSubmit({ cell, value: parsed.value, reminder, raw }, advance);
   }
   function inputKeys(event: KeyboardEvent<HTMLInputElement>) {
-    if (blockedReason) return; // Native Tab remains available, including Hủy.
+    if (blockedReason || pending) return; // Native Tab remains available, including Hủy.
     // Shift+Tab and Tab on all other controls keep normal browser navigation.
     if (event.key === "Tab" && !event.shiftKey) {
       const parsed = parseNumberInput(raw, cell.kind);
@@ -87,104 +112,106 @@ export function CellEditor({
         </div>
         <span className="unit">{work ? "Số công" : "Số giờ tăng ca"}</span>
       </div>
-      <form onSubmit={save} noValidate>
-        {blockedReason && (
-          <p className="error" role="alert">
-            {blockedReason}
-          </p>
-        )}
-        <span className="field-label" id={`${id}-values`}>
-          Chọn {work ? "số công" : "số giờ"}
-        </span>
-        <div className="values" role="group" aria-labelledby={`${id}-values`}>
-          {["0,5", "1", "1,5", "2", "2,5"].map((value) => (
-            <Button
-              key={value}
-              aria-pressed={!custom && raw === value}
-              onClick={() => choose(value)}
-            >
-              {value}
-            </Button>
-          ))}
-        </div>
-        <div className="secondary">
-          {work && (
-            <Button aria-pressed={raw === "F"} onClick={() => choose("F")}>
-              F · Nghỉ
-            </Button>
-          )}
-          <Button aria-pressed={raw === ""} onClick={() => choose("")}>
-            Để trống
-          </Button>
-          <Button
-            aria-expanded={custom}
-            aria-controls={`${id}-custom`}
-            onClick={() => {
-              setCustom(true);
-              queueMicrotask(() => input.current?.focus());
-            }}
-          >
-            Tùy chỉnh
-          </Button>
-        </div>
-        {custom && (
-          <div className="custom" id={`${id}-custom`}>
-            <label className="field-label" htmlFor={`${id}-value`}>
-              {work ? "Số công" : "Số giờ"} tùy chỉnh
-            </label>
-            <Input
-              ref={input}
-              id={`${id}-value`}
-              type="text"
-              inputMode="decimal"
-              value={raw}
-              aria-invalid={Boolean(error)}
-              aria-describedby={`${id}-help${error ? ` ${id}-error` : ""}`}
-              onChange={(event) => {
-                setRaw(event.target.value);
-                setError("");
-              }}
-              onKeyDown={inputKeys}
-            />
-            <p className="help" id={`${id}-help`}>
-              Tối đa {work ? "30 công" : "24 giờ"}, bước 0,5.{" "}
-              {work
-                ? "Nhập 0 chuyển thành F · nghỉ cả ngày."
-                : "Không tăng ca: chọn Để trống."}{" "}
-              Enter: xuống người tiếp theo; Tab: ô kế tiếp.
+      <form onSubmit={save} noValidate aria-busy={pending}>
+        <fieldset disabled={pending} className="editor-fields">
+          {blockedReason && (
+            <p className="error" role="alert">
+              {blockedReason}
             </p>
-          </div>
-        )}
-        {error && (
-          <p className="error" role="alert" id={`${id}-error`}>
-            {error}
-          </p>
-        )}
-        <label className="reminder">
-          <input
-            type="checkbox"
-            checked={reminder}
-            onChange={(event) => setReminder(event.target.checked)}
-          />
-          <span>
-            Nhắc kiểm tra ô này
-            <small>
-              Tô xanh để nhớ hỏi lại.
-              <br />
-              Giá trị vẫn được cộng vào tổng.
-            </small>
+          )}
+          <span className="field-label" id={`${id}-values`}>
+            Chọn {work ? "số công" : "số giờ"}
           </span>
-        </label>
-        <div className="actions">
-          <Button onClick={onCancel}>Hủy</Button>
-          <Button
-            variant="primary"
-            type="submit"
-            disabled={Boolean(blockedReason)}
-          >
-            {submitLabel}
-          </Button>
-        </div>
+          <div className="values" role="group" aria-labelledby={`${id}-values`}>
+            {["0,5", "1", "1,5", "2", "2,5"].map((value) => (
+              <Button
+                key={value}
+                aria-pressed={!custom && raw === value}
+                onClick={() => choose(value)}
+              >
+                {value}
+              </Button>
+            ))}
+          </div>
+          <div className="secondary">
+            {work && (
+              <Button aria-pressed={raw === "F"} onClick={() => choose("F")}>
+                F · Nghỉ
+              </Button>
+            )}
+            <Button aria-pressed={raw === ""} onClick={() => choose("")}>
+              Để trống
+            </Button>
+            <Button
+              aria-expanded={custom}
+              aria-controls={`${id}-custom`}
+              onClick={() => {
+                setCustom(true);
+                queueMicrotask(() => input.current?.focus());
+              }}
+            >
+              Tùy chỉnh
+            </Button>
+          </div>
+          {custom && (
+            <div className="custom" id={`${id}-custom`}>
+              <label className="field-label" htmlFor={`${id}-value`}>
+                {work ? "Số công" : "Số giờ"} tùy chỉnh
+              </label>
+              <Input
+                ref={input}
+                id={`${id}-value`}
+                type="text"
+                inputMode="decimal"
+                value={raw}
+                aria-invalid={Boolean(error)}
+                aria-describedby={`${id}-help${error ? ` ${id}-error` : ""}`}
+                onChange={(event) => {
+                  setRaw(event.target.value);
+                  setError("");
+                }}
+                onKeyDown={inputKeys}
+              />
+              <p className="help" id={`${id}-help`}>
+                Tối đa {work ? "30 công" : "24 giờ"}, bước 0,5.{" "}
+                {work
+                  ? "Nhập 0 chuyển thành F · nghỉ cả ngày."
+                  : "Không tăng ca: chọn Để trống."}{" "}
+                Enter: xuống người tiếp theo; Tab: ô kế tiếp.
+              </p>
+            </div>
+          )}
+          {error && (
+            <p className="error" role="alert" id={`${id}-error`}>
+              {error}
+            </p>
+          )}
+          <label className="reminder">
+            <input
+              type="checkbox"
+              checked={reminder}
+              onChange={(event) => setReminder(event.target.checked)}
+            />
+            <span>
+              Nhắc kiểm tra ô này
+              <small>
+                Tô xanh để nhớ hỏi lại.
+                <br />
+                Giá trị vẫn được cộng vào tổng.
+              </small>
+            </span>
+          </label>
+          <div className="actions">
+            <Button onClick={onCancel}>Hủy</Button>
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={Boolean(blockedReason) || pending}
+            >
+              {submitLabel}
+            </Button>
+          </div>
+        </fieldset>
       </form>
     </section>
   );

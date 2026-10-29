@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { Flag, Maximize, Minimize, Search } from "lucide-react";
 import type {
   AttendanceKind,
@@ -18,13 +18,22 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/ui/tabs";
 import "./attendance.css";
+import type { AttendanceDraft } from "../model/attendance-draft";
+import { SaveFeedback } from "./save-feedback";
+import { ConfirmDiscard } from "@/shared/ui/confirm-discard";
+const noSubscribe = () => () => {};
+const noSnapshot = () => 0;
 
 export interface AttendancePageProps {
   status: "ready" | "loading" | "error";
   month: MonthDto | null;
-  onSubmit: (intent: CellEditorIntent) => void;
+  onSubmit: (intent: CellEditorIntent) => unknown;
   onRetry?: () => void;
   submitLabel?: string;
+  draft?: AttendanceDraft;
+  ownerUserId?: string;
+  onSaved?: () => void;
+  onEmployee?: (employee: EmployeeDto) => void;
 }
 export function AttendancePage({
   status,
@@ -32,14 +41,28 @@ export function AttendancePage({
   onSubmit,
   onRetry,
   submitLabel,
+  draft,
+  ownerUserId,
+  onSaved,
+  onEmployee,
 }: AttendancePageProps) {
-  const [kind, setKind] = useState<AttendanceKind>("work");
+  useSyncExternalStore(
+    draft?.subscribe ?? noSubscribe,
+    draft?.snapshot ?? noSnapshot,
+  );
+  const [kind, setKind] = useState<AttendanceKind>(
+    () => draft?.edit?.cell.kind ?? "work",
+  );
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(false);
-  const [selection, setSelection] = useState<{
+  const [localSelection, setSelection] = useState<{
     cell: CellSnapshotDto;
     employee: EmployeeDto;
   } | null>(null);
+  const selection = draft ? draft.edit : localSelection;
+  const [pending, setPending] = useState(false);
+  const submitting = useRef(false);
+  const [guard, setGuard] = useState<{ action: () => void } | null>(null);
   const root = useRef<HTMLElement>(null);
   const available = status === "ready" && Boolean(month);
   const employees =
@@ -72,8 +95,13 @@ export function AttendancePage({
     (currentCell.value?.type !== "number" ||
       (active.value?.type === "number" &&
         currentCell.value.value === active.value.value));
-  const blockedReason =
-    active && available && !baselineMatches
+  const blockedReason = draft
+    ? draft.edit &&
+      (["conflict", "unknown"].includes(draft.outcome.type) ||
+        !draft.boundary.canWrite(draft.edit.epoch))
+      ? "Phần nhập được giữ. Đối chiếu dữ liệu đã lưu trước khi tạo lần lưu mới."
+      : undefined
+    : active && available && !baselineMatches
       ? "Ô hoặc nhân sự đã thay đổi trong bảng tháng. Phần nhập được giữ; chọn Hủy khi muốn đóng phần nhập và kiểm tra lại dữ liệu."
       : undefined;
   function focusCell(cell: CellSnapshotDto | null) {
@@ -87,15 +115,42 @@ export function AttendancePage({
       button?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     });
   }
-  function submit(intent: CellEditorIntent, advance?: "enter" | "tab") {
-    if (!available || !visibleMonth || blockedReason) return;
-    onSubmit(intent); // Pure UI intent; caller owns persistence and feedback.
-    const ordered = orderedMonthCells(visibleMonth, kind);
+  function requestContext(action: () => void) {
+    if (pending || draft?.outcome.type === "pending" || draft?.reconciling)
+      return;
+    if (active && draft) setGuard({ action });
+    else action();
+  }
+  function close() {
+    if (draft) draft.discard();
+    else setSelection(null);
+  }
+  function complete(intent: CellEditorIntent, advance?: "enter" | "tab") {
+    const ordered = visibleMonth ? orderedMonthCells(visibleMonth, kind) : [];
     const next = advance
       ? nextEligibleCell(ordered, intent.cell, advance)
       : intent.cell;
     setSelection(null);
     focusCell(next ?? intent.cell);
+    onSaved?.();
+  }
+  function submit(intent: CellEditorIntent, advance?: "enter" | "tab") {
+    if (!available || !visibleMonth || blockedReason) return;
+    if (submitting.current) return;
+    const result = draft ? draft.submit() : onSubmit(intent);
+    if (result instanceof Promise) {
+      submitting.current = true;
+      setPending(true);
+      void result
+        .then((saved) => {
+          if (saved !== false) complete(intent, advance);
+        })
+        .catch(() => {})
+        .finally(() => {
+          submitting.current = false;
+          setPending(false);
+        });
+    } else complete(intent, advance);
   }
   const tableTitle = `${kind === "work" ? "Công" : "Tăng ca"} tháng ${Number(month?.month.slice(5))}`;
   return (
@@ -136,16 +191,21 @@ export function AttendancePage({
         <Tabs
           value={kind}
           onValueChange={(value) => {
-            setKind(value as AttendanceKind);
-            setSelection(null);
+            requestContext(() => {
+              close();
+              setKind(value as AttendanceKind);
+            });
           }}
         >
           <div className="tools">
             <TabsList aria-label="Loại bảng">
-              <TabsTrigger value="work" disabled={Boolean(active)}>
+              <TabsTrigger value="work" disabled={Boolean(active) && !draft}>
                 Công
               </TabsTrigger>
-              <TabsTrigger value="overtime" disabled={Boolean(active)}>
+              <TabsTrigger
+                value="overtime"
+                disabled={Boolean(active) && !draft}
+              >
                 Tăng ca
               </TabsTrigger>
             </TabsList>
@@ -156,8 +216,14 @@ export function AttendancePage({
                 aria-label="Tìm nhân sự"
                 placeholder="Tìm nhân sự…"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                disabled={Boolean(active)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  requestContext(() => {
+                    close();
+                    setSearch(value);
+                  });
+                }}
+                disabled={Boolean(active) && !draft}
               />
             </label>
             <Button
@@ -189,13 +255,20 @@ export function AttendancePage({
                   kind={kind}
                   selection={active}
                   onCellIntent={(cell) => {
-                    if (!active) {
-                      const person = month?.employees.find(
-                        (item) => item.id === cell.employeeId,
-                      );
-                      if (person) setSelection({ cell, employee: person });
-                      setExpanded(false);
-                    }
+                    requestContext(() => {
+                      if (!active || draft) {
+                        const person = month?.employees.find(
+                          (item) => item.id === cell.employeeId,
+                        );
+                        if (person) {
+                          close();
+                          if (draft && month && ownerUserId)
+                            draft.open(month, cell, ownerUserId);
+                          else setSelection({ cell, employee: person });
+                        }
+                        setExpanded(false);
+                      }
+                    });
                   }}
                 />
               ) : (
@@ -219,18 +292,57 @@ export function AttendancePage({
               </div>
             </section>
             {active && employee ? (
-              <CellEditor
-                key={cellIdentity(active)}
-                cell={active}
-                employee={employee}
-                onSubmit={submit}
-                onCancel={() => {
-                  setSelection(null);
-                  focusCell(active);
-                }}
-                submitLabel={submitLabel ?? "Lưu"}
-                blockedReason={blockedReason}
-              />
+              <div className="editor-column">
+                <CellEditor
+                  key={cellIdentity(active)}
+                  cell={active}
+                  employee={employee}
+                  onSubmit={submit}
+                  onCancel={() => {
+                    requestContext(() => {
+                      close();
+                      focusCell(active);
+                    });
+                  }}
+                  submitLabel={submitLabel ?? "Lưu"}
+                  blockedReason={blockedReason}
+                  editing={draft?.edit ?? undefined}
+                  onEdit={draft ? (fields) => draft.change(fields) : undefined}
+                  pending={
+                    pending ||
+                    draft?.outcome.type === "pending" ||
+                    Boolean(draft?.reconciling)
+                  }
+                />
+                {draft && (
+                  <SaveFeedback
+                    draft={draft}
+                    onSaved={() => {
+                      focusCell(active);
+                      onSaved?.();
+                    }}
+                  />
+                )}
+                {draft && currentCell && !baselineMatches && (
+                  <p className="help">
+                    Bảng tháng có dữ liệu mới; phần nhập và phiên bản ban đầu
+                    vẫn được giữ.
+                  </p>
+                )}
+                {onEmployee && (
+                  <Button
+                    disabled={pending}
+                    onClick={() =>
+                      requestContext(() => {
+                        close();
+                        onEmployee(currentEmployee ?? employee);
+                      })
+                    }
+                  >
+                    Sửa thông tin nhân sự
+                  </Button>
+                )}
+              </div>
             ) : (
               !expanded && (
                 <aside className="editor editor-empty">
@@ -253,6 +365,30 @@ export function AttendancePage({
             Hoàn tất hoặc Hủy phần nhập hiện tại để chọn ô khác, đổi loại bảng
             hoặc tìm nhân sự.
           </p>
+        )}
+        {!active && draft && (
+          <SaveFeedback draft={draft} onSaved={() => onSaved?.()} />
+        )}
+        {guard && (
+          <ConfirmDiscard
+            title="Giữ hay bỏ phần nhập"
+            onKeep={() => setGuard(null)}
+            onDiscard={() => {
+              guard.action();
+              setGuard(null);
+            }}
+          >
+            <p>
+              Phần nhập đang gắn với {employee?.name}, {active?.date},{" "}
+              {active?.kind === "work" ? "Công" : "Tăng ca"}. Giữ phần nhập hoặc
+              bỏ trước khi đổi ngữ cảnh.
+            </p>
+            {draft?.outcome.type === "unknown" && (
+              <p>
+                Bỏ bản nháp không hủy yêu cầu cũ; kết quả vẫn chưa xác định.
+              </p>
+            )}
+          </ConfirmDiscard>
         )}
       </section>
     </>

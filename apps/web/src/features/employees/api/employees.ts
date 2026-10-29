@@ -8,10 +8,10 @@ export type UpdateEmployment = components["schemas"]["UpdateEmploymentDto"];
 export type EmploymentDetails =
   components["schemas"]["EmploymentErrorDetailsDto"];
 export type EmployeeIntent =
-  | { id?: undefined; input: CreateEmployee }
-  | { id: string; input: UpdateEmployment };
+  | { id?: undefined; input: CreateEmployee; expectedEpoch?: number }
+  | { id: string; input: UpdateEmployment; expectedEpoch?: number };
 export function saveEmployee(intent: EmployeeIntent): Promise<Employee> {
-  const expectedEpoch = sessionBoundary.current();
+  const expectedEpoch = intent.expectedEpoch ?? sessionBoundary.current();
   return apiRequest<Employee>(
     intent.id ? `/employees/${intent.id}` : "/employees",
     { method: intent.id ? "PATCH" : "POST", body: intent.input, expectedEpoch },

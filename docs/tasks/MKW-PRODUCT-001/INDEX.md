@@ -1,5 +1,13 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task7 — implemented, chờ main fresh exact-SHA review, 29/10/2026
+
+Base `7c677f06bf43c5e95daa442ff1830b899cb08f62`, worktree duy nhất `agent-bootstrap`, branch `agent/mkw-agent-002`; single writer Sol/high, không agent con/primary/progress.md. Query month+session/poll15s, draft owner riêng, một Save atomic patch-cell và unknown/conflict/reconcile/explicit no-op recovery; Employee PATCH ngoài tháng và create mất ID có đường an toàn theo G1. Không Task8/bulk/hold/Excel hoặc backend/schema/contract mới.
+
+`product:check`39 tooling/101 web/13 API đạt, web suite sau thêm hai session-race assertions đạt103; pilot22 check10/E2E2 đạt. Real web→Nest→PG E2E10 nhóm và SQL độc lập; PG attendance60/auth12/employees10 đạt trong cluster Task7 mới. T3 hai phiên desktop kiểm save/error/conflict/recovery; confirmation375px giữ raw và no-op recovery. [Validation](validation.md) ghi lớp/bằng chứng, [LOCAL_RUN](../../agent/LOCAL_RUN.md) ghi lệnh thật. Full tip trong ignored `.superpowers/sdd/implementation-plan/task-7-implementation.md` sau commit; evidence `.agent-runs/MKW-PRODUCT-001/task7-persistence/`.
+
+Rulings: không Zustand; hook subscribe app-owned draft theo seam Employee/session thay signature nhận snapshot trong plan; source=null cho editor một ô. Read/abort/discard không fence; source/skip/eligible0 không được hứa bảo vệ. Source/bulk UI và full matrix thuộc Task8/10. Continuity Task3 userId+absolute deadline giữ giới hạn, không invented session/idempotency. Vite chunk>500kB warning, chưa benchmark; thiết bị/reader/zoom/Linux/TLS/operator thật Not run. Tài nguyên Task7 đã release đúng identity, DB/evidence retained; hai fixture secrets đã rotate/revoke sau snapshot login lộ mật khẩu giả trong tool history. Main review state/transport/concurrency/UI trên exact SHA tiếp theo; self-review không independent PASS, dừng trước Task8.
+
 ## Gate hiện hành — Task6 review độc lập đạt, 29/10/2026
 
 Review R2 tại `4257a7bb2ef6cc1a89ffa6885705127fcbd50982`: I1/M1 Closed, spec/quality/UI Approved, không regression mới. Final product39 tooling/77 web/13 API, docs58; editor giữ raw/reminder/identity qua loading/error, YAML audit607 keys cũ +106 thêm =713 và không mất key. Reports ignored `task-6-review-r1.md`, `task-6-fix-r1.md`, `task-6-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Browser fixture UI không chứng minh lưu thật; nondefault native zoom/device/SR còn Not run. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task7 query/draft/persistence/recovery theo kế hoạch; full AC12/13/15 và Linux/TLS/operator thật chưa được suy đạt. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.

@@ -1,6 +1,16 @@
 import type { SessionRuntime } from "@/features/session/index";
-import type { Employee, EmploymentDetails } from "../api/employees";
+import {
+  saveEmployee,
+  type Employee,
+  type EmploymentDetails,
+  type EmployeeIntent,
+} from "../api/employees";
 import { ApiError } from "@/shared/api/transport";
+import { reconcileByIdentity } from "@/shared/api/reconcile";
+import {
+  sessionBoundary,
+  type SessionBoundary,
+} from "@/shared/api/session-boundary";
 
 export type EmployeeFields = {
   name: string;
@@ -23,6 +33,14 @@ export class EmployeeDraft {
   baseline: Employee | null;
   values: EmployeeFields;
   outcome: EmployeeOutcome = { type: "editing" };
+  current: Employee | null = null;
+  readError = "";
+  reconciling = false;
+  pending = false;
+  epoch: number | undefined;
+  private boundary: SessionBoundary = sessionBoundary;
+  private connected = false;
+  private readEpoch = -1;
   private version = 0;
   private generation = 0;
   private readonly listeners = new Set<() => void>();
@@ -53,6 +71,7 @@ export class EmployeeDraft {
     this.publish();
   }
   dirty = () =>
+    this.pending ||
     JSON.stringify(this.values) !== JSON.stringify(fields(this.baseline)) ||
     ["unknown", "conflict"].includes(this.outcome.type);
   clear = () => {
@@ -60,13 +79,60 @@ export class EmployeeDraft {
     this.baseline = null;
     this.values = fields(null);
     this.outcome = { type: "editing" };
+    this.current = null;
+    this.readError = "";
+    this.pending = false;
+    this.reconciling = false;
+    this.epoch = this.connected ? this.boundary.current() : undefined;
     this.publish();
   };
   begin() {
+    this.pending = true;
+    this.current = null;
+    this.publish();
     return this.generation;
+  }
+  get needsRecovery() {
+    return (
+      this.connected &&
+      this.epoch !== undefined &&
+      !this.boundary.canWrite(this.epoch)
+    );
+  }
+  get recoveryReady() {
+    return (
+      this.current !== null &&
+      (!this.connected || this.boundary.canWrite(this.readEpoch))
+    );
+  }
+  resumeUnsentCreate() {
+    if (
+      this.baseline ||
+      this.pending ||
+      this.reconciling ||
+      ["unknown", "conflict"].includes(this.outcome.type) ||
+      !this.boundary.isActive()
+    )
+      return false;
+    this.epoch = this.boundary.current();
+    this.publish();
+    return true;
+  }
+  select(employee: Employee) {
+    if (this.pending || this.reconciling) return false;
+    this.clear();
+    this.baseline = { ...employee };
+    this.values = fields(employee);
+    this.publish();
+    return true;
   }
   accept(employee: Employee, generation: number) {
     if (generation !== this.generation) return false;
+    if (this.needsRecovery) {
+      this.reject(new Error("Session transition"), generation);
+      return false;
+    }
+    this.pending = false;
     this.baseline = { ...employee };
     this.values = fields(employee);
     this.outcome = { type: "saved" };
@@ -75,6 +141,7 @@ export class EmployeeDraft {
   }
   reject(error: unknown, generation: number) {
     if (generation !== this.generation) return;
+    this.pending = false;
     this.outcome =
       error instanceof ApiError &&
       error.status < 500 &&
@@ -93,18 +160,100 @@ export class EmployeeDraft {
           };
     this.publish();
   }
+  async reconcile(
+    id: string | undefined = undefined,
+    read = reconcileByIdentity,
+  ) {
+    if (
+      this.pending ||
+      this.reconciling ||
+      (this.connected && !this.boundary.isActive())
+    )
+      return;
+    const employeeId = this.baseline?.id ?? id;
+    if (!employeeId) {
+      this.readError =
+        "Chưa có ID để đối chiếu. Tải lại danh sách và tự xác định đúng ID; tên trùng không chứng minh đã tạo.";
+      this.publish();
+      return;
+    }
+    const generation = this.generation,
+      epoch = this.boundary.current();
+    this.reconciling = true;
+    this.current = null;
+    this.readError = "";
+    this.publish();
+    try {
+      const result = await read(
+        { employeeIds: [employeeId], cells: [] },
+        epoch,
+      );
+      if (generation !== this.generation) return;
+      if (this.connected && !this.boundary.canWrite(epoch))
+        throw new Error("Session transition");
+      this.current = result.employees.find((e) => e.id === employeeId) ?? null;
+      this.readEpoch = epoch;
+      if (!this.current)
+        this.readError =
+          "Không tìm thấy ID nhân sự. Bản nháp được giữ, không tự tạo lại.";
+    } catch {
+      if (generation !== this.generation) return;
+      this.current = null;
+      this.readError =
+        "Chưa thể đối chiếu nhân sự. Lỗi đọc không có nghĩa ID bị thiếu; bản nháp được giữ.";
+    } finally {
+      if (generation === this.generation) {
+        this.reconciling = false;
+        this.publish();
+      }
+    }
+  }
+  async recover(
+    choice: "draft" | "current",
+    save: (intent: EmployeeIntent) => Promise<Employee> = saveEmployee,
+  ) {
+    const current = this.current;
+    if (
+      !current ||
+      this.pending ||
+      this.reconciling ||
+      (this.connected && !this.boundary.canWrite(this.readEpoch))
+    )
+      return false;
+    const values = choice === "current" ? fields(current) : this.values;
+    const generation = this.begin();
+    this.epoch = this.readEpoch;
+    try {
+      const employee = await save({
+        id: current.id,
+        expectedEpoch: this.readEpoch,
+        input: {
+          expectedRevision: current.revision,
+          name: values.name.trim(),
+          startDate: values.startDate,
+          endDate: values.endDate || null,
+        },
+      });
+      return this.accept(employee, generation);
+    } catch (error) {
+      this.reject(error, generation);
+      return false;
+    }
+  }
   connect(runtime: SessionRuntime) {
+    this.connected = true;
+    this.boundary = runtime.boundary;
     let owner: string | undefined, unregister: (() => void) | undefined;
     const attach = () => {
       const state = runtime.snapshot();
-      if (
-        state.status !== "authenticated" ||
-        !state.session ||
-        owner === state.session.user.userId
-      )
+      if (state.status !== "authenticated" || !state.session) return;
+      if (owner === state.session.user.userId) {
+        if (!this.dirty()) this.epoch = runtime.boundary.current();
         return;
+      }
       unregister?.();
       owner = state.session.user.userId;
+      this.epoch = runtime.boundary.current();
       unregister = runtime.registerSensitiveState({
         ownerUserId: owner,
         dirty: this.dirty,
