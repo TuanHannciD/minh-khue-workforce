@@ -45,7 +45,14 @@ export async function openSandboxTarget(recordPath, alias) {
                 user: "mkw_task7_r1",
                 databases: /^(?:postgres|mkw_task7_r1_[a-f0-9_]+)$/,
               }
-            : undefined;
+            : alias === "task8-selection"
+              ? {
+                  owner: "MKW-PRODUCT-001/Task8",
+                  directory: "task8-selection",
+                  user: "mkw_task8",
+                  databases: /^(?:postgres|mkw_selection_[a-f0-9_]+)$/,
+                }
+              : undefined;
   if (!policy)
     throw new Error("Sandbox alias is outside the authorized allowlist");
   const runRoot = fileURLToPath(

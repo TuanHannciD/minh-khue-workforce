@@ -111,7 +111,9 @@ it.each(["value", "reminder"] as const)(
       body = input;
       throw new ApiError(422, "INVALID", "invalid");
     });
-    expect(body?.operation.patch).toEqual(
+    expect(
+      body?.operation.type === "patch-cell" ? body.operation.patch : undefined,
+    ).toEqual(
       field === "value" ? { value: { type: "absence" } } : { reminder: false },
     );
     expect(draft.edit).not.toBeNull();
@@ -142,7 +144,9 @@ it("commit_response_loss_requires_reconciliation; read is not saved or a fence; 
   expect(draft.edit?.cell.revision).toBe(cell.revision);
   const fence = vi.fn(async (input: WriteAttendance) => {
     expect(input.targets[0]?.expectedRevision).toBe("new");
-    expect(input.operation.patch).toEqual({
+    expect(
+      input.operation.type === "patch-cell" ? input.operation.patch : undefined,
+    ).toEqual({
       value: { type: "number", value: 1.5 },
       reminder: false,
     });

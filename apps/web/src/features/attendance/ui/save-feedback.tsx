@@ -2,6 +2,7 @@ import type { AttendanceDraft } from "../model/attendance-draft";
 import { formatAttendanceValue } from "../model/number-input";
 import { Button } from "@/shared/ui/button";
 import { cellIdentity } from "../model/month-view";
+import { recoveryBulkIntent } from "../model/bulk-recovery";
 
 export function SaveFeedback({
   draft,
@@ -20,6 +21,13 @@ export function SaveFeedback({
       (c) => edit && cellIdentity(c) === cellIdentity(edit.cell),
     );
   const outcome = draft.outcome;
+  const bulk = edit?.bulk;
+  const bulkCurrent = bulk && draft.current;
+  const source =
+    edit?.source &&
+    draft.current?.cells.find(
+      (c) => cellIdentity(c) === cellIdentity(edit.source!),
+    );
   const needsRecovery =
     edit &&
     (outcome.type === "unknown" ||
@@ -68,45 +76,106 @@ export function SaveFeedback({
           .
         </p>
       )}
-      {current && needsRecovery && !draft.readError && (
+      {bulk && draft.current && (
         <>
           <p>
-            Đã đối chiếu lúc {draft.current?.fetchedAt}. Chọn một ý định lưu mới
-            sau khi xem dữ liệu. Giữ dữ liệu hiện tại cũng gửi lần lưu có kiểm
-            phiên bản mới.
+            Đối chiếu {draft.current.cells.length} ô theo ID và ngày ban đầu.
+            Bảng tháng không tự thêm người đã rời tháng.
           </p>
-          {current.state === "editable" ? (
-            <div className="actions">
-              <Button
-                disabled={busy || !draft.recoveryReady}
-                onClick={() => {
-                  void recover("draft");
-                }}
-              >
-                Lưu bản nháp sau đối chiếu
-              </Button>
-              <Button
-                disabled={busy || !draft.recoveryReady}
-                onClick={() => {
-                  void recover("current");
-                }}
-              >
-                Giữ dữ liệu hiện tại và xác nhận
-              </Button>
-            </div>
-          ) : (
+          {source && (
             <p>
-              Ô đã ra ngoài mốc; giữ bản nháp để kiểm tra, không thể ghi ô N/—.
-              Yêu cầu cũ vẫn chưa được xác nhận kết quả.
+              Nguồn hiện tại: {formatAttendanceValue(source.value) || "trống"} ·{" "}
+              {source.state === "editable"
+                ? "trong mốc làm việc"
+                : "ngoài mốc làm việc"}
+              . Giá trị bản nháp: {edit.raw}.
             </p>
           )}
+          <p>
+            Quyết định mới giữ nguyên chế độ{" "}
+            {edit.mode === "fill-empty" ? "chỉ điền ô trống" : "ghi đè cả vùng"}
+            . Không đổi nguồn hoặc ô bị loại.
+          </p>
+          <div className="actions">
+            <Button
+              disabled={
+                busy ||
+                !draft.recoveryReady ||
+                !recoveryBulkIntent(edit, draft.current, "draft")
+              }
+              onClick={() => {
+                void recover("draft");
+              }}
+            >
+              {edit.source
+                ? "Điền giá trị nguồn hiện tại sau đối chiếu"
+                : "Lưu bản nháp sau đối chiếu"}
+            </Button>
+            <Button
+              disabled={
+                busy ||
+                !draft.recoveryReady ||
+                !recoveryBulkIntent(edit, draft.current, "current")
+              }
+              onClick={() => {
+                void recover("current");
+              }}
+            >
+              Giữ dữ liệu hiện tại và xác nhận
+            </Button>
+          </div>
           <p className="help">
-            Chỉ lần lưu mới được chấp nhận trên ô hợp lệ mới bảo vệ ý định đó.
-            Đọc, bỏ bản nháp, ô bị bỏ qua, nguồn chỉ đọc hoặc không có đích hợp
-            lệ không tạo bảo vệ này.
+            Chỉ đích đủ điều kiện của lần ghi mới được bảo vệ; nguồn, N/— và ô
+            đã có số/F bị loại không được xác nhận. Nguồn trống/ngoài mốc hoặc
+            không có đích hợp lệ: giữ bản nháp để kiểm tra, không thể áp dụng.
+            Nếu giá trị hiện tại khác nhau, không thể xác nhận bằng một giá trị
+            chung; bỏ và chọn lại khi có quyết định mới.
           </p>
         </>
       )}
+      {!bulkCurrent &&
+        !bulk &&
+        current &&
+        needsRecovery &&
+        !draft.readError && (
+          <>
+            <p>
+              Đã đối chiếu lúc {draft.current?.fetchedAt}. Chọn một ý định lưu
+              mới sau khi xem dữ liệu. Giữ dữ liệu hiện tại cũng gửi lần lưu có
+              kiểm phiên bản mới.
+            </p>
+            {current.state === "editable" ? (
+              <div className="actions">
+                <Button
+                  disabled={busy || !draft.recoveryReady}
+                  onClick={() => {
+                    void recover("draft");
+                  }}
+                >
+                  Lưu bản nháp sau đối chiếu
+                </Button>
+                <Button
+                  disabled={busy || !draft.recoveryReady}
+                  onClick={() => {
+                    void recover("current");
+                  }}
+                >
+                  Giữ dữ liệu hiện tại và xác nhận
+                </Button>
+              </div>
+            ) : (
+              <p>
+                Ô đã ra ngoài mốc; giữ bản nháp để kiểm tra, không thể ghi ô
+                N/—. Yêu cầu cũ vẫn chưa được xác nhận kết quả.
+              </p>
+            )}
+            <p className="help">
+              Chỉ lần lưu mới được chấp nhận trên ô hợp lệ mới bảo vệ ý định đó.
+              Đọc, bỏ bản nháp, ô bị bỏ qua, nguồn chỉ đọc hoặc không có đích
+              hợp lệ không tạo bảo vệ này.
+            </p>
+          </>
+        )}
     </section>
   );
 }

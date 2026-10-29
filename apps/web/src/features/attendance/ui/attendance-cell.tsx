@@ -3,6 +3,7 @@ import type { KeyboardEvent } from "react";
 import type { CellSnapshotDto, EmployeeDto } from "../model/types";
 import { cellIdentity } from "../model/month-view";
 import { formatAttendanceValue } from "../model/number-input";
+import { FillHandle } from "./fill-handle";
 
 export function AttendanceCell({
   cell,
@@ -10,11 +11,15 @@ export function AttendanceCell({
   selected,
   onIntent,
   onKeyDown,
+  onFill,
+  selectInactive = false,
 }: {
   cell: CellSnapshotDto;
   employee: EmployeeDto;
   selected: boolean;
   onIntent: (cell: CellSnapshotDto) => void;
+  onFill?: (() => void) | undefined;
+  selectInactive?: boolean;
   onKeyDown: (
     event: KeyboardEvent<HTMLButtonElement>,
     cell: CellSnapshotDto,
@@ -29,13 +34,14 @@ export function AttendanceCell({
   const label = `${employee.name} · ID ${employee.id} · ${cell.date} · ${cell.kind === "work" ? "Công" : "Tăng ca"} · ${value || "trống"}${cell.reminder ? " · Nhắc kiểm tra, vẫn tính tổng" : ""}`;
   return (
     <td
+      data-position={cellIdentity(cell)}
       className={[
         cell.state !== "editable" ? "inactive" : "",
         cell.reminder ? "reminded" : "",
         selected ? "selected" : "",
       ].join(" ")}
     >
-      {cell.state === "editable" ? (
+      {cell.state === "editable" || selectInactive ? (
         <button
           type="button"
           data-cell={cellIdentity(cell)}
@@ -51,6 +57,9 @@ export function AttendanceCell({
         </button>
       ) : (
         <span aria-label={label}>{value}</span>
+      )}
+      {onFill && cell.state === "editable" && cell.value !== null && (
+        <FillHandle onFill={onFill} />
       )}
     </td>
   );

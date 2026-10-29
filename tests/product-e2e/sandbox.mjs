@@ -31,14 +31,19 @@ async function freePort() {
 export async function startSandbox({
   interactive = false,
   reviewR1 = false,
+  selection = false,
 } = {}) {
-  const alias = reviewR1 ? "task7-fix-r1" : "task7-persistence";
+  const alias = selection
+    ? "task8-selection"
+    : reviewR1
+      ? "task7-fix-r1"
+      : "task7-persistence";
   const evidenceRoot = resolve(root, `.agent-runs/MKW-PRODUCT-001/${alias}`);
   const cluster = await openSandboxTarget(
     process.env.MKW_PRODUCT_CLUSTER_OWNER,
     alias,
   );
-  const databaseName = `${reviewR1 ? "mkw_task7_r1" : "mkw_persistence"}_${randomUUID().replaceAll("-", "_")}`;
+  const databaseName = `${selection ? "mkw_selection" : reviewR1 ? "mkw_task7_r1" : "mkw_persistence"}_${randomUUID().replaceAll("-", "_")}`;
   const runDir = resolve(evidenceRoot, databaseName);
   await mkdir(runDir);
   const targetFile = resolve(runDir, "target.json");
@@ -148,14 +153,14 @@ export async function startSandbox({
       targetFile,
       alias,
       async stop() {
-        if (interactive || reviewR1)
+        if (interactive || reviewR1 || selection)
           for (const account of accounts)
             await resetPassword(
               database,
               account.username,
               randomBytes(32).toString("base64url"),
             );
-        if (reviewR1) {
+        if (reviewR1 || selection) {
           const { rows } = await db.pool.query(
             'SELECT count(*)::int AS count FROM "Session" WHERE "revokedAt" IS NULL',
           );

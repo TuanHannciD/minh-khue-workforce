@@ -1,3 +1,9 @@
+/**
+ * File map: AttendancePage composes the C surface and owns context/focus guards.
+ * requestContext/close guard transitions; submit/complete restore cell focus.
+ * useCellSelection owns selection; AttendanceGrid owns gesture DOM integration;
+ * CellEditor/BulkEditor and SaveFeedback render the app-owned draft lifecycle.
+ */
 import { useRef, useState, useSyncExternalStore } from "react";
 import { Flag, Maximize, Minimize, Search } from "lucide-react";
 import type {
@@ -21,6 +27,9 @@ import "./attendance.css";
 import type { AttendanceDraft } from "../model/attendance-draft";
 import { SaveFeedback } from "./save-feedback";
 import { ConfirmDiscard } from "@/shared/ui/confirm-discard";
+import { useCellSelection } from "../model/use-cell-selection";
+import { SelectionTools } from "./selection-tools";
+import { BulkEditor } from "./bulk-editor";
 const noSubscribe = () => () => {};
 const noSnapshot = () => 0;
 
@@ -74,6 +83,12 @@ export function AttendancePage({
         employee.id.includes(search.trim()),
     ) ?? [];
   const visibleMonth = month ? { ...month, employees } : null;
+  const bulk = useCellSelection(
+    visibleMonth,
+    draft,
+    ownerUserId ?? "",
+    requestContext,
+  );
   const active = selection?.cell.kind === kind ? selection.cell : null;
   const employee = selection?.employee;
   const currentEmployee = month?.employees.find(
@@ -124,6 +139,7 @@ export function AttendancePage({
   function close() {
     if (draft) draft.discard();
     else setSelection(null);
+    bulk.reset();
   }
   function complete(intent: CellEditorIntent, advance?: "enter" | "tab") {
     const ordered = visibleMonth ? orderedMonthCells(visibleMonth, kind) : [];
@@ -241,6 +257,16 @@ export function AttendancePage({
               <span>{expanded ? "Thu gọn bảng" : "Mở rộng bảng"}</span>
             </Button>
           </div>
+          {draft && (
+            <SelectionTools
+              multi={bulk.multi}
+              mode={bulk.mode}
+              waiting={bulk.waiting}
+              onToggle={bulk.toggleMulti}
+              onMode={bulk.changeMode}
+              onAdd={bulk.addRange}
+            />
+          )}
           <TabsContent value={kind} className="workspace">
             <section className="sheet" aria-labelledby="sheet-title">
               <div className="sheet-heading">
@@ -255,6 +281,8 @@ export function AttendancePage({
                   month={visibleMonth}
                   kind={kind}
                   selection={active}
+                  interaction={bulk.interaction}
+                  onFill={bulk.startFill}
                   onCellIntent={(cell) => {
                     requestContext(() => {
                       if (!active || draft) {
@@ -292,7 +320,22 @@ export function AttendancePage({
                 </span>
               </div>
             </section>
-            {active && employee ? (
+            {draft?.edit?.bulk ? (
+              <BulkEditor
+                draft={draft}
+                onSaved={() => {
+                  focusCell(active);
+                  bulk.reset();
+                  onSaved?.();
+                }}
+                onCancel={() =>
+                  requestContext(() => {
+                    close();
+                    focusCell(active);
+                  })
+                }
+              />
+            ) : active && employee ? (
               <div className="editor-column">
                 <CellEditor
                   key={cellIdentity(active)}
@@ -342,6 +385,9 @@ export function AttendancePage({
                   >
                     Sửa thông tin nhân sự
                   </Button>
+                )}
+                {draft && active.value !== null && (
+                  <Button onClick={bulk.startFill}>Điền từ ô này</Button>
                 )}
               </div>
             ) : (

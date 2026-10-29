@@ -1,5 +1,11 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Checkpoint Task8 implementation, 29/10/2026
+
+Unit/component controlled449/450ms,10/11px và lifecycle/union/fill/draft đạt; final `product:check`41 tooling/140 web/13 API. Scoped built web–Nest–PostgreSQL E2E15 nhóm kiểm exact batch/SQL totals/reminders/source, stale target/source whole-write rejection, explicit recovery giữ keys/mode, eligible0, month-exit tombstone/N và no-op fence scope với real pre-lock barrier. Sau self-review sửa edge motion trong cùng ô,6 nhóm input E2E chạy lại đạt (stationary hold không cuộn, kéo1px sát mép cuộn, Escape dừng/no write). Task7 R1 confirmed ID/PATCH422/focus regression đạt trên DB Task8 mới. Lớp ca6–9: Task8 bổ sung eligible bulk no-op/delayed write409, source/skipped/occupied không đổi revision, reconcile original source ngoài tháng, one Apply one set-value giữ reminder; không claim chạy lại toàn ca6–9 API matrix hoặc toàn AC.
+
+T3 actual product mouse/keyboard/edge scroll/fill conflict/recovery/raw guard focus có evidence; TouchEvent/coarse media là **synthetic**, chưa trusted iPhone/Android/native zoom/SR/Linux/TLS/reader/operator/performance. Full AC/matrix Task10 vẫn Not run. [Validation](../validation.md) ghi command, RED/GREEN, evidence và resource release; writer self-review, main fresh independent exact-SHA gesture/lifecycle/batch review còn Pending trước Task9. Các checkpoint/bảng Not run thiết kế bên dưới giữ lịch sử, không phủ nhận lớp Task8 đã kiểm.
+
 ## Checkpoint Task7 sửa review R1, 29/10/2026
 
 Regression tập trung thêm nhánh unknown Employee POST→confirmed ID→recovery PATCH422/400→sửa raw, không mở POST mới hoặc unsent-create resume; fresh read/session epoch trước recovery tiếp theo. Model và rendered form dùng fixtures; targeted built web–Nest–PG kiểm422 không đổi revision, PATCH200 đúng ID và tổng POST1, SQL độc lập. Primitive Radix/Page/Workspace Keep/Escape giữ focus/raw/ID/đơn vị; discard/modal kế tiếp không bị giành focus. `product:check`40 tooling/114 web/13 API; [validation](../validation.md) và evidence `task7-fix-r1` ghi command/lớp/giới hạn. I1/M1 implemented trong scope, chưa independent PASS; main re-review exact tip. Không replay full10 nhóm hoặc mở claim toàn AC/ca6–9/device/zoom.

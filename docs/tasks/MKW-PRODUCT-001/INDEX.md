@@ -1,5 +1,13 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task8 — implemented, chờ main fresh independent exact-SHA review, 29/10/2026
+
+Base `2415a1b7e862b2b0410c4c45735fabbb9a196393`, branch `agent/mkw-agent-002`, chỉ worktree `agent-bootstrap`; một writer gpt-6.1-sol/high, không child/primary/progress.md. Đã nối union ô/vùng rời, hai đầu/keyboard, mouse drag/touch hold450ms, fill lặp số/F và một atomic batch vào Task7 draft/query/session/recovery. Giữ C/G1, source read-only/nhắc đích riêng, frozen revisions qua polling,409 giữ draft và explicit reconcile keys cũ ngoài tháng. Không backend/schema/generated/dependency mới hoặc Task9/10/11.
+
+`product:check`41 tooling/140 web/13 API đạt; scoped web–Nest–PostgreSQL E2E15 nhóm và Task7 R1 regression đạt, SQL/client độc lập; sau sửa edge motion cùng ô,6 nhóm input E2E chạy lại đạt. Pilot22 check10/E2E2 đạt. [Validation](validation.md) ghi từng lớp/lệnh/giới hạn; full tip sau commit ở ignored `.superpowers/sdd/implementation-plan/task-8-implementation.md`, evidence `.agent-runs/MKW-PRODUCT-001/task8-selection/`. T3 actual product kiểm mouse/keyboard/scroll/bulk/fill409/recovery/raw guard focus; touch là synthetic, chưa trusted device. Tài nguyên own tab/HTTP/PG đã release, fixture passwords rotated/sessions revoked, DB/evidence giữ lại.
+
+Rulings: union các concrete generated write variants; recovery không đổi keys/mode, current-source chỉ sau quyết định rõ. Heterogeneous keep-current không bị biến thành split batch/replace; giữ draft để chọn lại. Dirty raw không replay gesture sau guard; eligible0/source/skip/occupied fill-empty không claim saved/fence. Writer đã self-review, **chưa independent PASS**; main review exact base..tip gesture/lifecycle/batch trước Task9. Full matrix/real iPhone/Android/native zoom/SR/Linux/TLS/operator/reader/performance Not run Task10; bundle>500kB warning giữ followup.
+
 ## Gate hiện hành — Task7 review độc lập đạt, 29/10/2026
 
 Review R2 tại `a7153b471d4f38cb39ff5533410e3f5252d293cd`: I1/M1 Closed, spec/quality Approved, không regression mới. Final product40 tooling/114 web/13 API và targeted web–API–PostgreSQL E2E/SQL readback đạt; recovery nhân sự giữ confirmed ID qua PATCH bị từ chối, Keep/Escape trả focus phù hợp. Reports ignored `task-7-review-r1.md`, `task-7-fix-r1.md`, `task-7-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Giữ giới hạn asset T3 theo từng assertion; không suy thành full matrix Task10. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task8 chọn rời/batch/fill/gesture; full AC, thiết bị/SR/native zoom/Linux/TLS/operator thật và benchmark còn Not run. Cảnh báo bundle hơn500kB tiếp tục theo dõi Task10. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.

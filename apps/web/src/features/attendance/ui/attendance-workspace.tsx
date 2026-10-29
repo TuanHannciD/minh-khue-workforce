@@ -90,6 +90,7 @@ export function AttendanceWorkspace({
         </div>
       )}
       <AttendancePage
+        key={month}
         status={query.data ? "ready" : query.isError ? "error" : "loading"}
         month={query.data ?? null}
         onSubmit={() => {}}

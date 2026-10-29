@@ -7,7 +7,13 @@ export type {
 } from "@/shared/api/reconcile";
 import type { MonthDto } from "../model/types";
 
-export type WriteAttendance = components["schemas"]["PatchCellWriteDto"];
+export type PatchAttendance = components["schemas"]["PatchCellWriteDto"];
+// Concrete generated variants avoid the redundant kind-specific oneOf
+// intersections in the generated aggregate. No independently authored wire DTO.
+export type WriteAttendance =
+  | PatchAttendance
+  | components["schemas"]["SetValueWriteDto"]
+  | components["schemas"]["SetReminderWriteDto"];
 export type WriteResult = components["schemas"]["WriteResultDto"];
 export function readAttendanceMonth(
   month: string,

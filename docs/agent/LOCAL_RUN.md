@@ -1,6 +1,6 @@
 # Chạy tooling và pilot local
 
-Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session, POST/PATCH nhân sự, GET tháng/POST changes/reconcile và Task7 query/draft/lưu một ô/recovery thật; Excel thuộc Task9. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
+Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session, POST/PATCH nhân sự, GET tháng/POST changes/reconcile, Task7 query/draft/lưu một ô/recovery và Task8 selection/batch/fill thật; Excel thuộc Task9. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
 
 ## Chuẩn bị và check
 
@@ -149,6 +149,21 @@ Mỗi CLI/test run tạo thư mục mới dưới **primary** `.agent-runs/MKW-A
 - UI detector chỉ là heuristic. Bản đầy đủ cần htmlparser2/css-select/css-tree/domutils đã ghim dependency; kiểm tra browser vẫn bắt buộc.
 - ESLint 9.39.5 có cảnh báo upstream hết hỗ trợ; pin để tương thích Node 22.12 hiện tại (ESLint 10 yêu cầu Node mới hơn). Nâng Node/lint ở task bảo trì riêng; không suy từ audit sạch thành không có rủi ro.
 - Không tự dọn evidence. Retention/cleanup và nâng dependency theo task riêng có scope.
+
+## Sandbox selection Task8 — scoped batch/fill/input
+
+Task8 dùng cluster mới owner `MKW-PRODUCT-001/Task8`, alias `task8-selection`, role `mkw_task8`, data `.agent-runs/MKW-PRODUCT-001/task8-selection/pg-data`, PostgreSQL17.11. Owner record/actual database-user-host-port-data-version phải khớp trước mutation; binaries portable cũ được tái dùng, không reset/drop DB cũ. Cluster đã release khi handoff, data/evidence giữ lại. Chỉ khởi động đúng identity/owner/port đã kiểm.
+
+Sau build trong shell product24 và cluster Task8 đang chạy đúng owner:
+
+```powershell
+$env:MKW_PRODUCT_CLUSTER_OWNER=(Resolve-Path '.agent-runs/MKW-PRODUCT-001/task8-selection/cluster-owner.json').Path
+$env:PLAYWRIGHT_BROWSERS_PATH='0'
+node scripts/product/e2e.mjs --selection
+node scripts/product/e2e.mjs --selection --review-r1
+```
+
+Lệnh đầu chạy15 nhóm web–Nest–PG/SQL cho bulk/fill/conflict/recovery/fence và mouse/keyboard/synthetic touch; lệnh sau chỉ regression Employee confirmed ID/PATCH422/focus Task7, cùng allowlist Task8 nhưng DB UUID mới. Runner tạo `mkw_selection_<uuid>` và không reuse/reset DB run trước. `node scripts/product/e2e.mjs --serve --selection` mở sandbox T3; fixture account session setup giữ trong memory, không in accounts response/đưa password vào DOM, log hoặc argv. Dừng bằng `stop` trong exact `<runDir>/stop.request`; kiểm `http-released.json`, `fixture-invalidated.json` (rotate2/revoke sessions), port closure; stop đúng own PG bằng portable `pg_ctl -D <owned-data> stop -m fast` sau kiểm identity/process. Không kill theo port tình cờ, giữ DB/evidence. Task8 validation không thay trusted phone/native zoom/SR/Task10 full matrix.
 
 ## Sandbox persistence Task7 — product E2E thật
 

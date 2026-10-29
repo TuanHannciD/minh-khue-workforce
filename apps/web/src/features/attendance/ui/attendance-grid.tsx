@@ -14,19 +14,26 @@ import {
   orderedMonthCells,
 } from "../model/month-view";
 import { formatAttendanceValue } from "../model/number-input";
+import type { SelectionInteraction } from "../model/use-cell-selection";
+import { useGridGesture } from "./use-grid-gesture";
 export interface AttendanceGridProps {
   month: MonthDto;
   kind?: AttendanceKind;
   selection: CellKeyDto | null;
   onCellIntent: (cell: CellSnapshotDto) => void;
+  interaction?: SelectionInteraction | undefined;
+  onFill?: (() => void) | undefined;
 }
 export function AttendanceGrid({
   month,
   kind = "work",
   selection,
   onCellIntent,
+  interaction,
+  onFill,
 }: AttendanceGridProps) {
   const region = useRef<HTMLDivElement>(null);
+  const gesture = useGridGesture(region, month, interaction, kind);
   const days = monthDays(month.month);
   const unit = kind === "work" ? "công" : "giờ";
   const cells = new Map(month.cells.map((cell) => [cellIdentity(cell), cell]));
@@ -44,6 +51,19 @@ export function AttendanceGrid({
     event: KeyboardEvent<HTMLButtonElement>,
     cell: CellSnapshotDto,
   ) {
+    if (
+      interaction &&
+      ((event.key === " " && (event.ctrlKey || event.metaKey)) ||
+        ((event.key === "Enter" || event.key === " ") &&
+          (interaction.append || interaction.endpoint || event.shiftKey)))
+    ) {
+      event.preventDefault();
+      interaction.choose(cell, {
+        add: event.ctrlKey || event.metaKey,
+        extend: event.shiftKey,
+      });
+      return;
+    }
     const direction =
       event.key === "ArrowDown"
         ? "enter"
@@ -65,11 +85,40 @@ export function AttendanceGrid({
       ) ?? [],
     ).find((button) => button.dataset.cell === cellIdentity(next));
     target?.focus();
+    if (event.shiftKey && interaction)
+      interaction.choose(next, { add: false, extend: true });
   }
   return (
     <div
       ref={region}
-      className="grid-scroll"
+      className={`grid-scroll${gesture.active ? " selection-dragging" : ""}`}
+      onClickCapture={(event) => {
+        if (gesture.consumeClick()) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        if (
+          event.target instanceof Element &&
+          event.target.closest("[data-fill]")
+        )
+          return;
+        const button =
+          event.target instanceof Element
+            ? event.target.closest<HTMLElement>("[data-position]")
+            : null;
+        const cell = button && cells.get(button.dataset.position!);
+        if (
+          cell &&
+          interaction?.choose(cell, {
+            add: event.ctrlKey || event.metaKey,
+            extend: event.shiftKey,
+          })
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
       tabIndex={0}
       role="region"
       aria-label="Bảng tháng, cuộn để xem thêm ngày và nhân sự"
@@ -119,8 +168,20 @@ export function AttendanceGrid({
                     cell={cell}
                     employee={employee}
                     selected={
-                      selection !== null &&
-                      cellIdentity(selection) === cellIdentity(cell)
+                      (selection !== null &&
+                        cellIdentity(selection) === cellIdentity(cell)) ||
+                      Boolean(
+                        interaction?.keys.some(
+                          (c) => cellIdentity(c) === cellIdentity(cell),
+                        ),
+                      )
+                    }
+                    selectInactive={Boolean(interaction?.append)}
+                    onFill={
+                      interaction?.source &&
+                      cellIdentity(interaction.source) === cellIdentity(cell)
+                        ? onFill
+                        : undefined
                     }
                     onIntent={onCellIntent}
                     onKeyDown={navigate}

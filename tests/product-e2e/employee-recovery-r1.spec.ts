@@ -9,7 +9,7 @@ import { openSandboxTarget } from "../../scripts/product/sandbox-target.mjs";
 export async function runEmployeeRecoveryR1(s, browser) {
   const context = await browser.newContext();
   const page = await context.newPage();
-  const independent = await openSandboxTarget(s.targetFile, "task7-fix-r1");
+  const independent = await openSandboxTarget(s.targetFile, s.alias);
   const assertions = [];
   const writes = [];
   page.on("request", (request) => {

@@ -1,3 +1,9 @@
+/**
+ * File map: AttendanceDraft owns the edit/session generation and write lifecycle.
+ * open/openBulk freeze baselines; submit sends one intent; sendIntent classifies
+ * replies; reconcile reads original keys; recover requires an explicit decision.
+ * Pure selection/fill/recovery builders live beside this owner (see README).
+ */
 import type { SessionRuntime } from "@/features/session/index";
 import {
   sessionBoundary,
@@ -7,6 +13,7 @@ import { ApiError } from "@/shared/api/transport";
 import { writeAttendance, reconcileByIdentity } from "../api/attendance";
 import type {
   WriteAttendance,
+  PatchAttendance,
   WriteResult,
   ReconcileRequest,
   ReconcileSnapshot,
@@ -14,25 +21,16 @@ import type {
 import type { CellSnapshotDto, MonthDto, EmployeeDto } from "./types";
 import { cellIdentity } from "./month-view";
 import { parseNumberInput, formatAttendanceValue } from "./number-input";
+import {
+  captureBulkIntent,
+  previewTargets,
+  type WriteIntent,
+} from "./fill-intent";
+import { recoveryBulkIntent } from "./bulk-recovery";
+import { cellKey, unionCells } from "./cell-selection";
 
-export type EditingCell = {
-  month: string;
-  cell: CellSnapshotDto;
-  employee: EmployeeDto;
-  raw: string;
-  reminder: boolean;
-  custom: boolean;
-  error: string;
-  ownerUserId: string;
-  epoch: number;
-  targets: WriteAttendance["targets"];
-  mode: "patch-cell";
-  source: null;
-};
-export type SaveOutcome = {
-  type: "editing" | "pending" | "saved" | "rejected" | "conflict" | "unknown";
-  message?: string;
-};
+import type { EditingCell, SaveOutcome } from "./draft-types";
+export type { EditingCell, SaveOutcome } from "./draft-types";
 type Write = (input: WriteAttendance, epoch: number) => Promise<WriteResult>;
 type Read = (
   input: ReconcileRequest,
@@ -140,8 +138,79 @@ export class AttendanceDraft {
     this.publish();
     return true;
   }
+  openBulk(
+    month: MonthDto,
+    cells: CellSnapshotDto[],
+    ownerUserId: string,
+    source?: CellSnapshotDto,
+  ) {
+    if (this.edit || !this.boundary.isActive()) return false;
+    const intent = captureBulkIntent(month, cells, null, "fill-empty", source);
+    if (!intent) return false;
+    const cell = cells.find((c) =>
+      intent.targets.some((t) => cellIdentity(t) === cellIdentity(c)),
+    )!;
+    const employee = month.employees.find((e) => e.id === cell.employeeId)!;
+    this.generation++;
+    this.current = null;
+    this.readError = "";
+    this.conflictCells = [];
+    this.edit = {
+      month: month.month,
+      cell: structuredClone(cell),
+      employee: { ...employee },
+      raw: source ? formatAttendanceValue(source.value) : "",
+      reminder: cell.reminder,
+      custom: false,
+      error: "",
+      ownerUserId,
+      epoch: this.boundary.current(),
+      targets: intent.targets,
+      mode: "fill-empty",
+      source: intent.source ?? null,
+      bulk: {
+        intent,
+        cells: structuredClone(
+          month.cells.filter((c) =>
+            unionCells(intent.targets, source ? [source] : []).some(
+              (t) => cellIdentity(t) === cellIdentity(c),
+            ),
+          ),
+        ),
+        employees: structuredClone(
+          month.employees.filter((e) =>
+            intent.expectedEmployees.some((t) => t.employeeId === e.id),
+          ),
+        ),
+      },
+    };
+    this.outcome = { type: "editing" };
+    this.publish();
+    return true;
+  }
+  get bulkIntent(): WriteIntent | null {
+    const edit = this.edit;
+    if (!edit?.bulk || edit.mode === "patch-cell") return null;
+    const parsed = parseNumberInput(edit.raw, edit.cell.kind);
+    return {
+      ...edit.bulk.intent,
+      operation: {
+        type: "set-value",
+        mode: edit.mode,
+        value: parsed.valid ? parsed.value : null,
+      },
+    };
+  }
+  get bulkPreview() {
+    const intent = this.bulkIntent;
+    return intent && this.edit?.bulk
+      ? previewTargets(intent, this.edit.bulk)
+      : null;
+  }
   change(
-    fields: Partial<Pick<EditingCell, "raw" | "reminder" | "custom" | "error">>,
+    fields: Partial<
+      Pick<EditingCell, "raw" | "reminder" | "custom" | "error" | "mode">
+    >,
   ) {
     if (!this.edit || this.outcome.type === "pending" || this.reconciling)
       return;
@@ -184,7 +253,21 @@ export class AttendanceDraft {
       this.change({ error: parsed.message });
       return false;
     }
-    const patch: WriteAttendance["operation"]["patch"] = {};
+    if (edit.bulk) {
+      const intent = this.bulkIntent!;
+      const preview = this.bulkPreview!;
+      if (!preview.eligible) {
+        this.outcome = {
+          type: "rejected",
+          message:
+            "Không có ô đủ điều kiện. Không gửi lưu hoặc xác nhận kết quả yêu cầu cũ.",
+        };
+        this.publish();
+        return false;
+      }
+      return this.sendIntent(intent, edit.epoch, preview.eligible, write);
+    }
+    const patch: PatchAttendance["operation"]["patch"] = {};
     if (!equalValue(parsed.value, edit.cell.value)) patch.value = parsed.value;
     if (edit.reminder !== edit.cell.reminder) patch.reminder = edit.reminder;
     if (!Object.keys(patch).length) {
@@ -197,35 +280,47 @@ export class AttendanceDraft {
   private async send(
     cell: CellSnapshotDto,
     employee: EmployeeDto,
-    patch: WriteAttendance["operation"]["patch"],
+    patch: PatchAttendance["operation"]["patch"],
     epoch: number,
     write: Write,
   ) {
-    const edit = this.edit!;
+    return this.sendIntent(
+      {
+        month: this.edit!.month,
+        expectedEmployees: [
+          { employeeId: employee.id, expectedRevision: employee.revision },
+        ],
+        targets: [{ ...key(cell), expectedRevision: cell.revision }],
+        operation: { type: "patch-cell", patch },
+      },
+      epoch,
+      1,
+      write,
+    );
+  }
+  private async sendIntent(
+    intent: WriteAttendance,
+    epoch: number,
+    expectedEligible: number,
+    write: Write,
+  ) {
     const generation = this.generation;
     this.outcome = { type: "pending" };
     this.current = null;
     this.publish();
     try {
-      const result = await write(
-        {
-          month: edit.month,
-          expectedEmployees: [
-            { employeeId: employee.id, expectedRevision: employee.revision },
-          ],
-          targets: [{ ...key(cell), expectedRevision: cell.revision }],
-          operation: { type: "patch-cell", patch },
-        },
-        epoch,
-      );
+      const result = await write(intent, epoch);
       if (generation !== this.generation) return false;
       if (!this.boundary.canWrite(epoch)) throw new Error("Session transition");
-      if (result.counts.eligible !== 1 || result.counts.skipped !== 0)
+      if (result.counts.eligible !== expectedEligible || expectedEligible === 0)
         throw new Error("No accepted eligible fence");
       this.edit = null;
       this.outcome = {
         type: "saved",
-        message: "Đã lưu ô. Tổng đang được cập nhật từ bảng tháng.",
+        message:
+          intent.operation.type === "set-value"
+            ? `Đã áp dụng ${result.counts.eligible} ô hợp lệ; ${result.counts.skipped} ô N/— bỏ qua. Chỉ các ô hợp lệ được ghi mới xác nhận ý định này; nguồn và ô bị loại không được bảo vệ. Tổng đang được cập nhật.`
+            : "Đã lưu ô. Tổng đang được cập nhật từ bảng tháng.",
       };
       this.publish();
       return true;
@@ -274,7 +369,16 @@ export class AttendanceDraft {
     this.publish();
     try {
       const current = await read(
-        { employeeIds: [edit.employee.id], cells: [key(edit.cell)] },
+        {
+          employeeIds: edit.bulk
+            ? edit.bulk.intent.expectedEmployees.map((e) => e.employeeId)
+            : [edit.employee.id],
+          cells: edit.bulk
+            ? unionCells(edit.targets, edit.source ? [edit.source] : []).map(
+                cellKey,
+              )
+            : [key(edit.cell)],
+        },
         epoch,
       );
       if (generation !== this.generation) return;
@@ -307,6 +411,16 @@ export class AttendanceDraft {
       !this.boundary.canWrite(this.readEpoch)
     )
       return false;
+    if (edit.bulk) {
+      const intent = recoveryBulkIntent(edit, current, choice);
+      if (!intent) return false;
+      return this.sendIntent(
+        intent,
+        this.readEpoch,
+        previewTargets(intent, current).eligible,
+        write,
+      );
+    }
     const cell = current.cells.find(
       (c) => cellIdentity(c) === cellIdentity(edit.cell),
     );

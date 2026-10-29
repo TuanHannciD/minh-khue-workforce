@@ -1,4 +1,7 @@
-/* Monthly C surface. Table overflow is confined to grid-scroll. */
+/* Monthly C surface. Table overflow is confined to grid-scroll.
+   Map: heading/tools/workspace → grid-scroll sticky table → editor/legend →
+   responsive and expanded rules → draft feedback → selection-tools/fill-handle.
+   One surface keeps its container/media overrides beside the incumbent rules. */
 .product-layout {
   max-width: 1440px;
   margin: 24px auto;
@@ -575,4 +578,72 @@
 }
 .month-control input {
   width: auto;
+}
+
+/* Task8: selection and fill retain native scrolling/zoom; only active dragging
+   suppresses text selection. Source and selected targets remain distinct. */
+.selection-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+}
+.selection-tools label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.selection-tools select,
+.bulk-editor select {
+  min-height: 44px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+.attendance-screen td[data-position] {
+  position: relative;
+}
+.attendance-screen .fill-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 2px;
+  border: 1px solid var(--action);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--action);
+  cursor: crosshair;
+}
+.fill-handle svg {
+  width: 16px;
+  height: 16px;
+}
+.grid-scroll.selection-dragging {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+  user-select: none;
+}
+.bulk-editor p {
+  overflow-wrap: anywhere;
+}
+.bulk-editor .actions {
+  flex-wrap: wrap;
+}
+@media (any-pointer: coarse) {
+  .attendance-screen .fill-handle {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
 }
