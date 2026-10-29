@@ -1,11 +1,12 @@
+import { createEvidenceRun } from "../../scripts/product/evidence-run.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { openSandboxTarget } from "../../scripts/product/sandbox-target.mjs";
 
 test("Task10 accepts only its own fake target before connecting", async () => {
-  const directory = await mkdtemp(
+  const directory = await createEvidenceRun(
     resolve(".agent-runs/MKW-PRODUCT-001/task10-enrollment-"),
   );
   const target = {
@@ -42,7 +43,7 @@ test("Task10 accepts only its own fake target before connecting", async () => {
 });
 
 test("Task9 export sandbox rejects crossed owner/role/database/path/host and accepts only enrolled fake identity", async () => {
-  const directory = await mkdtemp(
+  const directory = await createEvidenceRun(
     resolve(".agent-runs/MKW-PRODUCT-001/task10-acceptance/enrollment-task9-"),
   );
   const target = {
@@ -84,7 +85,7 @@ test("Task9 export sandbox rejects crossed owner/role/database/path/host and acc
 });
 
 test("Task8 enrollment accepts only its own fake target shape before attempting a connection", async () => {
-  const directory = await mkdtemp(
+  const directory = await createEvidenceRun(
     resolve(".agent-runs/MKW-PRODUCT-001/task10-acceptance/enrollment-task8-"),
   );
   const file = resolve(directory, "valid-shape.json");
@@ -133,7 +134,7 @@ test("R1 sandbox enrollment rejects mismatched ownership, role, path, database a
   await mkdir(resolve(".agent-runs/MKW-PRODUCT-001/task7-fix-r1"), {
     recursive: true,
   });
-  const directory = await mkdtemp(
+  const directory = await createEvidenceRun(
     resolve(".agent-runs/MKW-PRODUCT-001/task7-fix-r1/enrollment-"),
   );
   const target = {

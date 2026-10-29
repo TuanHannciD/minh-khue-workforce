@@ -1,5 +1,13 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task10 fix R1 — chờ main R2, G3 còn Failed/Not run, 30/10/2026
+
+Base sạch `73434ebdf1cfdf3a7af1e3afc0857f9d8a1f38be`, cùng branch/worktree; một fixer gpt-6.1-sol/high, không child/helper/reviewer/model change hoặc sửa primary/progress.md. I1 sửa RAF clock/retained validation, I2 recursive parent và unique run, M1 conventional median/recompute artifact mới, M2 manifest owner từ verified target. I3 tách raw editor subscription, stable structural projections/default row/cell memo và latest callbacks; giữ frozen CAS/session/selection/gesture/UI C. Full report ignored `.superpowers/sdd/implementation-plan/task-10-fix-r1.md`, evidence mới `.agent-runs/MKW-PRODUCT-001/task10-fix-r1/`; [validation](validation.md) và [matrix](technical/verification-matrix.md) sở hữu kết quả/giới hạn. Các checkpoint dưới là lịch sử.
+
+Full product check50 tooling/165 web/16 API và actual E2E33 nhóm + export trên CSS cuối đạt. Benchmark full mới cùng invocation, RAF hợp lệ: editor/input200=31,1/30,4ms;1000=121/61,3ms, đều đạt.20/200 đạt mọi budget áp dụng. **I3 còn Failed scroll1000** p95=66,6/max333,3>33/200ms; API/load/heap đạt scoped. CSS chỉ giữ positioned anchors cần cho reminder/fill, geometry/UI C không đổi. Trace cho thấy Paint/PrePaint/Layerize của semantic table lớn; compositor trial vẫn33,4>33 nên không adopt. Bước tiếp cần review kiến trúc cô lập frozen panes/paint tree hoặc windowing và tác động zoom/sticky/selection/a11y, không tự đổi engine/virtualization/budget. Historical scroll200/1000 invalid được giới hạn đúng scope, API/load/editor/input cũ không bị phủ nhận. Main fresh independent R2 exact fix tip **Pending**, không writer independent PASS hoặc G3 clearance.
+
+Native iPhone/Android/SR/phone performance vẫn Not run; Task9 buffers provenance/deprecated giữ mở Task11 trước phân phối. Không Task11/push/merge/deploy. Incident22 fixtures lịch sử vẫn giữ manifest; original bytes đã mất không được recreate hoặc hợp thức hóa.
+
 ## Task10 — DONE_WITH_CONCERNS, G3 chưa đạt, 29/10/2026
 
 Base `5e04cbb606135feaabd794b90f2dfcf2a34e20f9`, branch `agent/mkw-agent-002`, một implementer trong worktree `agent-bootstrap`, không child/model change/primary source/progress.md. Task10 bổ sung acceptance/calendar, coordinator hai phiên/recovery tái dùng suites đã duyệt, enrollment PostgreSQL riêng và benchmark thật20/200/1.000; không sửa business/UI/dependency/lock. Full SHA, file list, commands và self-review tại ignored `.superpowers/sdd/implementation-plan/task-10-implementation.md`. **Main independent exact base..tip review Pending**, writer không tự independent PASS.

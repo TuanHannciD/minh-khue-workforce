@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import type { AttendanceDraft } from "../model/attendance-draft";
@@ -12,6 +13,7 @@ export function BulkEditor({
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  useSyncExternalStore(draft.subscribe, draft.snapshot);
   const edit = draft.edit!;
   const preview = draft.bulkPreview!;
   const busy = draft.outcome.type === "pending" || draft.reconciling;

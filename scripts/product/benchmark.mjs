@@ -7,16 +7,22 @@
  */
 import assert from "node:assert/strict";
 import { cpus, totalmem, release, platform } from "node:os";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { chromium } from "@playwright/test";
 import { startSandbox } from "../../tests/product-e2e/sandbox.mjs";
 
+import { measureScrollFrames } from "./benchmark-scroll.mjs";
+import { retainedMetrics } from "./benchmark-metrics.mjs";
 import { summarize as summary } from "./benchmark-metrics.mjs";
 
 const profileOnly = process.argv.includes("--profile");
-const root = resolve(".agent-runs/MKW-PRODUCT-001/task10-acceptance");
+const root = resolve(
+  process.env.MKW_PRODUCT_EVIDENCE_ROOT ??
+    ".agent-runs/MKW-PRODUCT-001/task10-acceptance",
+);
+await mkdir(root, { recursive: true });
 const reportFile = resolve(root, `benchmark-run-${randomUUID()}.json`);
 const requested = process.argv.find((arg) => arg.startsWith("--sizes="));
 const sizes = requested
@@ -26,9 +32,7 @@ assert(
   sizes.length && sizes.every((n) => [20, 200, 1000].includes(n)),
   "Only approved benchmark sizes20/200/1000 are supported",
 );
-const measured = profileOnly
-  ? JSON.parse(await readFile(resolve(root, "benchmark-measured.json"), "utf8"))
-  : null;
+let measured;
 const report = {
   machine: {
     platform: platform(),
@@ -51,6 +55,32 @@ const browser = await chromium.launch({ headless: true });
 report.browser = browser.version();
 let failed = false;
 try {
+  if (profileOnly) {
+    const sourceFile = resolve(
+      process.env.MKW_BENCHMARK_PRIOR ??
+        resolve(root, "benchmark-measured.json"),
+    );
+    report.sourceMetrics = sourceFile;
+    measured = JSON.parse(await readFile(sourceFile, "utf8"));
+    measured.sizes = measured.sizes.map(retainedMetrics);
+    for (const size of sizes) {
+      const prior = measured.sizes.find((entry) => entry.size === size);
+      if (
+        !prior ||
+        [
+          "apiMs",
+          "editorMs",
+          "inputMs",
+          "scrollFramesMs",
+          "coldLoadMs",
+          "warmLoadMs",
+          "renderAfterResponseMs",
+        ].some((key) => !prior[key]?.samples) ||
+        !prior.heapBytes?.length
+      )
+        throw new Error(`Missing retained raw prerequisites for size${size}`);
+    }
+  }
   for (const size of sizes) {
     const s = await startSandbox({ acceptance: true });
     const metric = {
@@ -74,10 +104,10 @@ try {
     };
     if (profileOnly) {
       const previous = measured.sizes.find((x) => x.size === size);
-      Object.assign(metric, previous, {
+      Object.assign(metric, retainedMetrics(previous), {
         originalRunDir: previous.runDir,
         runDir: s.runDir,
-        sourceMetrics: "benchmark-measured.json",
+        sourceMetrics: report.sourceMetrics,
       });
     }
     report.sizes.push(metric);
@@ -302,30 +332,7 @@ try {
         );
         metric.scroll = [];
         for (let i = 0; i < 5; i++) {
-          metric.scroll.push(
-            await page.evaluate(
-              () =>
-                new Promise((resolveDone) => {
-                  const region = document.querySelector(".grid-scroll"),
-                    frames = [];
-                  let previous = performance.now();
-                  const start = previous;
-                  function frame(now) {
-                    frames.push(now - previous);
-                    previous = now;
-                    region.scrollTop =
-                      ((now - start) / 5000) *
-                      (region.scrollHeight - region.clientHeight);
-                    region.scrollLeft =
-                      ((now - start) / 5000) *
-                      (region.scrollWidth - region.clientWidth);
-                    if (now - start < 5000) requestAnimationFrame(frame);
-                    else resolveDone(frames);
-                  }
-                  requestAnimationFrame(frame);
-                }),
-            ),
-          );
+          metric.scroll.push(await page.evaluate(measureScrollFrames));
         }
         metric.scrollFramesMs = summary(metric.scroll.flat());
         delete metric.scroll;
@@ -353,7 +360,16 @@ try {
         metric.heapBytes.push(await heap());
       }
       metric.domAfterHeap = await cdp.send("Memory.getDOMCounters");
-      if (profileOnly && size === 1000) {
+      if (size === 1000) {
+        // Diagnostics run after every budget sample and heap measurement, so
+        // tracing cannot contaminate measured feedback/frame intervals.
+        const traceComplete = new Promise((done) =>
+          cdp.once("Tracing.tracingComplete", done),
+        );
+        await cdp.send("Tracing.start", {
+          categories: "devtools.timeline",
+          transferMode: "ReturnAsStream",
+        });
         await cdp.send("Profiler.enable");
         await cdp.send("Profiler.start");
         await page.locator("button[data-cell]").first().click();
@@ -374,6 +390,17 @@ try {
           JSON.stringify(profile),
         );
         metric.cpuProfile = resolve(s.runDir, "interaction.cpuprofile");
+        await cdp.send("Tracing.end");
+        const { stream } = await traceComplete;
+        let trace = "";
+        for (;;) {
+          const part = await cdp.send("IO.read", { handle: stream });
+          trace += part.data;
+          if (part.eof) break;
+        }
+        await cdp.send("IO.close", { handle: stream });
+        metric.interactionTrace = resolve(s.runDir, "interaction-trace.json");
+        await writeFile(metric.interactionTrace, trace);
       }
       metric.heapGrowthPercent = (metric.heapBytes.at(-1) / baseline - 1) * 100;
       metric.heapMonotonic = metric.heapBytes

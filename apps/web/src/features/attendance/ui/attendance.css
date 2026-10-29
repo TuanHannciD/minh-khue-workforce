@@ -250,6 +250,11 @@
   width: 100%;
   height: 100%;
   font-weight: 450;
+  position: static;
+}
+/* Only reminder icons need a positioned button. Keeping every visible cell
+   positioned expands the table paint/focus work even when its data is stable. */
+.grid-scroll td button:has(> .reminder-icon) {
   position: relative;
 }
 .grid-scroll td button:hover {
@@ -605,7 +610,7 @@
   color: var(--ink);
   font: inherit;
 }
-.attendance-screen td[data-position] {
+.attendance-screen td[data-position]:has(> .fill-handle) {
   position: relative;
 }
 .attendance-screen .fill-handle {

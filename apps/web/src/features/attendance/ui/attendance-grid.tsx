@@ -4,9 +4,9 @@ import type {
   CellSnapshotDto,
   MonthDto,
 } from "../model/types";
-import { useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import type { KeyboardEvent } from "react";
-import { AttendanceCell } from "./attendance-cell";
+import { AttendanceRow } from "./attendance-row";
 import {
   cellIdentity,
   monthDays,
@@ -34,23 +34,73 @@ export function AttendanceGrid({
 }: AttendanceGridProps) {
   const region = useRef<HTMLDivElement>(null);
   const gesture = useGridGesture(region, month, interaction, kind);
-  const days = monthDays(month.month);
+  // Structural projections only change with a new snapshot/filter/kind. Raw
+  // editor state remains in its subscriber, never a second server-state cache.
+  const {
+    month: monthKey,
+    cells: monthCells,
+    employees,
+    totals: monthTotals,
+  } = month;
+  const projection = useMemo(() => {
+    const days = monthDays(monthKey);
+    const cells = new Map(monthCells.map((cell) => [cellIdentity(cell), cell]));
+    const totals = monthTotals[kind];
+    const employeeTotals = new Map(
+      totals.byEmployee.map((total) => [total.employeeId, total.value]),
+    );
+    return {
+      days,
+      cells,
+      totals,
+      ordered: orderedMonthCells(
+        { month: monthKey, cells: monthCells, employees },
+        kind,
+      ),
+      dayTotals: new Map(
+        totals.byDate.map((total) => [total.date, total.value]),
+      ),
+      rows: employees.map((employee) => ({
+        employee,
+        total: employeeTotals.get(employee.id) ?? 0,
+        cells: days.map((day) =>
+          cells.get(
+            cellIdentity({ employeeId: employee.id, date: day.date, kind }),
+          ),
+        ),
+      })),
+    };
+  }, [monthKey, monthCells, employees, monthTotals, kind]);
+  const { days, cells, ordered, totals, dayTotals } = projection;
   const unit = kind === "work" ? "công" : "giờ";
-  const cells = new Map(month.cells.map((cell) => [cellIdentity(cell), cell]));
-  const ordered = orderedMonthCells(month, kind);
-  const totals = month.totals[kind];
-  const employeeTotals = new Map(
-    totals.byEmployee.map((total) => [total.employeeId, total.value]),
+  const selectedByEmployee = new Map<string, string[]>();
+  for (const cell of [
+    ...(selection ? [selection] : []),
+    ...(interaction?.keys ?? []),
+  ]) {
+    if (cell.kind !== kind) continue;
+    const dates = selectedByEmployee.get(cell.employeeId) ?? [];
+    dates.push(cell.date);
+    selectedByEmployee.set(cell.employeeId, dates);
+  }
+  // Stable DOM dispatchers forward to the latest committed props. No custom
+  // memo comparator hides callbacks, owner, session epoch or generation changes.
+  const latest = useRef({ onCellIntent, onFill, interaction, ordered });
+  useLayoutEffect(() => {
+    latest.current = { onCellIntent, onFill, interaction, ordered };
+  });
+  const intent = useCallback(
+    (cell: CellSnapshotDto) => latest.current.onCellIntent(cell),
+    [],
   );
-  const dayTotals = new Map(
-    totals.byDate.map((total) => [total.date, total.value]),
-  );
+  const fill = useCallback(() => latest.current.onFill?.(), []);
   const number = (value: number) =>
     formatAttendanceValue({ type: "number", value });
-  function navigate(
+  const navigate = useCallback(function navigate(
     event: KeyboardEvent<HTMLButtonElement>,
     cell: CellSnapshotDto,
   ) {
+    const { interaction, ordered } = latest.current;
     if (
       interaction &&
       ((event.key === " " && (event.ctrlKey || event.metaKey)) ||
@@ -87,7 +137,7 @@ export function AttendanceGrid({
     target?.focus();
     if (event.shiftKey && interaction)
       interaction.choose(next, { add: false, extend: true });
-  }
+  }, []);
   return (
     <div
       ref={region}
@@ -144,61 +194,26 @@ export function AttendanceGrid({
           </tr>
         </thead>
         <tbody>
-          {month.employees.map((employee) => (
-            <tr key={employee.id}>
-              <th
-                scope="row"
-                className="name"
-                title={`${employee.name} · ID ${employee.id}`}
-              >
-                <span className="employee-name">{employee.name}</span>
-                <small>ID …{employee.id.slice(-4)}</small>
-              </th>
-              {days.map((day) => {
-                const cell = cells.get(
-                  cellIdentity({
-                    employeeId: employee.id,
-                    date: day.date,
-                    kind,
-                  }),
-                );
-                return cell ? (
-                  <AttendanceCell
-                    key={day.date}
-                    cell={cell}
-                    employee={employee}
-                    selected={
-                      (selection !== null &&
-                        cellIdentity(selection) === cellIdentity(cell)) ||
-                      Boolean(
-                        interaction?.keys.some(
-                          (c) => cellIdentity(c) === cellIdentity(cell),
-                        ),
-                      )
-                    }
-                    selectInactive={Boolean(interaction?.append)}
-                    onFill={
-                      interaction?.source &&
-                      cellIdentity(interaction.source) === cellIdentity(cell)
-                        ? onFill
-                        : undefined
-                    }
-                    onIntent={onCellIntent}
-                    onKeyDown={navigate}
-                  />
-                ) : (
-                  <td key={day.date} aria-label="Dữ liệu ô còn thiếu">
-                    ?
-                  </td>
-                );
-              })}
-              <td
-                className="total"
-                aria-label={`Tổng ${employee.name} · ID ${employee.id} · ${unit}`}
-              >
-                {number(employeeTotals.get(employee.id) ?? 0)}
-              </td>
-            </tr>
+          {projection.rows.map((row) => (
+            <AttendanceRow
+              key={row.employee.id}
+              row={row}
+              days={days}
+              unit={unit}
+              selectedDates={(
+                selectedByEmployee.get(row.employee.id) ?? []
+              ).join(",")}
+              sourceDate={
+                interaction?.source?.kind === kind &&
+                interaction.source.employeeId === row.employee.id
+                  ? interaction.source.date
+                  : null
+              }
+              selectInactive={Boolean(interaction?.append)}
+              onIntent={intent}
+              onKeyDown={navigate}
+              onFill={onFill ? fill : undefined}
+            />
           ))}
         </tbody>
         <tfoot>

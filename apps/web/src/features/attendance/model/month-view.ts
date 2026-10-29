@@ -27,7 +27,7 @@ export function cellIdentity(cell: CellKeyDto): string {
   return `${cell.employeeId}/${cell.date}/${cell.kind}`;
 }
 export function orderedMonthCells(
-  month: MonthDto,
+  month: Pick<MonthDto, "month" | "cells" | "employees">,
   kind: AttendanceKind,
 ): CellSnapshotDto[] {
   const cells = new Map(

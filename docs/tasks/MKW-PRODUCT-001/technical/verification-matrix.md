@@ -1,5 +1,21 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Task10 fix R1 — checkpoint hiện hành, 30/10/2026
+
+Budgets G1 không đổi. Fresh full `task10-fix-r1/benchmark-run-a081eb77-9957-483b-8a73-695ff7fb01bb.json` là một invocation20/200/1000 trên CSS cuối, production Chromium156/1280×800 trên cùng máy; clock RAF corrected, mọi raw sample finite/nonnegative, summaries/checks recompute verified tại `full-benchmark-validation.json`. API/cold/warm/render mỗi loại5, editor31/input30, scroll5×5s (1503/1488/538 intervals), heap baseline+10 post-GC sau2 warmups. UI C hiện31.000 cell components ở1000 người, projection62.000 logical cells. Two-RAF feedback chỉ là paint-opportunity proxy.
+
+| Người | API p95 ms | Cold p95 ms | Editor/input p95 ms | Scroll p95/max ms | Heap growth, không monotonic | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| 20 | 27,52 (NO_BUDGET) | 191,18 (NO_BUDGET) | 28 / 31,1 | 16,7 / 50 | +5,38294% | PASS scoped |
+| 200 | 107,21 | 465,53 | 31,1 / 30,4 | 16,8 / 116,8 | +0,94733% | PASS scoped |
+| 1000 | 443,12 | 1546,83 | 121 / 61,3 | 66,6 / 333,3 | +0,18622% | Failed scroll>33/max>200 |
+
+Raw editor regression không projection/render toàn bảng; pending/conflict/frozen polling CAS/latest callbacks và actual persistence/recovery/bulk/gesture suites đạt. Full product50 tooling/165 web/16 API, actual E2E33 nhóm + export; chi tiết lệnh/bằng chứng tại [validation](../validation.md). CSS chỉ position reminder/fill anchors; actual T3 desktop/mobile viewport giữ icon/handle trong source và sticky. Latest scroll trace5s có Paint2604,49ms/PrePaint1315,77ms/Layerize560,24ms; runtime compositor candidate vẫn p95=33,4>33, không adopt hoặc làm tròn thành pass. Next supported step cần review kiến trúc frozen panes/paint tree/windowing và zoom/sticky/selection/a11y; không tự triển khai ngoài approved scope. G3 **Failed/Not run**, I3 scroll1000 chưa clearance; main R2 exact fix tip Pending. Phone/native devices/SR vẫn NR, không thay bằng viewport hoặc synthetic touch. Phase1 trước CSS và checkpoint Task10 cũ bên dưới giữ lịch sử, không là current performance.
+
+## Task10 review R1 — giới hạn evidence lịch sử
+
+Review R1 phát hiện scroll200/1000 trong `task10-acceptance/benchmark-final.json` có interval đầu âm và profile reuse không validate. Phạm vi scroll này **Invalid/Failed**, không được dùng làm benchmark hợp lệ; API/load/editor/input và corrected heap độc lập vẫn có giá trị scoped theo provenance. Median N chẵn trước đây dùng upper middle; artifact mới `task10-fix-r1/historical-recomputed.json` tính mean hai phần tử giữa từ raw hợp lệ, giữ nguyên bytes cũ, không bỏ negative samples để hợp thức hóa scroll. Owner label Task7 trong historical two-session manifest sai metadata; không có bằng chứng target DB sai. Bản sửa/rerun mới cập nhật tại validation; G3 và independent main R2 vẫn mở.
+
 ## Checkpoint Task10 — bằng chứng từng lớp, G3 chưa đạt, 29/10/2026
 
 Nguồn budget G1 đã duyệt vẫn binding; các chữ Proposed/Not run ở checkpoint thiết kế bên dưới là lịch sử. Evidence root `.agent-runs/MKW-PRODUCT-001/task10-acceptance/`; commands/runtime/metric chi tiết tại [validation](../validation.md). V = Verified đúng lớp, NR = Not run. Không suy V API/unit thành V thiết bị hoặc toàn sản phẩm. Main exact-range independent review Pending; Task10 **DONE_WITH_CONCERNS**.

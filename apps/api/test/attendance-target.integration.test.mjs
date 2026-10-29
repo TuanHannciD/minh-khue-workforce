@@ -1,6 +1,7 @@
+import { createEvidenceRun } from "../../../scripts/product/evidence-run.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { evidenceRoot } from "./attendance-sandbox.mjs";
 import { openSandboxTarget } from "../../../scripts/product/sandbox-target.mjs";
@@ -9,7 +10,9 @@ test("shared auth CLI accepts only the exact enrolled fake cluster identity and 
   const owner = process.env.MKW_ATTENDANCE_CLUSTER_OWNER;
   const target = JSON.parse(await readFile(owner, "utf8"));
   const alias = target.alias;
-  const evidence = await mkdtemp(resolve(dirname(owner), "target-rejection-"));
+  const evidence = await createEvidenceRun(
+    resolve(dirname(owner), "target-rejection-"),
+  );
   const valid = await openSandboxTarget(owner, alias);
   await valid.pool.end();
   const variants = [

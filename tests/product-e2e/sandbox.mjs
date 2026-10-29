@@ -44,14 +44,17 @@ export async function startSandbox({
         : reviewR1
           ? "task7-fix-r1"
           : "task7-persistence";
-  const evidenceRoot = resolve(root, `.agent-runs/MKW-PRODUCT-001/${alias}`);
+  const evidenceRoot = resolve(
+    process.env.MKW_PRODUCT_EVIDENCE_ROOT ??
+      resolve(root, `.agent-runs/MKW-PRODUCT-001/${alias}`),
+  );
   const cluster = await openSandboxTarget(
     process.env.MKW_PRODUCT_CLUSTER_OWNER,
     alias,
   );
   const databaseName = `${acceptance ? "mkw_acceptance" : exporting ? "mkw_export" : selection ? "mkw_selection" : reviewR1 ? "mkw_task7_r1" : "mkw_persistence"}_${randomUUID().replaceAll("-", "_")}`;
   const runDir = resolve(evidenceRoot, databaseName);
-  await mkdir(runDir);
+  await mkdir(runDir, { recursive: true });
   const targetFile = resolve(runDir, "target.json");
   await writeFile(
     targetFile,

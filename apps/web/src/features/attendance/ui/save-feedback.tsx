@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import type { AttendanceDraft } from "../model/attendance-draft";
 import { formatAttendanceValue } from "../model/number-input";
 import { Button } from "@/shared/ui/button";
@@ -11,6 +12,7 @@ export function SaveFeedback({
   draft: AttendanceDraft;
   onSaved: () => void;
 }) {
+  useSyncExternalStore(draft.subscribe, draft.snapshot);
   const edit = draft.edit;
   const current = draft.current?.cells.find(
     (c) => edit && cellIdentity(c) === cellIdentity(edit.cell),

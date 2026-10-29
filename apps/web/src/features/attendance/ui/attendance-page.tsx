@@ -4,7 +4,7 @@
  * useCellSelection owns selection; AttendanceGrid owns gesture DOM integration;
  * CellEditor/BulkEditor and SaveFeedback render the app-owned draft lifecycle.
  */
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Flag, Maximize, Minimize, Search } from "lucide-react";
 import type {
   AttendanceKind,
@@ -57,7 +57,7 @@ export function AttendancePage({
 }: AttendancePageProps) {
   useSyncExternalStore(
     draft?.subscribe ?? noSubscribe,
-    draft?.snapshot ?? noSnapshot,
+    draft?.structureSnapshot ?? noSnapshot,
   );
   const [kind, setKind] = useState<AttendanceKind>(
     () => draft?.edit?.cell.kind ?? "work",
@@ -74,15 +74,21 @@ export function AttendancePage({
   const [guard, setGuard] = useState<{ action: () => void } | null>(null);
   const root = useRef<HTMLElement>(null);
   const available = status === "ready" && Boolean(month);
-  const employees =
-    month?.employees.filter(
-      (employee) =>
-        employee.name
-          .toLocaleLowerCase("vi")
-          .includes(search.trim().toLocaleLowerCase("vi")) ||
-        employee.id.includes(search.trim()),
-    ) ?? [];
-  const visibleMonth = month ? { ...month, employees } : null;
+  const employees = useMemo(
+    () =>
+      month?.employees.filter(
+        (employee) =>
+          employee.name
+            .toLocaleLowerCase("vi")
+            .includes(search.trim().toLocaleLowerCase("vi")) ||
+          employee.id.includes(search.trim()),
+      ) ?? [],
+    [month?.employees, search],
+  );
+  const visibleMonth = useMemo(
+    () => (month ? { ...month, employees } : null),
+    [month, employees],
+  );
   const bulk = useCellSelection(
     visibleMonth,
     draft,
@@ -351,8 +357,7 @@ export function AttendancePage({
                   }}
                   submitLabel={submitLabel ?? "Lưu"}
                   blockedReason={blockedReason}
-                  editing={draft?.edit ?? undefined}
-                  onEdit={draft ? (fields) => draft.change(fields) : undefined}
+                  draft={draft}
                   pending={
                     pending ||
                     draft?.outcome.type === "pending" ||

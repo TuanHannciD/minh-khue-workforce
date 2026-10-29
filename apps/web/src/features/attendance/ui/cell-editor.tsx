@@ -1,4 +1,10 @@
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -8,7 +14,7 @@ import type {
   CellValueDto,
   EmployeeDto,
 } from "../model/types";
-import type { EditingCell } from "../model/attendance-draft";
+import type { AttendanceDraft, EditingCell } from "../model/attendance-draft";
 
 export interface CellEditorIntent {
   cell: CellSnapshotDto;
@@ -16,6 +22,8 @@ export interface CellEditorIntent {
   reminder: boolean;
   raw: string;
 }
+const noSubscribe = () => () => {};
+const noSnapshot = () => 0;
 export function CellEditor({
   cell,
   employee,
@@ -23,8 +31,9 @@ export function CellEditor({
   onCancel,
   submitLabel = "Lưu",
   blockedReason,
-  editing,
-  onEdit,
+  editing: providedEditing,
+  onEdit: providedOnEdit,
+  draft,
   pending = false,
 }: {
   cell: CellSnapshotDto;
@@ -33,6 +42,7 @@ export function CellEditor({
   onCancel: () => void;
   submitLabel?: string;
   blockedReason?: string | undefined;
+  draft?: AttendanceDraft | undefined;
   editing?: EditingCell | undefined;
   onEdit?:
     | ((
@@ -43,6 +53,14 @@ export function CellEditor({
     | undefined;
   pending?: boolean;
 }) {
+  useSyncExternalStore(
+    draft?.subscribe ?? noSubscribe,
+    draft?.snapshot ?? noSnapshot,
+  );
+  const editing = draft?.edit ?? providedEditing;
+  const onEdit = draft
+    ? (fields: Parameters<AttendanceDraft["change"]>[0]) => draft.change(fields)
+    : providedOnEdit;
   const id = useId();
   const [localRaw, localSetRaw] = useState(formatAttendanceValue(cell.value));
   const [localReminder, localSetReminder] = useState(cell.reminder);

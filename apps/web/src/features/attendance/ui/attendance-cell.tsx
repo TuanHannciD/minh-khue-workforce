@@ -1,11 +1,11 @@
 import { Flag } from "lucide-react";
-import type { KeyboardEvent } from "react";
+import { memo, type KeyboardEvent } from "react";
 import type { CellSnapshotDto, EmployeeDto } from "../model/types";
 import { cellIdentity } from "../model/month-view";
 import { formatAttendanceValue } from "../model/number-input";
 import { FillHandle } from "./fill-handle";
 
-export function AttendanceCell({
+export const AttendanceCell = memo(function AttendanceCell({
   cell,
   employee,
   selected,
@@ -63,4 +63,4 @@ export function AttendanceCell({
       )}
     </td>
   );
-}
+});

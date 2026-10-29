@@ -439,11 +439,16 @@ export async function runAttendanceE2E(s, browser) {
       path: resolve(s.runDir, "persistence-recovery.png"),
       fullPage: true,
     });
+    assert.equal(independent.target.owner, s.target.owner);
+    assert.equal(independent.target.database, s.target.database);
+    assert.equal(independent.target.alias, s.alias);
     await writeFile(
       resolve(s.runDir, "assertions.json"),
       JSON.stringify(
         {
-          owner: "MKW-PRODUCT-001/Task7",
+          owner: independent.target.owner,
+          alias: independent.target.alias,
+          database: independent.target.database,
           webOrigin: s.webOrigin,
           apiOrigin: s.apiOrigin,
           targetFile: s.targetFile,

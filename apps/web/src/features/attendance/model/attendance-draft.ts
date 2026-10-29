@@ -55,6 +55,7 @@ export class AttendanceDraft {
   reconciling = false;
   private readEpoch = -1;
   private version = 0;
+  private structureVersion = 0;
   private generation = 0;
   private readonly listeners = new Set<() => void>();
   constructor(readonly boundary: SessionBoundary = sessionBoundary) {}
@@ -65,7 +66,11 @@ export class AttendanceDraft {
     };
   };
   snapshot = () => this.version;
-  private publish() {
+  // Raw editor notifications do not invalidate grid/context projections. All
+  // lifecycle transitions still publish structurally, including rejected->editing.
+  structureSnapshot = () => this.structureVersion;
+  private publish(structural = true) {
+    if (structural) this.structureVersion++;
     this.version++;
     for (const listener of this.listeners) listener();
   }
@@ -218,8 +223,9 @@ export class AttendanceDraft {
     if (!this.edit || this.outcome.type === "pending" || this.reconciling)
       return;
     this.edit = { ...this.edit, ...fields };
-    if (this.outcome.type === "rejected") this.outcome = { type: "editing" };
-    this.publish();
+    const structural = this.outcome.type === "rejected";
+    if (structural) this.outcome = { type: "editing" };
+    this.publish(structural);
   }
   discard() {
     if (this.outcome.type === "pending" || this.reconciling) return false;

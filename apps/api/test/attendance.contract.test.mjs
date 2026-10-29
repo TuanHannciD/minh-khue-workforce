@@ -1,6 +1,7 @@
+import { createEvidenceRun } from "../../../scripts/product/evidence-run.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDocument } from "../dist/openapi.js";
@@ -118,7 +119,7 @@ async function typecheckConsumer(name, source) {
     ".agent-runs/MKW-PRODUCT-001/task5-fix-r1/contract-consumer",
   );
   await mkdir(runs, { recursive: true });
-  const evidence = await mkdtemp(resolve(runs, name + "-"));
+  const evidence = await createEvidenceRun(resolve(runs, name + "-"));
   const path = resolve(evidence, "fixture-consumer.ts");
   const generated = relative(
     evidence,
