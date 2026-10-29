@@ -9,10 +9,13 @@ import { EmploymentConsistency } from "./employment-consistency.js";
 
 @Module({})
 export class EmployeesModule {
-  static register(config: AuthConfig): DynamicModule {
+  static register(
+    config: AuthConfig,
+    authModule = AuthModule.register(config),
+  ): DynamicModule {
     return {
       module: EmployeesModule,
-      imports: [AuthModule.register(config)],
+      imports: [authModule],
       controllers: [EmployeesController],
       providers: [EmployeesService, EmployeesRepository, EmploymentConsistency],
       exports: [EmployeesService, EmploymentConsistency],

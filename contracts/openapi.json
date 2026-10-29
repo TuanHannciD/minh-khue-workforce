@@ -1,6 +1,12 @@
 {
   "components": {
     "schemas": {
+      "AbsenceValueDto": {
+        "additionalProperties": false,
+        "properties": { "type": { "enum": ["absence"], "type": "string" } },
+        "required": ["type"],
+        "type": "object"
+      },
       "ApiErrorDto": {
         "additionalProperties": false,
         "properties": {
@@ -8,6 +14,132 @@
           "requestId": { "format": "uuid", "type": "string" }
         },
         "required": ["error", "requestId"],
+        "type": "object"
+      },
+      "AttendanceApiErrorDto": {
+        "additionalProperties": false,
+        "properties": {
+          "error": { "$ref": "#/components/schemas/AttendanceErrorDto" },
+          "requestId": { "type": "string" }
+        },
+        "required": ["error", "requestId"],
+        "type": "object"
+      },
+      "AttendanceErrorDetailsDto": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "items": { "$ref": "#/components/schemas/CellSnapshotDto" },
+            "type": "array"
+          },
+          "employees": {
+            "items": { "$ref": "#/components/schemas/EmployeeDto" },
+            "type": "array"
+          },
+          "fields": {
+            "items": { "$ref": "#/components/schemas/AttendanceFieldErrorDto" },
+            "type": "array"
+          },
+          "sourceChanged": { "type": "boolean" }
+        },
+        "type": "object"
+      },
+      "AttendanceErrorDto": {
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string" },
+          "details": {
+            "$ref": "#/components/schemas/AttendanceErrorDetailsDto"
+          },
+          "message": { "type": "string" }
+        },
+        "required": ["code", "message"],
+        "type": "object"
+      },
+      "AttendanceFieldErrorDto": {
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "path": { "type": "string" }
+        },
+        "required": ["path", "code", "message"],
+        "type": "object"
+      },
+      "AttendanceTotalsDto": {
+        "additionalProperties": false,
+        "properties": {
+          "overtime": { "$ref": "#/components/schemas/KindTotalsDto" },
+          "work": { "$ref": "#/components/schemas/KindTotalsDto" }
+        },
+        "required": ["work", "overtime"],
+        "type": "object"
+      },
+      "CellExpectationDto": {
+        "additionalProperties": false,
+        "properties": {
+          "date": { "format": "date", "type": "string" },
+          "employeeId": { "format": "uuid", "type": "string" },
+          "expectedRevision": { "minLength": 1, "type": "string" },
+          "kind": { "enum": ["work", "overtime"], "type": "string" }
+        },
+        "required": ["employeeId", "date", "kind", "expectedRevision"],
+        "type": "object"
+      },
+      "CellKeyDto": {
+        "additionalProperties": false,
+        "properties": {
+          "date": { "format": "date", "type": "string" },
+          "employeeId": { "format": "uuid", "type": "string" },
+          "kind": { "enum": ["work", "overtime"], "type": "string" }
+        },
+        "required": ["employeeId", "date", "kind"],
+        "type": "object"
+      },
+      "CellPatchDto": {
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "reminder": { "type": "boolean" },
+          "value": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/NumberValueDto" },
+              { "$ref": "#/components/schemas/AbsenceValueDto" },
+              { "enum": [null], "nullable": true, "type": "object" }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "CellSnapshotDto": {
+        "additionalProperties": false,
+        "properties": {
+          "date": { "format": "date", "type": "string" },
+          "employeeId": { "format": "uuid", "type": "string" },
+          "kind": { "enum": ["work", "overtime"], "type": "string" },
+          "reminder": { "type": "boolean" },
+          "revision": { "type": "string" },
+          "state": {
+            "enum": ["editable", "before-start", "after-end"],
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/NumberValueDto" },
+              { "$ref": "#/components/schemas/AbsenceValueDto" },
+              { "enum": [null], "nullable": true, "type": "object" }
+            ]
+          }
+        },
+        "required": [
+          "employeeId",
+          "date",
+          "kind",
+          "value",
+          "reminder",
+          "revision",
+          "state"
+        ],
         "type": "object"
       },
       "CreateEmployeeDto": {
@@ -28,6 +160,15 @@
         "required": ["name", "startDate"],
         "type": "object"
       },
+      "DateTotalDto": {
+        "additionalProperties": false,
+        "properties": {
+          "date": { "format": "date", "type": "string" },
+          "value": { "type": "number" }
+        },
+        "required": ["date", "value"],
+        "type": "object"
+      },
       "EmployeeDto": {
         "additionalProperties": false,
         "properties": {
@@ -38,6 +179,24 @@
           "startDate": { "format": "date", "type": "string" }
         },
         "required": ["id", "name", "startDate", "endDate", "revision"],
+        "type": "object"
+      },
+      "EmployeeExpectationDto": {
+        "additionalProperties": false,
+        "properties": {
+          "employeeId": { "format": "uuid", "type": "string" },
+          "expectedRevision": { "minLength": 1, "type": "string" }
+        },
+        "required": ["employeeId", "expectedRevision"],
+        "type": "object"
+      },
+      "EmployeeTotalDto": {
+        "additionalProperties": false,
+        "properties": {
+          "employeeId": { "format": "uuid", "type": "string" },
+          "value": { "type": "number" }
+        },
+        "required": ["employeeId", "value"],
         "type": "object"
       },
       "EmploymentApiErrorDto": {
@@ -111,6 +270,22 @@
         "required": ["status"],
         "type": "object"
       },
+      "KindTotalsDto": {
+        "additionalProperties": false,
+        "properties": {
+          "byDate": {
+            "items": { "$ref": "#/components/schemas/DateTotalDto" },
+            "type": "array"
+          },
+          "byEmployee": {
+            "items": { "$ref": "#/components/schemas/EmployeeTotalDto" },
+            "type": "array"
+          },
+          "grandTotal": { "type": "number" }
+        },
+        "required": ["byEmployee", "byDate", "grandTotal"],
+        "type": "object"
+      },
       "LoginDto": {
         "additionalProperties": false,
         "properties": {
@@ -129,6 +304,122 @@
       "LogoutDto": {
         "additionalProperties": false,
         "properties": {},
+        "type": "object"
+      },
+      "MonthDto": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "items": { "$ref": "#/components/schemas/CellSnapshotDto" },
+            "type": "array"
+          },
+          "employees": {
+            "items": { "$ref": "#/components/schemas/EmployeeDto" },
+            "type": "array"
+          },
+          "fetchedAt": { "format": "date-time", "type": "string" },
+          "month": { "type": "string" },
+          "totals": { "$ref": "#/components/schemas/AttendanceTotalsDto" }
+        },
+        "required": ["month", "fetchedAt", "employees", "cells", "totals"],
+        "type": "object"
+      },
+      "NumberValueDto": {
+        "additionalProperties": false,
+        "properties": {
+          "type": { "enum": ["number"], "type": "string" },
+          "value": {
+            "maximum": 30,
+            "minimum": 0,
+            "multipleOf": 0.5,
+            "type": "number"
+          }
+        },
+        "required": ["type", "value"],
+        "type": "object"
+      },
+      "PatchCellOperationDto": {
+        "additionalProperties": false,
+        "properties": {
+          "patch": { "$ref": "#/components/schemas/CellPatchDto" },
+          "type": {
+            "type": "string",
+            "enum": ["patch-cell"],
+            "description": "discriminator enum property added by openapi-typescript"
+          }
+        },
+        "required": ["type", "patch"],
+        "type": "object"
+      },
+      "PatchCellWriteDto": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedEmployees": {
+            "items": { "$ref": "#/components/schemas/EmployeeExpectationDto" },
+            "minItems": 1,
+            "type": "array"
+          },
+          "month": {
+            "pattern": "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$",
+            "type": "string"
+          },
+          "operation": {
+            "allOf": [{ "$ref": "#/components/schemas/PatchCellOperationDto" }],
+            "discriminator": {
+              "mapping": {
+                "patch-cell": "#/components/schemas/PatchCellOperationDto"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [{ "$ref": "#/components/schemas/PatchCellOperationDto" }]
+          },
+          "targets": {
+            "items": { "$ref": "#/components/schemas/CellExpectationDto" },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": ["month", "expectedEmployees", "targets", "operation"],
+        "type": "object"
+      },
+      "ReconcileRequestDto": {
+        "additionalProperties": false,
+        "anyOf": [
+          { "properties": { "employeeIds": { "minItems": 1 } } },
+          { "properties": { "cells": { "minItems": 1 } } }
+        ],
+        "properties": {
+          "cells": {
+            "items": { "$ref": "#/components/schemas/CellKeyDto" },
+            "type": "array"
+          },
+          "employeeIds": {
+            "items": { "format": "uuid", "type": "string" },
+            "type": "array"
+          }
+        },
+        "required": ["employeeIds", "cells"],
+        "type": "object"
+      },
+      "ReconcileSnapshotDto": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "items": { "$ref": "#/components/schemas/CellSnapshotDto" },
+            "type": "array"
+          },
+          "employees": {
+            "items": { "$ref": "#/components/schemas/EmployeeDto" },
+            "type": "array"
+          },
+          "fetchedAt": { "format": "date-time", "type": "string" },
+          "missingEmployeeIds": {
+            "items": { "format": "uuid", "type": "string" },
+            "type": "array"
+          }
+        },
+        "required": ["fetchedAt", "employees", "cells", "missingEmployeeIds"],
         "type": "object"
       },
       "SessionDto": {
@@ -150,6 +441,118 @@
         "required": ["userId", "username"],
         "type": "object"
       },
+      "SetReminderOperationDto": {
+        "additionalProperties": false,
+        "properties": {
+          "reminder": { "type": "boolean" },
+          "type": {
+            "type": "string",
+            "enum": ["set-reminder"],
+            "description": "discriminator enum property added by openapi-typescript"
+          }
+        },
+        "required": ["type", "reminder"],
+        "type": "object"
+      },
+      "SetReminderWriteDto": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedEmployees": {
+            "items": { "$ref": "#/components/schemas/EmployeeExpectationDto" },
+            "minItems": 1,
+            "type": "array"
+          },
+          "month": {
+            "pattern": "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$",
+            "type": "string"
+          },
+          "operation": {
+            "allOf": [
+              { "$ref": "#/components/schemas/SetReminderOperationDto" }
+            ],
+            "discriminator": {
+              "mapping": {
+                "set-reminder": "#/components/schemas/SetReminderOperationDto"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              { "$ref": "#/components/schemas/SetReminderOperationDto" }
+            ]
+          },
+          "targets": {
+            "items": { "$ref": "#/components/schemas/CellExpectationDto" },
+            "maxItems": 1,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": ["month", "expectedEmployees", "targets", "operation"],
+        "type": "object"
+      },
+      "SetValueOperationDto": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": { "enum": ["fill-empty", "replace"], "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["set-value"],
+            "description": "discriminator enum property added by openapi-typescript"
+          },
+          "value": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/NumberValueDto" },
+              { "$ref": "#/components/schemas/AbsenceValueDto" },
+              { "enum": [null], "nullable": true, "type": "object" }
+            ]
+          }
+        },
+        "required": ["type", "value", "mode"],
+        "type": "object"
+      },
+      "SetValueWriteDto": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedEmployees": {
+            "items": { "$ref": "#/components/schemas/EmployeeExpectationDto" },
+            "minItems": 1,
+            "type": "array"
+          },
+          "month": {
+            "pattern": "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$",
+            "type": "string"
+          },
+          "operation": {
+            "allOf": [{ "$ref": "#/components/schemas/SetValueOperationDto" }],
+            "discriminator": {
+              "mapping": {
+                "set-value": "#/components/schemas/SetValueOperationDto"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [{ "$ref": "#/components/schemas/SetValueOperationDto" }]
+          },
+          "source": { "$ref": "#/components/schemas/CellExpectationDto" },
+          "targets": {
+            "items": { "$ref": "#/components/schemas/CellExpectationDto" },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": ["month", "expectedEmployees", "targets", "operation"],
+        "type": "object"
+      },
+      "TargetPreviewDto": {
+        "additionalProperties": false,
+        "properties": {
+          "changed": { "minimum": 0, "type": "number" },
+          "eligible": { "minimum": 0, "type": "number" },
+          "selected": { "minimum": 0, "type": "number" },
+          "skipped": { "minimum": 0, "type": "number" }
+        },
+        "required": ["selected", "eligible", "skipped", "changed"],
+        "type": "object"
+      },
       "UpdateEmploymentDto": {
         "additionalProperties": false,
         "minProperties": 2,
@@ -163,6 +566,508 @@
           "startDate": { "format": "date", "type": "string" }
         },
         "required": ["expectedRevision"],
+        "type": "object"
+      },
+      "WriteAttendanceDto": {
+        "oneOf": [
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/SetValueWriteDto" },
+              {
+                "properties": {
+                  "operation": {
+                    "properties": {
+                      "patch": {
+                        "properties": {
+                          "value": {
+                            "oneOf": [
+                              {
+                                "properties": {
+                                  "type": {
+                                    "enum": ["number"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 30,
+                                    "minimum": 0,
+                                    "multipleOf": 0.5,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": ["type", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "$ref": "#/components/schemas/AbsenceValueDto"
+                              },
+                              {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "value": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "type": { "enum": ["number"], "type": "string" },
+                              "value": {
+                                "maximum": 30,
+                                "minimum": 0,
+                                "multipleOf": 0.5,
+                                "type": "number"
+                              }
+                            },
+                            "required": ["type", "value"],
+                            "type": "object"
+                          },
+                          { "$ref": "#/components/schemas/AbsenceValueDto" },
+                          { "enum": [null], "nullable": true, "type": "object" }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "source": {
+                    "properties": {
+                      "kind": { "enum": ["work"], "type": "string" }
+                    },
+                    "type": "object"
+                  },
+                  "targets": {
+                    "items": {
+                      "properties": {
+                        "kind": { "enum": ["work"], "type": "string" }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/SetReminderWriteDto" },
+              {
+                "properties": {
+                  "operation": {
+                    "properties": {
+                      "patch": {
+                        "properties": {
+                          "value": {
+                            "oneOf": [
+                              {
+                                "properties": {
+                                  "type": {
+                                    "enum": ["number"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 30,
+                                    "minimum": 0,
+                                    "multipleOf": 0.5,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": ["type", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "$ref": "#/components/schemas/AbsenceValueDto"
+                              },
+                              {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "value": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "type": { "enum": ["number"], "type": "string" },
+                              "value": {
+                                "maximum": 30,
+                                "minimum": 0,
+                                "multipleOf": 0.5,
+                                "type": "number"
+                              }
+                            },
+                            "required": ["type", "value"],
+                            "type": "object"
+                          },
+                          { "$ref": "#/components/schemas/AbsenceValueDto" },
+                          { "enum": [null], "nullable": true, "type": "object" }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "source": {
+                    "properties": {
+                      "kind": { "enum": ["work"], "type": "string" }
+                    },
+                    "type": "object"
+                  },
+                  "targets": {
+                    "items": {
+                      "properties": {
+                        "kind": { "enum": ["work"], "type": "string" }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/PatchCellWriteDto" },
+              {
+                "properties": {
+                  "operation": {
+                    "properties": {
+                      "patch": {
+                        "properties": {
+                          "value": {
+                            "oneOf": [
+                              {
+                                "properties": {
+                                  "type": {
+                                    "enum": ["number"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 30,
+                                    "minimum": 0,
+                                    "multipleOf": 0.5,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": ["type", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "$ref": "#/components/schemas/AbsenceValueDto"
+                              },
+                              {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "value": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "type": { "enum": ["number"], "type": "string" },
+                              "value": {
+                                "maximum": 30,
+                                "minimum": 0,
+                                "multipleOf": 0.5,
+                                "type": "number"
+                              }
+                            },
+                            "required": ["type", "value"],
+                            "type": "object"
+                          },
+                          { "$ref": "#/components/schemas/AbsenceValueDto" },
+                          { "enum": [null], "nullable": true, "type": "object" }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "source": {
+                    "properties": {
+                      "kind": { "enum": ["work"], "type": "string" }
+                    },
+                    "type": "object"
+                  },
+                  "targets": {
+                    "items": {
+                      "properties": {
+                        "kind": { "enum": ["work"], "type": "string" }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/SetValueWriteDto" },
+              {
+                "properties": {
+                  "operation": {
+                    "properties": {
+                      "patch": {
+                        "properties": {
+                          "value": {
+                            "oneOf": [
+                              {
+                                "properties": {
+                                  "type": {
+                                    "enum": ["number"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 24,
+                                    "minimum": 0.5,
+                                    "multipleOf": 0.5,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": ["type", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "value": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "type": { "enum": ["number"], "type": "string" },
+                              "value": {
+                                "maximum": 24,
+                                "minimum": 0.5,
+                                "multipleOf": 0.5,
+                                "type": "number"
+                              }
+                            },
+                            "required": ["type", "value"],
+                            "type": "object"
+                          },
+                          { "enum": [null], "nullable": true, "type": "object" }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "source": {
+                    "properties": {
+                      "kind": { "enum": ["overtime"], "type": "string" }
+                    },
+                    "type": "object"
+                  },
+                  "targets": {
+                    "items": {
+                      "properties": {
+                        "kind": { "enum": ["overtime"], "type": "string" }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/SetReminderWriteDto" },
+              {
+                "properties": {
+                  "operation": {
+                    "properties": {
+                      "patch": {
+                        "properties": {
+                          "value": {
+                            "oneOf": [
+                              {
+                                "properties": {
+                                  "type": {
+                                    "enum": ["number"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 24,
+                                    "minimum": 0.5,
+                                    "multipleOf": 0.5,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": ["type", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "value": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "type": { "enum": ["number"], "type": "string" },
+                              "value": {
+                                "maximum": 24,
+                                "minimum": 0.5,
+                                "multipleOf": 0.5,
+                                "type": "number"
+                              }
+                            },
+                            "required": ["type", "value"],
+                            "type": "object"
+                          },
+                          { "enum": [null], "nullable": true, "type": "object" }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "source": {
+                    "properties": {
+                      "kind": { "enum": ["overtime"], "type": "string" }
+                    },
+                    "type": "object"
+                  },
+                  "targets": {
+                    "items": {
+                      "properties": {
+                        "kind": { "enum": ["overtime"], "type": "string" }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              { "$ref": "#/components/schemas/PatchCellWriteDto" },
+              {
+                "properties": {
+                  "operation": {
+                    "properties": {
+                      "patch": {
+                        "properties": {
+                          "value": {
+                            "oneOf": [
+                              {
+                                "properties": {
+                                  "type": {
+                                    "enum": ["number"],
+                                    "type": "string"
+                                  },
+                                  "value": {
+                                    "maximum": 24,
+                                    "minimum": 0.5,
+                                    "multipleOf": 0.5,
+                                    "type": "number"
+                                  }
+                                },
+                                "required": ["type", "value"],
+                                "type": "object"
+                              },
+                              {
+                                "enum": [null],
+                                "nullable": true,
+                                "type": "object"
+                              }
+                            ]
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "value": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "type": { "enum": ["number"], "type": "string" },
+                              "value": {
+                                "maximum": 24,
+                                "minimum": 0.5,
+                                "multipleOf": 0.5,
+                                "type": "number"
+                              }
+                            },
+                            "required": ["type", "value"],
+                            "type": "object"
+                          },
+                          { "enum": [null], "nullable": true, "type": "object" }
+                        ]
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "source": {
+                    "properties": {
+                      "kind": { "enum": ["overtime"], "type": "string" }
+                    },
+                    "type": "object"
+                  },
+                  "targets": {
+                    "items": {
+                      "properties": {
+                        "kind": { "enum": ["overtime"], "type": "string" }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            ]
+          }
+        ]
+      },
+      "WriteResultDto": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "items": { "$ref": "#/components/schemas/CellSnapshotDto" },
+            "type": "array"
+          },
+          "counts": { "$ref": "#/components/schemas/TargetPreviewDto" },
+          "employees": {
+            "items": { "$ref": "#/components/schemas/EmployeeDto" },
+            "type": "array"
+          },
+          "savedAt": { "format": "date-time", "type": "string" },
+          "state": { "enum": ["saved"], "type": "string" }
+        },
+        "required": ["state", "cells", "employees", "counts", "savedAt"],
         "type": "object"
       }
     },
@@ -178,6 +1083,288 @@
   },
   "openapi": "3.0.3",
   "paths": {
+    "/api/v1/attendance/changes": {
+      "post": {
+        "operationId": "AttendanceController_changes",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WriteAttendanceDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WriteResultDto" }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [{ "cookie": [] }],
+        "tags": ["attendance"]
+      }
+    },
+    "/api/v1/attendance/month": {
+      "get": {
+        "operationId": "AttendanceController_month",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "pattern": "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MonthDto" }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [{ "cookie": [] }],
+        "tags": ["attendance"]
+      }
+    },
+    "/api/v1/attendance/reconcile": {
+      "post": {
+        "operationId": "AttendanceController_reconcile",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReconcileRequestDto" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcileSnapshotDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceApiErrorDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [{ "cookie": [] }],
+        "tags": ["attendance"]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "AuthController_login",

@@ -65,7 +65,7 @@ test("PostgreSQL auth/session/CSRF/flooding/reset sandbox", async (t) => {
           "--target",
           db.targetFile,
           "--alias",
-          "task3-auth",
+          db.target.alias,
           "--secret-stdin",
           ...extra,
         ],

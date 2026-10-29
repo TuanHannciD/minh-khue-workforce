@@ -1,5 +1,7 @@
 # Contract API v1 — thiết kế cho G1
 
+Cập nhật Task5, 29/10/2026: contract tháng/changes/reconcile đã có runtime HTTP và PostgreSQL sandbox, Nest DTO→OpenAPI3.0.3→web types; bốn fixture write đầy đủ và fixture tháng56 ô được đối chiếu thực. Export và UI attendance/recovery chưa triển khai. Chi tiết lớp kiểm/evidence ở [validation](../validation.md); review độc lập Task5 chờ main trên SHA cuối. Đoạn Proposed bên dưới là checkpoint Task1, không mô tả readiness hiện tại.
+
 Ngày28/10/2026. **Proposed for G1 review**, thuộc Task1 của [plan đã duyệt](implementation-plan.md); chưa endpoint/DTO/OpenAPI/code sản phẩm nào tồn tại. Nghiệp vụ theo [design đã duyệt](../design.md), nguyên tắc theo [API_CONTRACTS](../../../architecture/API_CONTRACTS.md). Các tên/giá trị kỹ thuật dưới đây là đề xuất cụ thể để review, không bổ sung nghiệp vụ.
 
 ## 1. Quy ước chung

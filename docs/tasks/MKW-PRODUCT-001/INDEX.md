@@ -1,5 +1,13 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task5 — API attendance implemented, chờ main independent exact-SHA review
+
+Base `7f88a60bfedeefcf09ef5145586aca4178e269f4`, worktree duy nhất `agent-bootstrap`, branch `agent/mkw-agent-002`. Writer Sol/high tuần tự, không child/primary/progress.md/Task6+. Đã có GET tháng, POST changes/reconcile, validator nửa đơn vị, tổng riêng, patch value+reminder nguyên tử, batch/fill CAS/source/skip và no-op/tombstone fences đúng G1; đọc READ ONLY REPEATABLE READ không fence. Dùng public EmploymentConsistency, giữ schema002; không migration/dependency mới hoặc UI attendance/Excel.
+
+Product check39 tooling/35 web/10 API đạt; attendance PostgreSQL61/61, auth12/12 và employees10/10 trên cluster Task5 mới; pilot22 check10/E2E2 đạt. Bốn write fixture đầy đủ, month56 ô, generated TypeScript consumer, readback client/SQL độc lập, response loss/abort và barrier race có evidence. [Validation](validation.md), [LOCAL_RUN](../../agent/LOCAL_RUN.md); report ignored `.superpowers/sdd/implementation-plan/task-5-implementation.md`, evidence `.agent-runs/MKW-PRODUCT-001/task5-attendance/`.
+
+Rulings thường lệ: schema002 đủ; parser JSON đệ quy đi cùng DTO/Swagger; composition root tái dùng DynamicModule để tránh duplicate controllers/pools; allowlist fake Task5 cho regressions giữ nguyên DB cũ. Self-review không là independent PASS. Cluster Task5 và HTTP đã release, data/evidence retained. Main review transaction/schema/contract ở full base..tip trước Task6. AC12/13/15 toàn luồng và UI recovery vẫn Task7/10; Linux/device/reader/TLS/operator thật Not run. Không push/merge/deploy hoặc resource hệ thống thật.
+
 ## Gate hiện hành — Task4 review độc lập đạt, 29/10/2026
 
 Review R2 tại `c181b7865a99d594d1acc2eb36e5e1d9ba786671`: I1 và M1 Closed, spec/quality Approved, không regression mới. Final product39 tooling/35 web/7 API, docs54, generated determinism/drift đạt; persistence/migration kế thừa evidence PostgreSQL Task4, không gọi là fresh replay. Reports ignored `task-4-review-r1.md`, `task-4-fix-r1.md`, `task-4-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Browser vòng sửa dùng HTTP fixture, giới hạn lưu assertions được giữ trong report; không claim console-clean/Nest/PG mới. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task5 theo kế hoạch đã duyệt; recovery UI Task7, whole AC15/device/Linux/TLS/operator thật còn Not run. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.

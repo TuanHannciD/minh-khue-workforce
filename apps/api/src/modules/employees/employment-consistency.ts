@@ -15,6 +15,9 @@ export class EmploymentConsistency {
   readByIds(tx: ProductTransaction, ids: string[]) {
     return this.repository.readByIds(tx, ids);
   }
+  listForMonth(tx: ProductTransaction, start: string, end: string) {
+    return this.repository.listForMonth(tx, start, end);
+  }
   findExcludedCells(
     tx: ProductTransaction,
     employeeId: string,

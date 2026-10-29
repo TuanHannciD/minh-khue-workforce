@@ -1,5 +1,7 @@
 # Mô hình dữ liệu và transaction — thiết kế cho G1
 
+Cập nhật Task5, 29/10/2026: dùng nguyên schema/migration002 của Task4, không migration rỗng mới. Attendance writes đã kiểm trên PostgreSQL17.11 thật với User→Employee UUID sorted→Cell key sorted, CAS/no-op/tombstone/rollback; tháng/reconcile READ ONLY REPEATABLE READ. Deploy lại baseline có auth/employees/cells giữ nội dung/revision. [Validation](../validation.md) ghi đúng lớp API/DB; independent schema/transaction/contract review Task5 do main thực hiện sau handoff, UI/Excel/ops chưa đạt từ các test này. Các dòng Not run bên dưới giữ checkpoint thiết kế Task1.
+
 Ngày28/10/2026. **Proposed for G1 review**; chưa Prisma schema/migration/DB được tạo hoặc kiểm. Đọc cùng [API](api-contract.md), [auth](auth-session.md), [plan](implementation-plan.md). Chọn PostgreSQL/Prisma theo ADR-003, không khảo sát lại stack.
 
 ## 1. Bản ghi và invariant

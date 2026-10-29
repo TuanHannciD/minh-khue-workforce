@@ -465,7 +465,20 @@ test("employees PostgreSQL integration", async (t) => {
           return original(...args);
         };
         const pending = patch(e, { name: "Không được lưu" });
-        await reached.promise;
+        await Promise.race([
+          reached.promise,
+          new Promise((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "Real employee HTTP mutation must use the app's registered authorization seam",
+                  ),
+                ),
+              4000,
+            ),
+          ),
+        ]);
         await db.pool.query(
           'UPDATE "Session" SET "revokedAt"=clock_timestamp() WHERE "tokenHash"=$1',
           [
@@ -522,7 +535,7 @@ test("employees PostgreSQL integration", async (t) => {
       },
     );
     await t.test(
-      "minimal_cell_schema_constraints_and_no_attendance_mutation_route",
+      "minimal_cell_schema_constraints_and_attendance_route_rejects_empty_payload",
       async () => {
         const e = await create({ name: "Constraint", startDate: "2026-10-01" });
         for (const [kind, type, half] of [
@@ -542,7 +555,7 @@ test("employees PostgreSQL integration", async (t) => {
         assert.equal(
           (await request("/attendance/changes", { method: "POST", body: {} }))
             .status,
-          404,
+          400,
         );
         const reload = new Database(db.connectionString);
         try {

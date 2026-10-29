@@ -49,6 +49,10 @@ export async function openEmployeeTarget(recordPath) {
   }
 }
 export async function employeeSandbox() {
+  if (process.env.MKW_ATTENDANCE_CLUSTER_OWNER) {
+    const { attendanceSandbox } = await import("./attendance-sandbox.mjs");
+    return attendanceSandbox();
+  }
   const cluster = await openEmployeeTarget(
     process.env.MKW_EMPLOYEE_CLUSTER_OWNER,
   );

@@ -1,5 +1,9 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Checkpoint Task5 — API/PostgreSQL, 29/10/2026
+
+Đã kiểm lớp API/DB của snapshot/values/totals/patch/batch/fill-source/CAS/no-op/reconcile theo ca6–9, trên cluster PostgreSQL17.11 mới. Suite attendance61 assertions/test cases tính cả parent groups; auth regression12 và employees10 có command/evidence trong [validation](../validation.md). Unit/contract kiểm JSON đầy đủ với runtime/OpenAPI/generated web types; full month56 ô và bốn write fixture chạy HTTP thật. Không thay toàn bộ AC thành Verified: AC12/13/15 cần hai phiên UI ở Task7/10; editor/draft/polling/fill UI/Excel/thiết bị/reader/Linux/TLS/operator thật còn Not run. Independent transaction/schema/contract review Task5 chờ main exact SHA; bảng Not run bên dưới giữ checkpoint thiết kế Task1.
+
 Ngày28/10/2026. **Proposed for G1 review**, không báo cáo test sản phẩm đã chạy. Nguồn: [design](../design.md), [API](api-contract.md), [DB](data-model.md), [auth](auth-session.md), [manifest](toolchain-manifest.md). Kế hoạch đã duyệt, các ngân sách kỹ thuật dưới cần review G1. Chỉ check Markdown/đọc metadata đã thực hiện ở Task1.
 
 ## 1. Lớp bằng chứng và tài nguyên

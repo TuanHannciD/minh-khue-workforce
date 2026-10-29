@@ -6,6 +6,18 @@ import { fileURLToPath } from "node:url";
 import { openSandboxTarget } from "../../../scripts/product/sandbox-target.mjs";
 
 export async function freshSandbox() {
+  if (process.env.MKW_ATTENDANCE_CLUSTER_OWNER) {
+    const { attendanceSandbox, migrate, root } =
+      await import("./attendance-sandbox.mjs");
+    const db = await attendanceSandbox();
+    try {
+      await migrate(db);
+      return { ...db, root };
+    } catch (error) {
+      await db.pool.end();
+      throw error;
+    }
+  }
   const root = fileURLToPath(new URL("../../../", import.meta.url));
   const owner = process.env.MKW_TEST_CLUSTER_OWNER;
   if (!owner)

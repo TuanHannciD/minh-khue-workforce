@@ -1,5 +1,11 @@
 # Toolchain manifest — pins G1 và kiểm chứng Task2–3
 
+## Hiện hành Task5 — attendance API và generated contract
+
+Không dependency/pin/lockfile mới. Attendance dùng Nest/Swagger, Prisma7.10.1/pg và runtime24.22.1/pnpm12.15.0 đã có; schema002 đủ, không migration mới. Nest DTO/OpenAPI3.0.3/web types được sinh lại bằng pipeline hiện hữu. Test đủ JSON G1 có consumer TypeScript generated thực; không sửa generated bằng tay. Binaries PostgreSQL17.11 tái dùng, cluster/role/DB Task5 mới và identity kiểm độc lập; cluster/DB Task2–4 được giữ nguyên.
+
+Auth/employees regression có thể dùng `MKW_ATTENDANCE_CLUSTER_OWNER` để tạo DB mới Task5; auth CLI chỉ mở rộng enrollment fake alias/owner/role/path/prefix Task5, không target thật/global config. [Validation](../validation.md) ghi checks và các giới hạn UI/device/Linux/reader/TLS/operator; independent review Task5 chờ main exact SHA. Các trạng thái cũ bên dưới thuộc checkpoint tương ứng.
+
 ## Hiện hành Task4 — consumer form nhân sự
 
 Web đã cài exact React Hook Form7.91.0, @hookform/resolvers6.0.2 và Zod4.6.7 theo pins G1, consumer thật `features/employees/ui/employee-form.tsx`. pnpm thêm release-age exception chỉ resolver6.0.2; giữ engine/required peers/build policy strict. Frozen install exit0, product lint/format/types/build/tooling/boundary/drift và web31/API6 đạt; pilot22 check10/E2E2 đạt. Không cài primitives shadcn/Radix/Tailwind hoặc Excel trước consumer task tương ứng; form giữ native controls và tokens C đã có.

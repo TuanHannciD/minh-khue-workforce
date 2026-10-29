@@ -1,6 +1,6 @@
 # Chạy tooling và pilot local
 
-Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session và Task4 POST/PATCH nhân sự; API tháng/ghi công/reconcile chưa triển khai. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
+Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session, Task4 POST/PATCH nhân sự và Task5 GET tháng/POST changes/reconcile; UI attendance/Excel còn task sau. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
 
 ## Chuẩn bị và check
 
@@ -50,7 +50,7 @@ $env:WEB_ORIGIN='http://127.0.0.1:5173'
 pnpm --filter @mkw/api start
 ```
 
-Dừng foreground bằng Ctrl+C trong đúng terminal sở hữu. Không kill theo cổng tìm thấy. `api dev` chỉ watch compiler; chạy `start` riêng sau build. `apps/*/.env.example` là mẫu cấu hình; Vite đọc `.env`, API đọc biến process (không tự load file secret). Cổng trên là mặc định tài liệu, phải kiểm còn trống trước acquire. API có `/health`, `/api/v1/auth/{login,logout,session}` và POST `/api/v1/employees`, PATCH `/api/v1/employees/:id`; không mở Swagger UI hoặc attendance endpoints. Vite proxy `/api` về API cùng origin với browser; `API_PROXY_TARGET` đọc từ process Vite, `VITE_API_ORIGIN` chỉ còn dùng health transport bootstrap.
+Dừng foreground bằng Ctrl+C trong đúng terminal sở hữu. Không kill theo cổng tìm thấy. `api dev` chỉ watch compiler; chạy `start` riêng sau build. `apps/*/.env.example` là mẫu cấu hình; Vite đọc `.env`, API đọc biến process (không tự load file secret). Cổng trên là mặc định tài liệu, phải kiểm còn trống trước acquire. API có `/health`, `/api/v1/auth/{login,logout,session}`, POST `/api/v1/employees`, PATCH `/api/v1/employees/:id` và `/api/v1/attendance/{month,reconcile,changes}` theo contract; không mở Swagger UI hoặc export. Vite proxy `/api` về API cùng origin với browser; `API_PROXY_TARGET` đọc từ process Vite, `VITE_API_ORIGIN` chỉ còn dùng health transport bootstrap.
 
 Web alias `@/` thuộc src web. API dùng native package imports `#app/*` với `.js` ESM, được kiểm trên compiled runtime; không có alias xuyên app. Contract được sinh từ Nest DTO thành OpenAPI3.0.3 và web types; không sửa hai output bằng tay. [Tooling map](../../scripts/product/README.md) định vị generator/boundary/fixtures.
 
@@ -93,6 +93,24 @@ pnpm --filter @mkw/api test:employees
 Harness chỉ nhận owner Task4/fake-sandbox/alias task4-employees/role mkw_task4/loopback/PostgreSQL17.11/dataDirectory đúng task4-employees/pg-data, đối chiếu DB identity thực trước CREATE. Cluster đã release sau handoff: chỉ chạy khi được khởi động lại đúng owner/data/port, không đổi target sang cluster cũ hoặc reset DB. Mỗi run tạo DB UUID mới; upgrade từ baseline auth giữ hai fake account/session, API/CAS/protection/snapshot đọc SQL/client mới. `pnpm --filter @mkw/api test` gồm date-only Gregorian/28–31 ngày/weekday ở UTC, Việt Nam và Los Angeles; không cần DB cho suite này.
 
 Evidence `.agent-runs/MKW-PRODUCT-001/task4-employees/` giữ product/integration/pilot22/browser/readback và release audit. Browser fixture chỉ cấp hai account giả ngoài product router; request employees thật gọi Nest/PostgreSQL. Conflict/unknown giữ draft và khóa submit; unknown khóa Hủy, HTTP reconcile/full recovery vẫn staged Task5/7, không coi read hoặc bỏ draft là fence.
+
+## Sandbox attendance Task5
+
+Task5 chỉ thêm API/contract và tests, không UI grid/draft/fill hoặc Excel. Dùng PostgreSQL17.11 binaries portable đã có nhưng cluster mới tại `.agent-runs/MKW-PRODUCT-001/task5-attendance/pg-data`, role giả `mkw_task5`, alias `task5-attendance`, owner `MKW-PRODUCT-001/Task5`. Owner record lưu port loopback; harness đối chiếu database/user/host/port/data_directory/version thật trước CREATE. Không đổi target sang cluster Task3/4 hoặc reset/drop DB cũ.
+
+Trong shell product24, sau khi cluster Task5 được khởi động đúng owner/data/port và kiểm identity:
+
+```powershell
+$env:MKW_ATTENDANCE_CLUSTER_OWNER=(Resolve-Path '.agent-runs/MKW-PRODUCT-001/task5-attendance/cluster-owner.json').Path
+pnpm --filter @mkw/api build
+pnpm --filter @mkw/api test:attendance
+pnpm --filter @mkw/api test:integration
+pnpm --filter @mkw/api test:employees
+```
+
+Biến Task5 làm hai harness regression tạo DB UUID mới trên cùng cluster Task5. Auth CLI nhận riêng alias/owner/role/path/database-prefix Task5 bên cạnh Task3, vẫn từ chối target thật và maintenance DB. Không cần seed/tài khoản thật hoặc dependency mới. Schema002 đủ dùng; deploy trên baseline đã có User/Session/Employee/AttendanceCell được kiểm giữ nội dung/revision. READ ONLY REPEATABLE READ tháng/reconcile và READ COMMITTED User→Employee→Cell writes được kiểm bằng hai HTTP instances/PG connections/barriers; không SQLite thay concurrency.
+
+Evidence ở `.agent-runs/MKW-PRODUCT-001/task5-attendance/`, gồm RED/GREEN, contract consumer đủ JSON G1, SQL/client readback và response mất sau commit. Chạy lệnh cần cluster hoạt động; sau handoff cluster được dừng đúng owner và data/evidence giữ lại. Không suy API tests thành hai phiên UI hoặc AC12/13/15 toàn luồng; recovery UI thuộc Task7, export Task9, thiết bị/reader/Linux/TLS/operator thật còn Not run.
 
 ## Thao tác thử
 

@@ -12,21 +12,42 @@ const normalized = (value) => {
   return process.platform === "win32" ? path.toLowerCase() : path;
 };
 
-// Current CLI intentionally supports only the authorized fake Task3 sandbox.
+// CLI supports only the explicitly enrolled fake Task3/Task5 sandboxes.
 // Production target enrollment belongs to the separately approved operations runbook.
 export async function openSandboxTarget(recordPath, alias) {
   const target = JSON.parse(await readFile(recordPath, "utf8"));
+  const policy =
+    alias === "task3-auth"
+      ? {
+          owner: "MKW-PRODUCT-001/Task3",
+          directory: "task3-auth",
+          user: "mkw_task3",
+          databases: /^(?:postgres|mkw_auth_[a-f0-9_]+)$/,
+        }
+      : alias === "task5-attendance"
+        ? {
+            owner: "MKW-PRODUCT-001/Task5",
+            directory: "task5-attendance",
+            user: "mkw_task5",
+            databases: /^(?:postgres|mkw_attendance_[a-f0-9_]+)$/,
+          }
+        : undefined;
+  if (!policy)
+    throw new Error("Sandbox alias is outside the authorized allowlist");
   const runRoot = fileURLToPath(
-    new URL("../../.agent-runs/MKW-PRODUCT-001/task3-auth/", import.meta.url),
+    new URL(
+      `../../.agent-runs/MKW-PRODUCT-001/${policy.directory}/`,
+      import.meta.url,
+    ),
   );
   if (
-    target.owner !== "MKW-PRODUCT-001/Task3" ||
+    target.owner !== policy.owner ||
     target.scope !== "fake-sandbox" ||
     target.alias !== alias ||
     target.host !== "127.0.0.1" ||
-    target.user !== "mkw_task3" ||
+    target.user !== policy.user ||
     !Number.isInteger(target.port) ||
-    !/^(?:postgres|mkw_auth_[a-f0-9_]+)$/.test(target.database) ||
+    !policy.databases.test(target.database) ||
     normalized(target.dataDirectory) !== normalized(resolve(runRoot, "pg-data"))
   )
     throw new Error("Sandbox target is outside the authorized allowlist");

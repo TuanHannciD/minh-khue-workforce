@@ -1,5 +1,36 @@
 # Validation — MKW-PRODUCT-001
 
+## Task5 — implementation/API/PostgreSQL, 29/10/2026
+
+Base `7f88a60bfedeefcf09ef5145586aca4178e269f4`; writer Sol/high một writer tại `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`, branch `agent/mkw-agent-002`. Không child, primary/progress.md hoặc Task6+. Main sở hữu independent transaction/schema/contract review full base..final tip sau commit; self-review này **không independent PASS**. Report ignored `.superpowers/sdd/implementation-plan/task-5-implementation.md`, evidence `.agent-runs/MKW-PRODUCT-001/task5-attendance/`.
+
+Đã triển khai API tháng/reconcile/changes theo G1. Runtime parser từ chối unknown/discriminator/missing-null/cardinality/UUID/date/month/duplicate/scope, không convert chuỗi số. Nửa đơn vị nguyên/caps30–24/work0→F/overtime không F; reminder/tổng độc lập. Một write use case cấp UUID revision cho mọi eligible target, kể cả no-op/tombstone mới; source/skipped/ô có nội dung bị fill-empty loại/eligible0 không đổi revision hoặc fence. CAS toàn bộ editable targets/source và Employee trước eligibility; User→Employee UUID sorted→Cell sorted trong READ COMMITTED. Không đổi Employee revision từ attendance. READ ONLY REPEATABLE READ cho snapshot tháng/reconcile; explicit IDs ngoài membership, tombstone N/—, missing khác DB5xx, không fence.
+
+Không migration/dependency mới: schema002 đủ; deploy baseline User/Session/Employee/AttendanceCell giữ nội dung/revision. PostgreSQL17.11 binaries cũ, cluster mới role `mkw_task5`, host127.0.0.1:61992, data `task5-attendance/pg-data`; identity database/user/host/port/data_directory/version được đối chiếu trước CREATE và release. Mỗi suite DB UUID mới; không reset/drop/ghi đè DB Task2–4. Chỉ hai account giả với secret sinh trong memory/private stdin; không credential thật/secret vào Git/argv.
+
+Các lệnh dưới chạy tại root worktree, product Node24.22.1/pnpm12.15.0 process-only. Lệnh regression dùng `MKW_ATTENDANCE_CLUSTER_OWNER` và tạo DB mới trong allowlist fake Task5. Tất cả kết quả cuối exit0:
+
+| Command | Kết quả/lớp đã kiểm | Evidence trong task5-attendance |
+| --- | --- | --- |
+| `pnpm run product:contract:generate` | Nest DTO → OpenAPI3.0.3 → web types, không sửa generated tay | `generate-final.log` |
+| `pnpm run product:check` | lint/format/types/build,39 tooling/35 web/10 API, boundary/cycle/drift | `product-final.log` |
+| `pnpm --filter @mkw/api test:attendance` | 61/61, gồm parent groups; real HTTP/PG và target identity | `attendance-final.log` |
+| `pnpm --filter @mkw/api test:integration` | auth12/12 sau composition fix, CLI provision/reset/allowlist, expiry/quota/User fence | `auth-final.log` |
+| `pnpm --filter @mkw/api test:employees` | employees10/10, auth upgrade giữ accounts/sessions, interval/CAS/no-op/SQL readback | `employees-green.log` |
+| `pnpm run product:lint`, `pnpm run product:format:check` | đạt sau tách test theo trách nhiệm | `lint-final.log`, `format-final.log` |
+| `npm run check` dưới Node22.12.0 | pilot10/10, skills inventory/hash, docs55 tại lượt chạy đó | `pilot-check22.log` |
+| `npm run test:e2e` dưới Node22.12.0 | pilot browser desktop/mobile2/2; không là UI attendance | `pilot-e2e22.log` |
+
+Unit RED thiếu validator/totals, HTTP RED attendance routes404 trước code (`units-red.log`, `http-red.log`). RED bổ sung employee conflict thiếu snapshots, module wiring thực và fake target allowlist (`concurrency-extended-red.log`, `employees-wiring-red.log`, `target-red.log`) rồi GREEN. Intermediate harness failures (syntax fixture, schema evaluator null/TS expression, barrier gắn nhầm dynamic instance) giữ logs và sửa đúng harness; không gọi là RED nghiệp vụ. Một product check trung gian dùng import test vừa tách sau compile nên thiếu build artifact; `product-final.log` là lượt build/check đủ sau đó. Hai lượt regression bị kẹt đã terminate riêng child process sau đối chiếu executable/argv/parent; evidence retained, không giả graceful release.
+
+Assertions chính: fixture tháng28×2=56 ô/totals đủ; bốn full write JSON G1 qua HTTP/read lại và12 fixture qua runtime/OpenAPI/generated TypeScript consumer; số/F/blank/N/—/reminder và name collation/trùng tên/calendar0001–9999; patch value+nhắc nguyên tử/missing-null; stale fill-empty không tự đổi eligible; batch CAS/SQL failure rollback cả content/revision; absent CAS/no-op value/F/reminder/tombstone và order đảo; source/skipped/zero/read/abort không tạo fence. Hai app/PG connection với barrier trước/sau khóa và `pg_blocking_pids` chứng minh contention; không sleep đoán lịch. Race start/end với work number/F/overtime/reminder-only ở tháng khác cả hai order; sorted employee locks; read snapshot nhất quán; reset/logout mutation fences; source clear rồi exit month; DB query failure503 không thành missing. Response cắt sau commit và abort trước lock được đối chiếu qua client/SQL mới, không suy rollback từ timeout.
+
+Rulings: giữ schema002, không migration rỗng; runtime JSON parser đệ quy song hành DTO/Swagger và schema oneOf theo kind/operation thay implicit conversion; thêm `EmploymentConsistency.listForMonth(tx,...)` cho cùng read snapshot, export DTO công khai, không import repository xuyên module. Composition root tái dùng cùng DynamicModule references: chẩn đoán registration trùng controllers/DB pools từ attendance import mới, regression barrier RED→GREEN; không đổi quyền/nghiệp vụ. Auth CLI enrollment chỉ mở rộng fake Task5 đúng owner/role/path/prefix để regression không phải dùng cluster cũ. Task4 test route404 được cập nhật400 cho payload attendance rỗng vì route Task5 nay tồn tại; giữ schema assertions. Test matrix dài chia fence và employment/session/snapshot, có file map; không thay unit hành vi bằng grep source.
+
+Self-review toàn transaction/contract/schema diff và test adequacy đã thực hiện; schema/migrations/lockfile không đổi. Không UI consumer đổi ngoài generated types; Task5 dùng HTTP tests, không cần browser attendance. AC12/13/15 wholeflow, editor/draft/polling/recovery hai phiên UI, fill UI, Excel, trusted device/screen reader/Linux/TLS/operator thật còn **Not run** đúng task sau. Không claim independent review hoặc toàn AC Verified.
+
+Release: HTTP fixtures đóng app/pools, cluster identity trước stop không còn client khác; `pg_ctl -D <owned-data> -m fast -w stop` đạt, status3/no listener61992, `resource-release.json` ghi released/data retained. Pilot harness hoàn tất và release resource của run; không browser tab T3 mới. Next duy nhất: main fresh independent exact-SHA transaction/schema/contract review trước Task6; không push/merge/deploy.
+
 ## Gate hiện hành — Task4 review độc lập đạt, 29/10/2026
 
 Review R2 tại `c181b7865a99d594d1acc2eb36e5e1d9ba786671`: I1 và M1 Closed, spec/quality Approved, không regression mới. Final product39 tooling/35 web/7 API, docs54, generated determinism/drift đạt; persistence/migration kế thừa evidence PostgreSQL Task4, không gọi là fresh replay. Reports ignored `task-4-review-r1.md`, `task-4-fix-r1.md`, `task-4-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Browser vòng sửa dùng HTTP fixture, giới hạn lưu assertions được giữ trong report; không claim console-clean/Nest/PG mới. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task5 theo kế hoạch đã duyệt; recovery UI Task7, whole AC15/device/Linux/TLS/operator thật còn Not run. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
