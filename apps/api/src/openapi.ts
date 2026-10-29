@@ -26,9 +26,15 @@ export async function createDocument(): Promise<OpenAPIObject> {
     if (cellPatch && !("$ref" in cellPatch)) cellPatch.minProperties = 1;
     const reconcile = schemas.ReconcileRequestDto;
     if (reconcile && !("$ref" in reconcile))
-      reconcile.anyOf = [
-        { properties: { employeeIds: { minItems: 1 } } },
-        { properties: { cells: { minItems: 1 } } },
+      // Intersect the cardinality alternatives with the required typed DTO.
+      // A sibling anyOf becomes a union with partial unknown objects in TS.
+      reconcile.allOf = [
+        {
+          anyOf: [
+            { properties: { employeeIds: { minItems: 1 } } },
+            { properties: { cells: { minItems: 1 } } },
+          ],
+        },
       ];
     return document;
   } finally {

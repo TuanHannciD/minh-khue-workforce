@@ -373,6 +373,7 @@
             },
             "oneOf": [{ "$ref": "#/components/schemas/PatchCellOperationDto" }]
           },
+          "source": { "allOf": [{ "type": "string" }, { "type": "number" }] },
           "targets": {
             "items": { "$ref": "#/components/schemas/CellExpectationDto" },
             "maxItems": 1,
@@ -385,9 +386,13 @@
       },
       "ReconcileRequestDto": {
         "additionalProperties": false,
-        "anyOf": [
-          { "properties": { "employeeIds": { "minItems": 1 } } },
-          { "properties": { "cells": { "minItems": 1 } } }
+        "allOf": [
+          {
+            "anyOf": [
+              { "properties": { "employeeIds": { "minItems": 1 } } },
+              { "properties": { "cells": { "minItems": 1 } } }
+            ]
+          }
         ],
         "properties": {
           "cells": {
@@ -480,6 +485,7 @@
               { "$ref": "#/components/schemas/SetReminderOperationDto" }
             ]
           },
+          "source": { "allOf": [{ "type": "string" }, { "type": "number" }] },
           "targets": {
             "items": { "$ref": "#/components/schemas/CellExpectationDto" },
             "maxItems": 1,
@@ -577,39 +583,6 @@
                 "properties": {
                   "operation": {
                     "properties": {
-                      "patch": {
-                        "properties": {
-                          "value": {
-                            "oneOf": [
-                              {
-                                "properties": {
-                                  "type": {
-                                    "enum": ["number"],
-                                    "type": "string"
-                                  },
-                                  "value": {
-                                    "maximum": 30,
-                                    "minimum": 0,
-                                    "multipleOf": 0.5,
-                                    "type": "number"
-                                  }
-                                },
-                                "required": ["type", "value"],
-                                "type": "object"
-                              },
-                              {
-                                "$ref": "#/components/schemas/AbsenceValueDto"
-                              },
-                              {
-                                "enum": [null],
-                                "nullable": true,
-                                "type": "object"
-                              }
-                            ]
-                          }
-                        },
-                        "type": "object"
-                      },
                       "value": {
                         "oneOf": [
                           {
@@ -657,69 +630,6 @@
               { "$ref": "#/components/schemas/SetReminderWriteDto" },
               {
                 "properties": {
-                  "operation": {
-                    "properties": {
-                      "patch": {
-                        "properties": {
-                          "value": {
-                            "oneOf": [
-                              {
-                                "properties": {
-                                  "type": {
-                                    "enum": ["number"],
-                                    "type": "string"
-                                  },
-                                  "value": {
-                                    "maximum": 30,
-                                    "minimum": 0,
-                                    "multipleOf": 0.5,
-                                    "type": "number"
-                                  }
-                                },
-                                "required": ["type", "value"],
-                                "type": "object"
-                              },
-                              {
-                                "$ref": "#/components/schemas/AbsenceValueDto"
-                              },
-                              {
-                                "enum": [null],
-                                "nullable": true,
-                                "type": "object"
-                              }
-                            ]
-                          }
-                        },
-                        "type": "object"
-                      },
-                      "value": {
-                        "oneOf": [
-                          {
-                            "properties": {
-                              "type": { "enum": ["number"], "type": "string" },
-                              "value": {
-                                "maximum": 30,
-                                "minimum": 0,
-                                "multipleOf": 0.5,
-                                "type": "number"
-                              }
-                            },
-                            "required": ["type", "value"],
-                            "type": "object"
-                          },
-                          { "$ref": "#/components/schemas/AbsenceValueDto" },
-                          { "enum": [null], "nullable": true, "type": "object" }
-                        ]
-                      }
-                    },
-                    "type": "object"
-                  },
-                  "source": {
-                    "properties": {
-                      "kind": { "enum": ["work"], "type": "string" }
-                    },
-                    "type": "object"
-                  },
                   "targets": {
                     "items": {
                       "properties": {
@@ -773,32 +683,7 @@
                           }
                         },
                         "type": "object"
-                      },
-                      "value": {
-                        "oneOf": [
-                          {
-                            "properties": {
-                              "type": { "enum": ["number"], "type": "string" },
-                              "value": {
-                                "maximum": 30,
-                                "minimum": 0,
-                                "multipleOf": 0.5,
-                                "type": "number"
-                              }
-                            },
-                            "required": ["type", "value"],
-                            "type": "object"
-                          },
-                          { "$ref": "#/components/schemas/AbsenceValueDto" },
-                          { "enum": [null], "nullable": true, "type": "object" }
-                        ]
                       }
-                    },
-                    "type": "object"
-                  },
-                  "source": {
-                    "properties": {
-                      "kind": { "enum": ["work"], "type": "string" }
                     },
                     "type": "object"
                   },
@@ -823,36 +708,6 @@
                 "properties": {
                   "operation": {
                     "properties": {
-                      "patch": {
-                        "properties": {
-                          "value": {
-                            "oneOf": [
-                              {
-                                "properties": {
-                                  "type": {
-                                    "enum": ["number"],
-                                    "type": "string"
-                                  },
-                                  "value": {
-                                    "maximum": 24,
-                                    "minimum": 0.5,
-                                    "multipleOf": 0.5,
-                                    "type": "number"
-                                  }
-                                },
-                                "required": ["type", "value"],
-                                "type": "object"
-                              },
-                              {
-                                "enum": [null],
-                                "nullable": true,
-                                "type": "object"
-                              }
-                            ]
-                          }
-                        },
-                        "type": "object"
-                      },
                       "value": {
                         "oneOf": [
                           {
@@ -899,65 +754,6 @@
               { "$ref": "#/components/schemas/SetReminderWriteDto" },
               {
                 "properties": {
-                  "operation": {
-                    "properties": {
-                      "patch": {
-                        "properties": {
-                          "value": {
-                            "oneOf": [
-                              {
-                                "properties": {
-                                  "type": {
-                                    "enum": ["number"],
-                                    "type": "string"
-                                  },
-                                  "value": {
-                                    "maximum": 24,
-                                    "minimum": 0.5,
-                                    "multipleOf": 0.5,
-                                    "type": "number"
-                                  }
-                                },
-                                "required": ["type", "value"],
-                                "type": "object"
-                              },
-                              {
-                                "enum": [null],
-                                "nullable": true,
-                                "type": "object"
-                              }
-                            ]
-                          }
-                        },
-                        "type": "object"
-                      },
-                      "value": {
-                        "oneOf": [
-                          {
-                            "properties": {
-                              "type": { "enum": ["number"], "type": "string" },
-                              "value": {
-                                "maximum": 24,
-                                "minimum": 0.5,
-                                "multipleOf": 0.5,
-                                "type": "number"
-                              }
-                            },
-                            "required": ["type", "value"],
-                            "type": "object"
-                          },
-                          { "enum": [null], "nullable": true, "type": "object" }
-                        ]
-                      }
-                    },
-                    "type": "object"
-                  },
-                  "source": {
-                    "properties": {
-                      "kind": { "enum": ["overtime"], "type": "string" }
-                    },
-                    "type": "object"
-                  },
                   "targets": {
                     "items": {
                       "properties": {
@@ -1008,31 +804,7 @@
                           }
                         },
                         "type": "object"
-                      },
-                      "value": {
-                        "oneOf": [
-                          {
-                            "properties": {
-                              "type": { "enum": ["number"], "type": "string" },
-                              "value": {
-                                "maximum": 24,
-                                "minimum": 0.5,
-                                "multipleOf": 0.5,
-                                "type": "number"
-                              }
-                            },
-                            "required": ["type", "value"],
-                            "type": "object"
-                          },
-                          { "enum": [null], "nullable": true, "type": "object" }
-                        ]
                       }
-                    },
-                    "type": "object"
-                  },
-                  "source": {
-                    "properties": {
-                      "kind": { "enum": ["overtime"], "type": "string" }
                     },
                     "type": "object"
                   },

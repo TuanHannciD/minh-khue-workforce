@@ -333,19 +333,20 @@ export interface components {
       month: string;
       operation: components["schemas"]["PatchCellOperationDto"] &
         components["schemas"]["PatchCellOperationDto"];
+      source?: string & number;
       targets: components["schemas"]["CellExpectationDto"][];
     };
-    ReconcileRequestDto:
-      | {
-          cells: components["schemas"]["CellKeyDto"][];
-          employeeIds: string[];
-        }
+    ReconcileRequestDto: {
+      cells: components["schemas"]["CellKeyDto"][];
+      employeeIds: string[];
+    } & (
       | {
           employeeIds?: unknown;
         }
       | {
           cells?: unknown;
-        };
+        }
+    );
     ReconcileSnapshotDto: {
       cells: components["schemas"]["CellSnapshotDto"][];
       employees: components["schemas"]["EmployeeDto"][];
@@ -378,6 +379,7 @@ export interface components {
       month: string;
       operation: components["schemas"]["SetReminderOperationDto"] &
         components["schemas"]["SetReminderOperationDto"];
+      source?: string & number;
       targets: components["schemas"]["CellExpectationDto"][];
     };
     SetValueOperationDto: {
@@ -419,16 +421,6 @@ export interface components {
     WriteAttendanceDto:
       | (components["schemas"]["SetValueWriteDto"] & {
           operation?: {
-            patch?: {
-              value?:
-                | {
-                    /** @enum {string} */
-                    type: "number";
-                    value: number;
-                  }
-                | components["schemas"]["AbsenceValueDto"]
-                | (never | null);
-            };
             value?:
               | {
                   /** @enum {string} */
@@ -448,30 +440,6 @@ export interface components {
           }[];
         })
       | (components["schemas"]["SetReminderWriteDto"] & {
-          operation?: {
-            patch?: {
-              value?:
-                | {
-                    /** @enum {string} */
-                    type: "number";
-                    value: number;
-                  }
-                | components["schemas"]["AbsenceValueDto"]
-                | (never | null);
-            };
-            value?:
-              | {
-                  /** @enum {string} */
-                  type: "number";
-                  value: number;
-                }
-              | components["schemas"]["AbsenceValueDto"]
-              | (never | null);
-          };
-          source?: {
-            /** @enum {string} */
-            kind?: "work";
-          };
           targets?: {
             /** @enum {string} */
             kind?: "work";
@@ -489,18 +457,6 @@ export interface components {
                 | components["schemas"]["AbsenceValueDto"]
                 | (never | null);
             };
-            value?:
-              | {
-                  /** @enum {string} */
-                  type: "number";
-                  value: number;
-                }
-              | components["schemas"]["AbsenceValueDto"]
-              | (never | null);
-          };
-          source?: {
-            /** @enum {string} */
-            kind?: "work";
           };
           targets?: {
             /** @enum {string} */
@@ -509,15 +465,6 @@ export interface components {
         })
       | (components["schemas"]["SetValueWriteDto"] & {
           operation?: {
-            patch?: {
-              value?:
-                | {
-                    /** @enum {string} */
-                    type: "number";
-                    value: number;
-                  }
-                | (never | null);
-            };
             value?:
               | {
                   /** @enum {string} */
@@ -536,28 +483,6 @@ export interface components {
           }[];
         })
       | (components["schemas"]["SetReminderWriteDto"] & {
-          operation?: {
-            patch?: {
-              value?:
-                | {
-                    /** @enum {string} */
-                    type: "number";
-                    value: number;
-                  }
-                | (never | null);
-            };
-            value?:
-              | {
-                  /** @enum {string} */
-                  type: "number";
-                  value: number;
-                }
-              | (never | null);
-          };
-          source?: {
-            /** @enum {string} */
-            kind?: "overtime";
-          };
           targets?: {
             /** @enum {string} */
             kind?: "overtime";
@@ -574,17 +499,6 @@ export interface components {
                   }
                 | (never | null);
             };
-            value?:
-              | {
-                  /** @enum {string} */
-                  type: "number";
-                  value: number;
-                }
-              | (never | null);
-          };
-          source?: {
-            /** @enum {string} */
-            kind?: "overtime";
           };
           targets?: {
             /** @enum {string} */

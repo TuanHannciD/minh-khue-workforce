@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDocument } from "../dist/openapi.js";
@@ -8,92 +8,11 @@ import {
   parseWrite,
   parseReconcile,
 } from "../dist/modules/attendance/attendance-validation.js";
-import { isCalendarDate } from "../dist/modules/employees/index.js";
+import { accepts } from "./attendance-contract-schema.mjs";
+import { normalizeValue } from "../dist/modules/attendance/attendance-values.js";
 import { command } from "./auth-sandbox.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-// Small assertion evaluator for the OpenAPI3.0 keywords emitted by these DTOs.
-// It exercises the generated schema; it does not share the runtime parser.
-function accepts(value, schema, schemas) {
-  if (schema.$ref)
-    return accepts(value, schemas[schema.$ref.split("/").at(-1)], schemas);
-  if (schema.enum && !schema.enum.some((x) => x === value)) return false;
-  if (schema.allOf && !schema.allOf.every((s) => accepts(value, s, schemas)))
-    return false;
-  if (schema.anyOf && !schema.anyOf.some((s) => accepts(value, s, schemas)))
-    return false;
-  if (
-    schema.oneOf &&
-    schema.oneOf.filter((s) => accepts(value, s, schemas)).length !== 1
-  )
-    return false;
-  if (value === null) return schema.nullable === true || !schema.type;
-  if (schema.type === "object") {
-    if (typeof value !== "object" || Array.isArray(value)) return false;
-    if (schema.required?.some((k) => !Object.hasOwn(value, k))) return false;
-    if (
-      schema.minProperties !== undefined &&
-      Object.keys(value).length < schema.minProperties
-    )
-      return false;
-    if (
-      schema.additionalProperties === false &&
-      Object.keys(value).some((k) => !Object.hasOwn(schema.properties ?? {}, k))
-    )
-      return false;
-  }
-  if (
-    schema.properties &&
-    value &&
-    typeof value === "object" &&
-    !Array.isArray(value)
-  )
-    for (const [key, s] of Object.entries(schema.properties))
-      if (Object.hasOwn(value, key) && !accepts(value[key], s, schemas))
-        return false;
-  if (schema.type === "array") {
-    if (
-      !Array.isArray(value) ||
-      value.length < (schema.minItems ?? 0) ||
-      value.length > (schema.maxItems ?? Infinity)
-    )
-      return false;
-    if (
-      schema.uniqueItems &&
-      new Set(value.map((x) => JSON.stringify(x))).size !== value.length
-    )
-      return false;
-    if (value.some((v) => !accepts(v, schema.items, schemas))) return false;
-  }
-  if (schema.type === "string") {
-    if (typeof value !== "string" || value.length < (schema.minLength ?? 0))
-      return false;
-    if (schema.pattern && !new RegExp(schema.pattern).test(value)) return false;
-    if (
-      schema.format === "uuid" &&
-      !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value)
-    )
-      return false;
-    if (schema.format === "date" && !isCalendarDate(value)) return false;
-    if (
-      schema.format === "date-time" &&
-      (!value.endsWith("Z") || !Number.isFinite(Date.parse(value)))
-    )
-      return false;
-  }
-  if (schema.type === "boolean" && typeof value !== "boolean") return false;
-  if (
-    ["number", "integer"].includes(schema.type) &&
-    (typeof value !== "number" ||
-      !Number.isFinite(value) ||
-      value < (schema.minimum ?? -Infinity) ||
-      value > (schema.maximum ?? Infinity) ||
-      (schema.multipleOf && !Number.isInteger(value / schema.multipleOf)) ||
-      (schema.type === "integer" && !Number.isInteger(value)))
-  )
-    return false;
-  return true;
-}
 
 test("complete G1 JSON fixtures validate runtime requests, OpenAPI responses and generated TypeScript consumers", async () => {
   const markdown = await readFile(
@@ -190,11 +109,16 @@ test("complete G1 JSON fixtures validate runtime requests, OpenAPI responses and
       false,
       "OpenAPI must reject invalid shape/value/kind/cardinality",
     );
-  const evidence = resolve(
+  await typecheckConsumer("g1-fixtures", typed.join("\n"));
+});
+
+async function typecheckConsumer(name, source) {
+  const runs = resolve(
     root,
-    ".agent-runs/MKW-PRODUCT-001/task5-attendance/contract-consumer",
+    ".agent-runs/MKW-PRODUCT-001/task5-fix-r1/contract-consumer",
   );
-  await mkdir(evidence, { recursive: true });
+  await mkdir(runs, { recursive: true });
+  const evidence = await mkdtemp(resolve(runs, name + "-"));
   const path = resolve(evidence, "fixture-consumer.ts");
   const generated = relative(
     evidence,
@@ -202,7 +126,7 @@ test("complete G1 JSON fixtures validate runtime requests, OpenAPI responses and
   ).replaceAll("\\", "/");
   await writeFile(
     path,
-    `import type { components } from "${generated}";\n${typed.join("\n")}\n// @ts-expect-error unknown operation discriminator\nconst bad: components["schemas"]["WriteAttendanceDto"] = { operation: {type: "invented"} };\nvoid bad;\n`,
+    `import type { components } from "${generated}";\n${source}\n`,
   );
   const result = await command(
     process.platform === "win32" ? "pnpm.exe" : "pnpm",
@@ -226,6 +150,234 @@ test("complete G1 JSON fixtures validate runtime requests, OpenAPI responses and
   assert.equal(
     result.code,
     0,
-    "Complete JSON fixtures must typecheck against generated web contract; see retained typecheck.log",
+    `Generated consumer ${name}: ${result.output} (retained ${evidence})`,
+  );
+}
+
+test("reconcile requires both typed arrays while either array may supply the nonempty request", async () => {
+  const schemas = (await createDocument()).components.schemas;
+  const employeeId = "00000000-0000-4000-8000-000000000101";
+  const key = { employeeId, date: "2026-10-20", kind: "work" };
+  const positives = [
+    { employeeIds: [employeeId], cells: [] },
+    { employeeIds: [], cells: [key] },
+    { employeeIds: [employeeId], cells: [key] },
+  ];
+  const negatives = [
+    {},
+    { employeeIds: [employeeId] },
+    { cells: [key] },
+    { employeeIds: 123, cells: [key] },
+    { employeeIds: [123], cells: [] },
+    { employeeIds: [employeeId], cells: 123 },
+    { employeeIds: [employeeId], cells: [123] },
+    { employeeIds: null, cells: [key] },
+    { employeeIds: [employeeId], cells: null },
+  ];
+  for (const input of positives) {
+    assert.deepEqual(parseReconcile(input), input);
+    assert.equal(accepts(input, schemas.ReconcileRequestDto, schemas), true);
+  }
+  for (const input of [...negatives, { employeeIds: [], cells: [] }]) {
+    assert.throws(() => parseReconcile(input));
+    assert.equal(accepts(input, schemas.ReconcileRequestDto, schemas), false);
+  }
+  await typecheckConsumer(
+    "i1-reconcile",
+    [
+      'type Request = components["schemas"]["ReconcileRequestDto"];',
+      "export function count(request: Request) { return request.cells.length + request.employeeIds.length; }",
+      ...positives.map(
+        (input) => `(${JSON.stringify(input)}) satisfies Request;`,
+      ),
+      ...negatives.map(
+        (input, i) =>
+          `// @ts-expect-error missing array or incorrect array/item type ${i}\n(${JSON.stringify(input)}) satisfies Request;`,
+      ),
+    ].join("\n"),
+  );
+});
+
+test("write operation branches reject forbidden fields with otherwise complete valid requests", async () => {
+  const schemas = (await createDocument()).components.schemas;
+  const employeeId = "00000000-0000-4000-8000-000000000101";
+  const base = {
+    month: "2026-10",
+    expectedEmployees: [{ employeeId, expectedRevision: "employee-r1" }],
+    targets: [
+      { employeeId, date: "2026-10-20", kind: "work", expectedRevision: "0" },
+    ],
+  };
+  const source = { ...base.targets[0], date: "2026-10-19" };
+  const value = { type: "set-value", mode: "replace", value: null };
+  const reminder = { type: "set-reminder", reminder: false };
+  const patch = { type: "patch-cell", patch: { value: null, reminder: true } };
+  const positives = [
+    { ...base, operation: value },
+    {
+      ...base,
+      operation: { ...value, value: { type: "number", value: 1.5 } },
+      source,
+    },
+    { ...base, operation: reminder },
+    { ...base, operation: patch },
+    { ...base, operation: { type: "patch-cell", patch: { reminder: false } } },
+    { ...base, operation: { type: "patch-cell", patch: { value: null } } },
+  ];
+  // Each negative changes only the named field from a valid complete request.
+  const negatives = [
+    ["reminder value", { ...base, operation: { ...reminder, value: null } }],
+    [
+      "reminder patch",
+      { ...base, operation: { ...reminder, patch: { value: null } } },
+    ],
+    ["reminder source", { ...base, operation: reminder, source }],
+    [
+      "reminder incomplete source",
+      { ...base, operation: reminder, source: { kind: "work" } },
+    ],
+    ["patch value", { ...base, operation: { ...patch, value: null } }],
+    ["patch source", { ...base, operation: patch, source }],
+    [
+      "patch incomplete source",
+      { ...base, operation: patch, source: { kind: "work" } },
+    ],
+    [
+      "value patch",
+      { ...base, operation: { ...value, patch: { value: null } } },
+    ],
+    ["value reminder", { ...base, operation: { ...value, reminder: true } }],
+    ["reminder mode", { ...base, operation: { ...reminder, mode: "replace" } }],
+    ["patch mode", { ...base, operation: { ...patch, mode: "replace" } }],
+    ["unknown discriminator", { ...base, operation: { type: "invented" } }],
+    ["unknown root", { ...base, operation: reminder, extra: true }],
+    ...[null, {}, "source", 1, true].flatMap((source) => [
+      ["reminder invalid source", { ...base, operation: reminder, source }],
+      ["patch invalid source", { ...base, operation: patch, source }],
+    ]),
+  ];
+  for (const input of positives) {
+    assert.deepEqual(parseWrite(input), input);
+    assert.equal(accepts(input, schemas.WriteAttendanceDto, schemas), true);
+  }
+  for (const [name, input] of negatives) {
+    assert.throws(() => parseWrite(input), name);
+    assert.equal(
+      accepts(input, schemas.WriteAttendanceDto, schemas),
+      false,
+      name,
+    );
+  }
+  // Recursive unknown-field enforcement is a runtime/OpenAPI guarantee;
+  // TypeScript's structural types do not make arbitrary nested objects exact.
+  const unknownTarget = {
+    ...base,
+    operation: reminder,
+    targets: [{ ...base.targets[0], extra: true }],
+  };
+  assert.throws(() => parseWrite(unknownTarget));
+  assert.equal(
+    accepts(unknownTarget, schemas.WriteAttendanceDto, schemas),
+    false,
+  );
+  await typecheckConsumer(
+    "i2-write",
+    [
+      'type Request = components["schemas"]["WriteAttendanceDto"];',
+      ...positives.map(
+        (input) => `(${JSON.stringify(input)}) satisfies Request;`,
+      ),
+      ...negatives.map(
+        ([name, input]) =>
+          `// @ts-expect-error ${name}\n(${JSON.stringify(input)}) satisfies Request;`,
+      ),
+    ].join("\n"),
+  );
+});
+
+test("contextual work and overtime values retain bounds, absence, null and source kind constraints", async () => {
+  const schemas = (await createDocument()).components.schemas;
+  const employeeId = "00000000-0000-4000-8000-000000000101";
+  const typed = [];
+  for (const [kind, valid, invalid] of [
+    [
+      "work",
+      [
+        null,
+        { type: "absence" },
+        ...[0, 0.5, 30].map((value) => ({ type: "number", value })),
+      ],
+      [30.5, 3.25, -0.5].map((value) => ({ type: "number", value })),
+    ],
+    [
+      "overtime",
+      [null, ...[0.5, 24].map((value) => ({ type: "number", value }))],
+      [
+        { type: "absence" },
+        ...[0, 24.5, 3.25].map((value) => ({ type: "number", value })),
+      ],
+    ],
+  ]) {
+    const base = {
+      month: "2026-10",
+      expectedEmployees: [{ employeeId, expectedRevision: "employee-r1" }],
+      targets: [
+        { employeeId, date: "2026-10-20", kind, expectedRevision: "0" },
+      ],
+    };
+    for (const type of ["set-value", "patch-cell"]) {
+      for (const [values, allowed] of [
+        [valid, true],
+        [invalid, false],
+      ]) {
+        for (const value of values) {
+          const operation =
+            type === "set-value"
+              ? { type, value, mode: "replace" }
+              : { type, patch: { value, reminder: true } };
+          const input = { ...base, operation };
+          assert.deepEqual(parseWrite(input), input);
+          assert.equal(
+            accepts(input, schemas.WriteAttendanceDto, schemas),
+            allowed,
+            `${kind}/${type}/${JSON.stringify(value)}`,
+          );
+          if (allowed) {
+            assert.doesNotThrow(() => normalizeValue(kind, value));
+            typed.push(`(${JSON.stringify(input)}) satisfies Request;`);
+          } else assert.throws(() => normalizeValue(kind, value));
+        }
+      }
+    }
+    const reminder = {
+      ...base,
+      operation: { type: "set-reminder", reminder: true },
+    };
+    assert.deepEqual(parseWrite(reminder), reminder);
+    assert.equal(accepts(reminder, schemas.WriteAttendanceDto, schemas), true);
+    typed.push(`(${JSON.stringify(reminder)}) satisfies Request;`);
+    const mixedSource = {
+      ...base,
+      operation: {
+        type: "set-value",
+        value: { type: "number", value: 1 },
+        mode: "fill-empty",
+      },
+      source: {
+        ...base.targets[0],
+        date: "2026-10-19",
+        kind: kind === "work" ? "overtime" : "work",
+      },
+    };
+    assert.throws(() => parseWrite(mixedSource));
+    assert.equal(
+      accepts(mixedSource, schemas.WriteAttendanceDto, schemas),
+      false,
+    );
+  }
+  await typecheckConsumer(
+    "contextual-values",
+    'type Request = components["schemas"]["WriteAttendanceDto"];\n' +
+      typed.join("\n"),
   );
 });

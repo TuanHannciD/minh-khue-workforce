@@ -3,7 +3,7 @@ import {
   ApiPropertyOptional,
   getSchemaPath,
 } from "@nestjs/swagger";
-import type { SchemaObject } from "@nestjs/swagger";
+import type { ApiPropertyOptions, SchemaObject } from "@nestjs/swagger";
 import { EmployeeDto } from "../employees/index.js";
 import type { CellValue } from "./attendance.types.js";
 
@@ -79,7 +79,16 @@ export class SetValueWriteDto extends WriteBaseDto {
   @ApiPropertyOptional({ type: CellExpectationDto })
   source?: CellExpectationDto;
 }
+// OpenAPI 3.0 has no false schema. This impossible intersection represents a
+// forbidden optional property and generates never. Explicit exclusion also
+// prevents TS union excess-property checks from borrowing source from set-value
+// when the discriminator lives inside operation rather than at the root.
+const forbiddenSource = {
+  type: "string",
+  allOf: [{ type: "string" }, { type: "number" }],
+} satisfies ApiPropertyOptions;
 export class SetReminderWriteDto extends WriteBaseDto {
+  @ApiPropertyOptional(forbiddenSource) source?: never;
   @ApiProperty({ type: [CellExpectationDto], minItems: 1, maxItems: 1 })
   declare targets: CellExpectationDto[];
   @ApiProperty({
@@ -92,6 +101,7 @@ export class SetReminderWriteDto extends WriteBaseDto {
   operation!: SetReminderOperationDto;
 }
 export class PatchCellWriteDto extends WriteBaseDto {
+  @ApiPropertyOptional(forbiddenSource) source?: never;
   @ApiProperty({ type: [CellExpectationDto], minItems: 1, maxItems: 1 })
   declare targets: CellExpectationDto[];
   @ApiProperty({
@@ -145,20 +155,32 @@ export const writeAttendanceSchema: SchemaObject = {
                   properties: { kind: { type: "string", enum: [kind] } },
                 },
               },
-              source: {
-                type: "object",
-                properties: { kind: { type: "string", enum: [kind] } },
-              },
-              operation: {
-                type: "object",
-                properties: {
-                  value: contextualValue,
-                  patch: {
-                    type: "object",
-                    properties: { value: contextualValue },
-                  },
-                },
-              },
+              ...(c === SetValueWriteDto
+                ? {
+                    source: {
+                      type: "object" as const,
+                      properties: {
+                        kind: { type: "string" as const, enum: [kind] },
+                      },
+                    },
+                  }
+                : {}),
+              ...(c !== SetReminderWriteDto
+                ? {
+                    operation: {
+                      type: "object" as const,
+                      properties:
+                        c === SetValueWriteDto
+                          ? { value: contextualValue }
+                          : {
+                              patch: {
+                                type: "object" as const,
+                                properties: { value: contextualValue },
+                              },
+                            },
+                    },
+                  }
+                : {}),
             },
           },
         ],
