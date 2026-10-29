@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Gate hiện hành — Task6 review độc lập đạt, 29/10/2026
+
+Review R2 tại `4257a7bb2ef6cc1a89ffa6885705127fcbd50982`: I1/M1 Closed, spec/quality/UI Approved, không regression mới. Final product39 tooling/77 web/13 API, docs58; editor giữ raw/reminder/identity qua loading/error, YAML audit607 keys cũ +106 thêm =713 và không mất key. Reports ignored `task-6-review-r1.md`, `task-6-fix-r1.md`, `task-6-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Browser fixture UI không chứng minh lưu thật; nondefault native zoom/device/SR còn Not run. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task7 query/draft/persistence/recovery theo kế hoạch; full AC12/13/15 và Linux/TLS/operator thật chưa được suy đạt. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
+
 ## Task6 — sửa review R1, chờ main fresh exact-tip re-review
 
 Base sửa `39f7660f4aff7f7dc065fdb8a21c999f858e043e`, cùng worktree/branch, single writer Sol/high, không agent con hoặc Task7+. I1 giữ editor subtree, raw/custom/reminder/identity/baseline qua loading/error ở Page và preview; snapshot hồi phục đổi/thiếu giữ phần nhập và chặn intent, không triển khai recovery/persistence. M1 parse hai YAML documents:607 package keys cũ giữ nguyên,106 thêm thành713; sửa tally676/107 sai và giữ log lịch sử.

@@ -193,7 +193,12 @@ Checkpoint29/10/2026: implementation và local checks đã có, chưa independen
 - [ ] Viết parser assertions `3,5`/`3.5` cùng3.5, hiển thị3,5;3,25/3.25 lỗi nguyên raw; công0/0,0/0.0→F, trần hai loại riêng. Grid test F/trống/N/—, tổng/ngày/thứ tháng nhuận; empty/error/loading khác nhau, nhãn cell có người/ngày/loại và nhắc không chỉ bằng màu.
 - [ ] Chạy unit/component RED; triển khai tokens lấy từ HTML C hiện hành, shadcn Radix đã pin; không copy toàn script HTML hoặc thay hướng thẩm mỹ. Bảng semantic, sticky tên/ngày, một bảng Công/Tăng ca, editor nhận diện đúng ô và Lưu/Hủy, chế độ mở rộng trong trang giữ browser zoom.
 - [ ] Chạy GREEN + browser component states 375/728/1200 và desktop keyboard/focus/contrast/overflow, tên dài/trùng tên/tháng ít ngày; Enter/Tab chuyển đúng ô hợp lệ, không trap focus. UI form/login cùng token; áp dụng Impeccable và UI UX Pro Max cho màn hình chưa dựng theo ngôn ngữ C, không khảo sát lại thiết kế đã duyệt.
-- [ ] Review UI/code snapshot và commit `feat: render approved monthly attendance interface`. Mock component tests chỉ chứng minh lớp UI; chưa claim lưu thật hoặc trusted touch.
+- [x] Review UI/code snapshot và commit `feat: render approved monthly attendance interface`. Mock component tests chỉ chứng minh lớp UI; chưa claim lưu thật hoặc trusted touch.
+
+
+## Gate hiện hành — Task6 review độc lập đạt, 29/10/2026
+
+Review R2 tại `4257a7bb2ef6cc1a89ffa6885705127fcbd50982`: I1/M1 Closed, spec/quality/UI Approved, không regression mới. Final product39 tooling/77 web/13 API, docs58; editor giữ raw/reminder/identity qua loading/error, YAML audit607 keys cũ +106 thêm =713 và không mất key. Reports ignored `task-6-review-r1.md`, `task-6-fix-r1.md`, `task-6-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Browser fixture UI không chứng minh lưu thật; nondefault native zoom/device/SR còn Not run. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task7 query/draft/persistence/recovery theo kế hoạch; full AC12/13/15 và Linux/TLS/operator thật chưa được suy đạt. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
 
 ### Task 7: Query, draft và lưu thật không mất dữ liệu
 

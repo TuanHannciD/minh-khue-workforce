@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## Gate hiện hành — Task6 review độc lập đạt, 29/10/2026
+
+Review R2 tại `4257a7bb2ef6cc1a89ffa6885705127fcbd50982`: I1/M1 Closed, spec/quality/UI Approved, không regression mới. Final product39 tooling/77 web/13 API, docs58; editor giữ raw/reminder/identity qua loading/error, YAML audit607 keys cũ +106 thêm =713 và không mất key. Reports ignored `task-6-review-r1.md`, `task-6-fix-r1.md`, `task-6-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Browser fixture UI không chứng minh lưu thật; nondefault native zoom/device/SR còn Not run. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task7 query/draft/persistence/recovery theo kế hoạch; full AC12/13/15 và Linux/TLS/operator thật chưa được suy đạt. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
+
 ## Task6 — fix review R1, 29/10/2026
 
 Base sửa `39f7660f4aff7f7dc065fdb8a21c999f858e043e`; cwd duy nhất `.worktrees/agent-bootstrap`, branch `agent/mkw-agent-002`; writer gpt-6.1-sol/high tuần tự, không agent con. Full tip sau commit trong ignored report `.superpowers/sdd/implementation-plan/task-6-fix-r1.md`. Main sở hữu independent exact-tip re-review; chưa independent PASS, dừng trước Task7. Evidence mới `.agent-runs/MKW-PRODUCT-001/task6-fix-r1/`; các checkpoint Task6 gốc bên dưới được giữ cùng corrections rõ ràng.
