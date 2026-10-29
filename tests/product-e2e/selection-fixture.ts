@@ -24,7 +24,7 @@ export async function selectionFixture(s, browser, options = {}) {
     ).toBeVisible();
     await page.getByLabel("Tháng chấm công").fill("2026-10");
   }
-  const sql = await openSandboxTarget(s.targetFile, "task8-selection");
+  const sql = await openSandboxTarget(s.targetFile, s.alias);
   const writes = [];
   pages[0].on("request", (r) => {
     if (r.url().endsWith("/attendance/changes")) writes.push(r.postDataJSON());

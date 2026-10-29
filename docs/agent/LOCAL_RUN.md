@@ -1,5 +1,38 @@
 # Chạy tooling và pilot local
 
+## Acceptance và benchmark Task10
+
+Task10 dùng cùng portable product Node24.22.1/pnpm12.15.0 ở shell process-only; không `npm install`/`npm ci` trên pnpm links. Target owner `MKW-PRODUCT-001/Task10`, alias `task10-acceptance`, role `mkw_task10`, data `.agent-runs/MKW-PRODUCT-001/task10-acceptance/pg-data`, PostgreSQL17.11 loopback port63771 trong `cluster-owner.json`. Cluster hiện **stopped**, DB/evidence retained. Trước reacquire kiểm exact owner record/path/port/executable/-D/PID; sau start phải kiểm actual server identity qua allowlist, không reset/init/drop cluster hoặc DB cũ. Các lệnh sau cần cluster đã reacquire đúng identity; không tự khởi động target từ record chưa xác minh.
+
+```powershell
+$taskRuntime=(Resolve-Path '.agent-runs/MKW-PRODUCT-001/task2-toolchain').Path
+$env:Path="$taskRuntime/node-v24.22.1-win-x64;$taskRuntime/pnpm-native/package;"+$env:Path
+$env:PLAYWRIGHT_BROWSERS_PATH='0'
+$env:MKW_PRODUCT_CLUSTER_OWNER=(Resolve-Path '.agent-runs/MKW-PRODUCT-001/task10-acceptance/cluster-owner.json').Path
+$env:MKW_ATTENDANCE_CLUSTER_OWNER=$env:MKW_PRODUCT_CLUSTER_OWNER
+pnpm install --frozen-lockfile
+pnpm run product:check
+pnpm run product:test:e2e
+# Scoped acceptance/calendar only:
+node scripts/product/e2e.mjs --acceptance-only
+# Harness prerequisite regression, không cần cluster đang chạy:
+node --test tests/product-e2e/benchmark-failure.test.mjs
+# T3 sandbox riêng, không log/trace login secrets:
+node scripts/product/e2e.mjs --serve --acceptance
+# Full20/200/1000 benchmark; exit1 nếu target vượt budget:
+pnpm run product:benchmark
+# Affected target; giữ budget, không dùng để claim full benchmark:
+pnpm run product:benchmark -- --sizes=200,1000
+```
+
+`product:test:e2e` nay chọn full acceptance→two-sessions→recovery/export, reuse suites đã duyệt với DB `mkw_acceptance_<uuid>` mới riêng mỗi suite. `playwright.product.config.ts` là policy được coordinator import; không chạy `playwright test -c` vì modules export functions và secrets chỉ memory trong cùng process, không worker config/trace/storageState file. Runtime evidence ghi browser/version/origins/target path an toàn. PostgreSQL integration dùng sáu files auth/employees/attendance/concurrency/fixtures/target (exact command tại [validation](../tasks/MKW-PRODUCT-001/validation.md)); export snapshot dùng `$env:MKW_PRODUCT_ACCEPTANCE='1'; pnpm --filter @mkw/api test:export`, rồi `Remove-Item Env:MKW_PRODUCT_ACCEPTANCE` trong shell đó.
+
+Benchmark dùng production build hiện tại (chạy `product:build` nếu source thay đổi),20/200/1.000 người ×31days×2kinds, cùng máy/browser và distribution. `--sizes=20,200,1000` giới hạn approved sizes; mỗi invocation ghi `benchmark-run-<uuid>.json`. `--profile` cần retained `benchmark-measured.json`, giữ API/interaction/scroll samples từ file này và đo lại render/heap/CPU; không phải full timing rerun. Không rename/ghi đè evidence cũ. Task10 canonical combined result `benchmark-final.json` giữ provenance và failures200 scroll/1.000 editor/input/scroll/freeze; API/load/heap đạt. Bundle573.04kB warning không thay đo. Scope/method/raw metrics tại validation/matrix, không hạ G1 budgets.
+
+Serve dừng qua ghi `stop` vào exact run `stop.request`; coordinator finally rotate hai fixture passwords/revoke sessions/close HTTP và pools. Kiểm per-run `fixture-invalidated.json`/`http-released.json`, target identity trước own PG stop; giữ DB/evidence. Task10 audit29 DBs/58 rotations/0 unrevoked/all HTTP closed, T3 tab/PG released (`resource-release-final.json`). Không stop PID/cluster ngoài ownership. Historical negative-target fixture preservation exception được ghi tại validation; tests hiện dùng unique output directories.
+
+T3 Chrome154 Windows desktop/mobile viewport đã kiểm keyboard/focus/error/loading/empty/long names/contrast/sticky/save+reload; **không thiết bị thật**. iPhone/Android model/OS/native gesture/zoom/rotation, phone benchmark và SR runtime/announcements **Not run**, G3 chưa đạt. Excel16.0.20527.20088 COM evidence Task9 giữ nguyên, interactive UI/reader khác chưa có. Không suy lệnh exit0 thành sản phẩm Done hoặc quyền deploy/Task11.
+
 ## Sandbox Excel Task9
 
 Task9 có API export thật `/api/v1/attendance/export?month=YYYY-MM` và nút tải dữ liệu đã lưu, không auto-save draft. Dùng shell product process-only Node24.22.1/pnpm12.15.0 như bên dưới; cluster mới owner `MKW-PRODUCT-001/Task9`, alias `task9-export`, role `mkw_task9`, loopback port ghi trong `.agent-runs/MKW-PRODUCT-001/task9-export/cluster-owner.json`, data `task9-export/pg-data`, PostgreSQL17.11. Đã release khi handoff; chỉ reacquire sau kiểm record/path/port/process và actual identity, không reset/drop hoặc dùng cluster khác.

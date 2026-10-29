@@ -13,7 +13,7 @@ export default [
   { ignores: ['**/dist/**', '**/coverage/**', '.agent-runs/**', '.superpowers/**', '.pnpm-store/**', '**/generated/**'] },
   js.configs.recommended,
   { files: ['**/*.mjs', '**/*.js'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
-  ...tseslint.configs.recommended.map((config) => ({ ...config, files: ['apps/**/*.ts', 'apps/**/*.tsx', 'tests/product-e2e/**/*.ts'] })),
+  ...tseslint.configs.recommended.map((config) => ({ ...config, files: ['apps/**/*.ts', 'apps/**/*.tsx', 'tests/product-e2e/**/*.ts', 'playwright.product.config.ts'] })),
   { files: ['tests/product-e2e/**/*.ts'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
   {
     files: ['apps/**/*.ts', 'apps/**/*.tsx'],

@@ -4,11 +4,47 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { openSandboxTarget } from "../../scripts/product/sandbox-target.mjs";
 
-test("Task9 export sandbox rejects crossed owner/role/database/path/host and accepts only enrolled fake identity", async () => {
-  const directory = resolve(
-    ".agent-runs/MKW-PRODUCT-001/task9-export/enrollment",
+test("Task10 accepts only its own fake target before connecting", async () => {
+  const directory = await mkdtemp(
+    resolve(".agent-runs/MKW-PRODUCT-001/task10-enrollment-"),
   );
-  await mkdir(directory, { recursive: true });
+  const target = {
+    owner: "MKW-PRODUCT-001/Task10",
+    scope: "fake-sandbox",
+    alias: "task10-acceptance",
+    host: "127.0.0.1",
+    port: 1,
+    user: "mkw_task10",
+    database: "mkw_acceptance_abc",
+    dataDirectory: resolve(
+      ".agent-runs/MKW-PRODUCT-001/task10-acceptance/pg-data",
+    ),
+  };
+  const file = resolve(directory, "valid.json");
+  await writeFile(file, JSON.stringify(target));
+  await assert.rejects(openSandboxTarget(file, target.alias), /ECONNREFUSED/);
+  for (const patch of [
+    { owner: "MKW-PRODUCT-001/Task9" },
+    { scope: "live" },
+    { alias: "task9-export" },
+    { host: "localhost" },
+    { user: "postgres" },
+    { database: "mkw_export_abc" },
+    { dataDirectory: resolve("other-data") },
+  ]) {
+    const invalid = resolve(directory, `${Object.keys(patch)[0]}.json`);
+    await writeFile(invalid, JSON.stringify({ ...target, ...patch }));
+    await assert.rejects(
+      openSandboxTarget(invalid, target.alias),
+      /outside the authorized allowlist/,
+    );
+  }
+});
+
+test("Task9 export sandbox rejects crossed owner/role/database/path/host and accepts only enrolled fake identity", async () => {
+  const directory = await mkdtemp(
+    resolve(".agent-runs/MKW-PRODUCT-001/task10-acceptance/enrollment-task9-"),
+  );
   const target = {
     owner: "MKW-PRODUCT-001/Task9",
     scope: "fake-sandbox",
@@ -48,10 +84,9 @@ test("Task9 export sandbox rejects crossed owner/role/database/path/host and acc
 });
 
 test("Task8 enrollment accepts only its own fake target shape before attempting a connection", async () => {
-  const directory = resolve(
-    ".agent-runs/MKW-PRODUCT-001/task8-selection/enrollment",
+  const directory = await mkdtemp(
+    resolve(".agent-runs/MKW-PRODUCT-001/task10-acceptance/enrollment-task8-"),
   );
-  await mkdir(directory, { recursive: true });
   const file = resolve(directory, "valid-shape.json");
   const target = {
     owner: "MKW-PRODUCT-001/Task8",

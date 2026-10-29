@@ -20,6 +20,8 @@ export const origin = "http://127.0.0.1:5173";
 const normalized = (p) => resolve(p).replaceAll("\\", "/").toLowerCase();
 export async function openAttendanceTarget(recordPath) {
   const target = JSON.parse(await readFile(recordPath, "utf8"));
+  if (target.alias === "task10-acceptance")
+    return openSandboxTarget(recordPath, target.alias);
   if (target.alias === "task7-persistence")
     return openSandboxTarget(recordPath, "task7-persistence");
   if (
@@ -61,12 +63,15 @@ export async function attendanceSandbox() {
   const cluster = await openAttendanceTarget(
     process.env.MKW_ATTENDANCE_CLUSTER_OWNER,
   );
+  const task10 = cluster.target.alias === "task10-acceptance";
   const task7 = cluster.target.alias === "task7-persistence";
-  const database = `${task7 ? "mkw_persistence" : "mkw_attendance"}_${randomUUID().replaceAll("-", "_")}`;
+  const database = `${task10 ? "mkw_acceptance" : task7 ? "mkw_persistence" : "mkw_attendance"}_${randomUUID().replaceAll("-", "_")}`;
   const evidence = resolve(
-    task7
-      ? resolve(root, ".agent-runs/MKW-PRODUCT-001/task7-persistence")
-      : evidenceRoot,
+    task10
+      ? resolve(root, ".agent-runs/MKW-PRODUCT-001/task10-acceptance")
+      : task7
+        ? resolve(root, ".agent-runs/MKW-PRODUCT-001/task7-persistence")
+        : evidenceRoot,
     database,
   );
   const targetFile = resolve(evidence, "target.json");

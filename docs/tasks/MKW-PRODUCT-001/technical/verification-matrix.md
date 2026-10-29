@@ -1,5 +1,41 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Checkpoint Task10 — bằng chứng từng lớp, G3 chưa đạt, 29/10/2026
+
+Nguồn budget G1 đã duyệt vẫn binding; các chữ Proposed/Not run ở checkpoint thiết kế bên dưới là lịch sử. Evidence root `.agent-runs/MKW-PRODUCT-001/task10-acceptance/`; commands/runtime/metric chi tiết tại [validation](../validation.md). V = Verified đúng lớp, NR = Not run. Không suy V API/unit thành V thiết bị hoặc toàn sản phẩm. Main exact-range independent review Pending; Task10 **DONE_WITH_CONCERNS**.
+
+| AC | Unit/component/contract | API + PostgreSQL thật | Built web + SQL/reload | Device/reader và giới hạn |
+| --- | --- | --- | --- | --- |
+| 01 | V auth | V hai account/401/quyền/reset | V hai browser contexts/anonymous401 | Desktop Chromium156; T3 Chrome154 |
+| 02 | V kind/totals | V số công/giờ độc lập | V lưu/reload/new SQL pool | Desktop |
+| 03 | V reminder/editor/export | V atomic value+reminder/totals | V reload/export và source/destination giữ nhắc | Excel engine Task9 V |
+| 04 | V F/blank/N/— | V values/totals | V UI/SQL/xlsx typed cells | Excel engine Task9 V |
+| 05 | V interval | V selected startDate | V form15/10,14 N,15 trống; không createAt | Desktop |
+| 06 | V interval | V end inclusive/history | V form20/10 editable,21 —,11 vắng,10 giữ | Desktop |
+| 07 | V Gregorian/weekday/totals | V28/29/30/31,1900/2000 | V API+rendered day counts và SQL totals | Desktop |
+| 08 | V keyboard/sticky/input models | Không riêng assertion API | V Enter/Tab, sticky hai chiều/in-page expanded | iPhone/Android native pan/pinch/zoom/rotation NR; AC chưa đủ |
+| 09 | V workbook/formulas/caches | V closed snapshot/auth/export | V browser download/draft không ghi | V Microsoft Excel16.0.20527.20088 COM edit/recalc Task9; interactive UI/reader khác NR |
+| 10 | V unknown/no-op/reconcile | V barrier/fence/explicit ID | V loss-after-commit/draft/no auto retry/SQL | Desktop, delivery-only fault |
+| 11 | V quick/custom/parser | V decimal/limits | V raw3,25 giữ/no request/3,5 lưu | Desktop |
+| 12 | V conflict/draft | V two-connection barrier | V hai sessions stale409/current/SQL | Desktop Chromium156 |
+| 13 | V bulk/fill | V atomic rollback | V stale target/source từ chối toàn batch, mode/raw giữ | Desktop |
+| 14 | V zero/F/parser | V work0→F/overtime/no-op | V0,0→absence SQL; fill/replace/reminder | Desktop |
+| 15 | V form validation | V both-order race/all-month excluded data | V form/recovery interval rejection+readback | Desktop |
+| 16 | V work bound/raw | V29.5/30,30.5/31 rejection,month total>30 | V30 lưu/30.5 không request/raw giữ | Desktop |
+| 17 | V overtime bound/raw | V23.5/24,24.5/25 rejection | V24 lưu/24.5 raw giữ/công độc lập | Desktop |
+| 18 | V comma/dot/no rounding | V numeric wire/string rejection | V3.5→3,5,3,25 unchanged/error | Desktop |
+| 19 | V auth boundary | V reset/revoke fixture, no public reset route | Fixture release V | Runbook/operator rehearsal Task11 NR; toàn AC chưa đủ |
+| 20 | V controlled15000ms/refocus/epoch | V expired/revoked/auth | V polling giữ baseline/raw, response loss/reauth/recovery | Desktop; SR announcements NR |
+| 21 | V disjoint/union/keyboard | V exact target batch/SQL | V mouse/keyboard/dedupe/release no-write | Native touch NR; AC chưa đủ |
+| 22 | V repeat fill/source/cancel | V source CAS/no-op fence | V forward number/backward F/overtime/reminders/source conflict | Native touch NR; AC chưa đủ |
+| 23 | V449/450ms,10/11px/lifecycle | V Apply persistence | V mouse + synthetic TouchEvent/multitouch/cancel/edge-scroll | Trusted iPhone/Android gestures NR; AC chưa đủ |
+
+Accessibility: T3 Chrome154 actual keyboard/Tab/Enter/Escape/focus return, error aria-invalid/describedby/alert, loading503/retry, empty/long Unicode, computed composited contrast min5.42:1. SR runtime/version/actual announcement **NR**; Radix và static detector không thay evidence. Desktop1280×800/mobile viewport375×812 không là thiết bị thật. Windows10.0.26300/Node24.22.1/pnpm12.15.0/PG17.11; headless Playwright1.64.1 Chromium156.0.8078.4 riêng với T3 Chrome154.0.0.0.
+
+Performance G1: cùng máy Ryzen7 6800H/16 logical CPUs/RAM16387981312 bytes; production1280×800/loopback/no throttle,20/200/1.000 người ×31 ngày ×2 kinds =1.240/12.400/62.000 logical cells. Canonical `benchmark-final.json`: API p95=31.81/100.34/448.60ms; cold load p95=214.92/472.86/1676.05ms; editor p95=23.50/74.50/394.80ms; input p95=30.30/61.20/337.70ms; scroll p95=16.70/33.40/116.70ms, max16.80/83.30/416.70ms; heap growth8.2656859643/1.9638383667/0.1292530411%, không monotonic. Budget200/1.000: API≤500/1500ms, load≤2000/5000ms, editor/input≤100/150ms, scroll p95≤33ms/max≤200ms, heap≤20% không monotonic.20 API/load không budget riêng. **Failed200 scroll và1.000 editor/input/scroll/freeze**, còn API/load/heap đạt. Phone performance NR. Giữ exact raw samples/provenance, không lấy bundle warning573.04kB làm phép đo hoặc hạ budget.
+
+Profile1.000:102440 DOM nodes/31336 listeners sau GC; app samples AttendanceGrid/AttendanceCell/orderedMonthCells/React property updates, có cả automation/focus/layout overhead. Đề xuất review scoped subscription/projection/memoization, giữ draft owner/baseline/epoch/gesture invariants; chưa production fix/engine/virtualization. G3 còn Failed/NR, không product Done.
+
 Checkpoint hiện hành Task9 ở cuối tài liệu: workbook/API/auth/PG/browser download/T3 và Microsoft Excel desktop16.0.20527.20088 edit/recalc đã kiểm scoped; main independent review Pending. Các trạng thái trước giữ lịch sử, không thay evidence Task9 hoặc full matrix Task10.
 
 ## Checkpoint Task8 sửa R1, 29/10/2026

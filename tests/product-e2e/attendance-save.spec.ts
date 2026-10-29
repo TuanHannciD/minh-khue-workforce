@@ -46,7 +46,7 @@ export async function runAttendanceE2E(s, browser) {
       ).toBeVisible();
       await page.getByLabel("Tháng chấm công").fill("2026-10");
     }
-    independent = await openSandboxTarget(s.targetFile, "task7-persistence");
+    independent = await openSandboxTarget(s.targetFile, s.alias);
     const employeeResponse = await contexts[0].request.post(
       `${s.webOrigin}/api/v1/employees`,
       {

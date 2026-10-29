@@ -9,7 +9,10 @@ import { AttendanceService } from "../dist/modules/attendance/attendance.service
 import { pauseMethod } from "./attendance-test-client.mjs";
 
 test("authenticated export uses one read-only snapshot of names, both tables and cached totals during concurrent edit", async () => {
-  const s = await startSandbox({ exporting: true });
+  const s = await startSandbox({
+    exporting: true,
+    acceptance: process.env.MKW_PRODUCT_ACCEPTANCE === "1",
+  });
   try {
     const url = `${s.apiOrigin}/api/v1`;
     const login = await fetch(`${url}/auth/login`, {
