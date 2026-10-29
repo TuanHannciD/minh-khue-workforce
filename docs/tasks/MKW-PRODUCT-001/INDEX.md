@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Gate hiện hành — Task7 review độc lập đạt, 29/10/2026
+
+Review R2 tại `a7153b471d4f38cb39ff5533410e3f5252d293cd`: I1/M1 Closed, spec/quality Approved, không regression mới. Final product40 tooling/114 web/13 API và targeted web–API–PostgreSQL E2E/SQL readback đạt; recovery nhân sự giữ confirmed ID qua PATCH bị từ chối, Keep/Escape trả focus phù hợp. Reports ignored `task-7-review-r1.md`, `task-7-fix-r1.md`, `task-7-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Giữ giới hạn asset T3 theo từng assertion; không suy thành full matrix Task10. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task8 chọn rời/batch/fill/gesture; full AC, thiết bị/SR/native zoom/Linux/TLS/operator thật và benchmark còn Not run. Cảnh báo bundle hơn500kB tiếp tục theo dõi Task10. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
+
 ## Task7 sửa review R1 — chờ main fresh exact-tip re-review
 
 Base sửa `f077f92490358c7f4dc3df5943fb0041a88f84aa`, cùng worktree/branch, một writer Sol/high, không agent con hoặc sửa progress.md/primary. I1 giữ recovery provenance và confirmed ID qua PATCH422/400, chặn POST lại và resume create chưa gửi; raw/original baseline giữ, recovery cần fresh read/session epoch. M1 Keep/Escape trả focus opener khả dụng, giữ raw/ID/đơn vị và không giành focus đích discard/modal kế tiếp; tabs manual khi có draft để không mở lại guard khi trả focus. Giữ C/G1, không backend business/schema/contract hoặc Task8+.

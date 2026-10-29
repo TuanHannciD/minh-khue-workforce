@@ -211,7 +211,12 @@ Review R2 tại `4257a7bb2ef6cc1a89ffa6885705127fcbd50982`: I1/M1 Closed, spec/q
 - [ ] Viết `recovery_keep_current_sends_fencing_intent`, `reconcile_retains_employee_and_source_identity_after_month_exit`, `editor_save_commits_value_and_reminder_together` theo matrix ca6–9: read/abort/bỏ draft không hiện canceled/saved giả; eligible0/skip/source không fence; một Save đúng một request, Hủy0 request, validation/conflict không lưu nửa draft. PATCH mốc mất response đọc được ID ngoài tháng, missing giữ draft, không tự merge hoặc áp sang người khác. Employee form task4 dùng cùng reconcile recovery, create mất ID không retry theo tên.
 - [ ] Triển khai Query interval15.000ms chỉ khi màn hình hoạt động theo G1, query key theo tháng/phiên, draft state riêng, feedback pending/saved/error/conflict/reconciling; chưa optimistic update. Logout xóa cache, dừng polling; hết phiên giữ draft trong owner phiên hiện tại để xử lý an toàn, không persist nhạy cảm vào localStorage và không tự gửi lại sau đổi account.
 - [ ] Chạy GREEN unit và E2E web–API–DB: hai phiên1.5/2 công →phiên sau thấy1.5 và giữ2 draft; test giá trị/màu độc lập, API fail/timeout sau commit/reload. Readback độc lập chứng minh số/nhắc tồn tại; không dùng API mock thay E2E. Chạy browser trực tiếp theo BROWSER_TESTING.
-- [ ] Review state/transport/concurrency UI snapshot; commit `feat: save attendance while preserving local drafts`.
+- [x] Review state/transport/concurrency UI snapshot; commit `feat: save attendance while preserving local drafts`.
+
+
+## Gate hiện hành — Task7 review độc lập đạt, 29/10/2026
+
+Review R2 tại `a7153b471d4f38cb39ff5533410e3f5252d293cd`: I1/M1 Closed, spec/quality Approved, không regression mới. Final product40 tooling/114 web/13 API và targeted web–API–PostgreSQL E2E/SQL readback đạt; recovery nhân sự giữ confirmed ID qua PATCH bị từ chối, Keep/Escape trả focus phù hợp. Reports ignored `task-7-review-r1.md`, `task-7-fix-r1.md`, `task-7-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Giữ giới hạn asset T3 theo từng assertion; không suy thành full matrix Task10. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task8 chọn rời/batch/fill/gesture; full AC, thiết bị/SR/native zoom/Linux/TLS/operator thật và benchmark còn Not run. Cảnh báo bundle hơn500kB tiếp tục theo dõi Task10. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
 
 ### Task 8: Chọn rời, nhập vùng, fill và cảm ứng nhấn giữ
 

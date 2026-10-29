@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## Gate hiện hành — Task7 review độc lập đạt, 29/10/2026
+
+Review R2 tại `a7153b471d4f38cb39ff5533410e3f5252d293cd`: I1/M1 Closed, spec/quality Approved, không regression mới. Final product40 tooling/114 web/13 API và targeted web–API–PostgreSQL E2E/SQL readback đạt; recovery nhân sự giữ confirmed ID qua PATCH bị từ chối, Keep/Escape trả focus phù hợp. Reports ignored `task-7-review-r1.md`, `task-7-fix-r1.md`, `task-7-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Giữ giới hạn asset T3 theo từng assertion; không suy thành full matrix Task10. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task8 chọn rời/batch/fill/gesture; full AC, thiết bị/SR/native zoom/Linux/TLS/operator thật và benchmark còn Not run. Cảnh báo bundle hơn500kB tiếp tục theo dõi Task10. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
+
 ## Task7 — sửa review R1, 29/10/2026
 
 Implementation/self-review, **chưa independent PASS**. Base sửa `f077f92490358c7f4dc3df5943fb0041a88f84aa`; worktree duy nhất `agent-bootstrap`, branch `agent/mkw-agent-002`, một writer gpt-6.1-sol/high, không child/primary/progress.md. Full tip trong ignored `.superpowers/sdd/implementation-plan/task-7-fix-r1.md` sau local commit. Evidence prefix mới `.agent-runs/MKW-PRODUCT-001/task7-fix-r1/`. Windows, portable Node24.22.1/pnpm12.15.0 process-only; pilot22/dependencies/lock/generated/schema/backend business không đổi.
