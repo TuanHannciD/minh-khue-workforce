@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AttendancePage } from "./attendance-page";
 import { AttendanceDraft } from "../model/attendance-draft";
@@ -188,3 +194,80 @@ it("a held touch moved inside the same edge cell scrolls; stationary hold and Es
   expect(draft.edit).toBeNull();
   expect(submit).not.toHaveBeenCalled();
 });
+
+function dirtyTouch() {
+  vi.useFakeTimers();
+  const state = setup();
+  fireEvent.click(cell("02"));
+  act(() => state.draft.change({ raw: "3,25", custom: true }));
+  const touch = { identifier: 1, clientX: 2, clientY: 2 };
+  const target = cell("05");
+  fireEvent.touchStart(target, { touches: [touch], changedTouches: [touch] });
+  return { ...state, touch, target };
+}
+it("dirty touch arms only until450; exactly10px still guards then discard cannot replay the gesture", () => {
+  const { draft, submit, touch, target } = dirtyTouch();
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  fireEvent.touchMove(target, { touches: [{ ...touch, clientX: 12 }] });
+  act(() => vi.advanceTimersByTime(449));
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  expect(draft.edit?.raw).toBe("3,25");
+  act(() => vi.advanceTimersByTime(1));
+  expect(screen.getByRole("alertdialog")).toBeTruthy();
+  expect(draft.edit?.raw).toBe("3,25");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Bỏ phần nhập và tiếp tục" }),
+  );
+  fireEvent.touchMove(target, { touches: [{ ...touch, clientX: 40 }] });
+  fireEvent.touchEnd(target, { touches: [], changedTouches: [touch] });
+  fireEvent.click(target); // A trailing compatibility click must not replay it.
+  act(() => vi.advanceTimersByTime(500));
+  expect(draft.edit).toBeNull();
+  expect(submit).not.toHaveBeenCalled();
+});
+it.each(["11px", "scroll", "multitouch", "release", "blur", "owner", "epoch"])(
+  "dirty prehold %s cancels without guard, raw loss, preview or delayed activation",
+  (reason) => {
+    const { draft, submit, touch, target } = dirtyTouch();
+    if (reason === "11px") {
+      fireEvent.touchMove(target, {
+        touches: [{ ...touch, clientX: 13 }],
+        targetTouches: [touch],
+      });
+      fireEvent.touchMove(target, { touches: [touch], targetTouches: [touch] });
+    } else if (reason === "scroll")
+      fireEvent.scroll(document.querySelector(".grid-scroll")!);
+    else if (reason === "multitouch")
+      fireEvent.touchStart(document, {
+        touches: [touch, { ...touch, identifier: 2 }],
+        targetTouches: [touch],
+      });
+    else if (reason === "release")
+      fireEvent.touchEnd(target, { touches: [], changedTouches: [touch] });
+    else if (reason === "blur") fireEvent.blur(window);
+    else if (reason === "owner")
+      act(() => {
+        draft.clear();
+        draft.open(
+          month,
+          month.cells.find(
+            (c) => c.date === "2024-02-02" && c.kind === "work",
+          )!,
+          "owner",
+        );
+        draft.change({ raw: "3,25" });
+      });
+    else
+      act(() => {
+        draft.boundary.invalidate();
+        draft.boundary.allowWrites();
+      });
+    act(() => vi.advanceTimersByTime(500));
+    fireEvent.touchEnd(target, { touches: [], changedTouches: [touch] });
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(draft.edit?.raw).toBe("3,25");
+    expect(draft.edit?.mode).toBe("patch-cell");
+    expect(document.querySelector(".selection-dragging")).toBeNull();
+    expect(submit).not.toHaveBeenCalled();
+  },
+);

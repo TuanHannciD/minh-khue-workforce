@@ -5,6 +5,7 @@ import { useCellSelection } from "./use-cell-selection";
 import { AttendanceDraft } from "./attendance-draft";
 import { SessionBoundary } from "@/shared/api/session-boundary";
 import { attendanceFixture as month } from "../preview/attendance-fixture";
+import { useSyncExternalStore } from "react";
 afterEach(cleanup);
 const source = month.cells.find(
   (c) =>
@@ -20,7 +21,10 @@ function setup() {
   draft.open(month, source, "owner");
   const guard = vi.fn();
   const hook = renderHook(
-    ({ snapshot }) => useCellSelection(snapshot, draft, "owner", guard),
+    ({ snapshot }) => {
+      useSyncExternalStore(draft.subscribe, draft.snapshot);
+      return useCellSelection(snapshot, draft, "owner", guard);
+    },
     { initialProps: { snapshot: month } },
   );
   return { draft, guard, ...hook };
@@ -45,6 +49,49 @@ it("pending fill freezes source once across polling, endpoint is keyboard-operab
   expect(draft.edit?.source?.expectedRevision).toBe("fixture-cell");
   expect(draft.edit?.raw).toBe("3,5");
 });
+it.each(["save", "recovery", "reauth", "cancel"])(
+  "pending endpoint cannot survive owner %s or turn the next ordinary click into old fill",
+  async (action) => {
+    const { result, draft, rerender } = setup();
+    act(() => result.current.startFill());
+    const accepted = async () => ({
+      state: "saved" as const,
+      cells: [],
+      employees: [],
+      counts: { selected: 1, eligible: 1, skipped: 0, changed: 1 },
+      savedAt: "now",
+    });
+    await act(async () => {
+      if (action === "save") {
+        draft.change({ raw: "2" });
+        await draft.submit(accepted);
+      } else if (action === "recovery") {
+        await draft.reconcile(async () => ({
+          cells: [source],
+          employees: month.employees,
+          missingEmployeeIds: [],
+          fetchedAt: "now",
+        }));
+        await draft.recover("current", accepted);
+      } else if (action === "reauth") {
+        draft.boundary.invalidate();
+        draft.boundary.allowWrites();
+      } else draft.discard();
+    });
+    rerender({ snapshot: month });
+    expect(result.current.waiting).toBe(false);
+    expect(result.current.interaction?.endpoint).toBe(false);
+    let consumed;
+    act(() => {
+      consumed = result.current.interaction?.choose(target, {
+        add: false,
+        extend: false,
+      });
+    });
+    expect(consumed).toBe(false);
+    expect(draft.edit?.bulk).toBeUndefined();
+  },
+);
 it("changing raw after starting endpoint fill blocks commit and cannot bypass context guard", () => {
   const { result, draft, guard } = setup();
   act(() => result.current.startFill());

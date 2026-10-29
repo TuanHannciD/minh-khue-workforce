@@ -51,6 +51,13 @@ export async function runBulkEntry(s, browser) {
     await f.reload(a); // poll/refetch may not rebase the captured targets
     await f.apply(a, 409);
     assert.deepEqual(await f.sqlCells(person), before);
+    const conflict = a.getByRole("list", { name: "Các ô xung đột" });
+    await expect(conflict).toContainText(person.id);
+    await expect(conflict).toContainText(person.name);
+    await expect(conflict).toContainText("2026-10-12");
+    await expect(conflict).toContainText("Công");
+    await expect(conflict).toContainText("Dữ liệu hiện tại: F · có nhắc");
+    await expect(conflict).toContainText("Giá trị bản nháp: 2");
     assert.equal(f.writes.length, count + 1);
     await expect(a.getByLabel("Số công áp dụng", { exact: true })).toHaveValue(
       "2",
@@ -60,6 +67,11 @@ export async function runBulkEntry(s, browser) {
     ).toBeDisabled();
     const read = await f.reconcile(a);
     assert.equal(read.cells.length, 2);
+    const comparison = a.getByRole("list", { name: "Các ô đã đối chiếu" });
+    await expect(comparison.getByRole("listitem")).toHaveCount(2);
+    await expect(comparison).toContainText("2026-10-10");
+    await expect(comparison).toContainText("2026-10-12");
+    await expect(comparison).toContainText("Dữ liệu hiện tại: F · có nhắc");
     assert.deepEqual(await f.sqlCells(person), before);
     await f.apply(a, 200, "Lưu bản nháp sau đối chiếu");
     const after = await f.sqlCells(person);
@@ -133,10 +145,20 @@ export async function runBulkEntry(s, browser) {
     await f.reload(a);
     await f.apply(a, 409);
     assert.deepEqual(await f.sqlCells(person), sourceChanged);
-    await expect(a.getByText(/Giá trị bản nháp:/)).toHaveCount(0);
+    await expect(a.getByRole("list", { name: "Các ô xung đột" })).toContainText(
+      "Nguồn:",
+    );
+    await expect(a.getByRole("list", { name: "Các ô xung đột" })).toContainText(
+      "2026-10-25",
+    );
+    await expect(a.getByRole("list", { name: "Các ô xung đột" })).toContainText(
+      "Dữ liệu hiện tại: 3,5",
+    );
     await f.reconcile(a);
     await expect(a.getByText(/Nguồn hiện tại:/)).toContainText("3,5");
-    await expect(a.getByText(/Giá trị bản nháp:/)).toContainText("1");
+    await expect(
+      a.getByRole("list", { name: "Các ô đã đối chiếu" }),
+    ).toContainText("Giá trị bản nháp: 1");
     await f.apply(a, 200, "Điền giá trị nguồn hiện tại sau đối chiếu");
     const changedAfter = await f.sqlCells(person);
     assert.deepEqual(
@@ -223,6 +245,9 @@ export async function runBulkEntry(s, browser) {
     assert.equal(source.state, "before-start");
     assert.equal(source.value, null);
     assert.notEqual(source.revision, "0");
+    await expect(
+      a.getByRole("list", { name: "Các ô đã đối chiếu" }),
+    ).toContainText("Dữ liệu hiện tại: N");
     await expect(f.button(a, sourcePerson, "04")).toHaveCount(0);
     await expect(
       a.getByRole("button", {

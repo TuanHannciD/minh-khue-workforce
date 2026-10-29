@@ -1,5 +1,9 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Checkpoint Task8 sửa R1, 29/10/2026
+
+I1 rendered + actual stale-second-target/source E2E hiện mọi identity/current/reminder/nháp và source N ngoài tháng trước recovery. I2 model/rendered và actual Save/recovery SQL chứng minh pending fill kết thúc, focus về nguồn, click thường mở đúng một ô; cancel/reauth không hồi sinh endpoint. I3 controlled dirty449/450ms,10/11px, scroll/multitouch/release/owner/epoch cancellation và discard/no replay đạt; Chromium TouchEvent là synthetic, không thay native pan/zoom. Final product41 tooling/155 web/13 API; actual bulk10/input8 nhóm đạt với verified Task8 PG reacquire, DB UUID mới, SQL thật. Không đổi rulings ca6–9, keys/mode/raw/source CAS/one-write/fence; full matrix/thiết bị/SR/performance vẫn Not run Task10. [Validation](../validation.md) ghi failed attempts, check/evidence/release; main independent exact-tip R2 Pending, không writer independent PASS.
+
 ## Checkpoint Task8 implementation, 29/10/2026
 
 Unit/component controlled449/450ms,10/11px và lifecycle/union/fill/draft đạt; final `product:check`41 tooling/140 web/13 API. Scoped built web–Nest–PostgreSQL E2E15 nhóm kiểm exact batch/SQL totals/reminders/source, stale target/source whole-write rejection, explicit recovery giữ keys/mode, eligible0, month-exit tombstone/N và no-op fence scope với real pre-lock barrier. Sau self-review sửa edge motion trong cùng ô,6 nhóm input E2E chạy lại đạt (stationary hold không cuộn, kéo1px sát mép cuộn, Escape dừng/no write). Task7 R1 confirmed ID/PATCH422/focus regression đạt trên DB Task8 mới. Lớp ca6–9: Task8 bổ sung eligible bulk no-op/delayed write409, source/skipped/occupied không đổi revision, reconcile original source ngoài tháng, one Apply one set-value giữ reminder; không claim chạy lại toàn ca6–9 API matrix hoặc toàn AC.

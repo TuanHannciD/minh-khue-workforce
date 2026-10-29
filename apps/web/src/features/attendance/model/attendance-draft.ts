@@ -70,6 +70,9 @@ export class AttendanceDraft {
     for (const listener of this.listeners) listener();
   }
   dirty = () => Boolean(this.edit) || this.outcome.type === "unknown";
+  get ownerGeneration() {
+    return this.generation;
+  }
   get recoveryReady() {
     return this.current !== null && this.boundary.canWrite(this.readEpoch);
   }
@@ -315,6 +318,7 @@ export class AttendanceDraft {
       if (result.counts.eligible !== expectedEligible || expectedEligible === 0)
         throw new Error("No accepted eligible fence");
       this.edit = null;
+      this.generation++;
       this.outcome = {
         type: "saved",
         message:

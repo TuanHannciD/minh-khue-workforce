@@ -24,6 +24,7 @@ export interface SelectionInteraction {
   endpoint: boolean;
   capture: () => MonthDto;
   epoch: number;
+  generation: number;
 }
 export function useCellSelection(
   month: MonthDto | null,
@@ -40,9 +41,28 @@ export function useCellSelection(
     month: MonthDto;
   } | null>(null);
   const [preview, setPreview] = useState<CellKeyDto[] | null>(null);
+  const generation = draft?.ownerGeneration;
+  const epoch = draft?.boundary.current();
+  const [lifetime, setLifetime] = useState({ draft, owner, generation, epoch });
+  // Pending decisions belong to one owner lifetime, never a later editor or
+  // reauthenticated lease. Internal selection commits explicitly renew it.
+  if (
+    lifetime.draft !== draft ||
+    lifetime.owner !== owner ||
+    lifetime.generation !== generation ||
+    lifetime.epoch !== epoch
+  ) {
+    setLifetime({ draft, owner, generation, epoch });
+    reset();
+  }
   const edit = draft?.edit;
   const keys = edit?.bulk ? edit.targets : [];
   function canStart() {
+    if (
+      draft &&
+      (draft.ownerGeneration !== generation || !draft.boundary.canWrite(epoch))
+    )
+      return false;
     const currentEdit = draft?.edit;
     if (!draft || !currentEdit) return Boolean(draft);
     const pristine = currentEdit.bulk
@@ -136,6 +156,12 @@ export function useCellSelection(
       owner,
       sourceCell,
     );
+    setLifetime({
+      draft,
+      owner,
+      generation: draft.ownerGeneration,
+      epoch: draft.boundary.current(),
+    });
     setPreview(null);
   }
   const interaction: SelectionInteraction | undefined = draft
@@ -149,6 +175,7 @@ export function useCellSelection(
         endpoint: Boolean(fill || (multi && mode === "range")),
         capture: () => capture(month!),
         epoch: draft.boundary.current(),
+        generation: draft.ownerGeneration,
         preview: setPreview,
         canStart,
         commit,

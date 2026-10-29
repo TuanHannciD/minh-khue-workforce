@@ -147,6 +147,7 @@ export function AttendancePage({
       ? nextEligibleCell(ordered, intent.cell, advance)
       : intent.cell;
     setSelection(null);
+    bulk.reset();
     focusCell(next ?? intent.cell);
     onSaved?.();
   }
@@ -363,6 +364,7 @@ export function AttendancePage({
                     draft={draft}
                     onSaved={() => {
                       focusCell(active);
+                      bulk.reset();
                       onSaved?.();
                     }}
                   />

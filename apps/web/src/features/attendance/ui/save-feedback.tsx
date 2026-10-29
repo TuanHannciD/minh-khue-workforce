@@ -15,11 +15,7 @@ export function SaveFeedback({
   const current = draft.current?.cells.find(
     (c) => edit && cellIdentity(c) === cellIdentity(edit.cell),
   );
-  const shown =
-    current ??
-    draft.conflictCells.find(
-      (c) => edit && cellIdentity(c) === cellIdentity(edit.cell),
-    );
+  const comparedCells = draft.current?.cells ?? draft.conflictCells;
   const outcome = draft.outcome;
   const bulk = edit?.bulk;
   const bulkCurrent = bulk && draft.current;
@@ -66,15 +62,49 @@ export function SaveFeedback({
         </>
       )}
       {draft.readError && <p role="alert">{draft.readError}</p>}
-      {shown && (
-        <p>
-          Dữ liệu hiện tại: {formatAttendanceValue(shown.value) || "trống"} ·{" "}
-          {shown.reminder ? "có nhắc" : "không nhắc"} ·{" "}
-          {shown.state === "editable"
-            ? "trong mốc làm việc"
-            : "ngoài mốc làm việc"}
-          .
-        </p>
+      {edit && comparedCells.length > 0 && (
+        <ul
+          aria-label={draft.current ? "Các ô đã đối chiếu" : "Các ô xung đột"}
+        >
+          {comparedCells.map((cell) => {
+            const isSource =
+              edit.source && cellIdentity(cell) === cellIdentity(edit.source);
+            const person =
+              draft.current?.employees.find((e) => e.id === cell.employeeId) ??
+              edit.bulk?.employees.find((e) => e.id === cell.employeeId) ??
+              (edit.employee.id === cell.employeeId
+                ? edit.employee
+                : undefined);
+            return (
+              <li
+                key={cellIdentity(cell)}
+                data-feedback-cell={cellIdentity(cell)}
+              >
+                {isSource ? "Nguồn" : "Đích"}: {person?.name ?? "Nhân sự"} · ID{" "}
+                {cell.employeeId} · {cell.date} ·{" "}
+                {cell.kind === "work" ? "Công" : "Tăng ca"}. Dữ liệu hiện tại:{" "}
+                {cell.state === "before-start"
+                  ? "N · chưa bắt đầu"
+                  : cell.state === "after-end"
+                    ? "— · đã kết thúc"
+                    : formatAttendanceValue(cell.value) || "trống"}{" "}
+                · {cell.reminder ? "có nhắc" : "không nhắc"} ·{" "}
+                {cell.state === "editable"
+                  ? "trong mốc làm việc"
+                  : "ngoài mốc làm việc"}
+                . Giá trị bản nháp: {edit.raw || "trống"}
+                {cell.kind === "work" ? " công" : " giờ"}.
+                {!bulk && (
+                  <>
+                    {" "}
+                    Nhắc bản nháp: {edit.reminder ? "có nhắc" : "không nhắc"}.
+                  </>
+                )}
+                {bulk && !isSource && " Giữ nhắc riêng của đích."}
+              </li>
+            );
+          })}
+        </ul>
       )}
       {bulk && draft.current && (
         <>

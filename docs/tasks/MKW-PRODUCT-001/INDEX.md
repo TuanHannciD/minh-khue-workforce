@@ -1,5 +1,11 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task8 sửa R1 — chờ main review độc lập R2, 29/10/2026
+
+Base sửa `233e66caeca96d88fe4e804b945d3ef13560bfef`, cùng worktree/branch, một writer gpt-6.1-sol/high, không agent con. I1 liệt kê mọi ô conflict và nguồn/đích đối chiếu với ID/tên/ngày/loại/current/reminder/N/—/raw. I2 kết thúc pending fill/anchor/base theo owner generation/epoch khi Save/recovery/hủy, không hồi sinh qua reauth. I3 touchstart chỉ chốt ứng viên; dirty guard tại450ms sau kiểm lifetime, pan/scroll/multitouch/thả sớm hủy không mở guard. Giữ C, G1, keys/mode/raw, source CAS và một write; không Task9+ hoặc sửa progress.md/primary.
+
+Final `product:check`41 tooling/155 web/13 API đạt; actual web–Nest–PG bulk10 và input8 nhóm đạt, gồm stale-second-target identity/current, source-outside N, Save/recovery completion và synthetic dirty449/450/10/11/no replay. T3 kiểm conflict/comparison375/1280, Save/focus/ordinary click và synthetic touch guard/Escape. [Validation](validation.md) ghi failed attempts đã sửa, exact evidence và giới hạn; ignored ledger `.superpowers/sdd/implementation-plan/task-8-fix-r1.md` ghi full tip sau commit. Evidence mới `.agent-runs/MKW-PRODUCT-001/task8-fix-r1/`;4 DB run UUID mới trên cluster Task8 verified reacquire,8 fixture passwords rotated/0 unrevoked sessions, HTTP/tab/PG đã release, DB/evidence cũ giữ nguyên. Writer self-review; **chưa independent PASS**, main fresh exact-tip R2 trước Task9. Native device/zoom/SR/full matrix/performance và bundle warning vẫn Task10.
+
 ## Task8 — implemented, chờ main fresh independent exact-SHA review, 29/10/2026
 
 Base `2415a1b7e862b2b0410c4c45735fabbb9a196393`, branch `agent/mkw-agent-002`, chỉ worktree `agent-bootstrap`; một writer gpt-6.1-sol/high, không child/primary/progress.md. Đã nối union ô/vùng rời, hai đầu/keyboard, mouse drag/touch hold450ms, fill lặp số/F và một atomic batch vào Task7 draft/query/session/recovery. Giữ C/G1, source read-only/nhắc đích riêng, frozen revisions qua polling,409 giữ draft và explicit reconcile keys cũ ngoài tháng. Không backend/schema/generated/dependency mới hoặc Task9/10/11.

@@ -29,7 +29,7 @@ export function useGridGesture(
   const suppressClick = useRef(false);
   const [active, setActive] = useState(false);
   const enabled = Boolean(interaction);
-  const context = `${month.month}/${month.employees.map((e) => e.id).join(",")}/${kind}/${interaction?.epoch}`;
+  const context = `${month.month}/${month.employees.map((e) => e.id).join(",")}/${kind}/${interaction?.epoch}/${interaction?.generation}`;
   useEffect(() => {
     const element = region.current;
     if (!element || !latest.current.interaction) return;
@@ -46,7 +46,8 @@ export function useGridGesture(
       origin: GesturePoint = point,
       moved = false,
       append = false;
-    let epoch = -1;
+    let epoch = -1,
+      generation = -1;
     const read = (target: EventTarget | null) => {
       const element =
         target instanceof Element
@@ -111,7 +112,15 @@ export function useGridGesture(
       frame = requestAnimationFrame(scroll);
     }
     const gesture = createSelectionGesture({
-      canActivate: () => latest.current.interaction?.canStart() ?? false,
+      canActivate: () => {
+        const options = latest.current.interaction;
+        const allowed =
+          options?.epoch === epoch &&
+          options.generation === generation &&
+          options.canStart();
+        if (!allowed) suppressClick.current = true;
+        return Boolean(allowed);
+      },
       activate: () => {
         suppressClick.current = true;
         setActive(true);
@@ -158,7 +167,9 @@ export function useGridGesture(
       suppressClick.current = false;
       const cell = read(target),
         options = latest.current.interaction;
-      if (!cell || !options || !options.canStart()) {
+      // Touch only arms a candidate. Dirty guard may move focus/inert the grid,
+      // so it belongs to activation after the native pan/zoom window has won.
+      if (!cell || !options || (!touch && !options.canStart())) {
         suppressClick.current = true;
         return false;
       }
@@ -169,6 +180,7 @@ export function useGridGesture(
       source = handle ? cell : undefined;
       captured = structuredClone(options.capture());
       epoch = options.epoch;
+      generation = options.generation;
       before = [...options.keys];
       if (add && before.length === 0 && options.source)
         before = [options.source];

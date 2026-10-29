@@ -88,7 +88,9 @@ export async function runSelectionInput(s, browser) {
     // Synthetic touch precise boundaries are tested with an installed browser
     // clock. This is explicitly not trusted iPhone/Android native-pan evidence.
     await f.fresh(a);
-    await a.clock.install();
+    const clockStart = new Date();
+    await a.clock.install({ time: clockStart });
+    await a.clock.pauseAt(new Date(clockStart.getTime() + 1000));
     const fire = async (
       type,
       day,
@@ -191,6 +193,43 @@ export async function runSelectionInput(s, browser) {
     assert.equal(f.writes.length, 0);
     pass(
       "synthetic held touch moves1px within same edge cell and auto-scrolls; stationary hold and Escape leave no writes",
+    );
+    await a.getByLabel("Số công áp dụng", { exact: true }).fill("3,25");
+    await fire("touchstart", "05");
+    await a.clock.runFor(449);
+    await expect(a.getByRole("alertdialog")).toHaveCount(0);
+    await fire("touchmove", "05", 21, 10);
+    await fire("touchmove", "05", 10, 10);
+    await a.clock.runFor(500);
+    await fire("touchend", "05");
+    await expect(a.getByRole("alertdialog")).toHaveCount(0);
+    await expect(a.getByLabel("Số công áp dụng", { exact: true })).toHaveValue(
+      "3,25",
+    );
+    await fire("touchstart", "05");
+    await fire("touchmove", "05", 20, 10);
+    await a.clock.runFor(449);
+    await expect(a.getByRole("alertdialog")).toHaveCount(0);
+    await a.clock.runFor(1);
+    await expect(a.getByRole("alertdialog")).toBeVisible();
+    await expect(a.getByLabel("Số công áp dụng", { exact: true })).toHaveValue(
+      "3,25",
+    );
+    await a
+      .getByRole("button", { name: "Bỏ phần nhập và tiếp tục", exact: true })
+      .click();
+    await fire("touchmove", "05", 40, 10);
+    await fire("touchend", "05");
+    await f.button(a, person, "05").dispatchEvent("click");
+    await a.clock.runFor(500);
+    await expect(a.getByLabel("Nhập vùng")).toHaveCount(0);
+    await expect(
+      a.getByRole("button", { name: "Lưu", exact: true }),
+    ).toHaveCount(0);
+    assert.equal(f.writes.length, 0);
+    assert.equal((await f.sqlCells(person)).length, 0);
+    pass(
+      "synthetic dirty touch449 no guard,11px pan cancels,10px guards only450; discard never replays or writes",
     );
     await a.clock.resume();
     await f.fresh(a);
@@ -306,6 +345,43 @@ export async function runSelectionInput(s, browser) {
     );
     pass(
       "synthetic touch handle repeat fill previews exact two targets; only Apply persists real PG and keeps source/reminders",
+    );
+    await f.fresh(a);
+    await f.button(a, person, "03").click();
+    await a.getByRole("button", { name: "Điền từ ô này", exact: true }).click();
+    await a.getByRole("button", { name: "2", exact: true }).click();
+    await f.apply(a, 200, "Lưu");
+    await expect(a.getByText(/Chọn ô cuối bằng/)).toHaveCount(0);
+    await expect(f.button(a, person, "03")).toBeFocused();
+    await f.button(a, person, "06").click();
+    await expect(a.getByLabel("Nhập vùng")).toHaveCount(0);
+    await expect(a.locator(".editor")).toContainText("06/10/2026");
+    assert.equal(
+      (await f.sqlCells(person)).find((c) => c.date === "2026-10-03").halfUnits,
+      4,
+    );
+    await f.fresh(a);
+    await f.button(a, person, "03").click();
+    await a.getByRole("button", { name: "Điền từ ô này", exact: true }).click();
+    await a.getByRole("button", { name: "1", exact: true }).click();
+    await f.patch(person, "03", { type: "number", value: 2.5 }, true);
+    await f.apply(a, 409, "Lưu");
+    await f.reconcile(a);
+    await f.apply(a, 200, "Lưu bản nháp sau đối chiếu");
+    await expect(a.getByText(/Chọn ô cuối bằng/)).toHaveCount(0);
+    await expect(f.button(a, person, "03")).toBeFocused();
+    await f.button(a, person, "07").click();
+    await expect(a.getByLabel("Nhập vùng")).toHaveCount(0);
+    await expect(a.locator(".editor")).toContainText("07/10/2026");
+    const completed = await f.sqlCells(person);
+    assert.equal(completed.find((c) => c.date === "2026-10-03").halfUnits, 2);
+    assert.equal(
+      completed.filter((c) => ["2026-10-06", "2026-10-07"].includes(c.date))
+        .length,
+      0,
+    );
+    pass(
+      "real single Save and explicit conflict recovery end pending fill, restore source focus, next ordinary click opens one cell; SQL no stale fill",
     );
     await writeFile(
       resolve(s.runDir, "selection-input.json"),
