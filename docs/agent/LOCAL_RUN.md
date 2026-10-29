@@ -1,6 +1,6 @@
 # Chạy tooling và pilot local
 
-Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session, Task4 POST/PATCH nhân sự và Task5 GET tháng/POST changes/reconcile; UI attendance/Excel còn task sau. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
+Pilot ghi chú chỉ dùng dữ liệu giả để kiểm chứng Agent/browser/persistence. Sản phẩm có React/Vite, Nest/Express, auth/session, Task4 POST/PATCH nhân sự và Task5 GET tháng/POST changes/reconcile; Task6 có bảng/editor UI fixture, query/lưu thật thuộc Task7 và Excel thuộc Task9. Pilot dùng Node22.12.0/npm10.9.0; `node:sqlite` còn experimental. Product dùng Node24.22.1/pnpm12.15.0. Python `py -3`3.14.3 dùng cho script UI, không phải backend sản phẩm.
 
 ## Chuẩn bị và check
 
@@ -113,6 +113,21 @@ Biến Task5 làm hai harness regression tạo DB UUID mới trên cùng cluster
 Evidence ở `.agent-runs/MKW-PRODUCT-001/task5-attendance/`, gồm RED/GREEN, contract consumer đủ JSON G1, SQL/client readback và response mất sau commit. Chạy lệnh cần cluster hoạt động; sau handoff cluster được dừng đúng owner và data/evidence giữ lại. Không suy API tests thành hai phiên UI hoặc AC12/13/15 toàn luồng; recovery UI thuộc Task7, export Task9, thiết bị/reader/Linux/TLS/operator thật còn Not run.
 
 ## Thao tác thử
+
+### Xem riêng UI Task6 — không API/DB/persistence
+
+Trong shell product24 đã đặt PATH process-only như trên, từ root worktree:
+
+```powershell
+pnpm --filter @mkw/web build
+pnpm --filter @mkw/web preview --port 5186
+```
+
+Trước acquire phải kiểm port5186 chưa có owner và ghi run owner mới; `strictPort` không chiếm process khác. Mở `http://127.0.0.1:5186/preview/attendance` bằng T3 theo BROWSER_TESTING. Đây là fixture20 người giả tháng02/2024 với loading/error/empty, editor và Lưu thử chỉ phát intent; không cần PostgreSQL hoặc đăng nhập và không gọi API. Không coi nó là product E2E hoặc lưu thành công. Không có link rời form có draft sang preview. Dừng Ctrl+C trong terminal mình sở hữu, giữ screenshot/evidence.
+
+Task6 đã kiểm built UI375/728/1200, parser/month/component, auth/employee DOM regressions; evidence `.agent-runs/MKW-PRODUCT-001/task6-ui/`. Browser server/run script cũ đã release và giữ stop.request, không tái dùng nguyên run đó để acquire mới. Nondefault browser zoom/trusted phone/touch/reader vẫn Not run. Query/persist/recovery và điều hướng có draft phải được Task7 lắp vào seam theo README attendance; không dùng callback UI hiện tại làm save lifecycle thật.
+
+### Pilot ghi chú002
 
 ```powershell
 npm run pilot

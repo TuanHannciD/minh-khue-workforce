@@ -1,3 +1,5 @@
+import { Input } from "@/shared/ui/input";
+import { Button } from "@/shared/ui/button";
 import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError } from "@/shared/api/transport";
@@ -49,7 +51,7 @@ export function LoginPage() {
           aria-busy={pending}
         >
           <label htmlFor="username">Tên đăng nhập</label>
-          <input
+          <Input
             id="username"
             name="username"
             autoComplete="username"
@@ -60,7 +62,7 @@ export function LoginPage() {
             disabled={pending}
           />
           <label htmlFor="password">Mật khẩu</label>
-          <input
+          <Input
             ref={password}
             id="password"
             name="password"
@@ -76,9 +78,9 @@ export function LoginPage() {
               {error}
             </p>
           )}
-          <button className="primary" type="submit" disabled={pending}>
+          <Button className="primary" type="submit" disabled={pending}>
             {pending ? "Đang đăng nhập…" : "Đăng nhập"}
-          </button>
+          </Button>
         </form>
         <p className="login-help muted">
           Quên mật khẩu? Liên hệ người phụ trách vận hành để được xác minh và

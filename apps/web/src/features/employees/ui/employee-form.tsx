@@ -1,3 +1,5 @@
+import { Input } from "@/shared/ui/input";
+import { Button } from "@/shared/ui/button";
 import {
   useEffect,
   useId,
@@ -176,7 +178,7 @@ function EmployeeFormFields({
         )}
         <div className="employee-field">
           <label htmlFor={`${id}-name`}>Họ và tên</label>
-          <input
+          <Input
             id={`${id}-name`}
             {...register("name")}
             aria-invalid={Boolean(errors.name)}
@@ -196,7 +198,7 @@ function EmployeeFormFields({
               <label htmlFor={`${id}-${field}`}>
                 {field === "startDate" ? "Ngày bắt đầu" : "Ngày kết thúc"}
               </label>
-              <input
+              <Input
                 id={`${id}-${field}`}
                 {...register(field)}
                 type="text"
@@ -220,10 +222,10 @@ function EmployeeFormFields({
           ))}
         </div>
         <div className="employee-actions">
-          <button className="primary" type="submit" disabled={blocked}>
+          <Button className="primary" type="submit" disabled={blocked}>
             {pending ? "Đang lưu…" : "Lưu nhân sự"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             disabled={pending || outcome.type === "unknown"}
             onClick={() => {
@@ -231,7 +233,7 @@ function EmployeeFormFields({
             }}
           >
             Hủy
-          </button>
+          </Button>
         </div>
         {outcome.type === "saved" && <p role="status">Đã lưu nhân sự.</p>}
       </form>

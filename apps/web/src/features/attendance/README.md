@@ -1,0 +1,14 @@
+# UI chấm công tháng — Task6
+
+Nguồn nghiệp vụ/visual là dossier MKW-PRODUCT-001 đã duyệt. Module này mới có UI, không gọi API, query, persistence, recovery, chọn vùng hoặc gesture. DTO chỉ alias từ `shared/api/generated/schema.d.ts`; không import backend.
+
+- `model/number-input.ts`: ParseResult valid/value hoặc invalid/message; không làm tròn, format dấu phẩy. Editor sở hữu raw string và reminder riêng.
+- `model/month-view.ts`: lịch Gregorian UTC, khóa ID/ngày/loại, thứ tự ô hiển thị và điều hướng bỏ N/—. Không suy membership thay API.
+- `ui/attendance-grid.tsx`: AttendanceGrid props month/selection/onCellIntent, kind tùy chọn mặc định work; semantic table, sticky, snapshot totals. Tìm kiếm chỉ giảm dòng; tổng ngày/tháng vẫn toàn bộ nhân sự, như C.
+- `ui/cell-editor.tsx`: nhận snapshot + employee, phát `CellEditorIntent` (snapshot gồm revision, value, reminder, raw) khi parse hợp lệ. Không tự ghi API hoặc hiện đã lưu. Enter xuống cùng ngày/người tiếp theo; Tab tiến theo hàng ở input hợp lệ, input sai vẫn Tab ra được; Shift+Tab bình thường.
+- `ui/attendance-page.tsx`: phối hợp hiển thị/tìm kiếm/kind/expand/editor cục bộ; loading/error/empty khác nhau. Trong một editor, khóa đổi context thay vì bỏ raw âm thầm; Hủy trả focus. `onSubmit` là event đồng bộ của UI, **không** API save lifecycle. Task7 phải lắp draft/query owner và feedback/guard theo contract, giữ raw/baseline đến response; có thể dùng CellEditor độc lập, không coi page callback hiện tại là persistence hook.
+- `preview/`: fixture20 người giả tháng nhuận02/2024, trùng tên/tên dài/N/—/F/blank/reminder/số/tổng riêng; route `/preview/attendance` qua public index. Không có API call hoặc persisted save, nhãn Lưu thử phát intent và giữ snapshot nguyên. Route này nằm ngoài SessionProvider, không đọc session người dùng. Mở trực tiếp URL; không thêm link điều hướng khỏi form có draft.
+
+CSS C ở `ui/attendance.css`: phần nền/heading/tools → bảng/sticky → editor → responsive. Giữ một file545 dòng do cùng một surface với container/media overrides chặt nhau; đã xét tách, không đưa selectors nghiệp vụ vào shared tokens. Không copy script mẫu HTML. UI UX Pro Max hỗ trợ focus không bị sticky che và forms; Impeccable kế thừa C, không thiết kế lại.
+
+Tests colocated parser/month/grid và `app/router.test.tsx`; chạy `pnpm --filter @mkw/web test --run`. Browser evidence Task6 chỉ built UI fixture, chưa chứng minh lưu thật/iPhone/Android/reader/zoom browser khác mặc định.

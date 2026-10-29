@@ -1,3 +1,4 @@
+import { Button } from "@/shared/ui/button";
 import { useEffect, useState } from "react";
 import { EmployeeDraft, EmployeeForm } from "@/features/employees/index";
 import { LoginPage, useSession } from "@/features/session/index";
@@ -33,13 +34,13 @@ export function AppShell() {
       <main className="session-layout">
         <h1>Chưa thể kiểm tra phiên</h1>
         <p role="alert">Vui lòng kiểm tra kết nối rồi thử lại.</p>
-        <button
+        <Button
           onClick={() => {
             void runtime.refresh();
           }}
         >
           Thử lại
-        </button>
+        </Button>
       </main>
     );
   if (status === "anonymous" || status === "expired") return <LoginPage />;
@@ -51,20 +52,20 @@ export function AppShell() {
           Bản nháp thuộc tài khoản trước. Bỏ bản nháp trước khi tiếp tục với tài
           khoản mới.
         </p>
-        <button
+        <Button
           className="primary"
           onClick={() => runtime.confirmAccountChange()}
         >
           Bỏ bản nháp và tiếp tục
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => {
             void logout(true);
           }}
           disabled={pending}
         >
           Đăng xuất
-        </button>
+        </Button>
         {error && <p role="alert">{error}</p>}
       </main>
     );
@@ -72,14 +73,14 @@ export function AppShell() {
     <main className="session-layout">
       <header className="session-header">
         <h1>Minh Khuê</h1>
-        <button
+        <Button
           disabled={pending}
           onClick={() => {
             void logout();
           }}
         >
           {pending ? "Đang đăng xuất…" : "Đăng xuất"}
-        </button>
+        </Button>
       </header>
       <p role="status">
         Đã đăng nhập với tài khoản <strong>{session?.user.username}</strong>.
@@ -87,16 +88,16 @@ export function AppShell() {
       {confirmLogout && (
         <section aria-label="Xác nhận đăng xuất">
           <p>Bạn đang có bản nháp chưa lưu.</p>
-          <button onClick={() => setConfirmLogout(false)}>
+          <Button onClick={() => setConfirmLogout(false)}>
             Tiếp tục chỉnh sửa
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               void logout(true);
             }}
           >
             Bỏ bản nháp và đăng xuất
-          </button>
+          </Button>
         </section>
       )}
       {error && (

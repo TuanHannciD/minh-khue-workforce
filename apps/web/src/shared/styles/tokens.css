@@ -1,4 +1,7 @@
-/* Extracted from approved attendance-c.html; product Operate surface. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+/* Extracted from approved attendance-c.html; product Operate surface.
+   No Tailwind preflight: preserve existing form/session native semantics. */
 :root {
   font-family:
     system-ui,
@@ -16,6 +19,16 @@
   --wash: #f3f4f6;
   --line: #d9dde4;
   --danger: #a52d27;
+  --accent: #1b6248;
+  --reminder-surface: #edf4d6;
+  --reminder-ink: #435c23;
+  --grid-line: #e5e8ed;
+  --header: #153e30;
+  --header-quiet: #cce1d5;
+  --editor: #f5f6f8;
+  --total: #fafbfc;
+  --inactive: #f7f8fa;
+  --scroll-thumb: #959daa;
   --radius: 14px;
   --space-1: 8px;
   --space-2: 16px;
@@ -36,6 +49,12 @@ input {
   min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 7px;
+}
+input::placeholder {
+  color: var(--quiet);
+}
+input[type="checkbox"] {
+  accent-color: var(--reminder-ink);
 }
 button {
   padding: 10px 16px;

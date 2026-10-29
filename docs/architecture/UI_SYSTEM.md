@@ -1,6 +1,6 @@
 # Hệ UI Minh Khuê
 
-Nguồn quyết định: [ADR-001](decisions/ADR-001-product-foundation.md). Nền component web đã chọn: **shadcn/ui với Radix**, tùy biến nhất quán cho Minh Khuê. Trạng thái: chưa cài package/version; người dùng đã chấp nhận bản mẫu C hiện hành và duyệt toàn bộ design.md28/10/2026. Màn hình sản phẩm chưa dựng vẫn cần cụ thể hóa theo cùng ngôn ngữ UI, không mở lại hướng đã duyệt. Dùng Impeccable chủ đạo, UI UX Pro Max bổ trợ theo [skill policy](../agent/SKILL_POLICY.md).
+Nguồn quyết định: [ADR-001](decisions/ADR-001-product-foundation.md). Nền component web đã chọn: **shadcn/ui với Radix**, tùy biến nhất quán cho Minh Khuê. Task6 ngày29/10/2026 đã cài pins G1 và consumer Button/Input/Tabs, trích tokens C, đưa login/employee vào cùng primitives và dựng bảng/editor trong preview fixture; chờ main review độc lập exact SHA. [Provenance/custom delta](../../apps/web/src/shared/ui/README.md), [validation Task6](../tasks/MKW-PRODUCT-001/validation.md). Không có consumer Dialog nên chưa tạo. Người dùng đã chấp nhận C và duyệt toàn bộ design.md28/10/2026; không mở lại hướng đã duyệt. Dùng Impeccable chủ đạo, UI UX Pro Max bổ trợ theo [skill policy](../agent/SKILL_POLICY.md). Các đoạn chưa triển khai bên dưới là checkpoint trước Task6; không thay evidence current.
 
 ## Các lớp sở hữu
 

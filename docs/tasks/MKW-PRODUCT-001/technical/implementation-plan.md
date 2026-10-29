@@ -184,6 +184,8 @@ Review R2 tại `09ebdda4241b71a16ea82909900574877d81c87f`: I1/I2/M1 Closed, spe
 
 ### Task 6: UI nền và bảng tháng theo thiết kế C
 
+Checkpoint29/10/2026: implementation và local checks đã có, chưa independent PASS. Base `8a4e4f5e1d473caae2259c8b59508bd80980eb10`, full tip trong report ignored Task6. Final product39 tooling/66 web/13 API, pilot22 check10/E2E2, frozen install và built fixture375/728/1200 đạt scope đã ghi tại [validation](../validation.md#task6--ui-c-và-editor-intent-29102026). Không tick review/commit gate như đã hoàn tất review; main fresh exact-SHA UI/code review trước Task7. Browser zoom khác mặc định/trusted touch/persistence còn Not run, không dùng fixture thay gate toàn sản phẩm.
+
 **Files:** Create web `shared/styles/tokens.css`, `shared/ui/{button,input,dialog,tabs}.tsx` theo nhu cầu thật; `features/attendance/ui/{attendance-page,attendance-grid,attendance-cell,cell-editor}.tsx`, `model/{number-input.ts,month-view.ts}`; tests `number-input.test.ts`, `month-view.test.ts`, `ui/attendance-grid.test.tsx`. Modify app shell/router; ghi nguồn/custom delta trong `shared/ui/README.md`.
 
 **Interfaces:** Consumes MonthDto/CellSnapshotDto generated; produces `AttendanceGrid({month, selection, onCellIntent}: AttendanceGridProps)` và `parseNumberInput(raw: string, kind: AttendanceKind): ParseResult`, `formatAttendanceValue(value: CellValueDto): string`. ParseResult định nghĩa tại number-input.ts gồm valid/value hoặc invalid/message, không mất raw input của editor.

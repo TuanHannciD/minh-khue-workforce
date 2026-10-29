@@ -1,5 +1,11 @@
 # Toolchain manifest — pins G1 và kiểm chứng Task2–3
 
+## Hiện hành Task6 — consumers UI C
+
+Web cài đúng pins G1: radix-ui1.8.1, class-variance-authority0.7.1, clsx2.1.1, tailwind-merge3.7.0, lucide-react1.63.0; Tailwind/@tailwindcss/vite4.3.3. Consumer Button/Input/Tabs + Lucide icons có thật; không scaffold Dialog hoặc cài shadcn CLI khi không cần generator. Registry shadcn được lấy qua HTTPS, hash nội dung/license/custom delta ở [shared UI README](../../../../apps/web/src/shared/ui/README.md). CLI4.23.0 vẫn chỉ pin được duyệt, không claim đã chạy.
+
+pnpm12 thêm release-age exception riêng lucide-react1.63.0 theo pin đã duyệt; không hạ engine/peer/native policy. Lock audit gồm cả hai YAML documents của pnpm12:676 package keys cũ giữ nguyên,107 keys thêm, không key cũ bị bỏ (không gọi107 là số packages chạy trên máy). Frozen install exit0; Tailwind oxide Windows được consumer build thật kiểm, không giả Linux/native toàn nền tảng. Root/pilot vẫn Node22.12.0; product24.22.1/pnpm12.15.0 process-only. Final product39 tooling/66 web/13 API và pilot22 check10/E2E2 đạt; Task6 không đổi API/schema/DTO, không cần acquire DB. Các checkpoint dưới giữ lịch sử.
+
 ## Hiện hành Task5 — attendance API và generated contract
 
 Không dependency/pin/lockfile mới. Attendance dùng Nest/Swagger, Prisma7.10.1/pg và runtime24.22.1/pnpm12.15.0 đã có; schema002 đủ, không migration mới. Nest DTO/OpenAPI3.0.3/web types được sinh lại bằng pipeline hiện hữu. Test đủ JSON G1 có consumer TypeScript generated thực; không sửa generated bằng tay. Binaries PostgreSQL17.11 tái dùng, cluster/role/DB Task5 mới và identity kiểm độc lập; cluster/DB Task2–4 được giữ nguyên.
