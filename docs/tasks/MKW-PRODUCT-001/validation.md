@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## Gate hiện hành — Task5 review độc lập đạt, 29/10/2026
+
+Review R2 tại `09ebdda4241b71a16ea82909900574877d81c87f`: I1/I2/M1 Closed, spec/quality Approved, không regression mới. Generated request shape đã sửa; initial HTTP RED404 chưa được evidence xác nhận, không dùng claim đó. Final product39 tooling/35 web/13 API, docs55, generation determinism/drift đạt; PostgreSQL transaction/concurrency/persistence kế thừa Task5 R1, không gọi là fresh replay. Reports ignored `task-5-review-r1.md`, `task-5-fix-r1.md`, `task-5-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task6 UI C đã duyệt; full AC12/13/15, UI recovery/device/Linux/TLS/operator thật còn Not run. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
+
 ## Task5 — sửa review R1, 29/10/2026 (chờ main re-review)
 
 Base `d2cbe7e9885595a895fb7fbea76bb4e2e0d946ca`; một writer gpt-6.1-sol/high, không child, worktree/branch giữ nguyên `agent-bootstrap` / `agent/mkw-agent-002`. Scope chỉ I1/I2 contract parity và M1 provenance; không progress.md/primary/Task6+. Full tip và hồ sơ self-review tại ignored `.superpowers/sdd/implementation-plan/task-5-fix-r1.md`. Evidence mới `.agent-runs/MKW-PRODUCT-001/task5-fix-r1/`; mọi lệnh dưới chạy tại root worktree bằng Node24.22.1/pnpm12.15.0 portable, PATH process-only.

@@ -175,7 +175,12 @@ Cập nhật29/10/2026: implementation/API/PostgreSQL đã kiểm; main independ
 - [x] Viết `accepted_noop_fences_delayed_cell_write`, `skipped_targets_and_source_do_not_fence`, `zero_eligible_does_not_fence`, `single_cell_patch_is_atomic`, `reconcile_reads_explicit_ids_outside_month` theo matrix ca6–9: cả absent/tombstone/value/reminder, order đảo, rollback revision, missing-ID/state/snapshot nhất quán/auth/privacy. Patch missing/null/one-target/discriminator đúng runtime/OpenAPI; batch không nhận nhắc. Dùng JSON đầy đủ ở API làm fixture đối chiếu DTO/types, không chỉ kiểm parse.
 - [x] Chạy unit/integration xác nhận RED đúng lý do; triển khai số chính xác theo G1, transaction/lock order/CAS toàn bộ. Snapshot tháng/tổng/metadata cùng thời điểm nhất quán, N/— suy từ mốc; không lưu lifecycle duyệt. OpenAPI sinh cùng DTO, validation server từ chối unknown/malformed theo G1.
 - [x] Chạy GREEN trên PostgreSQL thật của sandbox, đọc độc lập sau reload/connection mới; giả mất phản hồi sau commit chứng minh dữ liệu đã lưu dù client timeout. Kiểm anonymous/unauthorized, payload lệch contract, ô ngoài khoảng/ngày tháng; không dùng SQLite thay concurrency. Chạy drift/boundary/typecheck/build API.
-- [ ] Review độc lập transaction/schema/contract final SHA; commit `feat: persist attendance batches atomically`. AC12/13/15 cần UI và hai phiên task7/10 trước claim toàn luồng.
+- [x] Review độc lập transaction/schema/contract final SHA; commit `feat: persist attendance batches atomically`. AC12/13/15 cần UI và hai phiên task7/10 trước claim toàn luồng.
+
+
+## Gate hiện hành — Task5 review độc lập đạt, 29/10/2026
+
+Review R2 tại `09ebdda4241b71a16ea82909900574877d81c87f`: I1/I2/M1 Closed, spec/quality Approved, không regression mới. Generated request shape đã sửa; initial HTTP RED404 chưa được evidence xác nhận, không dùng claim đó. Final product39 tooling/35 web/13 API, docs55, generation determinism/drift đạt; PostgreSQL transaction/concurrency/persistence kế thừa Task5 R1, không gọi là fresh replay. Reports ignored `task-5-review-r1.md`, `task-5-fix-r1.md`, `task-5-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task6 UI C đã duyệt; full AC12/13/15, UI recovery/device/Linux/TLS/operator thật còn Not run. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
 
 ### Task 6: UI nền và bảng tháng theo thiết kế C
 

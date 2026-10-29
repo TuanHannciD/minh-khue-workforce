@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Gate hiện hành — Task5 review độc lập đạt, 29/10/2026
+
+Review R2 tại `09ebdda4241b71a16ea82909900574877d81c87f`: I1/I2/M1 Closed, spec/quality Approved, không regression mới. Generated request shape đã sửa; initial HTTP RED404 chưa được evidence xác nhận, không dùng claim đó. Final product39 tooling/35 web/13 API, docs55, generation determinism/drift đạt; PostgreSQL transaction/concurrency/persistence kế thừa Task5 R1, không gọi là fresh replay. Reports ignored `task-5-review-r1.md`, `task-5-fix-r1.md`, `task-5-review-r2.md` dưới `.superpowers/sdd/implementation-plan/`. Các đoạn Pending bên dưới là lịch sử. Tiếp tục Task6 UI C đã duyệt; full AC12/13/15, UI recovery/device/Linux/TLS/operator thật còn Not run. Mọi subagent tối đa Sol/high, cấm Astra mọi trường hợp.
+
 ## Task5 — API attendance implemented, chờ main independent exact-SHA review
 
 Base `7f88a60bfedeefcf09ef5145586aca4178e269f4`, worktree duy nhất `agent-bootstrap`, branch `agent/mkw-agent-002`. Writer Sol/high tuần tự, không child/primary/progress.md/Task6+. Đã có GET tháng, POST changes/reconcile, validator nửa đơn vị, tổng riêng, patch value+reminder nguyên tử, batch/fill CAS/source/skip và no-op/tombstone fences đúng G1; đọc READ ONLY REPEATABLE READ không fence. Dùng public EmploymentConsistency, giữ schema002; không migration/dependency mới hoặc UI attendance/Excel.
