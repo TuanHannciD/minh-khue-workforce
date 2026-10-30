@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## I3 proposal R2 — written scope review, 30/10/2026
+
+Reviewed tip `9b9f6abf670881d6dc6ec31ae71178ec6584fc1f`, fresh reviewer gpt-6.1-sol/high, không child/Astra; report ignored `.superpowers/sdd/implementation-plan/i3-proposal-review-r2.md`. I3-P1/P2/P3 Closed ở mức tài liệu, verdict Ready for user review of bounded feasibility scope; không new regression trong delta. Reviewer đọc contracts/source/evidence hiện có, không probe/runtime/browser/PG/benchmark hoặc product test. Main kiểm HEAD/workspace sạch trước checkpoint docs risk thấp; docs/whitespace trước commit local. Scope thử nghiệm tối đa4 giờ, fake-only throwaway, cả modes, pass/reject/Not run và stop boundaries cụ thể tại proposal; chưa được người dùng duyệt thực thi. I3/G3 vẫn Failed/Open, không architecture/implementation/G4 approval; external/dependency gates giữ nguyên. Các checkpoint R2 Pending bên dưới là lịch sử. Bước tiếp trình scope reviewable cho người dùng theo gate hiện hành.
+
 ## I3 — author revision P1/P2/P3, Proposed/candidate, 30/10/2026
 
 Base revision sạch `68084d2a8b58b903f270b0a0f8de9b29bcb26826`, branch `agent/mkw-agent-002`, worktree `agent-bootstrap`. [Proposal cấu trúc scroll1000](technical/scroll-performance-proposal.md) sửa Important I3-P1/P2/P3, giữ approved C/G1/budgets; chưa architecture approval/planning hoặc implementation. Sole writer gpt-6.1-sol/high, không child/helper/reviewer/model change/Astra. Hồ sơ trước sửa/full base-tip/files/per-PID responses/checks/limits tại ignored `.superpowers/sdd/implementation-plan/i3-proposal-fix-r1.md`; report revision sửa claim/next gate của author R1, không sửa historical author/reviewer reports hoặc evidence. Self-review không là independent PASS; main fresh independent R2 exact revision trước user decision.

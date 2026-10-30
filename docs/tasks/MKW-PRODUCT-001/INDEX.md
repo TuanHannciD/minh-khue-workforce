@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## I3 proposal R2 — sẵn sàng review scope feasibility, 30/10/2026
+
+Fresh independent R2 tại `9b9f6abf670881d6dc6ec31ae71178ec6584fc1f` đóng I3-P1/P2/P3 ở mức written contracts/next request, không regression mới. Report ignored `.superpowers/sdd/implementation-plan/i3-proposal-review-r2.md`. [Proposal mục10](technical/scroll-performance-proposal.md#10-failure-outcome-rollback-và-gate-quyết-định) trình duy nhất scope feasibility throwaway tối đa một phiên4 giờ, cả windowed/full mode cùng budgets; chưa duyệt C, probe execution, planning hoặc implementation. Nếu required full mode vẫn Failed và chưa có all-row option Verified thì reject C cho architecture commitment. I3/G3 Failed/Open, G4/Task9 concerns/external gates giữ nguyên. Các checkpoint R2 Pending bên dưới là lịch sử; bước tiếp người dùng quyết định scope thử nghiệm cụ thể đã review, không hỏi lại nghiệp vụ/UI/G1.
+
 ## I3 — revision Proposed/candidate, chờ fresh proposal R2, 30/10/2026
 
 [Proposal scroll-performance](technical/scroll-performance-proposal.md) đã sửa theo Important I3-P1/P2/P3 của independent R1; main cần fresh independent **R2 exact base..tip** trước user decision. Base revision sạch `68084d2a8b58b903f270b0a0f8de9b29bcb26826`, branch `agent/mkw-agent-002`, worktree `agent-bootstrap`; sole design writer gpt-6.1-sol/high, không child/helper/reviewer/đổi model/Astra. Scope chỉ proposal + current routing INDEX/validation và ignored report `.superpowers/sdd/implementation-plan/i3-proposal-fix-r1.md`, scoped local commit; không code/CSS/prototype/scripts/dependency/implementation plan/runtime/probe/spike/benchmark/browser/PG/resource/cleanup/primary/progress.md. Goal/scope/acceptance/risk/ownership/resources/next action ghi trước sửa trong report; historical reports/evidence giữ nguyên.
