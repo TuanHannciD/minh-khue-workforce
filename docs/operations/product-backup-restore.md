@@ -57,7 +57,7 @@ Trước mở traffic sau restore thật phải thực hiện yêu cầu revoke 
 | Dump thật gặp bảng Employee sentinel trên **failure DB mới của run** | Nonzero dưới single transaction; sentinel giữ, chỉ1 bảng, không rò schema/data restore một phần |
 | Destination restore thật | DB UUID khác/rỗng trước mutation, restore exit0; native SQL + API fresh readback đạt như trên |
 
-Không dùng DB cũ làm negative test. Raw exception/SQL/TOC không xuất ra log; command ledger chỉ exe/args an toàn/time/duration/exit. Failure DB/sentinel/corrupt fixture và dump được giữ ignored, không có cleanup lịch sử. Lỗi import helper ban đầu (sai relative depth, chưa tạo DB) được sửa theo path resolution; không gọi đó là RED nghiệp vụ.
+Không dùng DB cũ làm negative test. Application/command ledger chỉ ghi exe/args an toàn/time/duration/exit; captured subprocess output không được persist raw exception/SQL/TOC. Native PostgreSQL diagnostic logs được giữ riêng, có thể chứa ERROR/STATEMENT và phải được xử lý như artifact nhạy cảm, hạn chế truy cập. Claim này không có nghĩa mọi log đã sanitized. Failure DB/sentinel/corrupt fixture và dump được giữ ignored, không có cleanup lịch sử. Lỗi import helper ban đầu (sai relative depth, chưa tạo DB) được sửa theo path resolution; không gọi đó là RED nghiệp vụ.
 
 ## Checklist rollback migration và handoff
 
