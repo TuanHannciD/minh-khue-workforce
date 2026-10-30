@@ -183,13 +183,20 @@ export class EmployeeDraft {
       (this.connected && !this.boundary.isActive())
     )
       return;
-    const employeeId = this.baseline?.id ?? this.confirmedId ?? id;
-    if (!employeeId) {
+    const identity = this.baseline?.id ?? this.confirmedId ?? id;
+    if (!identity) {
       this.readError =
         "Chưa có ID để đối chiếu. Tải lại danh sách và tự xác định đúng ID; tên trùng không chứng minh đã tạo.";
       this.publish();
       return;
     }
+    // UUID input accepts either case; the API/DB identity is canonical lowercase.
+    // Leave malformed input unchanged so its existing validation contract holds.
+    const employeeId = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(
+      identity,
+    )
+      ? identity.toLowerCase()
+      : identity;
     const generation = this.generation,
       epoch = this.boundary.current();
     this.reconciling = true;

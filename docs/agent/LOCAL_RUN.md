@@ -2,6 +2,8 @@
 
 ## Acceptance và benchmark Task10
 
+Whole-branch R1 scoped checks: `pnpm run product:test:sandbox` không acquire DB/browser/listener (Node24 experimental module mocks; build API trước). Sau `product:check` và xác minh/reacquire đúng Task10 owner bên dưới, `node scripts/product/e2e.mjs --whole-branch-r1` chạy hai luồng affected recovery/preview trên DB UUID mới. Evidence output dùng `MKW_PRODUCT_EVIDENCE_ROOT=.agent-runs/MKW-PRODUCT-001/whole-branch-fix-r1`; không đổi target/data identity. Teardown báo incomplete/release-failed và exit failure nếu có lỗi, luôn thử các cleanup độc lập; chỉ xem count/state thực để kết luận rotation/release, không coi file tồn tại là thành công.
+
 Task10 dùng cùng portable product Node24.22.1/pnpm12.15.0 ở shell process-only; không `npm install`/`npm ci` trên pnpm links. Target owner `MKW-PRODUCT-001/Task10`, alias `task10-acceptance`, role `mkw_task10`, data `.agent-runs/MKW-PRODUCT-001/task10-acceptance/pg-data`, PostgreSQL17.11 loopback port63771 trong `cluster-owner.json`. Cluster hiện **stopped**, DB/evidence retained. Trước reacquire kiểm exact owner record/path/port/executable/-D/PID; sau start phải kiểm actual server identity qua allowlist, không reset/init/drop cluster hoặc DB cũ. Các lệnh sau cần cluster đã reacquire đúng identity; không tự khởi động target từ record chưa xác minh.
 
 ```powershell

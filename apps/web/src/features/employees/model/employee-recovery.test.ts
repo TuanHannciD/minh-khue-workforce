@@ -12,6 +12,35 @@ const employee = {
   endDate: null,
   revision: "old",
 };
+it.each([
+  "ABCDEFAB-ABCD-4ABC-8ABC-ABCDEFABCDEF",
+  "AbCdEfAb-aBcD-4aBc-8AbC-aBcDeFaBcDeF",
+])(
+  "canonicalizes valid explicit identity %s without changing frozen lost-create provenance",
+  async (inputId) => {
+    const draft = new EmployeeDraft();
+    draft.change({ name: "raw", startDate: "2026-10-15", endDate: "" });
+    draft.reject(new TypeError("lost POST"), draft.begin());
+    const canonical = {
+      ...employee,
+      id: "abcdefab-abcd-4abc-8abc-abcdefabcdef",
+    };
+    await draft.reconcile(inputId, async (request) => {
+      expect(request).toEqual({ employeeIds: [canonical.id], cells: [] });
+      return {
+        fetchedAt: "now",
+        employees: [canonical],
+        cells: [],
+        missingEmployeeIds: [],
+      };
+    });
+    expect(draft.current).toEqual(canonical);
+    expect(draft.confirmedId).toBe(canonical.id);
+    expect(draft.baseline).toBeNull();
+    expect(draft.requiresReconciliation).toBe(true);
+    expect(draft.outcome.type).toBe("unknown");
+  },
+);
 it("PATCH lost response reconciles stable ID after month exit and explicit keep-current sends all no-op fields", async () => {
   const draft = new EmployeeDraft(employee);
   draft.change({ name: "Giả", startDate: "2026-11-01", endDate: "" });

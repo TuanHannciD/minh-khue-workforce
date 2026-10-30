@@ -67,11 +67,15 @@ export async function runEmployeeRecoveryR1(s, browser) {
     assert.equal(original.startDate, "2026-10-15");
     await page
       .getByLabel("ID nhân sự đã xác định", { exact: true })
-      .fill(createdId);
+      .fill(createdId.toUpperCase());
     await page
       .getByRole("button", { name: "Đối chiếu theo ID nhân sự", exact: true })
       .click();
     await expect(page.getByText(/Dữ liệu đối chiếu:/)).toContainText(createdId);
+    await expect(
+      page.getByLabel("ID nhân sự đã xác định", { exact: true }),
+    ).toHaveValue(createdId);
+    assert.equal(writes.length, 1); // reconciliation never auto-writes
     await page.getByLabel("Ngày kết thúc", { exact: true }).fill("2026-10-01");
     const rejected = page.waitForResponse(
       (response) =>

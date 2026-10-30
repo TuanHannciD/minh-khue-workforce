@@ -42,8 +42,10 @@ export function BulkEditor({
         {preview.skipped} ô N/— bỏ qua · {preview.changed} ô đổi nội dung
       </p>
       <p className="help">
-        {preview.selected - preview.eligible - preview.skipped} ô đã có số/F
-        được giữ khi chỉ điền ô trống. Giữ nhắc riêng của từng đích.
+        {edit.mode === "replace"
+          ? `Ghi đè nội dung của ${preview.occupied} ô đã có số/F khi Áp dụng.`
+          : `Giữ nguyên ${preview.occupied} ô đã có số/F khi chỉ điền ô trống.`}{" "}
+        Giữ nhắc riêng của từng đích.
       </p>
       <form
         onSubmit={(event) => {

@@ -12,6 +12,8 @@ Kiểm: `pnpm --filter @mkw/web test --run src/features/employees/ui/employee-fo
 
 ## Recovery Task7
 
+Whole-branch R1 W2: `EmployeeDraft.reconcile` chuẩn hóa UUID hợp lệ về chữ thường trước request/lookup/confirmed ID, giữ input sai theo validation cũ. Model và rendered regression dùng uppercase/mixed UUID, response lowercase; PATCH422 rồi sửa/remount vẫn khóa normal POST, fresh read/PATCH cùng canonical ID, không auto write. Không đổi provenance lost-create, baseline/CAS hoặc epoch.
+
 AppShell chọn ID từ bảng tháng để sửa cùng EmployeeDraft. `ui/employee-recovery.tsx` dùng shared generated reconcile adapter: PATCH mất response vẫn đối chiếu ID ngoài membership; missing khác DB error, giữ raw/baseline. Sau lựa chọn tường minh gửi PATCH đủ tên/mốc với revision vừa đọc, kể cả no-op; read không fence. Pending chặn gửi trùng, capture session epoch trước request; generation/epoch loại late response và account switch không gửi old intent.
 
 Create mất response chưa có ID: khóa gửi lại, không dedupe/nhận diện theo tên và không hứa exactly-once. Người dùng tải lại bảng, tự xác định ID rồi nhập/chọn rõ để reconcile trước PATCH mới. Dirty create chưa từng gửi sau same-user reauth có nút tiếp tục riêng; không dùng đường này cho unknown create. `employee-recovery.test.ts` và product E2E kiểm hai trường hợp; không thêm endpoint/idempotency contract.

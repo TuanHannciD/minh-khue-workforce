@@ -8,7 +8,10 @@ import type {
 import { cellKey, unionCells, visibleCells } from "./cell-selection";
 import { cellIdentity } from "./month-view";
 export type WriteIntent = components["schemas"]["SetValueWriteDto"];
-export type TargetPreview = components["schemas"]["TargetPreviewDto"];
+// Occupied is local preview information, not another field in the wire DTO.
+export type TargetPreview = components["schemas"]["TargetPreviewDto"] & {
+  occupied: number;
+};
 export const sameValue = (a: CellValueDto, b: CellValueDto) =>
   JSON.stringify(a) === JSON.stringify(b);
 export function captureBulkIntent(
@@ -76,6 +79,12 @@ export function previewTargets(
   const selected = new Set(intent.targets.map(cellIdentity));
   return {
     selected: selected.size,
+    occupied: month.cells.filter(
+      (c) =>
+        selected.has(cellIdentity(c)) &&
+        c.state === "editable" &&
+        c.value !== null,
+    ).length,
     eligible: eligible.length,
     skipped: month.cells.filter(
       (c) => selected.has(cellIdentity(c)) && c.state !== "editable",

@@ -16,6 +16,7 @@ import { startSandbox } from "../../tests/product-e2e/sandbox.mjs";
 import { measureScrollFrames } from "./benchmark-scroll.mjs";
 import { retainedMetrics } from "./benchmark-metrics.mjs";
 import { summarize as summary } from "./benchmark-metrics.mjs";
+import { withCleanup } from "./cleanup.mjs";
 
 const profileOnly = process.argv.includes("--profile");
 const root = resolve(
@@ -111,7 +112,7 @@ try {
       });
     }
     report.sizes.push(metric);
-    let context;
+    let context, metricError;
     try {
       // Only the freshly enrolled, actual-identity-checked run DB is seeded.
       await s.pool.query(
@@ -421,37 +422,62 @@ try {
         ? "FAILED"
         : "PASS";
       if (metric.result === "FAILED") failed = true;
-      console.log(
-        JSON.stringify({
-          size,
-          result: metric.result,
-          checks: metric.checks,
-          cold: metric.coldLoadMs.p95,
-          api: metric.apiMs.p95,
-          editor: metric.editorMs.p95,
-          input: metric.inputMs.p95,
-          frame: metric.scrollFramesMs.p95,
-          freeze: metric.scrollFramesMs.max,
-          heapGrowth: metric.heapGrowthPercent,
-        }),
-      );
     } catch (error) {
+      metricError = error;
       metric.result = "FAILED";
       metric.error = error.message;
       failed = true;
       console.error(`Benchmark ${size} failed: ${error.message}`);
     } finally {
-      await context?.close();
-      await s.stop();
+      try {
+        await withCleanup(
+          async () => {
+            if (metricError) throw metricError;
+          },
+          () => context?.close(),
+          () => s.stop(),
+        );
+      } catch (error) {
+        failed = true;
+        metric.result = "FAILED";
+        // Keep a measurement failure distinct from cleanup failures. Never
+        // serialize nested DB errors from fixture invalidation.
+        metric.error ??= error.message;
+        if (error instanceof AggregateError)
+          metric.cleanupError = error.errors
+            .slice(metricError ? 1 : 0)
+            .map((e) => e.message)
+            .join("; ");
+      }
       await writeFile(reportFile, JSON.stringify(report, null, 2));
     }
+    // Publish a size result only after its owned resources have been released.
+    console.log(
+      JSON.stringify({
+        size,
+        result: metric.result,
+        checks: metric.checks,
+        cold: metric.coldLoadMs?.p95,
+        api: metric.apiMs?.p95,
+        editor: metric.editorMs?.p95,
+        input: metric.inputMs?.p95,
+        frame: metric.scrollFramesMs?.p95,
+        freeze: metric.scrollFramesMs?.max,
+        heapGrowth: metric.heapGrowthPercent,
+      }),
+    );
   }
 } catch (error) {
   failed = true;
   report.error = error.message;
   console.error(`Benchmark prerequisite failed: ${error.message}`);
 } finally {
-  await browser.close();
+  try {
+    await browser.close();
+  } catch (error) {
+    failed = true;
+    report.cleanupError = error.message;
+  }
   report.result = failed ? "FAILED" : "PASS";
   await writeFile(reportFile, JSON.stringify(report, null, 2));
 }

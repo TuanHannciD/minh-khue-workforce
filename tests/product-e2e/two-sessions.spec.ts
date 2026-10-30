@@ -2,11 +2,13 @@
 // browser sessions, polling, atomic saves, response loss and fresh SQL readback.
 import { runAttendanceE2E } from "./attendance-save.spec.ts";
 import { startSandbox } from "./sandbox.mjs";
+import { withCleanup } from "../../scripts/product/cleanup.mjs";
 export async function runTwoSessions(_s, browser) {
   const s = await startSandbox({ acceptance: true });
-  try {
-    await runAttendanceE2E(s, browser);
-  } finally {
-    await s.stop();
-  }
+  await withCleanup(
+    async () => {
+      await runAttendanceE2E(s, browser);
+    },
+    () => s.stop(),
+  );
 }
