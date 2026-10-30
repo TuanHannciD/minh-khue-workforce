@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## Task10 R2 — chấp nhận fix delta, residual G3 — 30/10/2026
+
+Reviewed fix `73434ebdf1cfdf3a7af1e3afc0857f9d8a1f38be` → `a0c05624afebe49996a8797b8c2df07263539e3b`, reviewer độc lập gpt-6.1-sol/high, không child/Astra. Report ignored `.superpowers/sdd/implementation-plan/task-10-review-r2.md`: I1/I2/M1/M2 Closed, không regression Critical/Important mới, fix delta chấp nhận về correctness/maintainability. Canonical single invocation `task10-fix-r1/benchmark-run-a081eb77-9957-483b-8a73-695ff7fb01bb.json` được recompute và đối chiếu hashes; product50/165/16, E2E33 nhóm+export, T3/SQL/release evidence đã đọc, không replay suite/browser/PG. I3 Open scroll1000 p95 66,6/max333,3ms >33/200; native phones/SR/phone performance Not run. Không đóng Task10/G3; main giữ follow-up design review frozen panes/windowing cùng invariant semantic/a11y/zoom/focus/selection/epoch, không tự đổi engine/budget. Tiếp tục Task11 độc lập runbook và backup/restore sandbox theo quyền đã có; không push/merge/deploy. Main kiểm HEAD/workspace sạch, chỉ cập nhật hồ sơ risk thấp, docs/whitespace trước commit local. Incident22 historical fixtures và Task9 dependency concerns giữ nguyên, không legal clearance. Các checkpoint Pending bên dưới là lịch sử.
+
 ## Task10 fix R1 — author verification, main R2 Pending, 30/10/2026
 
 Base sạch `73434ebdf1cfdf3a7af1e3afc0857f9d8a1f38be`; sole fixer gpt-6.1-sol/high tại `agent-bootstrap`, branch `agent/mkw-agent-002`; không child/helper/reviewer/đổi model/primary/progress.md. Full brief/review/author report đã được đọc và tham chiếu trong ignored `.superpowers/sdd/implementation-plan/task-10-fix-r1.md`; report chứa root cause/change/RED-GREEN từng I1/I2/I3/M1/M2, self-review và full tip sau commit. Prefix artifacts dưới đây `.agent-runs/MKW-PRODUCT-001/task10-fix-r1/`. Không Task11, budget/engine/virtualization/zoom/contract/pin changes. Các checkpoint bên dưới là lịch sử.

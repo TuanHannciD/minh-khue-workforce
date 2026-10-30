@@ -261,6 +261,8 @@ Review độc lập Task9 R1 tại `11a276ab828e19b833f643b9ed405c3258564f5a`: s
 - [ ] Benchmark dữ liệu giả20/200/1.000 theo ngân sách đã review task1: tải/render/scroll/nhập và memory cùng máy/browser. Đạt ngân sách mới kết luận; vượt thì profile và đề xuất sửa/engine qua review, không tự thêm virtualization làm hỏng zoom/selection. Ghi quy mô đã đo, không tuyên bố vô hạn.
 - [ ] Đóng findings, check lại phạm vi ảnh hưởng và mời review độc lập full base..final SHA cùng spec/contract/evidence. Sau sửa cần reviewer xem tip mới theo QUALITY_GATES. Ghi thiếu quyền reviewer là Blocked; commit `test: verify product acceptance across real data flows` chỉ sau các check được báo đúng, không gọi sản phẩm Done khi còn gate bắt buộc.
 
+Task10 R2 tại `a0c05624afebe49996a8797b8c2df07263539e3b`: I1/I2/M1/M2 Closed, fix delta chấp nhận và không regression Critical/Important mới. I3 scroll1000 còn Failed66,6/333,3ms >33/200; external phones/SR/phone performance Not run, Task10/G3 chưa clearance. Report ignored `task-10-review-r2.md`; main giữ follow-up concrete design review trước thay cấu trúc frozen panes/windowing. Tiếp tục Task11 phần độc lập, không đánh dấu Task10 complete hoặc product Done.
+
 ### Task 11: Hồ sơ vận hành và bàn giao local — G4 chưa phải deploy
 
 **Files:** Create `docs/operations/product-runbook.md`, `docs/operations/product-backup-restore.md`; Modify task INDEX/validation và READINESS đúng scope, không sửa lịch sử pilot thành evidence sản phẩm.

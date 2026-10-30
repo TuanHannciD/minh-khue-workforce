@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task10 review R2 — fix delta chấp nhận, G3 chưa đạt, 30/10/2026
+
+Review độc lập tại `a0c05624afebe49996a8797b8c2df07263539e3b`: I1/I2/M1/M2 Closed, không regression Critical/Important mới. Report ignored `.superpowers/sdd/implementation-plan/task-10-review-r2.md`; source/assertions/retained evidence và canonical benchmark đã đối chiếu, không replay suite/browser/PG. I3 còn Open: scroll1000 p95 66,6ms/max333,3ms vượt33/200ms; editor/input1000 và các budget áp dụng20/200 đạt đúng scope. Native phones/SR/phone performance Not run; **Task10/G3 chưa clearance, sản phẩm chưa Done**. Frozen panes/windowing cần proposal cụ thể về semantic/a11y/scroll/zoom/focus/selection/lifetime để review trước implementation, không tự đổi kiến trúc hoặc hạ budget. Main giữ I3; tiếp tục Task11 phần độc lập runbook/backup-restore sandbox/handoff, không suy thành release. Các đoạn Pending bên dưới là lịch sử; mọi subagent tối đa Sol/high, cấm Astra.
+
 ## Task10 fix R1 — chờ main R2, G3 còn Failed/Not run, 30/10/2026
 
 Base sạch `73434ebdf1cfdf3a7af1e3afc0857f9d8a1f38be`, cùng branch/worktree; một fixer gpt-6.1-sol/high, không child/helper/reviewer/model change hoặc sửa primary/progress.md. I1 sửa RAF clock/retained validation, I2 recursive parent và unique run, M1 conventional median/recompute artifact mới, M2 manifest owner từ verified target. I3 tách raw editor subscription, stable structural projections/default row/cell memo và latest callbacks; giữ frozen CAS/session/selection/gesture/UI C. Full report ignored `.superpowers/sdd/implementation-plan/task-10-fix-r1.md`, evidence mới `.agent-runs/MKW-PRODUCT-001/task10-fix-r1/`; [validation](validation.md) và [matrix](technical/verification-matrix.md) sở hữu kết quả/giới hạn. Các checkpoint dưới là lịch sử.
