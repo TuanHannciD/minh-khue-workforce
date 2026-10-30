@@ -1,4 +1,6 @@
-# Tooling sản phẩm — Task2–10
+# Tooling sản phẩm — Task2–11
+
+Task11 chỉ thêm enrollment `task11-operations` trong `sandbox-target.mjs`: owner Task11, fake-sandbox, loopback, role mkw_task11, data đúng `task11-operations/pg-data`, DB `postgres` hoặc `mkw_operations_<uuid>`, actual PG17.11 identity. CLI vẫn refuse maintenance DB/production. `operations-target.test.mjs` kiểm allowlist/refusal bằng output unique, không historical fixture writers. Rehearsal helper/evidence/dump sensitive giữ ignored trong `.agent-runs/MKW-PRODUCT-001/task11-operations/`; không có deployment/backup/revoke-only production CLI mới. Actual commands, guard, postrestore auth và choices còn thiếu tại [runbook](../../docs/operations/product-runbook.md) và [backup/restore](../../docs/operations/product-backup-restore.md). Main independent review còn chờ.
 
 Task10: `e2e.mjs --acceptance` (default `product:test:e2e`) chạy acceptance/calendar→hai phiên→recovery/bulk/input/export, mỗi suite DB mới; `--acceptance-only` chọn4 nhóm acceptance, `--serve --acceptance` phục vụ T3. `playwright.product.config.ts` được coordinator import, không standalone Playwright tests; secrets/storageState memory-only, trace off. Allowlist riêng Task10 owner/role/path/DB và release/commands tại [LOCAL_RUN](../../docs/agent/LOCAL_RUN.md). `acceptance.spec.ts` sở hữu coverage gaps, `two-sessions.spec.ts`/`recovery.spec.ts` điều phối suites cũ, không copy implementation.
 

@@ -1,6 +1,6 @@
 # Minh Khuê Workforce
 
-Project đang chuẩn bị nền tảng để AI Agent phát triển phần mềm theo quy trình có kiểm chứng. Sản phẩm ban đầu là chấm công; nền tảng UI và tổ chức code đã chốt, stack mục tiêu phương án A đã chốt; đặc tả đầy đủ đã được duyệt, kế hoạch triển khai đã duyệt, Task1 chờ review G1.
+Sản phẩm chấm công Minh Khuê đã triển khai local theo đặc tả/G1/UI đã duyệt: React/Vite, Nest/Express và PostgreSQL/Prisma. Task1–9 independent Approved; Task11 có runbook và rehearsal backup/restore dữ liệu giả, đang chờ main review độc lập. **G3 chưa đạt**, sản phẩm chưa Done hoặc sẵn sàng production.
 
 ## Bắt đầu
 
@@ -10,6 +10,7 @@ Project đang chuẩn bị nền tảng để AI Agent phát triển phần mề
 - Nền tảng sản phẩm đã chốt: [ADR-001](docs/architecture/decisions/ADR-001-product-foundation.md), cùng bốn nguồn chuẩn được liên kết trong ADR.
 - Nền tảng đã bootstrap: [MKW-AGENT-002 — cài đặt và pilot](docs/tasks/MKW-AGENT-002/INDEX.md).
 - Chạy tooling và pilot: [hướng dẫn local](docs/agent/LOCAL_RUN.md).
+- Vận hành sản phẩm local: [runbook](docs/operations/product-runbook.md) và [backup/restore](docs/operations/product-backup-restore.md).
 
 ## Phạm vi đã thống nhất
 
@@ -19,4 +20,6 @@ Một bộ tài liệu tiếng Việt là nguồn chuẩn của project. Skill u
 
 ## Trạng thái
 
-Bộ tài liệu và skill project-local đã có Git baseline; pilot ghi chú dùng UI/API/SQLite thật để kiểm tra workflow. Đây là ứng dụng thử dữ liệu giả. Trạng thái từng năng lực, review/resume và bằng chứng tại READINESS. Toàn bộ đặc tả chấm công đã được người dùng duyệt28/10/2026; [kế hoạch triển khai](docs/tasks/MKW-PRODUCT-001/technical/implementation-plan.md) đã duyệt; bộ thiết kế Task1 chờ review G1, chưa triển khai sản phẩm; đã chọn shadcn/ui nền Radix, module theo feature và FE/BE tách ứng dụng cùng repository. Chuẩn code/UI/API đã ghi tại docs/architecture; công cụ enforce sản phẩm chưa cài. Quản lý state đã chọn TanStack Query + state React, Zustand có điều kiện theo [ADR-002](docs/architecture/decisions/ADR-002-state-management.md), chưa cài. [Bản kiến trúc cụ thể](docs/tasks/MKW-PRODUCT-001/technical/architecture-proposal.md) ghi thiết kế và luồng; [ADR-003](docs/architecture/decisions/ADR-003-product-stack.md) chốt React/Vite + NestJS + PostgreSQL/Prisma cùng tooling mục tiêu. Chưa pin/cài/kiểm tương thích; auth/contract chi tiết và ứng dụng Android còn cần thiết kế.
+Pilot ghi chú Node22/SQLite là bằng chứng bootstrap lịch sử, độc lập với sản phẩm. Product dùng portable Node24.22.1/pnpm12.15.0 và PG17.11, có auth/session/reset CLI sandbox, nhân sự, chấm công/CAS/batch/recovery và Excel. Các checks và giới hạn theo [validation](docs/tasks/MKW-PRODUCT-001/validation.md), không lấy test bootstrap thay acceptance sản phẩm.
+
+Task10 R2 chấp nhận fix delta nhưng I3 scroll1000 còn vượt budget; native phones/SR/phone performance Not run, G3 còn mở. Task11 chỉ diễn tập local, không production enrollment/deploy. Hosting/domain/TLS/secrets/operator/retention và cơ chế revoke sessions sau restore cần hoàn thiện trước G4; Task9 license provenance buffers0.1.1/sáu deprecated do main theo dõi trước phân phối. Main fresh Task11 exact-commit review và whole-branch review còn chờ. Android native chưa triển khai. Không push/merge/deploy/scheduler trong phạm vi bàn giao này.

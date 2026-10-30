@@ -269,9 +269,11 @@ Task10 R2 tại `a0c05624afebe49996a8797b8c2df07263539e3b`: I1/I2/M1/M2 Closed, 
 
 **Interfaces:** Consumes G3 evidence, schema/migrations/auth reset; produces hướng dẫn start/stop/update/reset/backup/restore theo target được duyệt và danh sách gate chưa đạt.
 
-- [ ] Viết checklist target hosting/domain/TLS, cookie/CORS/CSRF, secrets, người phụ trách reset/xác minh/bàn giao mật khẩu, expiry/revoke, backup retention/restore và rollback migration; nêu lựa chọn cần quyết định trước vận hành, không tự invent target/người thật.
-- [ ] Khi sandbox và quyền đã có: diễn tập backup/restore vào DB thử mới, kiểm identity trước mọi mutation, so count/giá trị/nhắc/tổng và auth policy sau restore. Ghi command/thời gian/result, failure path, không chỉ file backup tồn tại.
-- [ ] Bàn giao local: commit/base..tip, AC Verified/Failed/Not run/Blocked, review/finding, cách chạy thực, resource đang giữ và next action. Chưa merge/push/deploy/cleanup evidence; tích hợp hoặc release chỉ sau quyền cụ thể và check target/smoke tương ứng.
+- [x] Viết checklist target hosting/domain/TLS, cookie/CORS/CSRF, secrets, người phụ trách reset/xác minh/bàn giao mật khẩu, expiry/revoke, backup retention/restore và rollback migration; nêu lựa chọn cần quyết định trước vận hành, không tự invent target/người thật.
+- [x] Khi sandbox và quyền đã có: diễn tập backup/restore vào DB thử mới, kiểm identity trước mọi mutation, so count/giá trị/nhắc/tổng và auth policy sau restore. Ghi command/thời gian/result, failure path, không chỉ file backup tồn tại.
+- [x] Bàn giao local: commit/base..tip, AC Verified/Failed/Not run/Blocked, review/finding, cách chạy thực, resource đang giữ và next action. Chưa merge/push/deploy/cleanup evidence; tích hợp hoặc release chỉ sau quyền cụ thể và check target/smoke tương ứng.
+
+Task11 local30/10/2026: [runbook](../../../operations/product-runbook.md)/[backup-restore](../../../operations/product-backup-restore.md) và `task11-operations/run-zrdYYc` có3 UUID DB mới, SQL/API readback tháng09/10/11/totals/reminders/relations/revisions/auth, actual operator reset/expiry/revoke và meaningful failures. Rotate4/revoke0 unrevoked, own HTTP/PG release, DB/dump sensitive ignored giữ lại. Base `d4a78f11a52a89312a8afd86dadec0590b291ed4`, full tip/files/commands/time tại ignored `.superpowers/sdd/implementation-plan/task-11-implementation.md`; [validation](../validation.md) ghi status/giới hạn. Checkbox chỉ evidence/bàn giao local của implementer, **không independent PASS/Task11 Done/G4 production ready**. Main fresh exact-commit review rồi whole-branch review còn chờ; G3 I3/native phones/SR/phoneperf và Task9 M1/M2 giữ mở, không Task10 complete/product Done. G1 yêu cầu revoke restored sessions trước mở access; không tự đặt policy reset password, cơ chế vận hành thật còn cần review/target/quyền.
 
 ## Lệnh kiểm dự kiến và ý nghĩa
 
