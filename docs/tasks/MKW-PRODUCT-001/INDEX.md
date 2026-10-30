@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## I3 feasibility R1 — candidate Rejected, 30/10/2026
+
+[Kết quả feasibility](technical/scroll-feasibility-results.md): một throwaway React/native table đã được dựng và chạy, base sạch `b5ba9e08a851f223a41ab1db1a727ef934b2532c`. Window/full geometry cơ bản201/1000×28–31 ngày Pass scoped72 records; window gap ở font23px/Arial/CSS zoom1,1 lệch6.222,484375px, **Failed → dừng/reject candidate**, không CSS/engine/all-row rescue. Fresh performance cả modes/P3/print/full keyboard **Not run** do stop; canonical full1000 Failed66,6/333,3 vẫn âm, chưa all-row option Verified. Không native zoom/phone/SR proof hoặc architecture/planning approval; I3/G3 Failed/Open, G4/dependency concerns vẫn mở; W1–W3 vẫn Closed. HTTP/browser own resources released, sources/raw/failures ignored giữ nguyên. Main review độc lập actual evidence/report `.superpowers/sdd/implementation-plan/i3-feasibility-r1.md` tiếp theo, không writer-independent PASS.
+
 ## I3 feasibility — người dùng duyệt scope, 30/10/2026
 
 Người dùng xác nhận “Duyệt” sau giải thích lượt thử tối đa4 giờ bằng dữ liệu giả trên prototype riêng. Scope đã review tại proposal mục10: một candidate/hai modes, cùng budgets, kết quả pass-scoped/reject/Failed/Not run, không tự gia hạn hoặc thêm phương án/engine/dependency. Đây là quyền thực thi feasibility, chưa duyệt kiến trúc C, implementation plan hoặc thay sản phẩm. Main điều phối một subagent Sol/high, cấm Astra; base trước ghi approval `cf7bf4d5529345b98b0a13b010f4e04ab4a8b9c1`, workspace sạch. Prototype/evidence task-owned riêng, không backend/PG/dữ liệu thật/primary, bảo toàn evidence. Acceptance/risk/stop boundaries theo proposal; report actual scope và thời gian, review độc lập sau bàn giao. I3/G3/G4 chưa cleared, external/dependency concerns giữ nguyên; bước tiếp giao lượt thử đã duyệt, không hỏi lại quyền này.
