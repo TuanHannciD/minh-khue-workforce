@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## I3 feasibility approval — 30/10/2026
+
+Người dùng duyệt đúng scope thử tối đa4 giờ, fake-only prototype riêng, sau proposal R2; chưa có kết quả thử. Base sạch `cf7bf4d5529345b98b0a13b010f4e04ab4a8b9c1`. Main chỉ ghi approval/routing, risk tài liệu thấp, docs/whitespace trước commit; writer thử nghiệm một Sol/high, reviewer độc lập sau. Scope/acceptance/stop boundaries tại proposal mục10: windowed và required full mode cùng budgets, reject C nếu full mode vẫn Failed mà không có all-row option Verified; không product mutation/architecture approval hoặc gia hạn. Resource dự kiến task-owned prototype/evidence/HTTP/browser local dữ liệu giả, không PG/backend/tài khoản thật. I3/G3/G4/external/dependency trạng thái cũ giữ nguyên; feasibility runtime và metrics mới hiện Not run, không suy approval thành Verified.
+
 ## I3 proposal R2 — written scope review, 30/10/2026
 
 Reviewed tip `9b9f6abf670881d6dc6ec31ae71178ec6584fc1f`, fresh reviewer gpt-6.1-sol/high, không child/Astra; report ignored `.superpowers/sdd/implementation-plan/i3-proposal-review-r2.md`. I3-P1/P2/P3 Closed ở mức tài liệu, verdict Ready for user review of bounded feasibility scope; không new regression trong delta. Reviewer đọc contracts/source/evidence hiện có, không probe/runtime/browser/PG/benchmark hoặc product test. Main kiểm HEAD/workspace sạch trước checkpoint docs risk thấp; docs/whitespace trước commit local. Scope thử nghiệm tối đa4 giờ, fake-only throwaway, cả modes, pass/reject/Not run và stop boundaries cụ thể tại proposal; chưa được người dùng duyệt thực thi. I3/G3 vẫn Failed/Open, không architecture/implementation/G4 approval; external/dependency gates giữ nguyên. Các checkpoint R2 Pending bên dưới là lịch sử. Bước tiếp trình scope reviewable cho người dùng theo gate hiện hành.

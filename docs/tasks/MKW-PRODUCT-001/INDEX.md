@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## I3 feasibility — người dùng duyệt scope, 30/10/2026
+
+Người dùng xác nhận “Duyệt” sau giải thích lượt thử tối đa4 giờ bằng dữ liệu giả trên prototype riêng. Scope đã review tại proposal mục10: một candidate/hai modes, cùng budgets, kết quả pass-scoped/reject/Failed/Not run, không tự gia hạn hoặc thêm phương án/engine/dependency. Đây là quyền thực thi feasibility, chưa duyệt kiến trúc C, implementation plan hoặc thay sản phẩm. Main điều phối một subagent Sol/high, cấm Astra; base trước ghi approval `cf7bf4d5529345b98b0a13b010f4e04ab4a8b9c1`, workspace sạch. Prototype/evidence task-owned riêng, không backend/PG/dữ liệu thật/primary, bảo toàn evidence. Acceptance/risk/stop boundaries theo proposal; report actual scope và thời gian, review độc lập sau bàn giao. I3/G3/G4 chưa cleared, external/dependency concerns giữ nguyên; bước tiếp giao lượt thử đã duyệt, không hỏi lại quyền này.
+
 ## I3 proposal R2 — sẵn sàng review scope feasibility, 30/10/2026
 
 Fresh independent R2 tại `9b9f6abf670881d6dc6ec31ae71178ec6584fc1f` đóng I3-P1/P2/P3 ở mức written contracts/next request, không regression mới. Report ignored `.superpowers/sdd/implementation-plan/i3-proposal-review-r2.md`. [Proposal mục10](technical/scroll-performance-proposal.md#10-failure-outcome-rollback-và-gate-quyết-định) trình duy nhất scope feasibility throwaway tối đa một phiên4 giờ, cả windowed/full mode cùng budgets; chưa duyệt C, probe execution, planning hoặc implementation. Nếu required full mode vẫn Failed và chưa có all-row option Verified thì reject C cho architecture commitment. I3/G3 Failed/Open, G4/Task9 concerns/external gates giữ nguyên. Các checkpoint R2 Pending bên dưới là lịch sử; bước tiếp người dùng quyết định scope thử nghiệm cụ thể đã review, không hỏi lại nghiệp vụ/UI/G1.
