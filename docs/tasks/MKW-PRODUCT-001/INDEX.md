@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Whole-branch R2 — W1–W3 Closed, I3/G3/G4 còn mở, 30/10/2026
+
+Fresh scoped R2 tại `f295975d27b80eb3f078bb06f25b38292021c67d`: W1 Important/W2 Minor/W3 Minor Closed, spec/quality fix delta Approved, không regression mới trong scope. Report ignored `.superpowers/sdd/implementation-plan/whole-branch-review-r2.md`; reviewer đối chiếu source/assertions/retained evidence, không replay suite/browser/PG. Task11 M1 giữ Closed. Không suy thành Ready/Product Done: I3 scroll1000 p95 66,6/max333,3ms >33/200 còn Important Open; phones/SR/phoneperf Not run, G3/G4 và dependency concerns Task9 chưa cleared. Main giữ follow-up tooling riêng cho inner fixture cleanup chưa đổi (`selection-fixture.ts`, `employee-recovery-r1.spec.ts`), không claim mọi cleanup trong repo fault-safe. Các checkpoint Pending bên dưới là lịch sử. Bước tiếp soạn proposal I3 về cấu trúc render/semantic/a11y/scroll/zoom/focus/selection/lifetime để review trước implementation, không tự chọn windowing/engine hoặc hạ budget. Mọi subagent tối đa Sol/high, cấm Astra.
+
 ## Whole-branch R1 W1–W3 — đã sửa, chờ main fresh scoped R2, 30/10/2026
 
 Review original range `6cfc3645f43ae1a1d0cb3b9c0811384671feb8c6..852d00cffad62cb432249abd1baae1f9d2c184a3` tìm W1 Important teardown short-circuit, W2 Minor UUID case recovery và W3 Minor thiếu occupied confirmation. Sole fixer gpt-6.1-sol/high trên base sạch `852d00cffad62cb432249abd1baae1f9d2c184a3`, cùng branch/worktree, không child/model change/primary/progress.md. Full report ignored `.superpowers/sdd/implementation-plan/whole-branch-fix-r1.md`, evidence mới `.agent-runs/MKW-PRODUCT-001/whole-branch-fix-r1/`; [validation](validation.md) ghi fresh checks/resource/giới hạn. Writer self-review không là independent PASS; main fresh scoped R2 trên exact tip mới với original brief/prior review/fix responses.

@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## Whole-branch R2 — closure W1–W3, 30/10/2026
+
+Fix base `852d00cffad62cb432249abd1baae1f9d2c184a3`, reviewed tip `f295975d27b80eb3f078bb06f25b38292021c67d`, reviewer độc lập gpt-6.1-sol/high, không child/Astra. Report ignored `.superpowers/sdd/implementation-plan/whole-branch-review-r2.md`: W1/W2/W3 Closed, fix delta spec/quality Approved, không new breakage trong phạm vi; Task11 M1 Closed kế thừa. Reviewer đọc actual units/assertions/logs/artifacts, không chạy lại suite/browser/PG. Full product51 tooling/14 sandbox/174 web/16 API trước narrow repeat-stop/deferred publication cuối; affected14 fault/caller tests cùng lint/format/docs60 bao phủ delta cuối, không claim broad suite exact final tip. E2E/T3/SQL và release evidence giữ đúng lớp. I3 scroll1000 Failed66,6/333,3>33/200, phones/SR/phoneperf Not run, G3/G4/Task9 dependency concerns còn mở, không Ready/Product Done. Inner fixture cleanup chưa đổi là follow-up tooling riêng do main giữ; không mở lại W1 hoặc claim tất cả fixture fault-safe. Main kiểm HEAD/workspace sạch, chỉ ghi checkpoint tài liệu risk thấp, docs/whitespace trước commit; tiếp proposal I3 để concrete design review, chưa thay architecture/engine/budget. Các checkpoint Pending bên dưới là lịch sử; bảo toàn DB/evidence và incident22.
+
 ## Whole-branch R1 W1–W3 — author verification, main R2 Pending, 30/10/2026
 
 Base sạch `852d00cffad62cb432249abd1baae1f9d2c184a3`; sole fixer gpt-6.1-sol/high tại branch/worktree hiện hành, không child/Astra/model change/primary/progress.md. Original whole-branch R1 và brief Task7/8/10/11 được đọc theo nguồn chuẩn; full fix report ignored `.superpowers/sdd/implementation-plan/whole-branch-fix-r1.md` chứa full base/tip/files/root cause/self-review. Prefix evidence mới dưới đây `.agent-runs/MKW-PRODUCT-001/whole-branch-fix-r1/`.
