@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## I3 next-step proposal — independent R1 ready for user scope review, 31/10/2026
+
+Independent Sol/high R1 tại `322095c148c83ed79103bb603cb57686b7167749` review exact base `3c7a5bdafcaa51777a44aacc9b22a1d85131f94f`, không Critical/Important/Minor mới cần sửa. Report ignored `.superpowers/sdd/implementation-plan/i3-next-proposal-review-r1.md`. [Proposal mục6](technical/scroll-next-step-proposal.md#6-quyết-định-cụ-thể-đề-nghị-main-trình-sau-fresh-review) sẵn sàng để người dùng quyết định một diagnostic mới tối đa120 phút tổng cộng: G kiểm đơn vị đo tại lỗi zoom, F định vị chi phí baseline full1000. Đây là review thiết kế câu hỏi, không empirical pass hoặc approval chạy G/F. Chỉ dẫn “Approved next step” trước đó cho viết/review proposal; chưa cấp scope diagnostic mới. I3/G3 Failed/Open, G4/dependency và các lớp Not run giữ nguyên. Bước tiếp trình request cụ thể, chờ quyết định scope; không thêm optimization/implementation plan hoặc gia hạn trial cũ.
+
 ## I3 next step — approval chỉ cho proposal và review, 31/10/2026
 
 Người dùng nói “Approved next step” sau báo cáo next là đề xuất kỹ thuật cụ thể giải đồng thời geometry/zoom và required full1000 performance. Quyết định này chỉ cho **viết proposal + independent review**, không experiment mới, code/product, implementation plan hoặc architecture commitment; không tái cấp trial4 giờ trước. [Proposal bước tiếp](technical/scroll-next-step-proposal.md) **Proposed**, so hai đường và khuyến nghị diagnostic mới tối đa120 phút: control layout↔viewport + attribution full1000 native giữ nguyên, không có all-row option mới Verified. Request này chưa được duyệt/chạy. Main chuẩn bị exact diff và fresh independent proposal review trước trình quyết định cụ thể; tái dùng business/UI/G1/ADR/budgets đã duyệt, không hỏi lại nhu cầu.

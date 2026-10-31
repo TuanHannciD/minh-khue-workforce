@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## I3 next-step proposal — independent review R1, 31/10/2026
+
+Fresh independent read-only Sol/high review exact `3c7a5bdafcaa51777a44aacc9b22a1d85131f94f..322095c148c83ed79103bb603cb57686b7167749`: Ready for user scope review, không finding Critical/Important/Minor cần action. Report `.superpowers/sdd/implementation-plan/i3-next-proposal-review-r1.md` đối chiếu full proposal, source và retained trace metadata; không chạy probe hoặc coi metadata là causal/performance proof. G coordinate policy và F full1000 attribution có prerequisites/unknowns/stop rõ; diagnostic120 phút vẫn Proposed/chưa duyệt/chưa chạy. Exact patch/whitespace/UTF-8/ignored report/HEAD/status được reviewer kiểm; docs63 là author evidence, không fresh reviewer suite. M1 correction không bị nâng thành empirical signoff, I3/G3 Failed/Open/G4/dependency/Not run không đổi. Checkpoint điều phối này chỉ cập nhật routing; không thay nội dung proposal đã review.
+
 ## I3 next-step proposal R1 — documentation-only, 31/10/2026
 
 Người dùng “Approved next step” chỉ cho proposal + independent review về geometry/zoom và required full1000 performance; decision đã ghi trong INDEX trước soạn nội dung. BASE sạch `3c7a5bdafcaa51777a44aacc9b22a1d85131f94f`, branch `agent/mkw-agent-002`, worktree `agent-bootstrap`; sole design writer gpt-6.1-sol/high, không child/helper/Astra/escalation/primary edits. Tracked scope đúng [proposal mới](technical/scroll-next-step-proposal.md), INDEX và validation; historical proposal/results, requirements/ADR/plan/source/CSS/package/approved prototype và sealed evidence không đổi. Hồ sơ trước sửa/full BASE..TIP/check exits/resources/self-review ở ignored `.superpowers/sdd/implementation-plan/i3-next-proposal-r1.md`.
