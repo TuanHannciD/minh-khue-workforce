@@ -1,5 +1,13 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## I3 diagnostic G/F R1 — continuation sau main ruling, 31/10/2026
+
+[Kết quả hiện hành](technical/scroll-gf-diagnostic-results.md): **G Failed** tại first valid extent/gap −4px ở Công/root23px Arial/CSS zoom1; dừng G, không rescue/retry. Zoom1,1/Tăng ca/font16/disjoint-pin/native hit/anchor chưa chạy. **F inconclusive**: retained trace được phân hoạch exclusive, nhưng thiếu exact source/build/node-region/offset provenance; fresh full1000 census/capture **Not run**,0 untraced/0 traced invocations. Không dùng G control thay faithful F baseline hoặc thử optimization.
+
+Main ruling cho phép exact runtime-listed skill instruction/reference reads, điều chỉnh stop-all ban đầu vì riêng hai reads ấy; report/commit `215dd8baa912c3952908da86f8ae339841e05832` và12-file old seal vẫn giữ nguyên lịch sử. Continuation BASE sạch215dd8b, new owned root `20261031T055534Z-continuation-215dd8b`; start gốc05:47:48.0724699Z/deadline07:47:48.0724699Z không đổi,387,095 giây trước đã tính trong cùng120 phút. Không new approval/experiment renewal. Sole Sol/high/no children;3-doc delta, product/progress/reviews/sealed originals không đổi.
+
+Own T3 tab đã close/status no tabs; frontend PID25924 graceful exit0, port50220 no listener/ConnectionRefused sau probe timeout cũ được giữ. Raw/source/build hashes/logs/release/seal/full SHA/actual end trong ignored `.superpowers/sdd/implementation-plan/i3-gf-diagnostic-r1.md`. Main audit final snapshot+cả stop/ruling+actual G/F evidence tiếp; **chưa independent PASS**. I3/G3 Failed/Open/G4/dependency/budgets33/200 và NR gates giữ nguyên; không all-row solution Verified, architecture/planning/optimization/implementation permission. Section initial stop ngay dưới là checkpoint lịch sử trước ruling.
+
 ## I3 diagnostic G/F R1 — dừng do scope failure, 31/10/2026
 
 [Kết quả diagnostic](technical/scroll-gf-diagnostic-results.md): **G Not run/F Not run**, operational workspace gate **Failed**. Owner/start/deadline đã ghi trước exploration; worker đọc nhầm hai skill files từ primary ngoài worktree được phép, nên áp dụng stop-all trước experiment. Không thiếu approval, không retry hoặc tự xin scope mới;0 build/capture/invocation/retained raw-trace attribution và không product-source delta. Own blank incognito tab đã close, postcondition available false/tabId null; không server/PG acquire. BASE `bc1c2c535a3fe09388b5d632ced36f229830a93b`; handoff ignored `.superpowers/sdd/implementation-plan/i3-gf-diagnostic-r1.md` giữ commands/hashes/stop/release/limits. Main độc lập audit final snapshot và cap/stop tiếp; không writer-independent PASS. I3/G3 Failed/Open/G4/dependency/Not run giữ nguyên; không architecture/planning/optimization permission hoặc renewal.
