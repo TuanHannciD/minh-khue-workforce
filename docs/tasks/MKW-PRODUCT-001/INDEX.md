@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## I3 G/F — independent R1 accepted bounded handoff, 31/10/2026
+
+Independent Sol/high audit exact `bc1c2c535a3fe09388b5d632ced36f229830a93b..3e5e7c5ea7a6535f8b00c8d424aca8425043b70d`: Ready bounded handoff, không Critical/Important; report ignored `.superpowers/sdd/implementation-plan/i3-gf-diagnostic-review-r1.md`. G Failed gap/extent −4px ở Công/root23/zoom1; các controls sau đó Not run. F retained attribution tính đúng nhưng thiếu exact source/build/region mapping nên inconclusive, fresh F0/0. Hai seal12/12 và69/69 khớp; tổng2252,4113479s giữ clock gốc. Minor M1: raw final server wait result chưa lưu trong seal, exit0 chỉ author-reported; process/listener/TCP/tab postconditions đủ hỗ trợ release. [Results](technical/scroll-gf-diagnostic-results.md) giữ giới hạn này; không rerun/reseal để bổ sung lịch sử. Lượt diagnostic đã kết thúc; I3/G3 Failed/Open, G4/dependency/Not run và sản phẩm giữ nguyên, chưa có optimization delta được chứng minh hoặc quyền mở trial/implementation mới.
+
 ## I3 diagnostic G/F R1 — continuation sau main ruling, 31/10/2026
 
 [Kết quả hiện hành](technical/scroll-gf-diagnostic-results.md): **G Failed** tại first valid extent/gap −4px ở Công/root23px Arial/CSS zoom1; dừng G, không rescue/retry. Zoom1,1/Tăng ca/font16/disjoint-pin/native hit/anchor chưa chạy. **F inconclusive**: retained trace được phân hoạch exclusive, nhưng thiếu exact source/build/node-region/offset provenance; fresh full1000 census/capture **Not run**,0 untraced/0 traced invocations. Không dùng G control thay faithful F baseline hoặc thử optimization.

@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## G/F — independent evidence review R1, 31/10/2026
+
+Independent Sol/high review exact `bc1c2c535a3fe09388b5d632ced36f229830a93b..3e5e7c5ea7a6535f8b00c8d424aca8425043b70d` Ready bounded handoff:0 Critical/0 Important/1 Minor M1. Report `.superpowers/sdd/implementation-plan/i3-gf-diagnostic-review-r1.md` độc lập recompute raw G −4px, trace partition/222 windows và hai seal12/12+69/69. G Failed/F inconclusive/fresh F Not run hợp lệ trong scope; root23/zoom1 không chứng minh zoom1,1 hoặc mọi windowing; trace wall attribution không causal/source/region proof. Tổng thời gian gốc2252,4113479s, không renewal. M1 qualification: thiếu raw wait output/session exit result trong retained seals; exit0 là author-reported, không independent corroborated riêng. Release được hỗ trợ bởi server close record và process absent/listeners empty/TCP ConnectionRefused/tab closed; không có finding tài nguyên còn sống. Main ghi qualification này, không sửa seal/chạy lại server. Ruling cho phép đọc runtime-listed skill instructions vẫn được giữ cùng initial stop; không nâng thành empirical pass. Checkpoint chỉ tài liệu, không đổi proposal/source/gates hoặc mở trial mới.
+
 ## I3 diagnostic G/F R1 — actual continuation, 31/10/2026
 
 [Results](technical/scroll-gf-diagnostic-results.md): same approved probe/cap; original UTC05:47:48.0724699Z→hard07:47:48.0724699Z. Main ruling sửa giới hạn exact runtime-listed instruction reads; initial stop/report215dd8b +12-file seal còn nguyên, không independent audit/new120 phút. Continuation owner/brief trước further reads05:55:34.6571662Z, clean HEAD `215dd8baa912c3952908da86f8ae339841e05832`, root `.agent-runs/MKW-PRODUCT-001/i3-gf-diagnostic-r1/20261031T055534Z-continuation-215dd8b/`. Exact shell commands/results/failures trong root journal và native tool transcript; ignored handoff append provenance/limits/actual end/full SHA/runmanifest.

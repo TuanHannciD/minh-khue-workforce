@@ -1,5 +1,7 @@
 # I3 — Kết quả diagnostic G/F R1
 
+**Checkpoint review độc lập:** Sol/high R1 accepted bounded handoff trên exact `bc1c2c535a3fe09388b5d632ced36f229830a93b..3e5e7c5ea7a6535f8b00c8d424aca8425043b70d`, không Critical/Important. Minor M1: claim session exit0 bên dưới là author-reported; raw final wait result không có trong bộ seal nên chưa independently corroborated riêng. Release được saved process/listener/TCP/tab postconditions hỗ trợ. Report `.superpowers/sdd/implementation-plan/i3-gf-diagnostic-review-r1.md`; các câu Pending main dưới đây ghi trạng thái lúc writer bàn giao, đã được checkpoint này cập nhật. Không sửa/reseal lịch sử hoặc chạy lại thí nghiệm để bổ sung log.
+
 Ngày31/10/2026, continuation theo ruling của main: **G Failed tại extent/gap −4px; F inconclusive từ retained trace, fresh F Not run.** Independent audit cuối **Pending main**. Đây vẫn là diagnostic đã duyệt tại [proposal mục6](scroll-next-step-proposal.md#6-quyết-định-cụ-thể-đề-nghị-main-trình-sau-fresh-review); không đổi question/probe, không renewal hoặc thử variant.
 
 ## Ruling, clock và provenance tiếp nối
