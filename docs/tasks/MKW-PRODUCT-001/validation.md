@@ -1,5 +1,12 @@
 # Validation — MKW-PRODUCT-001
 
+## Server pagination — kế hoạch được duyệt, bắt đầu thực thi, 01/11/2026
+
+Người dùng trả **“Approved”** sau bản kế hoạch 9 task và independent R2 **0 Critical / 0 Important / 0 Minor**. Quyền triển khai local theo [kế hoạch](technical/server-pagination-implementation-plan.md) có hiệu lực; main chỉ điều phối, tuần tự fresh implementer/reviewer, mọi subagent tối đa Sol/high và cấm Astra. Không hỏi lại thiết kế hoặc phương pháp.
+
+Execution resume riêng `.superpowers/sdd/server-pagination-implementation-plan/progress.md` giữ approval/base/task states/preflight/rulings; không reset ledger/evidence cũ. Bắt đầu Task1 capability/parity + scoped cleanup helper; chỉ reviewed PASS mở SQL/full-order phụ thuộc. Nếu capability FAIL/Blocked, giữ gate và tiếp tục phần DTO/UI fixture độc lập đã được duyệt. Không thay approved contract để làm test xanh; runtime/product/parity chưa được chứng minh bởi approval. Historical Failed/Not run/I3/G3/G4/dependencies còn nguyên. Scope chỉ local/worktree và fake sandbox định danh trong kế hoạch, không install/network/production/push/merge/deploy. Next: Task1 implement/test/local commit → fresh independent spec+quality review.
+
+
 ## Server pagination — independent plan review R2 đạt, chờ người dùng duyệt kế hoạch, 01/11/2026
 
 Fresh independent Sol/high review exact `f27b72012ea0ff27d32292c48b2381d9dbe37303..9ae14f6e4a6e6d6fc6e7398526fbfd1633002407`: **Ready for user plan review — 0 Critical / 0 Important / 0 Minor**. Full ignored report `.superpowers/sdd/implementation-plan/server-pagination-plan-review-r2.md` đối chiếu actual source và xác nhận I1–I4 đã giải quyết ở mức kế hoạch; spec sync giữ nguyên thiết kế đã duyệt. [Kế hoạch 9 task](technical/server-pagination-implementation-plan.md) hiện **Pending user plan approval**. Nhãn pending independent review trong bản plan và các checkpoint bên dưới là trạng thái trước R2, được checkpoint này cập nhật; không thay nội dung kỹ thuật đã review.
