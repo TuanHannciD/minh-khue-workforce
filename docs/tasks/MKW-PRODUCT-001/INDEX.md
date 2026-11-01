@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Pagination/search — independent R1 ready for design decision, 01/11/2026
+
+Fresh independent Sol/high review exact `e8b645c2a05176e6a904e913fb18e9da745e5fcc..88c56ccacbb7815dde4ef4466edd8676e1d34594`: Ready for user design decision,0 Critical/0 Important/0 Minor; report ignored `.superpowers/sdd/implementation-plan/pagination-search-review-r1.md`. [Proposal](technical/pagination-search-proposal.md) khuyến nghị client snapshot pagination25/50, tìm tên/ID toàn tháng trước slice và nhảy trang; full snapshot/API/poll cost vẫn giữ. Cần người dùng chốt gói Proposed, gồm workload1000 logical qua trang và selection page-local hay atomic explicit xuyên trang. Tổng/Excel toàn tháng, guard/raw/frozen revisions/CAS/auth/atomicity giữ. Không implementation/performance PASS hoặc I3/G3/G4 clearance; nguồn chuẩn requirements/design/contract chưa sửa thành Accepted. Bước tiếp trình thiết kế và lựa chọn selection cụ thể, không tự mở trial/code.
+
 ## Phân trang và tìm nhân sự — yêu cầu đánh giá01/11/2026
 
 Người dùng chỉ dẫn: “Hiện đang cố nhét 1000 người vào 1 page ư. Nếu đúng là như vậy thì đánh giá chuyển qua dùng cách phân trang và search trang chứ ko nên nhét hết vào 1 page như vậy”. Đây là yêu cầu đánh giá delta UX thay toàn bộ dòng bằng phân trang/tìm kiếm; không cần xin lại quyền assessment, không giữ constraint toàn bộ1000 dòng như bất biến.1000 là dataset benchmark giả, hiện trạng nghiệp vụ khoảng20 người/tháng; không đổi nghiệp vụ/auth/CAS/hệ UI C ngoài pagination delta được đề xuất.
