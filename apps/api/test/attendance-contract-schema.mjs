@@ -1,7 +1,7 @@
 import { isCalendarDate } from "../dist/modules/employees/index.js";
 
-// Small assertion evaluator for the OpenAPI3.0 keywords emitted by these DTOs.
-// It exercises the generated schema; it does not share the runtime parser.
+// Small assertion evaluator for the OpenAPI3.0 keywords used in these tests,
+// not a complete validator. It does not share the runtime parser or normalize.
 export function accepts(value, schema, schemas) {
   if (schema.$ref)
     return accepts(value, schemas[schema.$ref.split("/").at(-1)], schemas);
@@ -56,6 +56,8 @@ export function accepts(value, schema, schemas) {
   }
   if (schema.type === "string") {
     if (typeof value !== "string" || value.length < (schema.minLength ?? 0))
+      return false;
+    if (schema.maxLength !== undefined && [...value].length > schema.maxLength)
       return false;
     if (schema.pattern && !new RegExp(schema.pattern).test(value)) return false;
     if (

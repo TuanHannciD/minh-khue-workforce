@@ -224,7 +224,7 @@ export interface components {
        * @enum {integer}
        */
       pageSize?: 25 | 50;
-      /** @description Omission defaults to ""; ECMAScript trim; tối đa200 Unicode code points sau trim. */
+      /** @description Omission defaults to ""; parser áp dụng ECMAScript trim và giới hạn tối đa200 Unicode code points sau trim. Schema không chuẩn hóa hoặc kiểm giới hạn sau trim này. */
       q?: string;
     };
     AttendancePaginationDto: {

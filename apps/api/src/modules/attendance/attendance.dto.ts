@@ -228,9 +228,8 @@ export class AttendancePageQueryDto {
   @ApiProperty({ pattern: "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$" })
   month!: string;
   @ApiPropertyOptional({
-    maxLength: 200,
     description:
-      'Omission defaults to ""; ECMAScript trim; tối đa200 Unicode code points sau trim.',
+      'Omission defaults to ""; parser áp dụng ECMAScript trim và giới hạn tối đa200 Unicode code points sau trim. Schema không chuẩn hóa hoặc kiểm giới hạn sau trim này.',
   })
   q?: string;
   @ApiPropertyOptional({

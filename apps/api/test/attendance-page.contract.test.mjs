@@ -4,6 +4,47 @@ import * as validation from "../dist/modules/attendance/attendance-validation.js
 import { createDocument } from "../dist/openapi.js";
 import { accepts } from "./attendance-contract-schema.mjs";
 
+// The scoped schema evaluator must not silently ignore raw maxLength or count
+// surrogate pairs twice; it must not apply the parser's trim normalization.
+test("schema_maxLength_counts_unicode_code_points_without_trimming", () => {
+  const schema = { type: "string", maxLength: 2 };
+  assert.equal(accepts("ab", schema, {}), true);
+  assert.equal(accepts("abc", schema, {}), false);
+  assert.equal(accepts("😀😀", schema, {}), true);
+  assert.equal(accepts("😀😀😀", schema, {}), false);
+  assert.equal(accepts(" a ", schema, {}), false);
+});
+
+// A raw-string cap rejects valid padding. Normalization and its 200-code-point
+// limit belong to the parser; the published schema must allow those inputs.
+test("page_query_schema_accepts_padding_while_parser_enforces_normalized_limit", async () => {
+  const schemas = (await createDocument()).components.schemas;
+  const schema = schemas.AttendancePageQueryDto;
+  for (const q of [` ${"a".repeat(200)} `, `\u00a0${"😀".repeat(200)}\uFEFF`]) {
+    const input = { month: "2026-10", q };
+    assert.equal(validation.parseAttendancePageQuery(input).q, q.trim());
+    assert.equal(
+      accepts(input, schema, schemas),
+      true,
+      "published wire schema must accept a valid padded 200-code-point query",
+    );
+  }
+  for (const q of [` ${"a".repeat(201)} `, `\u00a0${"😀".repeat(201)}\uFEFF`]) {
+    const input = { month: "2026-10", q };
+    assert.throws(
+      () => validation.parseAttendancePageQuery(input),
+      (error) =>
+        error.getStatus?.() === 400 &&
+        error.getResponse().error.code === "INVALID_INPUT",
+    );
+    assert.equal(
+      accepts(input, schema, schemas),
+      true,
+      "schema permits strings whose normalized limit is enforced only by the parser",
+    );
+  }
+});
+
 // Catches omitted defaults, coercion, UTF-16 length checks and relaxed bounds.
 test("page_query_defaults_and_strict_bounds", () => {
   assert.equal(typeof validation.parseAttendancePageQuery, "function");
@@ -282,5 +323,4 @@ test("partial_page_is_not_month_contract", async () => {
       accepts(input, schemas.AttendancePageQueryDto, schemas),
       false,
     );
-  assert.equal(schemas.AttendancePageQueryDto.properties.q.maxLength, 200);
 });
