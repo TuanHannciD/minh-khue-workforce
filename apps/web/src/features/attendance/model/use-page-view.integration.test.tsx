@@ -31,8 +31,10 @@ import type { AttendancePageDto, PageCriteria } from "./types";
 import { AttendanceDraft } from "./attendance-draft";
 import { attendanceFixture } from "../preview/attendance-fixture";
 
+const clients: QueryClient[] = [];
 afterEach(() => {
   cleanup();
+  clients.splice(0).forEach((client) => client.clear());
   sessionBoundary.invalidate();
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -80,6 +82,7 @@ async function setup(start = initial) {
     .spyOn(document, "visibilityState", "get")
     .mockReturnValue("visible");
   const client = new QueryClient();
+  clients.push(client);
   const runtime = new SessionRuntime(client);
   const bodies: {
     request: PageCriteria;
@@ -151,7 +154,22 @@ async function setup(start = initial) {
       deliveries.push(result.data);
       const decision = accept(result.data);
       decisions.push(decision);
-      if (decision === "accepted") adoptAttendancePage(client, result.data);
+      if (decision === "accepted") {
+        adoptAttendancePage(client, result.data);
+        if (result.data.requested.page !== result.data.data.pagination.page)
+          expect(
+            client.getQueryData(
+              attendanceKeys.page(
+                {
+                  ...result.data.requested,
+                  page: result.data.data.pagination.page,
+                },
+                result.data.requestLifetime.userId,
+                result.data.requestLifetime.epoch,
+              ),
+            ),
+          ).toBe(result.data);
+      }
     }, [result.data, accept]);
     const shown = view.state.displayed;
     return (
@@ -169,7 +187,7 @@ async function setup(start = initial) {
       </SessionProvider>
     </QueryClientProvider>
   );
-  const rendered = render(wrapper());
+  let rendered = render(wrapper());
   const flush = async (ms = 0) => {
     await act(() => vi.advanceTimersByTimeAsync(ms));
   };
@@ -207,10 +225,14 @@ async function setup(start = initial) {
     setCode: (value: number) => {
       code = value;
     },
+    remount: async (next: PageCriteria) => {
+      start = next;
+      rendered = render(wrapper());
+      await flush();
+    },
     unmount: () => {
       rendered.unmount();
       disconnect();
-      client.clear();
     },
   };
 }
@@ -454,6 +476,17 @@ it("poll_and_accepted_clamp_share_dispatch_metadata", async () => {
   expect(h.bodies).toHaveLength(1);
   await h.flush(1);
   expect(h.bodies).toHaveLength(2);
+  const actualCancel = h.client.cancelQueries.bind(h.client);
+  let release!: () => void;
+  const gate = new Promise<void>((done) => {
+    release = done;
+  });
+  const cancel = vi
+    .spyOn(h.client, "cancelQueries")
+    .mockImplementation(async (...args) => {
+      await actualCancel(...args);
+      if (args[0]?.queryKey?.[6] === 39) await gate;
+    });
   await h.resolve(1, "clamp2", 39);
   const accepted = h.view().state.displayed!.delivery;
   expect(h.view().state.desired.page).toBe(39);
@@ -468,17 +501,124 @@ it("poll_and_accepted_clamp_share_dispatch_metadata", async () => {
   ).toEqual([39]);
   expect(h.client.getQueryCache().getAll()[0]!.state.data).toBe(accepted);
   expect(h.bodies).toHaveLength(2);
+  // Observer subscription protects the seed while enable awaits cancellation.
+  await h.flush(10);
+  expect(h.client.getQueryCache().getAll()).toHaveLength(1);
+  expect(h.client.getQueryCache().getAll()[0]!.state.data).toBe(accepted);
+  expect(h.client.getQueryCache().getAll()[0]!.getObserversCount()).toBe(1);
+  expect(h.bodies).toHaveLength(2);
+  await act(async () => release());
+  await h.flush();
+  cancel.mockRestore();
   await h.flush(15000);
   expect(h.bodies.map((b) => b.request.page)).toEqual([40, 40, 39]);
   await h.resolve(2, "next3");
   expect(h.view().state.displayed!.delivery.requestId).toBe(3);
+  const beforeUnmount = h.view().state.displayed!.delivery;
+  const canonical = h.client.getQueryCache().getAll()[0]!;
+  expect(canonical.getObserversCount()).toBe(1);
+  const unrelatedKey = ["unrelated"];
+  h.client.getQueryCache().build(h.client, {
+    queryKey: unrelatedKey,
+    gcTime: Infinity,
+    initialData: "keep",
+  });
   h.visibility.mockReturnValue("hidden");
   act(() => document.dispatchEvent(new Event("visibilitychange")));
   await h.flush(30000);
   expect(h.bodies).toHaveLength(3);
   h.unmount();
+  await h.flush();
+  expect(canonical.getObserversCount()).toBe(0);
+  expect(
+    h.client.getQueryCache().findAll({ queryKey: ["attendance", "page"] }),
+  ).toHaveLength(0);
+  expect(h.client.getQueryData(unrelatedKey)).toBe("keep");
+  expect(vi.getTimerCount()).toBe(0);
   await h.flush(30000);
   expect(h.bodies).toHaveLength(3);
+  h.visibility.mockReturnValue("visible");
+  await h.remount({ ...initial, page: 39 });
+  expect(h.bodies.map((body) => body.request.page)).toEqual([40, 40, 39, 39]);
+  expect(h.view().state.displayed).toBeNull();
+  expect(h.query().data).toBeUndefined();
+  await h.resolve(3, "remount4");
+  const fresh = h.view().state.displayed!.delivery;
+  expect(fresh).not.toBe(accepted);
+  expect(fresh).not.toBe(beforeUnmount);
+  expect(fresh.requestId).toBe(1);
+  expect(fresh.requested.page).toBe(39);
+  expect(screen.getByTestId("envelope").textContent).toBe(
+    "39|remount4|4|remount4|ready",
+  );
+  h.unmount();
+  await h.flush();
+  expect(
+    h.client.getQueryCache().findAll({ queryKey: ["attendance", "page"] }),
+  ).toHaveLength(0);
+  expect(vi.getTimerCount()).toBe(0);
+});
+it("canonical poll body cannot publish after navigation cancels its context", async () => {
+  const h = await setup({ ...initial, page: 40 });
+  await h.resolve(0, "clamp1", 39);
+  const accepted = h.view().state.displayed!.delivery;
+  await h.flush(15000);
+  expect(h.bodies.map((body) => body.request.page)).toEqual([40, 39]);
+  await h.request({ ...initial, page: 3 });
+  expect(h.bodies[1]!.signal.aborted).toBe(true);
+  expect(h.view().state.displayed!.delivery).toBe(accepted);
+  expect(screen.getByTestId("envelope").textContent).toBe(
+    "39|clamp1|1|clamp1|old-readonly",
+  );
+  await h.resolve(2, "fresh3");
+  const fresh = h.view().state.displayed!.delivery;
+  await h.resolve(1, "late-canonical2");
+  expect(h.view().state.displayed!.delivery).toBe(fresh);
+  expect(fresh.requestLifetime.generation).toBe(2);
+  expect(fresh.requested.page).toBe(3);
+  expect(fresh.requestId).toBe(3);
+  expect(
+    h.client
+      .getQueryCache()
+      .getAll()
+      .map((query) => query.state.data),
+  ).toEqual([fresh]);
+  h.unmount();
+  await h.flush();
+  expect(h.client.getQueryCache().getAll()).toHaveLength(0);
+  expect(vi.getTimerCount()).toBe(0);
+  await h.flush(30000);
+  expect(h.bodies).toHaveLength(3);
+});
+it("unmount during accepted handoff removes the seed before a canonical observer subscribes", async () => {
+  const h = await setup({ ...initial, page: 40 });
+  await h.resolve(0, "initial1");
+  await h.hold(true);
+  await h.flush(15000);
+  await h.resolve(1, "held2", 39);
+  await h.hold(false);
+  const delivery = h.view().state.deferred!;
+  const key = attendanceKeys.page(
+    { ...initial, page: 39 },
+    "owner",
+    delivery.requestLifetime.epoch,
+  );
+  await act(async () => {
+    expect(h.view().accept(delivery)).toBe("accepted");
+    adoptAttendancePage(h.client, delivery);
+    await vi.advanceTimersByTimeAsync(10);
+    const canonical = h.client
+      .getQueryCache()
+      .find({ queryKey: key, exact: true })!;
+    expect(canonical.state.data).toBe(delivery);
+    expect(canonical.getObserversCount()).toBe(0);
+    h.unmount();
+  });
+  await h.flush();
+  expect(h.client.getQueryCache().getAll()).toHaveLength(0);
+  expect(vi.getTimerCount()).toBe(0);
+  await h.flush(30000);
+  expect(h.bodies.map((body) => body.request.page)).toEqual([40, 40]);
 });
 it("held clamp preserves the whole old envelope until release adopts latest delivery", async () => {
   const h = await setup({ ...initial, page: 40 });
@@ -512,9 +652,21 @@ it("held clamp preserves the whole old envelope until release adopts latest deli
     ),
     { ...deferred, requestId: 0, data: structuredClone(deferred.data) },
   );
-  act(() => {
+  await act(async () => {
     if (h.view().accept(deferred) === "accepted") {
       adoptAttendancePage(h.client, deferred);
+      expect(
+        h.client.getQueryData(
+          attendanceKeys.page(
+            { ...initial, page: 39 },
+            "owner",
+            deferred.requestLifetime.epoch,
+          ),
+        ),
+      ).toBe(deferred);
+      // Hold the accepted React update until after timers: adoption must not
+      // lose the exact seed before the canonical observer can subscribe.
+      await vi.advanceTimersByTimeAsync(10);
       expect(
         h.client.getQueryData(
           attendanceKeys.page(
@@ -536,4 +688,7 @@ it("held clamp preserves the whole old envelope until release adopts latest deli
   ).toEqual([39]);
   expect(h.bodies).toHaveLength(3);
   h.unmount();
+  await h.flush();
+  expect(h.client.getQueryCache().getAll()).toHaveLength(0);
+  expect(vi.getTimerCount()).toBe(0);
 });
