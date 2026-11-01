@@ -26,6 +26,8 @@ import { AttendanceExportService } from "./export/attendance-export.service.js";
 import {
   AbsenceValueDto,
   AttendanceApiErrorDto,
+  AttendancePageDto,
+  AttendancePageQueryDto,
   MonthDto,
   NumberValueDto,
   PatchCellOperationDto,
@@ -51,6 +53,8 @@ import {
   SetValueOperationDto,
   SetReminderOperationDto,
   PatchCellOperationDto,
+  AttendancePageQueryDto,
+  AttendancePageDto,
 )
 @ApiResponse({ status: 400, type: AttendanceApiErrorDto })
 @ApiResponse({ status: 401, type: AttendanceApiErrorDto })

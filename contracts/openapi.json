@@ -66,6 +66,136 @@
         "required": ["path", "code", "message"],
         "type": "object"
       },
+      "AttendancePageDto": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "items": { "$ref": "#/components/schemas/CellSnapshotDto" },
+            "type": "array"
+          },
+          "employeeTotals": {
+            "$ref": "#/components/schemas/AttendancePageEmployeeTotalsDto"
+          },
+          "employees": {
+            "items": { "$ref": "#/components/schemas/EmployeeDto" },
+            "type": "array"
+          },
+          "fetchedAt": { "format": "date-time", "type": "string" },
+          "month": {
+            "pattern": "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$",
+            "type": "string"
+          },
+          "monthTotals": {
+            "$ref": "#/components/schemas/AttendancePageMonthTotalsDto"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/AttendancePaginationDto"
+          }
+        },
+        "required": [
+          "month",
+          "fetchedAt",
+          "pagination",
+          "employees",
+          "cells",
+          "employeeTotals",
+          "monthTotals"
+        ],
+        "type": "object"
+      },
+      "AttendancePageEmployeeTotalsDto": {
+        "additionalProperties": false,
+        "properties": {
+          "overtime": {
+            "items": { "$ref": "#/components/schemas/EmployeeTotalDto" },
+            "type": "array"
+          },
+          "work": {
+            "items": { "$ref": "#/components/schemas/EmployeeTotalDto" },
+            "type": "array"
+          }
+        },
+        "required": ["work", "overtime"],
+        "type": "object"
+      },
+      "AttendancePageKindTotalsDto": {
+        "additionalProperties": false,
+        "properties": {
+          "byDate": {
+            "items": { "$ref": "#/components/schemas/DateTotalDto" },
+            "type": "array"
+          },
+          "grandTotal": { "type": "number" }
+        },
+        "required": ["byDate", "grandTotal"],
+        "type": "object"
+      },
+      "AttendancePageMonthTotalsDto": {
+        "additionalProperties": false,
+        "properties": {
+          "overtime": {
+            "$ref": "#/components/schemas/AttendancePageKindTotalsDto"
+          },
+          "work": { "$ref": "#/components/schemas/AttendancePageKindTotalsDto" }
+        },
+        "required": ["work", "overtime"],
+        "type": "object"
+      },
+      "AttendancePageQueryDto": {
+        "additionalProperties": false,
+        "properties": {
+          "month": {
+            "pattern": "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$",
+            "type": "string"
+          },
+          "page": {
+            "description": "Omission defaults to 1",
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "description": "Omission defaults to 25",
+            "enum": [25, 50],
+            "type": "integer"
+          },
+          "q": {
+            "description": "Omission defaults to \"\"; ECMAScript trim; tối đa200 Unicode code points sau trim.",
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": ["month"],
+        "type": "object"
+      },
+      "AttendancePaginationDto": {
+        "additionalProperties": false,
+        "properties": {
+          "from": { "minimum": 0, "type": "integer" },
+          "monthEmployeeCount": { "minimum": 0, "type": "integer" },
+          "page": { "maximum": 2147483647, "minimum": 1, "type": "integer" },
+          "pageSize": { "enum": [25, 50], "type": "integer" },
+          "requestedPage": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "to": { "minimum": 0, "type": "integer" },
+          "totalPages": { "minimum": 0, "type": "integer" },
+          "totalResults": { "minimum": 0, "type": "integer" }
+        },
+        "required": [
+          "requestedPage",
+          "page",
+          "pageSize",
+          "totalResults",
+          "monthEmployeeCount",
+          "totalPages",
+          "from",
+          "to"
+        ],
+        "type": "object"
+      },
       "AttendanceTotalsDto": {
         "additionalProperties": false,
         "properties": {

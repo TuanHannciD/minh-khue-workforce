@@ -1,5 +1,11 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task2 server pagination — contract triển khai, chờ review độc lập, 01/11/2026
+
+Từ BASE sạch `c3ee2bec5abbeca9a716182c313ae8a2474823af`, sole implementer Sol/high tại branch/worktree hiện hành, không children/helpers/reviewer. Task2 độc lập thêm strict JSON parser, required parsed input, optional wire DTO, nested page/totals Swagger và generated web aliases; full MonthDto/G1 giữ nguyên. Controller chỉ ApiExtraModels, chưa route search/use case/SQL. [Validation Task2](validation.md#task2-server-pagination--parserdtogenerated-contract-01112026) ghi RED2→GREEN2, API17/17, generated drift và strict web/API typecheck exit0; main fresh independent review còn Pending. Không sửa main ledger.
+
+Task1 actual parity FAIL4/SQL policy NOT PINNED/Task1 chưa complete; independent R2 chấp nhận evidence/fail-stop không mở SQL Tasks3/4/8/9. API8 Pending options và historical Failed/Not run/I3/G3/G4 giữ nguyên. HTTP read mới/UI/DB/performance Not run trong Task2; không acquire live DB hoặc chạy failing prerequisite. Next: main fresh review exact Task2 commit; tiếp tục scope độc lập theo quyền đã duyệt, không suy DTO GREEN thành parity/product PASS.
+
 ## Server pagination — kế hoạch được duyệt, bắt đầu thực thi, 01/11/2026
 
 Người dùng trả **“Approved”** sau bản kế hoạch 9 task và independent R2 **0 Critical / 0 Important / 0 Minor**. Quyền triển khai local theo [kế hoạch](technical/server-pagination-implementation-plan.md) có hiệu lực; main chỉ điều phối, tuần tự fresh implementer/reviewer, mọi subagent tối đa Sol/high và cấm Astra. Không hỏi lại thiết kế hoặc phương pháp.

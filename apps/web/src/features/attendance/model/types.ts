@@ -1,5 +1,16 @@
 import type { components } from "@/shared/api/generated/schema";
 export type MonthDto = components["schemas"]["MonthDto"];
+export type AttendancePageQueryDto =
+  components["schemas"]["AttendancePageQueryDto"];
+export type AttendancePageDto = components["schemas"]["AttendancePageDto"];
+export type AttendancePaginationDto =
+  components["schemas"]["AttendancePaginationDto"];
+export type AttendancePageEmployeeTotalsDto =
+  components["schemas"]["AttendancePageEmployeeTotalsDto"];
+export type AttendancePageKindTotalsDto =
+  components["schemas"]["AttendancePageKindTotalsDto"];
+export type AttendancePageMonthTotalsDto =
+  components["schemas"]["AttendancePageMonthTotalsDto"];
 export type CellSnapshotDto = components["schemas"]["CellSnapshotDto"];
 export type CellKeyDto = components["schemas"]["CellKeyDto"];
 export type CellValueDto = CellSnapshotDto["value"];

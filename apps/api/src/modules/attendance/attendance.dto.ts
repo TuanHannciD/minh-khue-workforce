@@ -224,6 +224,68 @@ export class MonthDto {
   @ApiProperty({ type: [CellSnapshotDto] }) cells!: CellSnapshotDto[];
   @ApiProperty({ type: AttendanceTotalsDto }) totals!: AttendanceTotalsDto;
 }
+export class AttendancePageQueryDto {
+  @ApiProperty({ pattern: "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$" })
+  month!: string;
+  @ApiPropertyOptional({
+    maxLength: 200,
+    description:
+      'Omission defaults to ""; ECMAScript trim; tối đa200 Unicode code points sau trim.',
+  })
+  q?: string;
+  @ApiPropertyOptional({
+    type: "integer",
+    minimum: 1,
+    maximum: 2147483647,
+    description: "Omission defaults to 1",
+  })
+  page?: number;
+  @ApiPropertyOptional({
+    type: "integer",
+    enum: [25, 50],
+    description: "Omission defaults to 25",
+  })
+  pageSize?: 25 | 50;
+}
+export class AttendancePaginationDto {
+  @ApiProperty({ type: "integer", minimum: 1, maximum: 2147483647 })
+  requestedPage!: number;
+  @ApiProperty({ type: "integer", minimum: 1, maximum: 2147483647 })
+  page!: number;
+  @ApiProperty({ type: "integer", enum: [25, 50] }) pageSize!: 25 | 50;
+  @ApiProperty({ type: "integer", minimum: 0 }) totalResults!: number;
+  @ApiProperty({ type: "integer", minimum: 0 }) monthEmployeeCount!: number;
+  @ApiProperty({ type: "integer", minimum: 0 }) totalPages!: number;
+  @ApiProperty({ type: "integer", minimum: 0 }) from!: number;
+  @ApiProperty({ type: "integer", minimum: 0 }) to!: number;
+}
+export class AttendancePageEmployeeTotalsDto {
+  @ApiProperty({ type: [EmployeeTotalDto] }) work!: EmployeeTotalDto[];
+  @ApiProperty({ type: [EmployeeTotalDto] }) overtime!: EmployeeTotalDto[];
+}
+export class AttendancePageKindTotalsDto {
+  @ApiProperty({ type: [DateTotalDto] }) byDate!: DateTotalDto[];
+  @ApiProperty({ type: Number }) grandTotal!: number;
+}
+export class AttendancePageMonthTotalsDto {
+  @ApiProperty({ type: AttendancePageKindTotalsDto })
+  work!: AttendancePageKindTotalsDto;
+  @ApiProperty({ type: AttendancePageKindTotalsDto })
+  overtime!: AttendancePageKindTotalsDto;
+}
+export class AttendancePageDto {
+  @ApiProperty({ pattern: "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$" })
+  month!: string;
+  @ApiProperty({ format: "date-time" }) fetchedAt!: string;
+  @ApiProperty({ type: AttendancePaginationDto })
+  pagination!: AttendancePaginationDto;
+  @ApiProperty({ type: [EmployeeDto] }) employees!: EmployeeDto[];
+  @ApiProperty({ type: [CellSnapshotDto] }) cells!: CellSnapshotDto[];
+  @ApiProperty({ type: AttendancePageEmployeeTotalsDto })
+  employeeTotals!: AttendancePageEmployeeTotalsDto;
+  @ApiProperty({ type: AttendancePageMonthTotalsDto })
+  monthTotals!: AttendancePageMonthTotalsDto;
+}
 export class TargetPreviewDto {
   @ApiProperty({ minimum: 0 }) selected!: number;
   @ApiProperty({ minimum: 0 }) eligible!: number;

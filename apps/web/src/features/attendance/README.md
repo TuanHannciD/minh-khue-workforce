@@ -1,5 +1,7 @@
 # Chấm công tháng — Task7–8
 
+Server pagination Task2 bổ sung generated aliases ở `model/types.ts`: AttendancePageQueryDto/AttendancePageDto và nested pagination/totals, độc lập full MonthDto. Chưa đổi query/hook/UI consumer sang page hoặc thêm HTTP route. Parser/schema/generated consumer đã kiểm tại [validation Task2](../../../../../docs/tasks/MKW-PRODUCT-001/validation.md#task2-server-pagination--parserdtogenerated-contract-01112026); Task1 FAIL4 và dependent SQL gates giữ nguyên.
+
 Task10 fix R1 tách notification raw khỏi structural snapshot của `AttendanceDraft`: Workspace/Page dùng `structureSnapshot`, CellEditor/BulkEditor/SaveFeedback subscribe raw; mọi open/clear/pending/outcome/reconcile vẫn structural. `change` chỉ raw/reminder/custom/error/mode không dựng lại bảng; rejected→editing vẫn structural. Original CAS, owner generation và session epoch không đổi. `attendance-grid.tsx` memo projection theo month/kind, `attendance-row.tsx`/Cell dùng default memo đầy đủ props. Dispatchers ổn định đọc callbacks/interaction mới nhất trong layout effect; không comparator bỏ callback/lifetime. `useGridGesture` vẫn nhận interaction đầy đủ và giữ cancel/capture/latest lifetimes.
 
 CSS chỉ tạo positioned anchor cho button có reminder icon và td có fill handle; ô thường static để giảm paint/focus work, giữ nguyên geometry/sticky/zoom của C. Actual T3 desktop/mobile viewport kiểm icon/handle nằm trong ô nguồn; device/coarse touch vẫn cần lớp test riêng.

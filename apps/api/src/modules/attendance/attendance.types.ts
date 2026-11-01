@@ -1,4 +1,10 @@
 export type AttendanceKind = "work" | "overtime";
+export interface ParsedAttendancePageQuery {
+  month: string;
+  q: string;
+  page: number;
+  pageSize: 25 | 50;
+}
 export type CellValue =
   null | { type: "number"; value: number } | { type: "absence" };
 export interface CellKey {

@@ -13,6 +13,8 @@ export async function createDocument(): Promise<OpenAPIObject> {
       .addCookieAuth("mkw_session")
       .build();
     const document = SwaggerModule.createDocument(app, config);
+    // Exact object shapes also cover ApiExtraModels without a route (page read).
+    // Leave DTO integer bounds and pageSize enums intact for generated clients.
     for (const schema of Object.values(document.components?.schemas ?? {})) {
       if (!("$ref" in schema) && schema.type === "object")
         schema.additionalProperties = false;

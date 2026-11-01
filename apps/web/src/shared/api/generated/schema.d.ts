@@ -193,6 +193,51 @@ export interface components {
       message: string;
       path: string;
     };
+    AttendancePageDto: {
+      cells: components["schemas"]["CellSnapshotDto"][];
+      employeeTotals: components["schemas"]["AttendancePageEmployeeTotalsDto"];
+      employees: components["schemas"]["EmployeeDto"][];
+      /** Format: date-time */
+      fetchedAt: string;
+      month: string;
+      monthTotals: components["schemas"]["AttendancePageMonthTotalsDto"];
+      pagination: components["schemas"]["AttendancePaginationDto"];
+    };
+    AttendancePageEmployeeTotalsDto: {
+      overtime: components["schemas"]["EmployeeTotalDto"][];
+      work: components["schemas"]["EmployeeTotalDto"][];
+    };
+    AttendancePageKindTotalsDto: {
+      byDate: components["schemas"]["DateTotalDto"][];
+      grandTotal: number;
+    };
+    AttendancePageMonthTotalsDto: {
+      overtime: components["schemas"]["AttendancePageKindTotalsDto"];
+      work: components["schemas"]["AttendancePageKindTotalsDto"];
+    };
+    AttendancePageQueryDto: {
+      month: string;
+      /** @description Omission defaults to 1 */
+      page?: number;
+      /**
+       * @description Omission defaults to 25
+       * @enum {integer}
+       */
+      pageSize?: 25 | 50;
+      /** @description Omission defaults to ""; ECMAScript trim; tối đa200 Unicode code points sau trim. */
+      q?: string;
+    };
+    AttendancePaginationDto: {
+      from: number;
+      monthEmployeeCount: number;
+      page: number;
+      /** @enum {integer} */
+      pageSize: 25 | 50;
+      requestedPage: number;
+      to: number;
+      totalPages: number;
+      totalResults: number;
+    };
     AttendanceTotalsDto: {
       overtime: components["schemas"]["KindTotalsDto"];
       work: components["schemas"]["KindTotalsDto"];

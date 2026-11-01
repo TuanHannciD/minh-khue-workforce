@@ -1,3 +1,9 @@
+/**
+ * File map — one contract matrix for runtime/OpenAPI/generated consumers.
+ * G1 fixture classifier retains all12 full-contract examples; page fixtures stay
+ * local to the generated page consumer test. typecheckConsumer owns retained
+ * compiler evidence. Reconcile/write/contextual tests cover existing G1 edges.
+ */
 import { createEvidenceRun } from "../../../scripts/product/evidence-run.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -125,9 +131,13 @@ async function typecheckConsumer(name, source) {
     evidence,
     resolve(root, "apps/web/src/shared/api/generated/schema.js"),
   ).replaceAll("\\", "/");
+  const parsedTypes = relative(
+    evidence,
+    resolve(root, "apps/api/src/modules/attendance/attendance.types.js"),
+  ).replaceAll("\\", "/");
   await writeFile(
     path,
-    `import type { components } from "${generated}";\n${source}\n`,
+    `import type { components } from "${generated}";\n${source.replaceAll("__PARSED_TYPES__", parsedTypes)}\n`,
   );
   const result = await command(
     process.platform === "win32" ? "pnpm.exe" : "pnpm",
@@ -154,6 +164,99 @@ async function typecheckConsumer(name, source) {
     `Generated consumer ${name}: ${result.output} (retained ${evidence})`,
   );
 }
+
+test("generated page consumers keep optional wire, required parsed input and full MonthDto distinct", async () => {
+  const employeeId = "00000000-0000-4000-8000-000000000101";
+  const dates = Array.from(
+    { length: 31 },
+    (_, i) => `2026-10-${String(i + 1).padStart(2, "0")}`,
+  );
+  const page = {
+    month: "2026-10",
+    fetchedAt: "2026-11-01T00:00:00.000Z",
+    pagination: {
+      requestedPage: 40,
+      page: 40,
+      pageSize: 25,
+      totalResults: 976,
+      monthEmployeeCount: 1000,
+      totalPages: 40,
+      from: 976,
+      to: 976,
+    },
+    employees: [
+      {
+        id: employeeId,
+        name: "Fixture page",
+        startDate: "2026-10-01",
+        endDate: null,
+        revision: "employee-r1",
+      },
+    ],
+    cells: dates.flatMap((date) =>
+      ["work", "overtime"].map((kind) => ({
+        employeeId,
+        date,
+        kind,
+        value: null,
+        reminder: false,
+        revision: "0",
+        state: "editable",
+      })),
+    ),
+    employeeTotals: {
+      work: [{ employeeId, value: 0 }],
+      overtime: [{ employeeId, value: 0 }],
+    },
+    monthTotals: {
+      work: {
+        byDate: dates.map((date) => ({
+          date,
+          value: date === "2026-10-01" ? 10 : 0,
+        })),
+        grandTotal: 10,
+      },
+      overtime: {
+        byDate: dates.map((date) => ({
+          date,
+          value: date === "2026-10-01" ? 20 : 0,
+        })),
+        grandTotal: 20,
+      },
+    },
+  };
+  await typecheckConsumer(
+    "page-types",
+    [
+      'type Query = components["schemas"]["AttendancePageQueryDto"];',
+      'type Page = components["schemas"]["AttendancePageDto"];',
+      'type Month = components["schemas"]["MonthDto"];',
+      'import type { ParsedAttendancePageQuery } from "__PARSED_TYPES__";',
+      '({ month: "2026-10" }) satisfies Query;',
+      '({ month: "2026-10", q: "", page: 1, pageSize: 50 }) satisfies Query;',
+      ...[
+        { q: null },
+        { page: "1" },
+        { page: null },
+        { pageSize: 100 },
+        { pageSize: null },
+      ].map(
+        (extra) =>
+          `// @ts-expect-error invalid wire type\n(${JSON.stringify({ month: "2026-10", ...extra })}) satisfies Query;`,
+      ),
+      `const page = (${JSON.stringify(page)}) satisfies Page;`,
+      "// @ts-expect-error a partial page lacks the full-month totals contract",
+      "page satisfies Month;",
+      "declare const month: Month;",
+      "// @ts-expect-error full MonthDto does not supply a page envelope",
+      "month satisfies Page;",
+      "export function consume(page: Page) { return page.employeeTotals.work.length + page.monthTotals.overtime.grandTotal + page.pagination.totalPages; }",
+      '({ month: "2026-10", q: "", page: 1, pageSize: 25 }) satisfies ParsedAttendancePageQuery;',
+      "// @ts-expect-error parsed input requires defaults resolved at the boundary",
+      '({ month: "2026-10" }) satisfies ParsedAttendancePageQuery;',
+    ].join("\n"),
+  );
+});
 
 test("reconcile requires both typed arrays while either array may supply the nonempty request", async () => {
   const schemas = (await createDocument()).components.schemas;

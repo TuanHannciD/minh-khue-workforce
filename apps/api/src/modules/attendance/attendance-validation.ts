@@ -1,5 +1,9 @@
 import { calendarMonth, isCalendarDate } from "../employees/index.js";
-import type { CellExpectation, CellKey } from "./attendance.types.js";
+import type {
+  CellExpectation,
+  CellKey,
+  ParsedAttendancePageQuery,
+} from "./attendance.types.js";
 import { cellId } from "./attendance.types.js";
 import { attendanceError, invalidInput } from "./attendance-errors.js";
 import type {
@@ -96,6 +100,29 @@ export function parseMonth(input: unknown): string {
 export function parseMonthQuery(input: unknown) {
   shape(input, ["month"]);
   return parseMonth(input.month);
+}
+export function parseAttendancePageQuery(
+  input: unknown,
+): ParsedAttendancePageQuery {
+  shape(input, ["month"], ["q", "page", "pageSize"]);
+  const month = parseMonth(input.month);
+  let q = "";
+  if (Object.hasOwn(input, "q")) {
+    if (typeof input.q !== "string") return invalidInput();
+    q = input.q.trim();
+    if ([...q].length > 200) return invalidInput();
+  }
+  const page = Object.hasOwn(input, "page") ? input.page : 1;
+  const pageSize = Object.hasOwn(input, "pageSize") ? input.pageSize : 25;
+  if (
+    typeof page !== "number" ||
+    !Number.isInteger(page) ||
+    page < 1 ||
+    page > 2147483647 ||
+    (pageSize !== 25 && pageSize !== 50)
+  )
+    return invalidInput();
+  return { month, q, page, pageSize };
 }
 export function parseReconcile(input: unknown): ReconcileRequestDto {
   shape(input, ["employeeIds", "cells"]);

@@ -1,5 +1,29 @@
 # Validation — MKW-PRODUCT-001
 
+## Task2 server pagination — parser/DTO/generated contract, 01/11/2026
+
+Sole implementation Sol/high, BASE sạch `c3ee2bec5abbeca9a716182c313ae8a2474823af`, `agent/mkw-agent-002`/`.worktrees/agent-bootstrap`; no children/helpers/reviewer/install/network/global/production/push/merge/deploy. Scope parser/types/DTO/model registration/openapi comment/web aliases/tests và generator-owned2 outputs, navigation/checkpoint docs. User Approved Task2 supersedes draft labels; không sửa main ledger/API8 Pending options hoặc Task1 FAIL evidence. Main fresh independent review Pending, self-review không thay review độc lập.
+
+Portable Node24.22.1/pnpm12.15.0 qua process PATH theo execution-context. Evidence ignored `.agent-runs/MKW-PRODUCT-001/server-pagination/task2-98839215-20ec-4471-9ac1-872ea96d3e8c/`; full report `.superpowers/sdd/server-pagination-implementation-plan/task-2-report.md`. Commands actual từ worktree root:
+
+```powershell
+pnpm --filter @mkw/api build
+pnpm --filter @mkw/api exec node --test test/attendance-page.contract.test.mjs
+pnpm run product:contract:generate
+pnpm --filter @mkw/api exec node --test test/attendance-page.contract.test.mjs test/attendance.contract.test.mjs
+pnpm --filter @mkw/api test
+pnpm run product:contract:check
+pnpm run product:typecheck
+```
+
+RED build exit0; new tests exit1,0 pass/2 fail: assertion missing parser (`undefined` vs `function`) và missing page schema, không compiler/package error. GREEN focused new tests2/2; combined7/7 giữ12 G1 fixture typed/classifier. Full API first run16/17: generated page consumer TS1360 bắt optional wire có Swagger default metadata bị openapi-typescript defaultNonNullable biến thành required. Systematic debug traced DTO→OpenAPI required[month]→generated required q/page/pageSize, đối chiếu generator source và optional employee DTO hiện có. Fix tại DTO owner: mô tả omission defaults bằng description, không đổi generator/global option hoặc generated tay. Re-generation exit0; focused consumer1/1, final API17/17 exit0; contract drift và web/API strict typecheck exit0. Logs `red-build.log`, `red-page.log`, `green-build.log`, `green-page.log`, `api-test.log` (retained failure), `generate-fixed.log`, `green-consumer.log`, `focused-final.log`, `api-test-final.log`, `contract-check.log`, `typecheck.log` giữ raw outputs; không che lỗi trung gian.
+
+Parser kiểm ECMAScript trim trước200 Unicode code points (emoji surrogate pairs), defaults, Gregorian0001–9999, finite integer page1…2147483647, pageSize25/50, reject unknown/null/wrong type/no conversion. Page fixture có một người cuối trang40 của976 kết quả,62 cells/31 dates/kind totals, global totals khác row totals; zero page giữ global totals. Schema tests reject full-month substitution/nested missing/unknown/null/bounds; generated satisfies/@ts-expect-error giữ optional wire/required parsed/full MonthDto khác nhau. Không thêm JSON fence vào contract để giữ classifier G1. Swagger không thực hiện trim hoặc cross-field arithmetic/membership; runtime parser chứng minh trim, response arithmetic/HTTP/auth/DB proof thuộc Tasks3/8 còn Not run.
+
+Self-review actual diff và independent one-off artifact comparison với BASE: `compatibility.json` xác nhận10 paths/42 existing schemas deep-equal (gồm MonthDto), chỉ thêm6 page schemas, không search route. Scoped ESLint/Prettier, `pnpm run check:docs` (66 documents) và `git diff --check` exit0; raw `lint.log`, `format-check.log`, `docs-check.log`, `diff-check.log`. Git báo CRLF→LF cho hai dossier Markdown, không mất UTF-8/dấu. `attendance.contract.test.mjs` hơn400 dòng được giữ vì một matrix G1+page dùng chung retained consumer compiler, thêm file map; DTO dưới400, không tách trách nhiệm hoặc copy scalar DTO.
+
+Không acquire PG/DB/browser hoặc persistent listener; generation/createDocument chỉ init/close app, không listen/query. Mandatory existing API bootstrap/auth tests mở loopback ephemeral listeners bằng listen(0), đóng trong finally/app.close; test subprocesses kết thúc. Không set DB owner/DATABASE_URL hoặc chạy live prerequisite; Prisma generate chỉ local output, không migration. Task1 FAIL4, SQL policy NOT PINNED, Task1 chưa complete; Tasks3/4/8/9 vẫn gated, historical Failed/Not run/I3/G3/G4/native/dependency concerns giữ nguyên. Next main fresh independent exact-SHA review.
+
 ## Task1 fix R1 — SQL xác nhận FAIL, 01/11/2026
 
 Sole fix writer Sol/high, FIX BASE sạch `f746fe51a34e740335b53dca1007ae623db18d0a`, cùng branch/worktree; no children/helpers/reviewer. Scope3 test/fixture files + API8/matrix/validation; helper owner/product source/old harness/allowlist/main ledger giữ nguyên. Main owns fresh independent review. Áp dụng receiving-code-review/systematic-debugging/TDD/verification-before-completion; không whole-plan interview, install/network/new runtime/global/production/push/merge/deploy hoặc đổi approved semantics.
