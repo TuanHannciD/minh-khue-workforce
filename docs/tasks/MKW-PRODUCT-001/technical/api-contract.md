@@ -1,5 +1,7 @@
 # Contract API v1 — thiết kế cho G1
 
+**Route hiện hành01/11/2026:** [mục8](#8-đọc-trang-server--thiết-kế-đã-duyệt01112026) bổ sung read trang theo bản viết người dùng “Tôi chốt bản thiết kế này”. Thiết kế sản phẩm Accepted; API mới chưa triển khai/Verified, SQL order/search bị chặn bởi prerequisite parity. GET full MonthDto/export và writes/reconcile/G1 giữ tương thích; không thay partial DTO vào MonthDto. Các checkpoint Task1/5/9 dưới đây giữ lịch sử lớp đã chạy.
+
 Task9 ngày29/10/2026 triển khai GET export với session guard/query strict, no-store, attachment ASCII theo section5. Nguồn duy nhất `readMonth` → đóng read transaction → workbook Buffer → stream; build lỗi trả JSON500 `EXPORT_FAILED` trước attachment, DB/read lỗi503. Nest controller sở hữu content xlsx200/binary và JSON error; pipeline sinh lại OpenAPI/web types, không hand-edit hoặc DTO binary giả. Snapshot/Auth/SQL/browser download và Microsoft Excel desktop16.0.20527.20088 sửa/recalc hai bảng có evidence tại validation; main independent exact-SHA review Pending, không nâng whole-product gates. Các checkpoint cũ bên dưới giữ lịch sử.
 
 Cập nhật Task5, 29/10/2026: contract tháng/changes/reconcile đã có runtime HTTP và PostgreSQL sandbox, Nest DTO→OpenAPI3.0.3→web types; bốn fixture write đầy đủ và fixture tháng56 ô được đối chiếu thực. Export và UI attendance/recovery chưa triển khai. Chi tiết lớp kiểm/evidence ở [validation](../validation.md); review độc lập Task5 chờ main trên SHA cuối. Đoạn Proposed bên dưới là checkpoint Task1, không mô tả readiness hiện tại.
@@ -13,7 +15,7 @@ Ngày28/10/2026. **Proposed for G1 review**, thuộc Task1 của [plan đã duy�
 - Ngày lịch `YYYY-MM-DD` hợp lệ Gregorian, không timestamp/timezone; tháng `YYYY-MM`, năm0001–9999 do định dạng kỹ thuật. Timestamp kỹ thuật ISO8601 UTC có `Z`; thứ tính từ ngày lịch, không từ timezone trình duyệt. Không có lịch nghỉ tự điền.
 - Lỗi `{error:{code,message,details?},requestId}`; message tiếng Việt an toàn, không echo secret/SQL/stack. `requestId` dùng chẩn đoán, không là idempotency key. Thành công trả resource/DTO trực tiếp; nội dung tháng có tổng từ server.
 - GET không mutation nghiệp vụ, auth theo [auth-session](auth-session.md). Unsafe methods yêu cầu Origin chính xác được phép và JSON; browser fetch `credentials: include`. Không gửi mật khẩu/session trong URL; mọi response dữ liệu cá nhân `Cache-Control: no-store`.
-- Body JSON giới hạn kỹ thuật16MiB sau giải nén; vượt trả413 `PAYLOAD_TOO_LARGE` trước mutation. Đây không là trần số ô chọn hoặc nhân sự; UI giữ draft và không tự chia batch thành nhiều lần lưu. Không tự bổ sung pagination/virtualization; cần đo trước đổi contract.
+- Body JSON giới hạn kỹ thuật16MiB sau giải nén; vượt trả413 `PAYLOAD_TOO_LARGE` trước mutation. Đây không là trần số ô chọn hoặc nhân sự; UI giữ draft và không tự chia batch thành nhiều lần lưu. Pagination read đã duyệt tại mục8; không tự thêm virtualization hoặc đổi write contract.
 
 ## 2. Kiểu dữ liệu công khai
 
@@ -45,7 +47,7 @@ type KindTotalsDto = {
 
 `state` là trạng thái hiển thị suy từ mốc, không trạng thái duyệt/lưu mới. `before-start` hiển thị N, `after-end` hiển thị —, đều value=null/reminder=false theo invariant DB. Trong thời gian làm việc value=null hiển thị trống, absence hiển thị F chỉ ở work; overtime không nhận absence/zero. Công number0 được normalize thành absence; overtime number phải >0, không tăng ca chọn null. Server trả số dạng JSON chính xác bội0.5, không chuỗi thập phân. N/—/F không serialize thành số0. Tổng value là số, phép tính thực bằng nửa đơn vị nguyên trên server.
 
-Month trả cả Công/Tăng ca cho mỗi người/ngày trong tháng, kể cả ô chưa có record, theo thứ tự employees name dùng collation hiển thị tiếng Việt rồi ID để ổn định; không gộp tên trùng. cells sắp employee/date/kind; UI có thể tìm/lọc client nhưng không mất định danh. Ngày/người không có số cho tổng0; bảng vẫn giữ ô trống là trống. Khoảng nhân sự phải giao tháng; danh sách không có ai thì employees/cells rỗng và totals grandTotal=0, byEmployee rỗng, byDate đủ ngày với0.
+Month trả cả Công/Tăng ca cho mỗi người/ngày trong tháng, kể cả ô chưa có record, theo thứ tự employees name dùng collation hiển thị tiếng Việt rồi ID để ổn định; không gộp tên trùng. cells sắp employee/date/kind. UI sản phẩm chuyển sang search server mục8; full DTO vẫn dành GET/export/consumer fullmonth, không cắt rồi cast thành MonthDto. Ngày/người không có số cho tổng0; bảng vẫn giữ ô trống là trống. Khoảng nhân sự phải giao tháng; danh sách không có ai thì employees/cells rỗng và totals grandTotal=0, byEmployee rỗng, byDate đủ ngày với0.
 
 ## 3. Endpoint và ví dụ
 
@@ -57,6 +59,7 @@ Month trả cả Công/Tăng ca cho mỗi người/ngày trong tháng, kể cả
 | POST `/employees` | `{name,startDate,endDate?}` | 201 EmployeeDto, mặc định endDate=null | 400 shape,422 dates/name |
 | PATCH `/employees/:id` | `{expectedRevision,name?,startDate?,endDate?}` | 200 EmployeeDto | 404 ID,409 stale,422 excluded cells/date |
 | GET `/attendance/month?month=2026-10` | Tháng | 200 MonthDto | 400 malformed,401 |
+| POST `/attendance/search` | AttendancePageQueryDto, chỉ đọc | 200 AttendancePageDto | 400 shape/query,401,403,413/415,503 |
 | POST `/attendance/reconcile` | ReconcileRequestDto, chỉ đọc theo ID/key | 200 ReconcileSnapshotDto | 400 shape/duplicate/empty,401,403 origin,413/415 |
 | POST `/attendance/changes` | WriteAttendanceDto dưới đây | 200 WriteResultDto | 400 shape/duplicate,409 conflict,422 value/no targets |
 | GET `/attendance/export?month=2026-10` | Tháng | 200 xlsx stream | 400/401,500 export error |
@@ -387,3 +390,31 @@ GET `/attendance/month?month=2026-02` không có body. Response200 dưới đây
   }
 }
 ```
+
+## 8. Đọc trang server — thiết kế đã duyệt01/11/2026
+
+Nguồn wire cho delta server của [design15](../design.md#15-phân-trang-server-và-tìm-toàn-tháng--accepted01112026); chưa runtime implementation/compatibility proof. Mục7 giữ fixture full MonthDto lịch sử không sửa. `POST /api/v1/attendance/search` là read dùng SessionGuard, auth trước lookup/count; Origin/JSON/16MiB/no-store/errors như reconcile,200 thành công,400 malformed,401/403/413/415 theo policy,503 DB/invariant. Không gọi authorizeMutation, tạo revision/fence hoặc ghi nghiệp vụ; auth idle policy giữ nguyên. q chỉ trong body/memory query key, không URL/history/log body/telemetry/localStorage.
+
+```ts
+type AttendancePageQueryDto = { month: string; q?: string; page?: number; pageSize?: 25 | 50 };
+type AttendancePageDto = {
+  month: string; fetchedAt: string;
+  pagination: { requestedPage: number; page: number; pageSize: 25 | 50;
+    totalResults: number; monthEmployeeCount: number; totalPages: number; from: number; to: number };
+  employees: EmployeeDto[]; cells: CellSnapshotDto[];
+  employeeTotals: { work: { employeeId: string; value: number }[];
+    overtime: { employeeId: string; value: number }[] };
+  monthTotals: { work: { byDate: { date: string; value: number }[]; grandTotal: number };
+    overtime: { byDate: { date: string; value: number }[]; grandTotal: number } };
+};
+```
+
+month bắt buộc theo Gregorian0001–9999 hiện có. Omission q/page/pageSize mặc định `""`/1/25; web luôn gửi đủ4. q string trim ECMAScript whitespace, tối đa200 Unicode code points sau trim, không cắt; page JSON finite integer1…2147483647, pageSize chỉ25/50. Null/sai kiểu/unknown field/chuỗi số bị từ chối, không convert. DTO request optional wire khác internal parsed input required. Nest DTO/Swagger là code owner, sinh OpenAPI/web aliases bằng generator, không sửa generated hoặc dựng wire types web riêng.
+
+Membership startDate≤cuối tháng và endDate null hoặc ≥đầu tháng. q rỗng lấy toàn membership; literal substring tên `toLocaleLowerCase("vi")` semantics hiện có hoặc ID text case-sensitive; `%`, `_`, backslash là ký tự thật, không wildcard, không bỏ dấu/normalization/fuzzy. Sort tên tiếng Việt tăng dần rồi ID, cùng sort cho page/full read/export. **Prerequisite chặn SQL/search/order phụ thuộc:** ghi catalog/provider/locale/determinism/version/actual version, expression lowercase/literal match, so fixtures SQL với JS runtime hiện có, đặc biệt canonical-equivalent names và ID tie. Không coi ICU deterministic tự tương đương Intl. Parity fail/unavailable: output delta, dừng dependent tasks, proposed contract delta được review/quyết định trước code, không chọn ASCII/default cluster hoặc yêu cầu user chọn ICU. Task1 plan mới sở hữu gate này; independent validation/query/UI có thể tiếp tục.
+
+Một READ ONLY REPEATABLE READ transaction trả fetchedAt/count/page/cells/row totals/month totals nhất quán; kiểm corruption value/F/reminder ngoài employment interval trong toàn tháng kể cả offpage/out-of-membership phải503 an toàn. Count và SQL LIMIT/OFFSET dùng cùng membership/predicate/order; không full list/snapshot về app rồi sort/slice. Cells đủ page IDs × mọi ngày ×2 kinds, employee/date/kind order, giữ tombstone/N/—/revision0 như G1. employeeTotals chỉ page IDs, mỗi số cả tháng; monthTotals toàn membership không phụ thuộc q/page, đủ ngày0, halfUnits nguyên/safe conversion, chỉ numeric cộng. Count/global aggregate/invariant DB vẫn có thể tốn theo toàn tháng; bounded payload không chứng minh bounded DB cost.
+
+totalPages=ceil(totalResults/pageSize). Có kết quả: page=min(requestedPage,totalPages), from=(page−1)×pageSize+1, to=min(page×pageSize,totalResults). Không kết quả: page1/totalPages0/from0/to0, employees/cells/cả hai employeeTotals rỗng; monthTotals vẫn toàn tháng. requestedPage giữ input gốc.976 người/page40/size25 →40 trang/from976/to976;975 →39 trang/page39/from951/to975/requestedPage40. monthEmployeeCount không lọc, totalResults có lọc; không echo q hoặc thêm mọi IDs. Mỗi request fresh, không collection lock/version xuyên trang, fetchedAt không CAS token.
+
+Full MonthDto/GET/export giữ shape và semantics; UI editing dùng DTO page, không fullmonth background subscription. Export nhận month và đọc full snapshot thời điểm riêng, đóng transaction trước workbook, không hứa cùng fetchedAt với page. Write/reconcile shapes, CAS/no-op/tombstone/atomic/fence/unknown rules mục4–5 không đổi; query invalidate page tháng sau write, user/epoch namespace sau employee change, chỉ active refetch. Kiểm contract/parser/auth/HTTP/PG/races/drift/consumer ở plan Tasks1–4/8, **Not run** cho read mới; approval design không tự duyệt plan hoặc claim collation đã pin.

@@ -312,3 +312,9 @@ Tự review28/10/2026: đã đối chiếu14 mục/23 AC; giữ đề xuất tro
 ## Bàn giao review
 
 Kế hoạch đã duyệt, phương pháp inline; đã soạn bộ thiết kế Task1 ở các link trên. Bước tiếp: người dùng review G1 theo gate đã duyệt trước phần code phụ thuộc, không review lại plan/kiến trúc/UI. Reviewer độc lập cho code/tooling/auth/DB và quyền dispatch vẫn cần đúng scope khi đến gate; chưa cài/code Task2 hoặc tích hợp/release.
+
+## Route tiếp nối01/11/2026 — không reset lịch sử plan này
+
+Các task/checkpoint/checkbox ở trên giữ lịch sử đúng mốc. Người dùng đã chốt bản thiết kế server pagination/global search và selection page-local; [design15](../design.md#15-phân-trang-server-và-tìm-toàn-tháng--accepted01112026)/[API8](api-contract.md#8-đọc-trang-server--thiết-kế-đã-duyệt01112026)/[matrix](verification-matrix.md#phân-trang-server--acceptance-hiện-hành01112026) là delta hiện hành. [Server pagination implementation plan](server-pagination-implementation-plan.md) mới **Draft/Pending independent spec+plan review và user plan approval**, không dùng approval plan28/10 hoặc design approval01/11 để chạy delta/trial mới. Main chỉ coordinate, giữ phương pháp subagent/review tuần tự đã chọn và hard cap Sol/high/cấm Astra; không hỏi lại method/design/defaults/selection.
+
+Next: main fresh independent review cả spec sync + plan mới trên exact range, xử lý findings, rồi user plan review. Sau plan approval main ghi resume riêng, không reset ledger/sealed history này; collation/provider/version/lowercase/canonical-equivalent/ID tie parity là prerequisite trước dependent SQL/shared export ordering. Historical fullDOM1000 Failed/I3/G3/native/SR/phoneperf/G4/Task9 concerns vẫn mở theo INDEX/validation; không mark các gate hoàn tất từ tài liệu mới.

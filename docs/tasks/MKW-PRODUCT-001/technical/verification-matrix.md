@@ -1,5 +1,39 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Phân trang server — acceptance hiện hành01/11/2026
+
+Người dùng **“Tôi chốt bản thiết kế này”**: [design15](../design.md#15-phân-trang-server-và-tìm-toàn-tháng--accepted01112026) Accepted server pagination/global name-ID search/25 default/50 option/jump/page-local rectangle-disjoint-fill/active-page15s/fullmonth totals-Excel và **1000 nhân sự logical qua trang**. [Plan mới](server-pagination-implementation-plan.md) Draft/Pending independent review + user plan approval. Read mới/parity/performance/browser **Not run**. Checkpoints bên dưới là lịch sử, không competing workload hiện hành và không được xóa: fullDOM1000 canonical Failed p9566,6/max333,3>33/200; I3/G3 còn mở, G4/dependency/Task9 M1/M2 và native phones/SR/phoneperf chưa clearance. Task9 reader evidence cũ giữ scope cũ, không proof export order mới.
+
+| Acceptance/risk | Owner plan/test tương lai | Kết quả bắt buộc |
+| --- | --- | --- |
+| Prerequisite collation/search | Task1 `employee-read-parity.integration.test.mjs` | Actual sandbox identity/provider/locale/determinism/version/actualVersion + JS ICU/options; pin expected Unicode/lowercase/%_/IDcase/canonical-equivalent/tie fixtures **trước dependent SQL/order**. PASS0 mismatches; FAIL/unavailable dừng Tasks3–4 và dependent real E2E/perf, đề xuất delta contract/quyết định. Không ASCII/default fallback, independent Tasks2/5–7 dùng fixture tiếp tục |
+| AC24 bounded read | Tasks2–3 `attendance-page.contract.test.mjs`, `attendance-page.integration.test.mjs` | Defaults/strict400/auth401/Origin403/body413/415/no-store; membership/global literal search/stable order/zero/clamp/counts; max25/50 employees,1550/3100 snapshots ở31 ngày, page row totals và fullmonth totals đúng SQL độc lập |
+| AC24/26 snapshot | Tasks3/8 `attendance-page-races.integration.test.mjs` | Count/IDs/cells/totals/fetchedAt cùng READ ONLY REPEATABLE READ dưới insert/rename/mốc/write barrier; offpage/out-of-membership corruption503, không che lỗi; tombstone/revision giữ; read không fence |
+| AC20/25 query lifecycle | Task5 `use-attendance-page.test.tsx`, `page-view.test.ts` | Desired/displayed tách, late/abort/epoch/session, active visible15000ms, inactive0 cache,4xx dừng/5xx2 retry1s/3s, clamp canonical key một active timer, namespace invalidation đúng; fetchedAt/footer cùng displayed envelope |
+| AC10/12/13/21–23/25 | Task6 model/guard/gesture tests + Task8 `pagination.spec.ts` | Raw3,25/custom/error/mode/reminder/frozen source-target-employee revisions giữ qua context/poll; pending/reconciling khóa; page-local/no hidden writes/no split batch; offpage CAS409 rollback, original-ID unknown reconcile/fence đúng ca6–9 G1 |
+| AC08/24/25 UI | Task7 pager/page/grid tests; Tasks8/9 browser/device | Search debounce300/IME/Enter/jump/size reset/zero/error/busy/read-only/focus/Tab boundary/caption/labels/44px;450ms/10px native pan-pinch-cancel, sticky zoom/page edges; SR/native evidence riêng |
+| AC03/04/07/09/26 | Tasks4/8 export integration + `export.spec.ts` | Full GET/Excel không nhận q/page, same ordered IDs q rỗng, full totals/typed F/N/—/reminder/SUM/caches; transaction đóng trước build, reader edit/recalc thật riêng |
+| AC26 performance | Task9 paginated production benchmark |20/200/1000 logical ×31×2 kinds, page25/50, deep jump/search miss/hit/offpage total; bounded API/render nhưng đo count/aggregate/invariant DB cost riêng; metrics/thresholds dưới |
+
+### Ánh xạ ngân sách và page-search feedback
+
+Budget G1 giữ nguyên,200/1000 là **dataset logical**, không số rows DOM. Chạy cả pageSize25/50, cả work/overtime, production cùng máy1280×800/loopback/no throttle, density như baseline, không profile-reuse samples cũ. API/cold/warm/render tối thiểu5 mỗi cấu hình, editor/input/page/search feedback ít nhất30, scroll/drag5×5s, heap2 warmups +10 post-GC cycles. Raw finite/nonnegative, median chuẩn/nearest-rank p95/max; missing metric/prerequisite không PASS.20 API/load là NO_BUDGET/report-only; không tự lấy200 làm yêu cầu20.
+
+| Metric | Desktop200 /1000 | Phone thật200 /1000 | Nguồn/trạng thái |
+| --- | --- | --- | --- |
+| API read trang warm DB | p95≤500/1500ms | Cùng server, RTT riêng | Ánh xạ budget API tháng G1 sang endpoint editing page mới, gồm DB global work; GET fullmonth đo riêng giữ budget cũ khi kiểm consumer hỗ trợ |
+| Cold route đến bảng dùng được | ≤2000/5000ms | ≤3000/7000ms | Giữ load budget G1, dataset logical25/50 page đều phải đạt |
+| Editor và input feedback | p95≤100/150ms | p95≤150/200ms | Giữ G1, đo raw update và editor usable; two-RAF chỉ proxy paint opportunity |
+| Scroll/drag5s | p95 frame≤33ms, max≤200ms | Cùng ngưỡng | Giữ G1; từng size/kind/pageSize, cả page edges/tên dài/sticky/zoom geometry |
+| Heap10 cycles sau2 warmups | tăng≤20%, không monotonic leak | Đo nếu browser có API; thiếu NR | Giữ G1; thêm page/search/size cycles và kiểm inactive cache/listeners/timers, không chỉ heap nhỏ |
+| Page/search busy feedback sau commit criteria | p95≤100/150ms | p95≤150/200ms | **Proposed technical check**, dùng input budget làm trần hiển thị busy; không product threshold mới đã được user duyệt |
+| Page/search đến đúng envelope editable, từ dispatch | p95≤2000/5000ms | p95≤3000/7000ms | **Proposed technical check**, mapping load budget cho transition; phải review trước đo, không giấu latency vì giữ rows cũ |
+| Search từ ký tự cuối đến kết quả usable | p95≤2300/5300ms | p95≤3300/7300ms | **Proposed technical check** = debounce300 + transition; Enter dùng2000/5000 hoặc3000/7000, IME clock bắt đầu compositionend; pause chờ guard/người dùng đo riêng |
+
+Những Proposed technical checks là đề xuất đo trong plan, không sửa ngân sách đã duyệt hoặc tự claim approval. Task9 chỉ thực thi sau plan review/approval bao phủ mapping này; nếu reviewer cần đổi tiêu chí ghi delta trước run. Footer/tổng/refetch chưa có latency budget riêng thì đo theo page response, không gắn một SLA nghiệp vụ mới. Export fullmonth snapshot/read/serialization/download bytes/peak memory/timing phải đo riêng; không gán budget500/1500ms API page cho toàn workbook, không coi bounded payload giải được aggregate SQL. Query plan EXPLAIN trên fake DB, count/global aggregate/invariant/deep OFFSET cost ghi riêng; không thêm index/dependency không căn cứ.
+
+Plan Tasks8–9 xác minh actual built web–API–PG, SQL độc lập, snapshot races, Excel và Unicode parity pin; native iPhone/Android/browser UI zoom/SR/reader thật là từng gate. Thiếu prerequisite/device/runtime: **Not run/Blocked** đúng lớp, independent phần có thể tiếp tục; không hứa có thiết bị mới hoặc clear I3/G3 từ count nhỏ. Final whole-branch independent review trên SHA cuối + business regression/G4/Task9 concerns vẫn bắt buộc trước product Done.
+
 ## Task10 fix R1 — checkpoint hiện hành, 30/10/2026
 
 Budgets G1 không đổi. Fresh full `task10-fix-r1/benchmark-run-a081eb77-9957-483b-8a73-695ff7fb01bb.json` là một invocation20/200/1000 trên CSS cuối, production Chromium156/1280×800 trên cùng máy; clock RAF corrected, mọi raw sample finite/nonnegative, summaries/checks recompute verified tại `full-benchmark-validation.json`. API/cold/warm/render mỗi loại5, editor31/input30, scroll5×5s (1503/1488/538 intervals), heap baseline+10 post-GC sau2 warmups. UI C hiện31.000 cell components ở1000 người, projection62.000 logical cells. Two-RAF feedback chỉ là paint-opportunity proxy.

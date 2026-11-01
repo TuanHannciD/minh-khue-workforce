@@ -1,5 +1,7 @@
 # Đặc tả đã duyệt — Chấm công Minh Khuê phiên bản đầu
 
+**Cập nhật hiện hành01/11/2026:** người dùng “Tôi chốt bản thiết kế này” sau gói server pagination và ví dụ page-local. Mục15 là delta Accepted, thay giới hạn hiện thị/chọn/tìm cũ ở mục3/13/14 khi có khác biệt. [Kế hoạch mới](technical/server-pagination-implementation-plan.md) Draft/Pending review và user plan approval; approval design không cho implementation/trial mới. Các checkpoint triển khai/G1 cũ bên dưới đọc theo INDEX/validation, không khởi động lại plan cũ.
+
 Ngày lập:25/10/2026; cập nhật28/10/2026. Trạng thái: **Người dùng đã duyệt toàn bộ bản đặc tả viết, gồm các đề xuất đã trình và mục13–14**. [Yêu cầu đã thống nhất](approved/requirements.md) ghi nhận quyết định này. Các đề xuất nghiệp vụ/UI bên dưới nay thuộc phạm vi đã duyệt; chi tiết kỹ thuật chưa viết vẫn cần thiết kế/review. Không thay approval API/schema hoặc quyền triển khai sản phẩm. Kế hoạch đã được người dùng duyệt ở bước tiếp nối; thiết kế Task1 còn chờ review G1 tại [implementation-plan](technical/implementation-plan.md).
 
 ## 1. Kết quả cần đạt
@@ -16,7 +18,7 @@ Người chấm chính và sếp cùng quyền trên bảng toàn công ty: nh�
 
 ## 3. Bảng tháng và ý nghĩa ô
 
-Quy mô hiện tại khoảng20 người mỗi tháng, có thể tăng nhiều về sau; chưa xác định trần hoặc số lượng mục tiêu tương lai. Thiết kế cần xét danh sách dài hơn, không lấy20 làm giới hạn hoặc tự quyết định phân trang/ảo hóa khi chưa phân tích.
+Quy mô hiện tại khoảng20 người mỗi tháng, có thể tăng nhiều về sau; chưa xác định trần hoặc số lượng mục tiêu tương lai. Không lấy20 làm giới hạn. Phân trang server đã được duyệt theo mục15, không thêm ảo hóa/grid engine.
 
 Chọn tháng/năm, xem nhân sự theo dòng và ngày/thứ theo cột. Có bảng công và bảng tăng ca; tổng theo người và theo ngày ở mỗi phần, đơn vị riêng.
 
@@ -197,3 +199,30 @@ Bổ sung này thay phần giới hạn chỉ một chữ nhật của checkpoin
 AC23 — Trên iPhone và Android: vuốt ngay theo cả hai chiều không chọn ô hoặc điền dữ liệu; giữ450ms rồi kéo chọn đúng tập đích, giữ tay nắm kéo điền lặp số/F và tăng ca độc lập. Kích hoạt có dấu hiệu, thả chưa ghi, Áp dụng mới ghi; hủy/đa điểm/đổi ngữ cảnh không mất draft hoặc ghi nhầm. Kiểm hành vi sát ngưỡng10px, cuộn sát mép và pinch zoom. AC sản phẩm và thiết bị thật: Not run; chỉ các sự kiện tổng hợp trong prototype được kiểm ở validation.
 
 Mục này thay giới hạn không hỗ trợ kéo cảm ứng của bản mẫu trước và thuộc toàn bộ bản viết đã duyệt28/10/2026. Không thay quyền triển khai sản phẩm hoặc gate review kế hoạch/kỹ thuật còn mở.
+
+## 15. Phân trang server và tìm toàn tháng — Accepted01/11/2026
+
+Approval “Tôi chốt bản thiết kế này” bao phủ [gói thiết kế viết](technical/pagination-search-proposal.md) đã review R1 và ví dụ practical page-local. Bản này sở hữu hành vi sản phẩm, [API contract](technical/api-contract.md#8-đọc-trang-server--thiết-kế-đã-duyệt01112026) sở hữu wire; không phải implementation plan approval. Các ràng buộc sau áp xuyên plan mới:
+
+- Server pagination/global name-ID search; mặc định25, tùy chọn50, không “Tất cả”; tìm trước phân trang và có nhảy số trang.
+- Rectangle/disjoint/fill chỉ trong page đang hiển thị; không auto page-turn, hidden targets, split save hoặc server write khi đổi trang.
+- Poll15.000ms chỉ active page khi authenticated/mounted/visible; read retry tối đa2 ở1s/3s,4xx dừng; mutation retry=0.
+- Search debounce300ms, Enter gửi ngay, không gửi giữa IME composition; đổi q/tháng/pageSize reset page1, đổi Công/Tăng ca giữ q/page/pageSize qua guard.
+- Guard giữ raw/reminder/custom/error/mode/targets/source/employee-cell revisions; pending/reconciling khóa transition; không rebase draft theo poll.
+- Một conflict dừng cả batch, giữ bản nháp; read/abort/discard không fence unknown write; reconcile original IDs/keys kể cả ngoài page/tháng.
+- Công và giờ độc lập, bước0,5; trần30 công/24 giờ mỗi ô; công0 thành F, tăng ca không nhận0/F; nhận phẩy/chấm, hiển thị phẩy, không làm tròn/cắt, lỗi giữ raw.
+- F/trống/N/— khác nhau; reminder không đổi tổng; mốc bắt đầu do người dùng chọn, ngày nghỉ là ngày cuối làm; chặn đổi mốc loại số/F/reminder-only ở mọi tháng.
+- Giữ450ms để kéo, quá10px trước kích hoạt nhường cuộn, đúng10px còn chờ; controls/tay nắm cảm ứng44 CSS px; giữ pan/pinch/cancel và chạm/hai đầu/bàn phím thay kéo.
+- Tổng hàng cả tháng của người trên page; footer “Tổng toàn tháng · tất cả nhân sự” gồm cả ngoài page/không khớp q; không cộng draft hoặc thêm subtotal ngầm.
+- Excel toàn tháng đã lưu, một sheet Công trên/Tăng ca dưới, SUM và cached totals riêng hai đơn vị; export chỉ gửi month, không q/page.
+- Acceptance20/200/1000 nhân sự logical, page25/50, cả hai loại; giữ ngân sách G1, không dùng25 dòng hiển thị thay dataset1000 hoặc đổi historical fullDOM Failed thành PASS.
+- Giữ C xanh lá/semantic table/sticky tên-ngày-tổng/desktop và iPhone–Android; không render-all riêng cho SR/Find hoặc thêm grid engine/virtualization/Zustand/dependency mặc định.
+- Hai tài khoản tạo sẵn cùng quyền, không signup/admin/approval/offline/import/tính lương/công trình; không dữ liệu thật/push/deploy hoặc mở quyền từ tài liệu.
+
+POST read body giữ q khỏi URL/log/localStorage. Response trang riêng khỏi full MonthDto, đủ hai kinds trên page + row totals + global monthTotals/counts trong một READ ONLY REPEATABLE READ snapshot, gồm kiểm corruption ngoài page. Membership giao tháng giữ nguyên. Tên lowercase tiếng Việt/literal substring, ID text case-sensitive, %/_ là ký tự thật, không bỏ dấu/normalization/fuzzy. Sort tiếng Việt rồi ID; **collation/provider/version/lowercase, canonical-equivalent names và tie ordering phải qua prerequisite parity trước triển khai phụ thuộc**, chưa gọi tương thích SQL/Intl Verified. Nếu lệch: ghi proposed contract delta và route quyết định, không fallback ASCII hoặc hỏi người dùng chọn ICU.
+
+Desired criteria khác displayed envelope. Tải/lỗi giữ đúng nhãn trang cũ, busy/read-only, không mở editor từ placeholder; “Đang tải trang…”, “Thử lại”/quay về trang đã tải; không giả0 kết quả. Nhận metadata/rows/totals/fetchedAt cùng key/epoch/lifetime. Clamp chuẩn hóa key về trang hiệu lực,0 kết quả không hiện1/0. Poll đổi IDs/thứ tự/effective page khi có draft/selection giữ immutable displayed envelope qua guard, header/footer/fetchedAt cùng snapshot cũ và báo chưa cập nhật; không bắt bỏ draft để lưu intent hợp lệ. Sau write invalidate các page tháng, employee edit/create invalidate namespace user/epoch, chỉ active reads refetch.
+
+Pager Trước/Sau, “Trang p/P”, “Đến trang” + “Đi” ở đầu/cuối ngoài cuộn ngang, cùng state/biên; không40 nút số hoặc lật bằng swipe. Status nêu kết quả/toàn tháng/phạm vi/trang; empty month khác q không khớp. Keyboard chỉ page IDs, Tab cuối ra pager, save ở biên focus ô vừa lưu; page change reset dọc/giữ ngày ngang hợp lệ/focus heading-status, search giữ input, poll không cướp focus. Caption/header/cell labels tên/ID/ngày/kind/nhắc và pager nav có tên; không ARIA giả1000 rows.
+
+AC24 — DB tìm toàn membership trước page;25/50/jump/last partial/zero/clamp/count và tổng đúng, response bounded; tên/ID/literal/Unicode parity qua gate kỹ thuật. AC25 — desired/displayed/late response/epoch/poll15s/invalidation/guard giữ raw/frozen CAS, không hidden writes; page-local AC21–AC23 và recovery ngoài trang. AC26 — fullmonth totals/Excel/order chung, snapshot races/corruption và workload1000 logical với budgets hiện hành. Owner/tests tại [matrix](technical/verification-matrix.md#phân-trang-server--acceptance-hiện-hành01112026). Implementation, API/PG/parity/browser/performance mới **Not run**; historical Failed/I3/G3/G4/Task9 concerns và native phones/SR/phoneperf còn mở. Ánh xạ API page/load/feedback và Proposed technical checks mới nằm tại matrix, không silently đổi ngân sách nghiệp vụ.

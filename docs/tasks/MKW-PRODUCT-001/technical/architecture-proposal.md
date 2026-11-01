@@ -1,5 +1,15 @@
 # Kiến trúc kỹ thuật cụ thể — bản để review
 
+## Delta hiện hành01/11/2026 — server pagination Accepted design
+
+Người dùng “Tôi chốt bản thiết kế này” cho [server design](pagination-search-proposal.md); [design15](../design.md#15-phân-trang-server-và-tìm-toàn-tháng--accepted01112026)/[API8](api-contract.md#8-đọc-trang-server--thiết-kế-đã-duyệt01112026) thay phần fullmonth Query/client filter cho editing UI ở checkpoint dưới. [Plan mới](server-pagination-implementation-plan.md) Draft/Pending fresh independent review + user plan approval; không triển khai/trial trong spec sync. Stack/ràng buộc module không đổi. Những câu chưa có source/tooling ở checkpoint25–28/10 là lịch sử; readiness thực theo INDEX/validation.
+
+Attendance sở hữu POST read page trong READ ONLY REPEATABLE READ; Employees public EmploymentConsistency mở seam membership/filter/order/count/page IDs, repository SQL nội bộ, không import sâu. Aggregate tháng/invariant offpage thuộc attendance repository; không fullsnapshot rồi slice. Collation/provider/version/lowercase/canonical-equivalent/ID tie parity là prerequisite trước code SQL/shared export order; fail thì route proposed contract delta, không tự fallback. Count/aggregate/invariant vẫn toàn DB workload; payload chỉ page details + global totals.
+
+Query page key `["attendance","page",userId,epoch,month,qTrimmed,page,pageSize]`, q giữ case/ngoài URL; kind không trong key. Active-page15s/gcTime0/retry reads2(1s/3s),4xx dừng, write0; invalidate page tháng sau attendance write, namespace user/epoch sau employee edit/create, chỉ active refetch. React giữ desired criteria và immutable displayed envelope reference khi guard chờ, không clone bảng thành store server khác. Late responses/abort phải qua key/epoch/generation. App-owned draft độc lập page DOM/key giữ raw/frozen keys/revisions; page/q/size/month/kind qua guard; poll đổi IDs/order/clamp giữ old envelope/fetchedAt/footer và hủy gesture, không rebase hoặc ép discard để save intent cũ hợp lệ.
+
+Page projection nhận boundary month/employees/cells/employeeTotals; global footer nhận monthTotals riêng. Rectangle/disjoint/fill/navigation chỉ page; không hidden writes/targets hoặc split save, reconcile vẫn explicit IDs ngoài page/tháng. Full GET MonthDto/export giữ đường full snapshot và cùng sort đã qua parity; Excel build sau transaction, chỉ month, không dùng query page/draft. Không thêm grid engine/virtualization/dependency/store. Acceptance1000 logical qua25/50 là route mới; historical fullDOM Failed/I3/G3/G4/native/SR/Task9 concerns giữ.
+
 Ngày 25/10/2026. Trạng thái tiếp nối: **Phương án A và bộ công nghệ mục tiêu đã Accepted tại [ADR-003](../../../architecture/decisions/ADR-003-product-stack.md)**; phiên bản và chi tiết còn mở vẫn để review. Chưa là implementation plan hoặc quyền cài/scaffold/code. Nguồn nền tảng đã duyệt: [ADR-001](../../../architecture/decisions/ADR-001-product-foundation.md), [ADR-002 về state](../../../architecture/decisions/ADR-002-state-management.md). Nghiệp vụ theo [requirements](../approved/requirements.md); các điểm mở theo mục10 của [design](../design.md).
 
 ## 1. Mục tiêu và giới hạn
