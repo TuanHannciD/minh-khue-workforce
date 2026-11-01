@@ -1,5 +1,9 @@
 # Validation — MKW-PRODUCT-001
 
+## Server pagination — independent design R1, 01/11/2026
+
+Fresh independent Sol/high review exact `81da48d245fceb4543b4803b548ab7b19f479bda..6acc3c37cb2d61b991593fe966c8181e4c3067c5` Ready for user written-design decision:0 Critical/0 Important/0 Minor. Report `.superpowers/sdd/implementation-plan/server-pagination-review-r1.md` đối chiếu full server proposal/patch/author và relevant actual API/schema/repository/query/draft/selection/export/consumer units. Snapshot/count/page/totals/corruption và identity/CAS/recovery invariants nhất quán ở mức thiết kế. Unknown collation/provider/version/lowercase/Unicode parity và runtime query plan/numeric conversion không được nâng thành Verified; phải xử lý trước contract/code phụ thuộc. Exact patch/UTF-8/range whitespace/HEAD/status/ignored report được reviewer kiểm; docs65 là author evidence, không runtime SQL hoặc benchmark. Direction server Accepted khác written details/defaults/selection/workload Proposed; old client review không bao phủ revision mới. Không code/probe/browser/PG/build hoặc performance/native/SR checks; I3/G3/G4/Failed/Not run giữ nguyên. Checkpoint chỉ routing, proposal đã review không đổi.
+
 ## Server pagination/search design R1 — 01/11/2026
 
 User yêu cầu phân trang bài bản/so kiến trúc rồi trả “Approval” sau khuyến nghị server-first và bước sửa proposal để review. Direction server được duyệt; chi tiết bản viết/implementation plan/code chưa được suy approval. Revision chỉ [proposal hiện hành](technical/pagination-search-proposal.md), INDEX và validation; BASE sạch `81da48d245fceb4543b4803b548ab7b19f479bda`, cwd `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`, branch `agent/mkw-agent-002`. Sole Sol gpt-6.1-sol/high, no children/helper/reviewer/escalation/Astra/primary write. Ignored hồ sơ trước sửa/handoff `.superpowers/sdd/implementation-plan/server-pagination-design-r1.md`; review client proposal cũ88c56cc không bao phủ bản mới.

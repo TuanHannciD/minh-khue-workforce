@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Server pagination — independent R1 ready for written-design decision, 01/11/2026
+
+Independent Sol/high review exact `81da48d245fceb4543b4803b548ab7b19f479bda..6acc3c37cb2d61b991593fe966c8181e4c3067c5`: Ready for user written-design decision,0 Critical/0 Important/0 Minor; report ignored `.superpowers/sdd/implementation-plan/server-pagination-review-r1.md`. Server direction đã duyệt; [bản viết](technical/pagination-search-proposal.md) có DTO trang riêng, DB search/order/page/count/tổng cùng snapshot, query/poll/draft/recovery và export toàn tháng. Defaults25/50, selection page-local hay atomic explicit xuyên trang và workload1000 logical qua trang cần chốt trong gói thiết kế. SQL collation/lowercase/Unicode parity với JS chưa Verified; phải định danh provider/version/quy tắc sort/search và giải quyết delta contract trước code phụ thuộc, không hỏi người dùng tên ICU. Review không là performance/implementation signoff; historical Failed/Not run/I3/G3/G4 giữ nguyên. Bước tiếp trình gói thiết kế viết để chốt, rồi đồng bộ nguồn spec/contract và lập kế hoạch trong gate tương ứng; không quay về client-first hoặc chạy trial mới từ review này.
+
 ## Server pagination/global search — hướng được duyệt, revision thiết kế Proposed, 01/11/2026
 
 Người dùng yêu cầu: “Tôi muốn phân trang chuẩn chỉ như các sản phẩm đang làm luôn chứ ko vá tạn để dùng. So sánh với kiến trúc bạn đề xuất luôn đi”. Sau phần so sánh đổi khuyến nghị sang server pagination/global search và bước sửa proposal cụ thể để review trước spec/plan/code, người dùng trả **“Approval”**. Hướng server được duyệt, thay client-first của assessment cũ; không làm client pagination trung gian, không xin lại quyền đánh giá hoặc tự mở thử nghiệm. Approval không biến DTO/endpoint chưa viết thành Accepted hoặc cấp quyền implementation plan/code cho revision này.
