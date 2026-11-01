@@ -1,5 +1,28 @@
 # Validation — MKW-PRODUCT-001
 
+## Task1 server pagination — capability/parity và scoped owner, 01/11/2026
+
+Sole implementation writer, BASE sạch `4d2ac536a616de1591ab9c6af5e9a58535e8059e`, branch `agent/mkw-agent-002`, worktree `.worktrees/agent-bootstrap`. Scope chỉ4 test/helper files + API contract/matrix/validation theo Task1 brief; không product pagination/search/order/migration, không sửa harness/allowlist cũ. Không children/install/network/global/production/push/merge/deploy. Independent reviewer do main điều phối sau local commit; gate downstream chưa mở chỉ từ self-review.
+
+Runtime portable Node24.22.1/pnpm12.15.0, process PATH theo LOCAL_RUN. Baseline `pnpm --filter @mkw/api build` exit0; `pnpm run product:test:sandbox` exit0,14 tests. TDD RED: `pnpm --filter @mkw/api exec node --experimental-test-module-mocks --test test/attendance-read-sandbox.test.mjs` exit1 `ERR_MODULE_NOT_FOUND ... attendance-read-sandbox.mjs` sau compiled build thành công; đây là missing owner được brief yêu cầu, không compiler/package error. Parity RED exact command dưới exit1, JS2 tests PASS + `SQL candidate capability/policy has not been pinned`. Additional lifecycle RED bắt successful provision nhưng chỉ xác định1 account (`Missing expected rejection`) và wrong alias vẫn acquire pool (`actual ['open-cluster','cluster-end']`, expected[]); sửa owner để incomplete/reject và kiểm alias trước acquire.
+
+Focused GREEN commands từ root worktree (Node24 PATH process-only; parity thêm `MKW_ATTENDANCE_CLUSTER_OWNER` đúng Task10 record):
+
+```powershell
+pnpm --filter @mkw/api exec node --experimental-test-module-mocks --test test/attendance-read-sandbox.test.mjs
+pnpm --filter @mkw/api exec node --test --test-timeout=60000 test/employee-read-parity.integration.test.mjs
+```
+
+Lifecycle exit0,24/24 tests; HTTP request defaults và open-port refusal cũng được assert qua actual owner với mocked boundaries. `pnpm run product:check` exit0 trên patch cuối: lint/format/strict typecheck/build, tooling51/sandbox14/web174/API16 tests, dependency boundaries/cycles và regenerated contract drift đều đạt. `pnpm run check:docs` exit0,66 current documents; `git diff --check` exit0. Retained full log `server-pagination/resource-8c1a7f04-daa8-47f7-a946-4f80842e6dd9/product-check.log`; experimental module-mock/deprecated namedExports và existing Vite chunk>500kB warnings không bị suppress, không benchmark hoặc parity waiver.
+
+Parity exit0,3/3 tests,26 fake employees/13 pinned queries,0 mismatches cho static candidate ICU `vi`/`deterministic=false`; diagnostic deterministic candidate FAIL2 canonical-equivalence/order. Expected ID list pin trước SQL, UUID101/102 ngược binary name order, tên trùng/case/Đ/đ/Ă/Â/Ô/Ơ/Ư/emoji/combining/İ và literal `%`/`_`/backslash/NBSP/FEFF/IDcase. Không đổi expected để hợp SQL. Node ICU78.3/Unicode17/CLDR48; PG17.11 compiled MSVC/ICU DLL67.1 được kiểm actual loaded process modules; SQL collversion/actualVersion153.14.37, database UTF8/provider c/default C được ghi nhưng candidate expressions dùng explicit ICU. Policy candidate và exact lower/literal/order tại [API8](technical/api-contract.md#task1--policy-candidate-đã-có-parity-chờ-independent-review-pin), chờ independent review pin trước Task3.
+
+Immutable final parity artifact `.agent-runs/MKW-PRODUCT-001/server-pagination/parity-ef12623b-2593-4b37-b19c-13279590d954/collation-parity.json`; retained target `.agent-runs/MKW-PRODUCT-001/task10-acceptance/mkw_acceptance_e664ba1e_9e5e_4d87_8425_d4cbcdd59190/target.json` được định vị bằng `targetFile` trong artifact (exact UUID tại report). Helper SQL-only không Database/accounts/login; live User0/Session0/Employee26,0 remaining run connections trước own PG stop. Invalidation not-provisioned/rotated0/unrevokedSessions null, release run/cluster pools success. HTTP mode rotation/revocation/session0/app-port closure mới có mocked proof, **live Not run**; không nâng claim `fixture.close()` cũ.
+
+Resource proof retained `.agent-runs/MKW-PRODUCT-001/server-pagination/resource-8c1a7f04-daa8-47f7-a946-4f80842e6dd9/`: preflight owner/path/executable/PG17.11/port63771 trống/stopped3/no pidfile; actual database/user/host/port/data/version khớp qua allowlist trước CREATE. Trước stop kiểm exact own PID30736/executable/command `-D`/actual identity và loaded ICU modules; sau `pg_ctl -D <exact-owned-data> stop -m fast -w`, status3/no PID/no pidfile/no listener, DB/data/target/evidence retained. Không kill theo port/PID tình cờ, không drop/cleanup lịch sử. First diagnostic run cũng giữ riêng, không overwrite.
+
+Navigation: [fixture](../../../apps/api/test/employee-read-fixtures.mjs) sở hữu fixed oracle; [parity test](../../../apps/api/test/employee-read-parity.integration.test.mjs) sở hữu capability/candidate SQL/report; [scoped owner](../../../apps/api/test/attendance-read-sandbox.mjs) sở hữu acquisition/request/stop; [lifecycle tests](../../../apps/api/test/attendance-read-sandbox.test.mjs) sở hữu fault matrix/module-boundary mocks. Test matrix giữ chung với file map vì cùng acquisition identity/fault model; không sửa module README ngoài file scope. Full author report + exact BASE..TIP/check output ở ignored `.superpowers/sdd/server-pagination-implementation-plan/task-1-report.md`.
+
 ## Server pagination — kế hoạch được duyệt, bắt đầu thực thi, 01/11/2026
 
 Người dùng trả **“Approved”** sau bản kế hoạch 9 task và independent R2 **0 Critical / 0 Important / 0 Minor**. Quyền triển khai local theo [kế hoạch](technical/server-pagination-implementation-plan.md) có hiệu lực; main chỉ điều phối, tuần tự fresh implementer/reviewer, mọi subagent tối đa Sol/high và cấm Astra. Không hỏi lại thiết kế hoặc phương pháp.
