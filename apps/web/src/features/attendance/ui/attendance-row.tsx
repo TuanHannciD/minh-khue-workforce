@@ -7,6 +7,7 @@ import { AttendanceCell } from "./attendance-cell";
 // Default memo compares every prop, including callbacks. A new snapshot row,
 // selection, source or interaction mode always reaches its cells.
 export const AttendanceRow = memo(function AttendanceRow({
+  readOnly = false,
   row,
   days,
   unit,
@@ -17,6 +18,7 @@ export const AttendanceRow = memo(function AttendanceRow({
   onKeyDown,
   onFill,
 }: {
+  readOnly?: boolean;
   row: {
     employee: EmployeeDto;
     cells: (CellSnapshotDto | undefined)[];
@@ -40,6 +42,7 @@ export const AttendanceRow = memo(function AttendanceRow({
     <tr>
       <th
         scope="row"
+        aria-label={`${employee.name} · ID ${employee.id}`}
         className="name"
         title={`${employee.name} · ID ${employee.id}`}
       >
@@ -50,6 +53,7 @@ export const AttendanceRow = memo(function AttendanceRow({
         cell ? (
           <AttendanceCell
             key={days[index]!.date}
+            readOnly={readOnly}
             cell={cell}
             employee={employee}
             selected={selected.has(cell.date)}

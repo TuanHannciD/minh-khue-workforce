@@ -4,6 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AttendancePage } from "./attendance-page";
 import { AttendancePreview } from "../preview/attendance-preview";
+import { toMonthTable } from "../model/attendance-read-view";
 import { attendanceFixture } from "../preview/attendance-fixture";
 import type { CellEditorIntent } from "./cell-editor";
 
@@ -38,7 +39,11 @@ for (const status of ["loading", "error"] as const) {
       const intents: CellEditorIntent[] = [];
       const onSubmit = (intent: CellEditorIntent) => intents.push(intent);
       const { rerender } = render(
-        <AttendancePage status="ready" month={month} onSubmit={onSubmit} />,
+        <AttendancePage
+          status="ready"
+          month={toMonthTable(month)}
+          onSubmit={onSubmit}
+        />,
       );
       const { user, input } = await edit(raw);
       rerender(
@@ -49,7 +54,7 @@ for (const status of ["loading", "error"] as const) {
       rerender(
         <AttendancePage
           status="ready"
-          month={structuredClone(month)}
+          month={toMonthTable(structuredClone(month))}
           onSubmit={onSubmit}
         />,
       );
@@ -70,10 +75,8 @@ for (const status of ["loading", "error"] as const) {
         "disabled",
         true,
       );
-      expect(screen.getByLabelText("Tìm nhân sự")).toHaveProperty(
-        "disabled",
-        true,
-      );
+      // Search is owned by Workspace; Page never filters this snapshot.
+      expect(screen.queryByRole("searchbox")).toBeNull();
       if (raw === "3,25")
         expect(screen.getByRole("alert").textContent).toContain("0,5");
       await user.click(screen.getByRole("button", { name: "Mở rộng bảng" }));
@@ -140,7 +143,11 @@ it.each(["changed", "missing cell", "missing employee"])(
     const intents: CellEditorIntent[] = [];
     const onSubmit = (intent: CellEditorIntent) => intents.push(intent);
     const { rerender } = render(
-      <AttendancePage status="ready" month={month} onSubmit={onSubmit} />,
+      <AttendancePage
+        status="ready"
+        month={toMonthTable(month)}
+        onSubmit={onSubmit}
+      />,
     );
     const { user, input } = await edit("3.5");
     rerender(
@@ -163,7 +170,11 @@ it.each(["changed", "missing cell", "missing employee"])(
       recovered.employees = [];
     }
     rerender(
-      <AttendancePage status="ready" month={recovered} onSubmit={onSubmit} />,
+      <AttendancePage
+        status="ready"
+        month={toMonthTable(recovered)}
+        onSubmit={onSubmit}
+      />,
     );
     expect(screen.getByLabelText("Số công tùy chỉnh")).toBe(input);
     expect(input).toHaveProperty("value", "3.5");

@@ -1,8 +1,8 @@
+import type { AttendanceTableData } from "../model/attendance-read-view";
 import type {
   AttendanceKind,
   CellKeyDto,
   CellSnapshotDto,
-  MonthDto,
 } from "../model/types";
 import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import type { KeyboardEvent } from "react";
@@ -17,7 +17,8 @@ import { formatAttendanceValue } from "../model/number-input";
 import type { SelectionInteraction } from "../model/use-cell-selection";
 import { useGridGesture } from "./use-grid-gesture";
 export interface AttendanceGridProps {
-  month: MonthDto;
+  month: AttendanceTableData;
+  readOnly?: boolean;
   kind?: AttendanceKind;
   selection: CellKeyDto | null;
   onCellIntent: (cell: CellSnapshotDto) => void;
@@ -31,23 +32,26 @@ export function AttendanceGrid({
   onCellIntent,
   interaction,
   onFill,
+  readOnly = false,
 }: AttendanceGridProps) {
   const region = useRef<HTMLDivElement>(null);
-  const gesture = useGridGesture(region, month, interaction, kind);
+  const gesture = useGridGesture(
+    region,
+    month,
+    readOnly ? undefined : interaction,
+    kind,
+  );
   // Structural projections only change with a new snapshot/filter/kind. Raw
   // editor state remains in its subscriber, never a second server-state cache.
-  const {
-    month: monthKey,
-    cells: monthCells,
-    employees,
-    totals: monthTotals,
-  } = month;
+  const { month: monthKey, cells: monthCells, employees } = month;
+  const employeeTotalList = month.employeeTotals[kind];
+  const { byDate, grandTotal } = month.monthTotals[kind];
   const projection = useMemo(() => {
     const days = monthDays(monthKey);
     const cells = new Map(monthCells.map((cell) => [cellIdentity(cell), cell]));
-    const totals = monthTotals[kind];
+    const totals = { byDate, grandTotal };
     const employeeTotals = new Map(
-      totals.byEmployee.map((total) => [total.employeeId, total.value]),
+      employeeTotalList.map((total) => [total.employeeId, total.value]),
     );
     return {
       days,
@@ -70,7 +74,15 @@ export function AttendanceGrid({
         ),
       })),
     };
-  }, [monthKey, monthCells, employees, monthTotals, kind]);
+  }, [
+    monthKey,
+    monthCells,
+    employees,
+    byDate,
+    grandTotal,
+    employeeTotalList,
+    kind,
+  ]);
   const { days, cells, ordered, totals, dayTotals } = projection;
   const unit = kind === "work" ? "công" : "giờ";
   const selectedByEmployee = new Map<string, string[]>();
@@ -142,7 +154,9 @@ export function AttendanceGrid({
     <div
       ref={region}
       className={`grid-scroll${gesture.active ? " selection-dragging" : ""}`}
+      aria-busy={readOnly}
       onClickCapture={(event) => {
+        if (readOnly) return;
         if (gesture.consumeClick()) {
           event.preventDefault();
           event.stopPropagation();
@@ -176,7 +190,10 @@ export function AttendanceGrid({
       <table>
         <caption>
           {kind === "work" ? "Công" : "Tăng ca"} tháng {month.month}, đơn vị{" "}
-          {unit}. Tổng ngày tính toàn bộ nhân sự, kể cả khi tìm kiếm.
+          {unit}. Phạm vi {month.range.from}–{month.range.to} /{" "}
+          {month.range.totalResults} kết quả; {month.range.monthEmployeeCount}{" "}
+          nhân sự trong tháng. Tổng ngày tính toàn bộ nhân sự, kể cả khi tìm
+          kiếm.
         </caption>
         <thead>
           <tr>
@@ -184,7 +201,11 @@ export function AttendanceGrid({
               Nhân sự
             </th>
             {days.map((day) => (
-              <th scope="col" key={day.date}>
+              <th
+                scope="col"
+                key={day.date}
+                aria-label={`${day.day} ${day.weekday} · ${day.date} · ${kind === "work" ? "Công" : "Tăng ca"}`}
+              >
                 {day.day} <small>{day.weekday}</small>
               </th>
             ))}
@@ -197,6 +218,7 @@ export function AttendanceGrid({
           {projection.rows.map((row) => (
             <AttendanceRow
               key={row.employee.id}
+              readOnly={readOnly}
               row={row}
               days={days}
               unit={unit}
@@ -219,7 +241,7 @@ export function AttendanceGrid({
         <tfoot>
           <tr>
             <th scope="row" className="name">
-              Tổng {unit}
+              Tổng toàn tháng · tất cả nhân sự
             </th>
             {days.map((day) => (
               <td key={day.date} aria-label={`Tổng ${day.date} · ${unit}`}>

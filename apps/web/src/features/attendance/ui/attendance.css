@@ -110,14 +110,6 @@
   background: var(--accent);
   border-radius: 2px 2px 0 0;
 }
-.search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  max-width: 280px;
-  min-width: 0;
-}
 .expand {
   display: inline-flex;
   align-items: center;
@@ -519,11 +511,6 @@
   .expand span {
     display: none;
   }
-  .search {
-    order: 3;
-    max-width: none;
-    flex-basis: 100%;
-  }
   .grid-scroll {
     max-height: 310px;
     scroll-padding-left: 122px;
@@ -650,5 +637,72 @@
     min-width: 44px;
     height: 44px;
     min-height: 44px;
+  }
+}
+.attendance-search {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 36rem;
+  margin-block: var(--space-3);
+  font-size: 0.875rem;
+}
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.search-field svg {
+  width: 20px;
+  flex-shrink: 0;
+  color: var(--quiet);
+}
+.attendance-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  font-size: 0.875rem;
+}
+.page-range {
+  display: grid;
+  gap: var(--space-1);
+  margin-inline-end: auto;
+  font-variant-numeric: tabular-nums;
+}
+.attendance-pagination form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.attendance-pagination input {
+  width: 5rem;
+}
+.attendance-pagination input,
+.attendance-pagination select,
+.attendance-pagination button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.attendance-pagination select {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+}
+.attendance-pagination [role="alert"] {
+  flex-basis: 100%;
+  color: var(--danger);
+}
+#sheet-title:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 3px;
+}
+@media (max-width: 540px) {
+  .page-range {
+    flex-basis: 100%;
   }
 }

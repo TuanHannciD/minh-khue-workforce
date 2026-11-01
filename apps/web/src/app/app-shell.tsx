@@ -5,6 +5,7 @@ import { LoginPage, useSession } from "@/features/session/index";
 import {
   AttendanceDraft,
   AttendanceWorkspace,
+  invalidateAttendanceScope,
 } from "@/features/attendance/index";
 import type { Employee } from "@/features/employees/index";
 import { ConfirmDiscard } from "@/shared/ui/confirm-discard";
@@ -123,7 +124,12 @@ export function AppShell() {
       <EmployeeForm
         draft={employeeDraft}
         onSaved={() => {
-          void runtime.queryClient.invalidateQueries();
+          if (session)
+            void invalidateAttendanceScope(
+              runtime.queryClient,
+              session.user.userId,
+              runtime.boundary.current(),
+            );
         }}
       />
       {nextEmployee &&

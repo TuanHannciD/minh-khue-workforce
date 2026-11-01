@@ -16,6 +16,7 @@ import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { useCellSelection } from "../model/use-cell-selection";
 import { useGridGesture } from "./use-grid-gesture";
 import { cellIdentity } from "../model/month-view";
+import { toMonthTable } from "../model/attendance-read-view";
 import type { AttendanceReadView } from "../model/attendance-read-view";
 afterEach(() => {
   cleanup();
@@ -29,7 +30,7 @@ function setup() {
   render(
     <AttendancePage
       status="ready"
-      month={month}
+      month={toMonthTable(month)}
       draft={draft}
       ownerUserId="owner"
       onSubmit={() => {}}

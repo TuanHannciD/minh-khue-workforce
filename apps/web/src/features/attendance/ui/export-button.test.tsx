@@ -12,6 +12,8 @@ import { SessionProvider, SessionRuntime } from "@/features/session/index";
 import { sessionBoundary } from "@/shared/api/session-boundary";
 import { AttendanceWorkspace } from "./attendance-workspace";
 import { AttendanceDraft } from "../model/attendance-draft";
+import type { AttendancePageDto, PageCriteria } from "../model/types";
+import { toMonthTable } from "../model/attendance-read-view";
 import { attendanceFixture } from "../preview/attendance-fixture";
 
 afterEach(() => {
@@ -28,6 +30,22 @@ async function setup(exportResponse: () => Promise<Response>) {
   vi.stubGlobal("fetch", async (path: string, options: RequestInit) => {
     requests.push({ path, method: options.method ?? "GET" });
     if (path.includes("/attendance/export")) return exportResponse();
+    const criteria: PageCriteria = path.includes("/attendance/search")
+      ? (JSON.parse(options.body as string) as PageCriteria)
+      : { month: "2024-02", q: "", page: 1, pageSize: 25 };
+    const table = toMonthTable(attendanceFixture);
+    const page: AttendancePageDto = {
+      ...table,
+      month: criteria.month,
+      fetchedAt: "fixture",
+      pagination: {
+        ...table.range,
+        page: criteria.page,
+        requestedPage: criteria.page,
+        pageSize: criteria.pageSize,
+        totalPages: 1,
+      },
+    };
     return Response.json(
       path.includes("/auth/session")
         ? {
@@ -35,7 +53,7 @@ async function setup(exportResponse: () => Promise<Response>) {
             expiresAt: deadline,
             idleExpiresAt: deadline,
           }
-        : attendanceFixture,
+        : page,
     );
   });
   const create = vi.fn(() => "blob:fixture");
@@ -127,7 +145,16 @@ it("waits for the complete body, deduplicates pending download and preserves raw
     ).toEqual([
       { path: "/api/v1/attendance/export?month=2024-02", method: "GET" },
     ]);
-    expect(s.requests.every((r) => r.method === "GET")).toBe(true);
+    expect(
+      s.requests.every(
+        (r) =>
+          r.method === "GET" ||
+          (r.path === "/api/v1/attendance/search" && r.method === "POST"),
+      ),
+    ).toBe(true);
+    expect(s.requests.some((r) => r.path.includes("/attendance/month"))).toBe(
+      false,
+    );
   } finally {
     s.runtime.expire();
     s.client.clear();

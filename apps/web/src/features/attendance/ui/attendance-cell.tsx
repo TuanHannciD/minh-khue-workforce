@@ -6,6 +6,7 @@ import { formatAttendanceValue } from "../model/number-input";
 import { FillHandle } from "./fill-handle";
 
 export const AttendanceCell = memo(function AttendanceCell({
+  readOnly = false,
   cell,
   employee,
   selected,
@@ -14,6 +15,7 @@ export const AttendanceCell = memo(function AttendanceCell({
   onFill,
   selectInactive = false,
 }: {
+  readOnly?: boolean;
   cell: CellSnapshotDto;
   employee: EmployeeDto;
   selected: boolean;
@@ -44,6 +46,7 @@ export const AttendanceCell = memo(function AttendanceCell({
       {cell.state === "editable" || selectInactive ? (
         <button
           type="button"
+          disabled={readOnly}
           data-cell={cellIdentity(cell)}
           aria-label={label}
           aria-pressed={selected}
@@ -58,9 +61,10 @@ export const AttendanceCell = memo(function AttendanceCell({
       ) : (
         <span aria-label={label}>{value}</span>
       )}
-      {onFill && cell.state === "editable" && cell.value !== null && (
-        <FillHandle onFill={onFill} />
-      )}
+      {!readOnly &&
+        onFill &&
+        cell.state === "editable" &&
+        cell.value !== null && <FillHandle onFill={onFill} />}
     </td>
   );
 });

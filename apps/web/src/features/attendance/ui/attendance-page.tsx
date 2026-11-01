@@ -4,11 +4,17 @@
  * useCellSelection owns selection; AttendanceGrid owns gesture DOM integration;
  * CellEditor/BulkEditor and SaveFeedback render the app-owned draft lifecycle.
  */
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Flag, Maximize, Minimize, Search } from "lucide-react";
+import type { AttendanceTableData } from "../model/attendance-read-view";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { Flag, Maximize, Minimize } from "lucide-react";
 import type {
   AttendanceKind,
-  MonthDto,
   CellSnapshotDto,
   EmployeeDto,
 } from "../model/types";
@@ -21,7 +27,6 @@ import { AttendanceGrid } from "./attendance-grid";
 import { CellEditor } from "./cell-editor";
 import type { CellEditorIntent } from "./cell-editor";
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/ui/tabs";
 import "./attendance.css";
 import type { AttendanceDraft } from "../model/attendance-draft";
@@ -35,7 +40,13 @@ const noSnapshot = () => 0;
 
 export interface AttendancePageProps {
   status: "ready" | "loading" | "error";
-  month: MonthDto | null;
+  month: AttendanceTableData | null;
+  readOnly?: boolean;
+  selectionContextKey?: string;
+  kind?: AttendanceKind;
+  onKindChange?: (kind: AttendanceKind) => void;
+  topControls?: ReactNode;
+  bottomControls?: ReactNode;
   onSubmit: (intent: CellEditorIntent) => unknown;
   onRetry?: () => void;
   submitLabel?: string;
@@ -54,15 +65,21 @@ export function AttendancePage({
   ownerUserId,
   onSaved,
   onEmployee,
+  readOnly = false,
+  selectionContextKey,
+  kind: controlledKind,
+  onKindChange,
+  topControls,
+  bottomControls,
 }: AttendancePageProps) {
   useSyncExternalStore(
     draft?.subscribe ?? noSubscribe,
     draft?.structureSnapshot ?? noSnapshot,
   );
-  const [kind, setKind] = useState<AttendanceKind>(
+  const [localKind, setKind] = useState<AttendanceKind>(
     () => draft?.edit?.cell.kind ?? "work",
   );
-  const [search, setSearch] = useState("");
+  const kind = controlledKind ?? localKind;
   const [expanded, setExpanded] = useState(false);
   const [localSelection, setSelection] = useState<{
     cell: CellSnapshotDto;
@@ -74,26 +91,18 @@ export function AttendancePage({
   const [guard, setGuard] = useState<{ action: () => void } | null>(null);
   const root = useRef<HTMLElement>(null);
   const available = status === "ready" && Boolean(month);
-  const employees = useMemo(
-    () =>
-      month?.employees.filter(
-        (employee) =>
-          employee.name
-            .toLocaleLowerCase("vi")
-            .includes(search.trim().toLocaleLowerCase("vi")) ||
-          employee.id.includes(search.trim()),
-      ) ?? [],
-    [month?.employees, search],
-  );
-  const visibleMonth = useMemo(
-    () => (month ? { ...month, employees } : null),
-    [month, employees],
-  );
+  const employees = month?.employees ?? [];
+  const visibleMonth = month;
+  const currentOwner = useRef(draft);
+  useLayoutEffect(() => {
+    currentOwner.current = draft;
+  });
   const bulk = useCellSelection(
-    visibleMonth,
+    readOnly ? null : visibleMonth,
     draft,
     ownerUserId ?? "",
     requestContext,
+    `${selectionContextKey ?? ""}:${kind}`,
   );
   const active = selection?.cell.kind === kind ? selection.cell : null;
   const employee = selection?.employee;
@@ -139,8 +148,24 @@ export function AttendancePage({
   function requestContext(action: () => void) {
     if (pending || draft?.outcome.type === "pending" || draft?.reconciling)
       return;
-    if (active && draft) setGuard({ action });
-    else action();
+    if (active && draft) {
+      const owner = draft;
+      const generation = owner.ownerGeneration;
+      const epoch = owner.boundary.current();
+      setGuard({
+        action: () => {
+          if (
+            currentOwner.current !== owner ||
+            owner.ownerGeneration !== generation ||
+            !owner.boundary.canWrite(epoch) ||
+            owner.outcome.type === "pending" ||
+            owner.reconciling
+          )
+            return;
+          action();
+        },
+      });
+    } else action();
   }
   function close() {
     if (draft) draft.discard();
@@ -215,6 +240,10 @@ export function AttendancePage({
           value={kind}
           activationMode={active && draft ? "manual" : "automatic"}
           onValueChange={(value) => {
+            if (onKindChange) {
+              onKindChange(value as AttendanceKind);
+              return;
+            }
             requestContext(() => {
               close();
               setKind(value as AttendanceKind);
@@ -233,23 +262,6 @@ export function AttendancePage({
                 Tăng ca
               </TabsTrigger>
             </TabsList>
-            <label className="search">
-              <Search aria-hidden="true" />
-              <Input
-                type="search"
-                aria-label="Tìm nhân sự"
-                placeholder="Tìm nhân sự…"
-                value={search}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  requestContext(() => {
-                    close();
-                    setSearch(value);
-                  });
-                }}
-                disabled={Boolean(active) && !draft}
-              />
-            </label>
             <Button
               className="expand"
               aria-label={expanded ? "Thu gọn bảng" : "Mở rộng bảng"}
@@ -264,7 +276,7 @@ export function AttendancePage({
               <span>{expanded ? "Thu gọn bảng" : "Mở rộng bảng"}</span>
             </Button>
           </div>
-          {draft && (
+          {draft && !readOnly && (
             <SelectionTools
               multi={bulk.multi}
               mode={bulk.mode}
@@ -277,20 +289,25 @@ export function AttendancePage({
           <TabsContent value={kind} className="workspace">
             <section className="sheet" aria-labelledby="sheet-title">
               <div className="sheet-heading">
-                <h2 id="sheet-title">{tableTitle}</h2>
+                <h2 id="sheet-title" tabIndex={-1}>
+                  {tableTitle}
+                </h2>
                 <span>
                   {employees.length} nhân sự · Đơn vị:{" "}
                   {kind === "work" ? "công" : "giờ"}
                 </span>
               </div>
-              {visibleMonth && employees.length ? (
+              {topControls}
+              {visibleMonth && (
                 <AttendanceGrid
                   month={visibleMonth}
+                  readOnly={readOnly}
                   kind={kind}
                   selection={active}
                   interaction={bulk.interaction}
                   onFill={bulk.startFill}
                   onCellIntent={(cell) => {
+                    if (readOnly) return;
                     requestContext(() => {
                       if (!active || draft) {
                         const person = month?.employees.find(
@@ -307,9 +324,11 @@ export function AttendancePage({
                     });
                   }}
                 />
-              ) : (
+              )}
+              {bottomControls}
+              {month && !employees.length && (
                 <p className="empty">
-                  {month?.employees.length
+                  {month?.range.monthEmployeeCount
                     ? "Không tìm thấy nhân sự. Thử tên khác hoặc xóa nội dung tìm kiếm."
                     : "Chưa có nhân sự trong tháng này."}
                 </p>
@@ -393,12 +412,13 @@ export function AttendancePage({
                     Sửa thông tin nhân sự
                   </Button>
                 )}
-                {draft && active.value !== null && (
+                {draft && !readOnly && active.value !== null && (
                   <Button onClick={bulk.startFill}>Điền từ ô này</Button>
                 )}
               </div>
             ) : (
-              !expanded && (
+              !expanded &&
+              !readOnly && (
                 <aside className="editor editor-empty">
                   <h2>Nhập theo ô</h2>
                   <p>

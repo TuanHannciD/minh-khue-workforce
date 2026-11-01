@@ -4,6 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AttendanceGrid } from "./attendance-grid";
 import { AttendancePage } from "./attendance-page";
+import { toMonthTable } from "../model/attendance-read-view";
 import { attendanceFixture } from "../preview/attendance-fixture";
 import { CellEditor } from "./cell-editor";
 
@@ -40,7 +41,7 @@ it("Tab after a valid editor value returns focus to the next eligible day withou
   render(
     <AttendancePage
       status="ready"
-      month={attendanceFixture}
+      month={toMonthTable(attendanceFixture)}
       onSubmit={(intent) => {
         intents.push(intent);
       }}
@@ -61,7 +62,7 @@ it("Tab after a valid editor value returns focus to the next eligible day withou
 it("renders one semantic leap-month table with distinct symbols, ID labels and independent snapshot totals", () => {
   render(
     <AttendanceGrid
-      month={attendanceFixture}
+      month={toMonthTable(attendanceFixture)}
       kind="work"
       selection={null}
       onCellIntent={() => {}}
@@ -69,7 +70,7 @@ it("renders one semantic leap-month table with distinct symbols, ID labels and i
   );
   const table = screen.getByRole("table");
   expect(
-    within(table).getByRole("columnheader", { name: "29 T5" }),
+    within(table).getByRole("columnheader", { name: /29 T5/ }),
   ).toBeTruthy();
   expect(within(table).queryByRole("columnheader", { name: /30/ })).toBeNull();
   expect(
@@ -98,7 +99,7 @@ it("keeps loading, first-load error, empty and filtered-empty distinct", async (
   rerender(
     <AttendancePage
       status="ready"
-      month={{ ...attendanceFixture, employees: [], cells: [] }}
+      month={toMonthTable({ ...attendanceFixture, employees: [], cells: [] })}
       onSubmit={() => {}}
     />,
   );
@@ -106,11 +107,23 @@ it("keeps loading, first-load error, empty and filtered-empty distinct", async (
   rerender(
     <AttendancePage
       status="ready"
-      month={attendanceFixture}
+      month={toMonthTable(attendanceFixture)}
       onSubmit={() => {}}
     />,
   );
-  await userEvent.type(screen.getByLabelText("Tìm nhân sự"), "không có tên");
+  rerender(
+    <AttendancePage
+      status="ready"
+      month={{
+        ...toMonthTable(attendanceFixture),
+        employees: [],
+        cells: [],
+        range: { from: 0, to: 0, totalResults: 0, monthEmployeeCount: 20 },
+      }}
+      onSubmit={() => {}}
+    />,
+  );
+  expect(screen.getByLabelText("Tổng tháng · công").textContent).toBe("3,5");
   expect(screen.getByText(/Không tìm thấy nhân sự/)).toBeTruthy();
 });
 it("retains invalid raw input, sends exact identity/value/reminder only on Save, and advances through eligible cells", async () => {
@@ -118,7 +131,7 @@ it("retains invalid raw input, sends exact identity/value/reminder only on Save,
   render(
     <AttendancePage
       status="ready"
-      month={attendanceFixture}
+      month={toMonthTable(attendanceFixture)}
       onSubmit={(intent) => {
         intents.push(intent);
       }}
@@ -161,7 +174,7 @@ it("switches units without mixing totals, overtime never offers F, and cancel em
   render(
     <AttendancePage
       status="ready"
-      month={attendanceFixture}
+      month={toMonthTable(attendanceFixture)}
       onSubmit={(intent) => {
         intents.push(intent);
       }}
@@ -177,4 +190,63 @@ it("switches units without mixing totals, overtime never offers F, and cancel em
   await user.click(screen.getByRole("button", { name: "2,5" }));
   await user.click(screen.getByRole("button", { name: "Hủy" }));
   expect(intents).toHaveLength(0);
+});
+
+it("last_tab_exits_to_pager and held read-only table blocks new editor intents", async () => {
+  const intent = () => {
+    throw new Error("held table cannot open");
+  };
+  const { rerender } = render(
+    <>
+      <AttendanceGrid
+        month={toMonthTable(attendanceFixture)}
+        selection={null}
+        onCellIntent={intent}
+      />
+      <button>Trang tiếp</button>
+    </>,
+  );
+  const buttons = screen
+    .getAllByRole("button")
+    .filter((b) => b.hasAttribute("data-cell"));
+  buttons.at(-1)!.focus();
+  await userEvent.tab();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Trang tiếp" }),
+  );
+  rerender(
+    <AttendanceGrid
+      month={toMonthTable(attendanceFixture)}
+      readOnly
+      selection={null}
+      onCellIntent={intent}
+    />,
+  );
+  expect(
+    screen
+      .getAllByRole("button")
+      .every((b) => (b as HTMLButtonElement).disabled),
+  ).toBe(true);
+});
+
+it("column headings announce full date and kind and boundary Save stays on the same visible cell", async () => {
+  const onSubmit = () => {};
+  render(
+    <AttendancePage
+      status="ready"
+      month={toMonthTable(attendanceFixture)}
+      onSubmit={onSubmit}
+    />,
+  );
+  expect(
+    screen.getByRole("columnheader", { name: "29 T5 · 2024-02-29 · Công" }),
+  ).toBeTruthy();
+  const cells = screen
+    .getAllByRole("button")
+    .filter((b) => b.hasAttribute("data-cell"));
+  const last = cells.at(-1)!;
+  await userEvent.click(last);
+  await userEvent.click(screen.getByRole("button", { name: "1" }));
+  await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
+  expect(document.activeElement).toBe(last);
 });

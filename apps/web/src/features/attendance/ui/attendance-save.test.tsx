@@ -3,6 +3,7 @@ import { afterEach, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AttendancePage } from "./attendance-page";
+import { toMonthTable } from "../model/attendance-read-view";
 import { attendanceFixture } from "../preview/attendance-fixture";
 
 afterEach(cleanup);
@@ -12,7 +13,7 @@ it("keeps editor raw and reminder while one Save is pending, without saved feedb
   render(
     <AttendancePage
       status="ready"
-      month={attendanceFixture}
+      month={toMonthTable(attendanceFixture)}
       onSubmit={() => {
         requests++;
         return new Promise<void>(() => {});

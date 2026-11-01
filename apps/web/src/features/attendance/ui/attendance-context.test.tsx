@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AttendancePage } from "./attendance-page";
 import { AttendanceDraft } from "../model/attendance-draft";
+import { toMonthTable } from "../model/attendance-read-view";
 import { attendanceFixture } from "../preview/attendance-fixture";
 import { SessionBoundary } from "@/shared/api/session-boundary";
 afterEach(cleanup);
@@ -21,7 +22,7 @@ it("same-user reauthentication remount restores overtime editor raw and identity
   render(
     <AttendancePage
       status="ready"
-      month={attendanceFixture}
+      month={toMonthTable(attendanceFixture)}
       onSubmit={() => {}}
       draft={draft}
       ownerUserId="owner"
@@ -60,7 +61,7 @@ it("Keep/Escape across context guard preserves bulk raw/error/reminder/mode/sour
   render(
     <AttendancePage
       status="ready"
-      month={attendanceFixture}
+      month={toMonthTable(attendanceFixture)}
       onSubmit={() => {}}
       draft={draft}
       ownerUserId="owner"
@@ -87,7 +88,7 @@ it("context_change_requires_draft_decision with protected focus and Escape keeps
   render(
     <AttendancePage
       status="ready"
-      month={attendanceFixture}
+      month={toMonthTable(attendanceFixture)}
       onSubmit={() => {}}
       draft={draft}
       ownerUserId="owner"

@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
+/**
+ * File map: original month Keep/Escape checks; pageFixture/setupPages own the
+ * shared real Workspace + query + session composition and delayed body seam.
+ * Tests cover stale delivery, criteria/no-write, owner guards, deferred clamp,
+ * initial errors and focus/scroll. Keep one fixture to pin actual wiring.
+ */
 import { afterEach, expect, it, vi } from "vitest";
 import {
+  act,
+  within,
   cleanup,
   fireEvent,
   render,
@@ -13,11 +21,16 @@ import { SessionProvider, SessionRuntime } from "@/features/session/index";
 import { sessionBoundary } from "@/shared/api/session-boundary";
 import { AttendanceWorkspace } from "./attendance-workspace";
 import { AttendanceDraft } from "../model/attendance-draft";
+import type { PageDelivery } from "../model/page-view";
+import type { AttendancePageDto, PageCriteria } from "../model/types";
+import { attendanceKeys } from "../api/query-keys";
 import { attendanceFixture } from "../preview/attendance-fixture";
 afterEach(() => {
   cleanup();
   sessionBoundary.invalidate();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 it.each(["keep", "escape"])(
@@ -34,7 +47,7 @@ it.each(["keep", "escape"])(
               expiresAt: deadline,
               idleExpiresAt: deadline,
             }
-          : attendanceFixture,
+          : pageFixture({ month: "2024-02", q: "", page: 1, pageSize: 25 }),
       ),
     );
     await runtime.refresh();
@@ -81,3 +94,536 @@ it.each(["keep", "escape"])(
     }
   },
 );
+
+function pageFixture(
+  criteria: PageCriteria,
+  version = "old",
+  effective = criteria.page,
+): AttendancePageDto {
+  const person = attendanceFixture.employees[0]!;
+  return {
+    month: criteria.month,
+    fetchedAt: version,
+    employees: [{ ...person, name: version }],
+    cells: attendanceFixture.cells.filter((c) => c.employeeId === person.id),
+    employeeTotals: {
+      work: [{ employeeId: person.id, value: 3.5 }],
+      overtime: [{ employeeId: person.id, value: 2 }],
+    },
+    monthTotals: {
+      work: { byDate: [{ date: "2024-02-02", value: 123 }], grandTotal: 123 },
+      overtime: { byDate: [], grandTotal: 456 },
+    },
+    pagination: {
+      page: effective,
+      requestedPage: criteria.page,
+      pageSize: criteria.pageSize,
+      from: (effective - 1) * criteria.pageSize + 1,
+      to: effective * criteria.pageSize,
+      totalPages: 40,
+      totalResults: 1000,
+      monthEmployeeCount: 1000,
+    },
+  };
+}
+async function setupPages() {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2024-02-15T00:00:00Z"));
+  const client = new QueryClient();
+  const runtime = new SessionRuntime(client);
+  const expiresAt = new Date(Date.now() + 3600000).toISOString();
+  const calls: {
+    path: string;
+    method: string;
+    criteria: PageCriteria;
+    resolve: (data: AttendancePageDto) => void;
+    fail: () => void;
+  }[] = [];
+  const unexpected: string[] = [];
+  vi.stubGlobal("fetch", async (path: string, options: RequestInit = {}) => {
+    if (path.includes("/auth/"))
+      return Response.json({
+        user: { userId: "owner", username: "owner" },
+        expiresAt,
+        idleExpiresAt: expiresAt,
+      });
+    if (path !== "/api/v1/attendance/search" || options.method !== "POST") {
+      unexpected.push(`${options.method ?? "GET"} ${path}`);
+      throw new Error("unexpected table/write request");
+    }
+    let resolve!: (data: AttendancePageDto) => void;
+    let fail!: () => void;
+    const body = new Promise<AttendancePageDto>((done, reject) => {
+      resolve = done;
+      fail = () => reject(new Error("body failure"));
+    });
+    calls.push({
+      path,
+      method: options.method,
+      criteria: JSON.parse(options.body as string) as PageCriteria,
+      resolve,
+      fail,
+    });
+    return { ok: true, status: 200, json: () => body } as Response;
+  });
+  await runtime.refresh();
+  const draft = new AttendanceDraft(sessionBoundary);
+  const disconnect = draft.connect(runtime);
+  const wrapper = (owner = draft) => (
+    <QueryClientProvider client={client}>
+      <SessionProvider runtime={runtime}>
+        <AttendanceWorkspace draft={owner} onEmployee={() => {}} />
+      </SessionProvider>
+    </QueryClientProvider>
+  );
+  const rendered = render(wrapper());
+  const flush = async (ms = 0) => {
+    await act(() => vi.advanceTimersByTimeAsync(ms));
+  };
+  await flush();
+  const resolve = async (index: number, name: string, effective?: number) => {
+    const call = calls[index]!;
+    await act(async () => {
+      call.resolve(pageFixture(call.criteria, name, effective));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await flush();
+  };
+  const search = (raw: string) => {
+    const input = screen.getByRole("searchbox");
+    fireEvent.change(input, { target: { value: raw } });
+    fireEvent.keyDown(input, { key: "Enter" });
+  };
+  return {
+    client,
+    runtime,
+    draft,
+    calls,
+    unexpected,
+    flush,
+    resolve,
+    search,
+    rendered,
+    wrapper,
+    stop: () => {
+      rendered.unmount();
+      disconnect();
+      runtime.expire();
+      client.clear();
+    },
+  };
+}
+it("displayed_rows_keep_old_label_during_loading_or_error and late_body_cannot_replace_view A→B→A", async () => {
+  const app = await setupPages();
+  try {
+    await app.resolve(0, "old");
+    const oldTable = screen.getByRole("table");
+    expect(screen.getByText("Snapshot đã lưu lúc old.")).toBeTruthy();
+    const input = screen.getByRole("searchbox");
+    input.focus();
+    app.search("B");
+    await app.flush();
+    expect(app.calls[1]!.criteria).toMatchObject({
+      q: "B",
+      page: 1,
+      pageSize: 25,
+    });
+    expect(screen.getByRole("table")).toBe(oldTable);
+    expect(screen.getByText("Đang tải trang…")).toBeTruthy();
+    expect(oldTable.closest("[aria-busy]")?.getAttribute("aria-busy")).toBe(
+      "true",
+    );
+    expect(
+      screen.getByRole("button", { name: /ID .*0101.*2024-02-02.*Công/ }),
+    ).toHaveProperty("disabled", true);
+    expect(screen.getByText("Snapshot đã lưu lúc old.")).toBeTruthy();
+    expect(screen.getByLabelText("Tổng tháng · công").textContent).toBe("123");
+    app.search("");
+    await app.flush();
+    expect(app.calls[2]!.criteria.q).toBe("");
+    await app.resolve(1, "late-B");
+    expect(screen.queryByText("Snapshot đã lưu lúc late-B.")).toBeNull();
+    await app.resolve(2, "new-A");
+    expect(screen.getByText("Snapshot đã lưu lúc new-A.")).toBeTruthy();
+    expect(document.activeElement).toBe(input);
+    app.search("error");
+    await app.flush();
+    app.calls[3]!.fail();
+    await app.flush();
+    await app.flush(1000);
+    app.calls[4]!.fail();
+    await app.flush();
+    await app.flush(3000);
+    app.calls[5]!.fail();
+    await app.flush();
+    expect(screen.getByRole("alert").textContent).toContain("trang đã tải");
+    expect(screen.getByRole("button", { name: "Thử lại" })).toBeTruthy();
+    expect(screen.getByText("Snapshot đã lưu lúc new-A.")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Quay về trang đã tải" }),
+    );
+    await app.flush();
+    expect(app.unexpected).toEqual([]);
+    expect(
+      app.calls.every(
+        (c) => c.path === "/api/v1/attendance/search" && c.method === "POST",
+      ),
+    ).toBe(true);
+  } finally {
+    app.stop();
+  }
+});
+it("page size/month/search reset1, kind keeps criteria without fetching and no navigation writes", async () => {
+  const app = await setupPages();
+  try {
+    await app.resolve(0, "first");
+    const top = screen.getByRole("navigation", { name: "Phân trang đầu bảng" });
+    fireEvent.change(within(top).getByLabelText("Đến trang"), {
+      target: { value: "40" },
+    });
+    fireEvent.submit(within(top).getByRole("form", { name: "Chuyển trang" }));
+    await app.flush();
+    expect(app.calls[1]!.criteria.page).toBe(40);
+    await app.resolve(1, "last");
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { name: /Công tháng/ }),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Tăng ca" }));
+    await app.flush();
+    expect(app.calls).toHaveLength(2);
+    fireEvent.change(within(top).getByLabelText("Số nhân sự mỗi trang"), {
+      target: { value: "50" },
+    });
+    await app.flush();
+    expect(app.calls[2]!.criteria).toMatchObject({
+      page: 1,
+      pageSize: 50,
+      q: "",
+    });
+    await app.resolve(2, "size");
+    app.search("an");
+    await app.flush();
+    expect(app.calls[3]!.criteria).toMatchObject({
+      page: 1,
+      pageSize: 50,
+      q: "an",
+    });
+    await app.resolve(3, "search");
+    fireEvent.change(screen.getByLabelText("Tháng chấm công"), {
+      target: { value: "2024-03" },
+    });
+    await app.flush();
+    expect(app.calls[4]!.criteria).toMatchObject({
+      month: "2024-03",
+      page: 1,
+      q: "an",
+      pageSize: 50,
+    });
+    expect(app.unexpected).toEqual([]);
+  } finally {
+    app.stop();
+  }
+});
+it("raw search while guard pending stays local; stale owner reference cannot discard replacement", async () => {
+  const app = await setupPages();
+  try {
+    await app.resolve(0, "first");
+    act(() => {
+      app.draft.open(
+        attendanceFixture,
+        attendanceFixture.cells.find((c) => c.state === "editable")!,
+        "owner",
+      );
+      app.draft.change({ raw: "3,25", custom: true, reminder: true });
+    });
+    await app.flush();
+    const before = structuredClone(app.draft.edit);
+    app.search("B");
+    await app.flush();
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    expect(app.calls).toHaveLength(1);
+    fireEvent.change(screen.getByRole("searchbox", { hidden: true }), {
+      target: { value: "C" },
+    });
+    await app.flush(300);
+    expect(app.calls).toHaveLength(1);
+    expect(app.draft.edit).toEqual(before);
+    fireEvent.click(screen.getByRole("button", { name: "Giữ phần nhập" }));
+    await app.flush();
+    expect(app.draft.edit).toEqual(before);
+    expect(app.calls).toHaveLength(1);
+    app.search("D");
+    await app.flush();
+    const replacement = new AttendanceDraft(sessionBoundary);
+    replacement.open(
+      attendanceFixture,
+      attendanceFixture.cells.find((c) => c.state === "editable")!,
+      "owner",
+    );
+    replacement.change({ raw: "2,5", custom: true });
+    app.rendered.rerender(app.wrapper(replacement));
+    await app.flush();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    const discard = screen.queryByRole("button", {
+      name: "Bỏ phần nhập và tiếp tục",
+    });
+    if (discard) fireEvent.click(discard);
+    await app.flush();
+    expect(replacement.edit?.raw).toBe("2,5");
+    expect(app.draft.edit).toEqual(before);
+    expect(app.calls).toHaveLength(1);
+    act(() => replacement.discard());
+    await app.flush();
+    app.search("replacement-search");
+    await app.flush();
+    expect(app.calls).toHaveLength(2);
+    expect(app.calls[1]!.criteria.q).toBe("replacement-search");
+  } finally {
+    app.stop();
+  }
+});
+it("held clamp keeps one envelope, raw baseline/footer/fetchedAt; explicit discard adopts canonical delivery", async () => {
+  const app = await setupPages();
+  try {
+    await app.resolve(0, "first");
+    const top = screen.getByRole("navigation", { name: "Phân trang đầu bảng" });
+    fireEvent.change(within(top).getByLabelText("Đến trang"), {
+      target: { value: "40" },
+    });
+    fireEvent.submit(within(top).getByRole("form", { name: "Chuyển trang" }));
+    await app.flush();
+    await app.resolve(1, "old40");
+    act(() => {
+      app.draft.open(
+        attendanceFixture,
+        attendanceFixture.cells.find((c) => c.state === "editable")!,
+        "owner",
+      );
+      app.draft.change({
+        raw: "3,25",
+        custom: true,
+        error: "Sai bước",
+        reminder: true,
+      });
+    });
+    await app.flush();
+    const before = structuredClone(app.draft.edit);
+    await app.flush(15000);
+    expect(app.calls).toHaveLength(3);
+    await app.resolve(2, "clamp39", 39);
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    expect(screen.getByText("Snapshot đã lưu lúc old40.")).toBeTruthy();
+    expect(screen.getAllByText("Trang 40 / 40")).toHaveLength(2);
+    expect(app.draft.edit).toEqual(before);
+    expect(
+      app.client.getQueryData(
+        attendanceKeys.page(
+          { ...app.calls[2]!.criteria, page: 39 },
+          "owner",
+          sessionBoundary.current(),
+        ),
+      ),
+    ).toBeUndefined();
+    fireEvent.click(screen.getByRole("button", { name: "Giữ phần nhập" }));
+    await app.flush();
+    expect(screen.getByText("Snapshot đã lưu lúc old40.")).toBeTruthy();
+    expect(app.draft.edit).toEqual(before);
+    await app.flush(15000);
+    await app.resolve(3, "clamp-latest", 39);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(app.draft.edit).toEqual(before);
+    act(() => app.draft.change({ raw: "2", error: "" }));
+    await app.flush();
+    expect(screen.getByRole("button", { name: "Lưu" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+    const exact = app.client.getQueryData<PageDelivery>(
+      attendanceKeys.page(
+        app.calls[3]!.criteria,
+        "owner",
+        sessionBoundary.current(),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Hủy" }));
+    await app.flush();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Bỏ phần nhập và tiếp tục" }),
+    );
+    await app.flush();
+    expect(app.draft.edit).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { name: /Công tháng/ }),
+    );
+    expect(screen.getByText("Snapshot đã lưu lúc clamp-latest.")).toBeTruthy();
+    expect(screen.getAllByText("Trang 39 / 40")).toHaveLength(2);
+    expect(app.calls).toHaveLength(4);
+    const delivery = app.client.getQueryData<{ data: AttendancePageDto }>(
+      attendanceKeys.page(
+        { ...app.calls[2]!.criteria, page: 39 },
+        "owner",
+        sessionBoundary.current(),
+      ),
+    );
+    expect(delivery).toBe(exact);
+    expect(delivery?.data.fetchedAt).toBe("clamp-latest");
+    const focus = document.activeElement;
+    await app.flush(15000);
+    expect(app.calls[4]!.criteria.page).toBe(39);
+    await app.resolve(4, "poll39", 39);
+    expect(document.activeElement).toBe(focus);
+    expect(app.unexpected).toEqual([]);
+  } finally {
+    app.stop();
+  }
+});
+
+it("initial error is not empty and can explicitly retry without full-month request", async () => {
+  const app = await setupPages();
+  try {
+    app.calls[0]!.fail();
+    await app.flush();
+    await app.flush(1000);
+    app.calls[1]!.fail();
+    await app.flush();
+    await app.flush(3000);
+    app.calls[2]!.fail();
+    await app.flush();
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.queryByText(/Chưa có nhân sự/)).toBeNull();
+    expect(screen.queryByText("Nhập theo ô")).toBeNull();
+    expect(screen.getByRole("alert").textContent).toContain("Chưa tải được");
+    fireEvent.click(screen.getByRole("button", { name: "Thử lại" }));
+    await app.flush();
+    await app.resolve(3, "retry");
+    expect(screen.getByText("Snapshot đã lưu lúc retry.")).toBeTruthy();
+    expect(app.unexpected).toEqual([]);
+  } finally {
+    app.stop();
+  }
+});
+it("page success resets vertical position, preserves horizontal day, and poll does not steal focus", async () => {
+  const app = await setupPages();
+  try {
+    await app.resolve(0, "first");
+    const region = screen.getByRole("region", {
+      name: "Bảng tháng, cuộn để xem thêm ngày và nhân sự",
+    });
+    region.scrollTop = 300;
+    region.scrollLeft = 400;
+    fireEvent.click(
+      within(
+        screen.getByRole("navigation", { name: "Phân trang cuối bảng" }),
+      ).getByRole("button", { name: "Trang tiếp" }),
+    );
+    await app.flush();
+    await app.resolve(1, "second");
+    expect(region.scrollTop).toBe(0);
+    expect(region.scrollLeft).toBe(400);
+    expect(document.activeElement).toBe(
+      screen.getByRole("heading", { name: /Công tháng/ }),
+    );
+    const search = screen.getByRole("searchbox");
+    search.focus();
+    await app.flush(15000);
+    await app.resolve(2, "poll");
+    expect(document.activeElement).toBe(search);
+  } finally {
+    app.stop();
+  }
+});
+
+it("ime_enter_debounce_one_transition sends one POST from actual Workspace at300ms and none during composition", async () => {
+  const app = await setupPages();
+  try {
+    await app.resolve(0, "initial");
+    const input = screen.getByRole("searchbox");
+    fireEvent.change(input, { target: { value: "an" } });
+    await app.flush(299);
+    expect(app.calls).toHaveLength(1);
+    await app.flush(1);
+    expect(app.calls).toHaveLength(2);
+    expect(app.calls[1]!.criteria).toMatchObject({
+      q: "an",
+      page: 1,
+      pageSize: 25,
+    });
+    await app.resolve(1, "debounced");
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "Nguyễ" } });
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+    await app.flush(500);
+    expect(app.calls).toHaveLength(2);
+    fireEvent.change(input, { target: { value: "Nguyễn" } });
+    fireEvent.compositionEnd(input);
+    await app.flush(299);
+    expect(app.calls).toHaveLength(2);
+    await app.flush(1);
+    expect(app.calls).toHaveLength(3);
+    expect(app.calls[2]!.criteria.q).toBe("Nguyễn");
+    await app.resolve(2, "ime");
+    fireEvent.change(input, { target: { value: "id" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await app.flush();
+    expect(app.calls).toHaveLength(4);
+    expect(app.calls[3]!.criteria.q).toBe("id");
+    await app.flush(300);
+    expect(app.calls).toHaveLength(4);
+    expect(app.unexpected).toEqual([]);
+  } finally {
+    app.stop();
+  }
+});
+
+it("pending write locks search/month/pager and preserves raw without navigation or another write", async () => {
+  const app = await setupPages();
+  try {
+    await app.resolve(0, "loaded");
+    let rejectWrite!: (error: unknown) => void;
+    let submitted!: Promise<boolean>;
+    let writes = 0;
+    act(() => {
+      app.draft.open(
+        attendanceFixture,
+        attendanceFixture.cells.find((c) => c.state === "editable")!,
+        "owner",
+      );
+      app.draft.change({ raw: "2,5", custom: true, reminder: true });
+      submitted = app.draft.submit(() => {
+        writes++;
+        return new Promise((_resolve, reject) => {
+          rejectWrite = reject;
+        });
+      });
+    });
+    await app.flush();
+    expect(screen.getByRole("searchbox")).toHaveProperty("disabled", true);
+    expect(screen.getByLabelText("Tháng chấm công")).toHaveProperty(
+      "disabled",
+      true,
+    );
+    const bottom = screen.getByRole("navigation", {
+      name: "Phân trang cuối bảng",
+    });
+    expect(
+      within(bottom).getByRole("button", { name: "Trang tiếp" }),
+    ).toHaveProperty("disabled", true);
+    fireEvent.click(within(bottom).getByRole("button", { name: "Trang tiếp" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Tăng ca" }));
+    await app.flush();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(app.calls).toHaveLength(1);
+    expect(writes).toBe(1);
+    expect(app.draft.edit?.raw).toBe("2,5");
+    await act(async () => {
+      rejectWrite(new TypeError("fixture response loss"));
+      await submitted;
+    });
+    await app.flush();
+    expect(writes).toBe(1);
+    expect(app.draft.edit?.raw).toBe("2,5");
+    expect(app.unexpected).toEqual([]);
+  } finally {
+    app.stop();
+  }
+});

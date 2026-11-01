@@ -1,3 +1,4 @@
+import { toMonthTable } from "../model/attendance-read-view";
 import { useState } from "react";
 import { AttendancePage } from "../ui/attendance-page";
 import { attendanceFixture } from "./attendance-fixture";
@@ -53,11 +54,11 @@ export function AttendancePreview() {
       </div>
       <AttendancePage
         status={status}
-        month={
+        month={toMonthTable(
           empty
             ? { ...attendanceFixture, employees: [], cells: [] }
-            : attendanceFixture
-        }
+            : attendanceFixture,
+        )}
         submitLabel="Lưu thử"
         onRetry={() => setStatus("ready")}
         onSubmit={(intent) =>

@@ -11,6 +11,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { AttendancePage } from "./attendance-page";
 import { AttendanceDraft } from "../model/attendance-draft";
 import { SessionBoundary } from "@/shared/api/session-boundary";
+import { toMonthTable } from "../model/attendance-read-view";
 import { attendanceFixture as month } from "../preview/attendance-fixture";
 import { ApiError } from "@/shared/api/transport";
 
@@ -41,7 +42,7 @@ it.each(["save", "recovery"])(
     render(
       <AttendancePage
         status="ready"
-        month={month}
+        month={toMonthTable(month)}
         draft={draft}
         ownerUserId="owner"
         onSubmit={() => {}}

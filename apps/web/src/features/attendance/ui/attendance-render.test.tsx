@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { AttendanceGrid } from "./attendance-grid";
 import { AttendancePage } from "./attendance-page";
 import { AttendanceDraft } from "../model/attendance-draft";
+import { toMonthTable } from "../model/attendance-read-view";
 import { attendanceFixture } from "../preview/attendance-fixture";
 import { SessionBoundary } from "@/shared/api/session-boundary";
 import { ApiError } from "@/shared/api/transport";
@@ -34,7 +35,7 @@ it("raw/reminder/custom/error edits update the real editor without projecting or
   render(
     <AttendancePage
       status="ready"
-      month={month}
+      month={toMonthTable(month)}
       onSubmit={() => {}}
       draft={draft}
       ownerUserId="owner"
@@ -77,7 +78,7 @@ it("pending/conflict and polling keep original CAS while current callbacks remai
     latestCallback = vi.fn();
   const props = {
     status: "ready" as const,
-    month: attendanceFixture,
+    month: toMonthTable(attendanceFixture),
     onSubmit: () => {},
     draft,
     ownerUserId: "owner",
@@ -112,7 +113,11 @@ it("pending/conflict and polling keep original CAS while current callbacks remai
       c.kind === cell.kind,
   )!.revision = "new-revision";
   view.rerender(
-    <AttendancePage {...props} month={polled} onEmployee={latestCallback} />,
+    <AttendancePage
+      {...props}
+      month={toMonthTable(polled)}
+      onEmployee={latestCallback}
+    />,
   );
   expect(draft.edit).toEqual(original);
   const user = userEvent.setup();
@@ -129,18 +134,25 @@ it("pending/conflict and polling keep original CAS while current callbacks remai
 it("freshness-only polling reuses structural grid rows while replacing event callbacks", async () => {
   const month = structuredClone(attendanceFixture);
   const projection = vi.spyOn(month.cells, "map");
-  const props = { status: "ready" as const, month, onSubmit: () => {} };
+  const props = {
+    status: "ready" as const,
+    month: toMonthTable(month),
+    onSubmit: () => {},
+  };
   const view = render(<AttendancePage {...props} />);
   projection.mockClear();
   view.rerender(
-    <AttendancePage {...props} month={{ ...month, fetchedAt: "fresh" }} />,
+    <AttendancePage
+      {...props}
+      month={toMonthTable({ ...month, fetchedAt: "fresh" })}
+    />,
   );
   expect(projection).not.toHaveBeenCalled();
 });
 
 it("memoized grid cells forward clicks to the latest committed callback", async () => {
   const calls: string[] = [];
-  const props = { month: attendanceFixture, selection: null };
+  const props = { month: toMonthTable(attendanceFixture), selection: null };
   const view = render(
     <AttendanceGrid {...props} onCellIntent={() => calls.push("old")} />,
   );
