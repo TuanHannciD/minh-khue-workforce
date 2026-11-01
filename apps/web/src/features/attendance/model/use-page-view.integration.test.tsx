@@ -91,13 +91,15 @@ async function setup(start = initial) {
   }[] = [];
   let user = "owner";
   let code = 200;
+  // Absolute expiry is fixed within one server session; idle expiry can slide.
+  const expiresAt = new Date(Date.now() + 3600000).toISOString();
   vi.stubGlobal("fetch", async (path: string, options: RequestInit) => {
     if (path.includes("/auth/logout"))
       return new Response(null, { status: 204 });
     if (path.includes("/auth/"))
       return Response.json({
         user: { userId: user, username: user },
-        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        expiresAt,
         idleExpiresAt: new Date(Date.now() + 3600000).toISOString(),
       });
     if (path !== "/api/v1/attendance/search")
@@ -556,6 +558,73 @@ it("poll_and_accepted_clamp_share_dispatch_metadata", async () => {
   expect(
     h.client.getQueryCache().findAll({ queryKey: ["attendance", "page"] }),
   ).toHaveLength(0);
+  expect(vi.getTimerCount()).toBe(0);
+});
+it("same-key generation retires the canonical instance without retaining a GC timer", async () => {
+  const h = await setup({ ...initial, page: 40 });
+  const canonicalCriteria = { ...initial, page: 39 };
+  expect(h.view().state.displayed).toBeNull();
+  await h.flush(10); // Response.json remains pending, independently of fetch.
+  expect(h.bodies).toHaveLength(1);
+  await h.resolve(0, "clamp1", 39);
+  const accepted = h.view().state.displayed!.delivery;
+  const retired = h.client.getQueryCache().getAll()[0]!;
+  expect(retired.state.data).toBe(accepted);
+  expect(retired.getObserversCount()).toBe(1);
+  expect(h.view().state.lifetime.generation).toBe(1);
+  await h.request(canonicalCriteria);
+  expect(h.view().state.lifetime.generation).toBe(2);
+  expect(h.view().state.displayed!.delivery).toBe(accepted);
+  expect(canPollPage(h.view().state)).toBe(false);
+  expect(h.bodies.map((body) => body.request.page)).toEqual([40, 39]);
+  await h.resolve(1, "generation2");
+  const fresh = h.view().state.displayed!.delivery;
+  const active = h.client.getQueryCache().getAll()[0]!;
+  expect(active).not.toBe(retired);
+  expect(active.queryKey).toEqual(retired.queryKey);
+  expect(retired.getObserversCount()).toBe(0);
+  expect(active.getObserversCount()).toBe(1);
+  expect(fresh.requestLifetime.generation).toBe(2);
+  expect(fresh.requestId).toBe(2);
+  expect(fresh).not.toBe(accepted);
+  expect(screen.getByTestId("envelope").textContent).toBe(
+    "39|generation2|2|generation2|ready",
+  );
+  const unrelatedKey = ["unrelated"];
+  h.client.getQueryCache().build(h.client, {
+    queryKey: unrelatedKey,
+    gcTime: Infinity,
+    initialData: "keep",
+  });
+  h.unmount();
+  await h.flush();
+  expect(retired.getObserversCount()).toBe(0);
+  expect(active.getObserversCount()).toBe(0);
+  expect(
+    h.client.getQueryCache().findAll({ queryKey: ["attendance", "page"] }),
+  ).toHaveLength(0);
+  expect(h.client.getQueryData(unrelatedKey)).toBe("keep");
+  // The retired Query is absent from the cache: namespace0 alone misses I1.
+  expect(vi.getTimerCount()).toBe(0);
+  await h.flush(30000);
+  expect(h.bodies).toHaveLength(2);
+  await h.remount(canonicalCriteria);
+  const remountLifetime = h.view().state.lifetime;
+  expect(h.bodies.map((body) => body.request.page)).toEqual([40, 39, 39]);
+  expect(h.view().state.displayed).toBeNull();
+  expect(h.query().data).toBeUndefined();
+  await h.resolve(2, "remount3");
+  const remounted = h.view().state.displayed!.delivery;
+  expect(remounted).not.toBe(fresh);
+  expect(remounted.requestId).toBe(1);
+  expect(remounted.requestLifetime).toEqual(remountLifetime);
+  expect(remounted.data.fetchedAt).toBe("remount3");
+  h.unmount();
+  await h.flush();
+  expect(
+    h.client.getQueryCache().findAll({ queryKey: ["attendance", "page"] }),
+  ).toHaveLength(0);
+  expect(h.client.getQueryData(unrelatedKey)).toBe("keep");
   expect(vi.getTimerCount()).toBe(0);
 });
 it("canonical poll body cannot publish after navigation cancels its context", async () => {

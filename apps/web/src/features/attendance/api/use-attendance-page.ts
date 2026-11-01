@@ -179,8 +179,9 @@ export function useAttendancePage(
       lifetime: delivery.requestLifetime,
     });
   });
-  // setQueryData seeds have a longest gcTime that later options cannot lower.
-  // Keep them through handoff, then remove this mount's exact inactive seeds.
+  // Canonical seeds use Infinity GC: only this scoped cleanup owns retention.
+  // Detaching a retired Query or settling its canceled fetch cannot recreate
+  // a timer after it has been removed from the cache.
   // useQuery's subscription cleanup runs before this passive effect cleanup.
   useEffect(() => {
     const keys = canonicalKeys.current;
@@ -217,11 +218,21 @@ export function adoptAttendancePage(
     userId,
     epoch,
   );
-  const canonical = client
-    .getQueryCache()
-    .find({ queryKey: canonicalKey, exact: true });
+  const cache = client.getQueryCache();
+  const canonical =
+    cache.find({ queryKey: canonicalKey, exact: true }) ??
+    cache.build<unknown, Error, unknown, QueryKey>(client, {
+      queryKey: canonicalKey,
+      gcTime: Infinity,
+    });
   // Existing equal DTO bytes must not structurally share a prior delivery tag.
-  canonical?.setOptions({ ...canonical.options, structuralSharing: false });
+  // Infinity prevents both final observer detach and fetch-finally from
+  // scheduling a timer on an instance already removed during navigation.
+  canonical.setOptions({
+    ...canonical.options,
+    gcTime: Infinity,
+    structuralSharing: false,
+  });
   client.setQueryData(canonicalKey, delivery);
   client.removeQueries({
     queryKey: attendanceKeys.page(delivery.requested, userId, epoch),
