@@ -1,11 +1,6 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
-import type { AttendanceKind, CellKeyDto, MonthDto } from "../model/types";
+import type { AttendanceReadView } from "../model/attendance-read-view";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
+import type { AttendanceKind, CellKeyDto } from "../model/types";
 import type { SelectionInteraction } from "../model/use-cell-selection";
 import { cellIdentity } from "../model/month-view";
 import { rectangleCells, unionCells } from "../model/cell-selection";
@@ -18,7 +13,7 @@ import {
 // edge scrolling and global cancellation. No writes; release emits one preview.
 export function useGridGesture(
   region: RefObject<HTMLDivElement | null>,
-  month: MonthDto,
+  month: AttendanceReadView,
   interaction?: SelectionInteraction,
   kind: AttendanceKind = "work",
 ) {
@@ -29,8 +24,8 @@ export function useGridGesture(
   const suppressClick = useRef(false);
   const [active, setActive] = useState(false);
   const enabled = Boolean(interaction);
-  const context = `${month.month}/${month.employees.map((e) => e.id).join(",")}/${kind}/${interaction?.epoch}/${interaction?.generation}`;
-  useEffect(() => {
+  const context = `${month.month}/${month.employees.map((e) => e.id).join(",")}/${kind}/${interaction?.epoch}/${interaction?.generation}/${interaction?.contextKey}`;
+  useLayoutEffect(() => {
     const element = region.current;
     if (!element || !latest.current.interaction) return;
     const grid: HTMLDivElement = element;
@@ -39,7 +34,7 @@ export function useGridGesture(
       frame = 0;
     let start: CellKeyDto | null = null,
       source: CellKeyDto | undefined;
-    let captured: MonthDto,
+    let captured: AttendanceReadView,
       before: CellKeyDto[] = [],
       selected: CellKeyDto[] = [];
     let point: GesturePoint = { x: 0, y: 0 },
@@ -304,6 +299,7 @@ export function useGridGesture(
     document.addEventListener("scroll", pan, { capture: true, passive: true });
     window.addEventListener("blur", cancel);
     return () => {
+      if (gesture.active || gesture.pending) suppressClick.current = true;
       gesture.dispose();
       grid.removeEventListener("pointerdown", pointerDown);
       grid.removeEventListener("touchstart", touchStart);

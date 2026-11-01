@@ -12,6 +12,11 @@ import { AttendancePage } from "./attendance-page";
 import { AttendanceDraft } from "../model/attendance-draft";
 import { SessionBoundary } from "@/shared/api/session-boundary";
 import { attendanceFixture as month } from "../preview/attendance-fixture";
+import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
+import { useCellSelection } from "../model/use-cell-selection";
+import { useGridGesture } from "./use-grid-gesture";
+import { cellIdentity } from "../model/month-view";
+import type { AttendanceReadView } from "../model/attendance-read-view";
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
@@ -271,3 +276,186 @@ it.each(["11px", "scroll", "multitouch", "release", "blur", "owner", "epoch"])(
     expect(submit).not.toHaveBeenCalled();
   },
 );
+
+function GestureContext({
+  draft,
+  contextKey,
+  kind = "work",
+  view = month,
+  releaseInLayout = false,
+}: {
+  draft: AttendanceDraft;
+  contextKey: string;
+  kind?: "work" | "overtime";
+  view?: AttendanceReadView;
+  releaseInLayout?: boolean;
+}) {
+  useSyncExternalStore(draft.subscribe, draft.structureSnapshot);
+  const selection = useCellSelection(
+    view,
+    draft,
+    "owner",
+    () => {},
+    contextKey,
+  );
+  const region = useRef<HTMLDivElement>(null);
+  const gesture = useGridGesture(region, view, selection.interaction, kind);
+  useLayoutEffect(() => {
+    if (releaseInLayout)
+      fireEvent.pointerUp(document, {
+        pointerType: "mouse",
+        pointerId: 9,
+        clientX: 3,
+        clientY: 2,
+      });
+  }, [releaseInLayout]);
+  const first = view.cells.find((c) => c.kind === "work" && c.value === null)!;
+  return (
+    <div
+      ref={region}
+      data-testid="context-grid"
+      className={gesture.active ? "dragging" : ""}
+    >
+      <button data-testid="context-cell" data-position={cellIdentity(first)}>
+        cell
+      </button>
+      <output>{selection.interaction?.keys.length ?? 0}</output>
+    </div>
+  );
+}
+it.each(["page", "q", "pageSize", "kind", "membership"])(
+  "page_context_cancels_gesture timer at449ms with same IDs: %s",
+  (change) => {
+    vi.useFakeTimers();
+    const boundary = new SessionBoundary();
+    boundary.allowWrites();
+    const draft = new AttendanceDraft(boundary);
+    const { rerender } = render(
+      <GestureContext draft={draft} contextKey="initial" />,
+    );
+    const touch = { identifier: 1, clientX: 2, clientY: 2 };
+    fireEvent.touchStart(screen.getByTestId("context-cell"), {
+      touches: [touch],
+      changedTouches: [touch],
+    });
+    act(() => vi.advanceTimersByTime(449));
+    rerender(
+      <GestureContext
+        draft={draft}
+        contextKey={change === "membership" ? "initial" : change}
+        kind={change === "kind" ? "overtime" : "work"}
+        view={
+          change === "membership"
+            ? {
+                ...month,
+                employees: month.employees.slice(1),
+                cells: month.cells.filter(
+                  (c) => c.employeeId !== month.employees[0]!.id,
+                ),
+              }
+            : month
+        }
+      />,
+    );
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.getByTestId("context-grid").className).toBe("");
+    fireEvent.touchEnd(document, { touches: [], changedTouches: [touch] });
+    expect(draft.edit).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  },
+);
+it("page_context_cancels_gesture releases pointer capture and RAF, clears preview, release never commits", () => {
+  vi.useFakeTimers();
+  const boundary = new SessionBoundary();
+  boundary.allowWrites();
+  const draft = new AttendanceDraft(boundary);
+  const { rerender } = render(
+    <GestureContext draft={draft} contextKey="initial" />,
+  );
+  const grid = screen.getByTestId("context-grid");
+  grid.setPointerCapture = vi.fn();
+  grid.hasPointerCapture = () => true;
+  grid.releasePointerCapture = vi.fn();
+  fireEvent.pointerDown(screen.getByTestId("context-cell"), {
+    pointerType: "mouse",
+    pointerId: 9,
+    button: 0,
+    clientX: 2,
+    clientY: 2,
+  });
+  fireEvent.pointerMove(document, {
+    pointerType: "mouse",
+    pointerId: 9,
+    clientX: 3,
+    clientY: 2,
+  });
+  expect(grid.setPointerCapture).toHaveBeenCalledWith(9);
+  expect(grid.className).toBe("dragging");
+  expect(vi.getTimerCount()).toBeGreaterThan(0);
+  rerender(<GestureContext draft={draft} contextKey="new-q-same-ids" />);
+  expect(grid.releasePointerCapture).toHaveBeenCalledWith(9);
+  expect(grid.className).toBe("");
+  expect(grid.querySelector("output")!.textContent).toBe("0");
+  expect(vi.getTimerCount()).toBe(0);
+  fireEvent.pointerUp(document, {
+    pointerType: "mouse",
+    pointerId: 9,
+    clientX: 3,
+    clientY: 2,
+  });
+  expect(draft.edit).toBeNull();
+});
+
+it("a context change cancels capture before layout callbacks can release the old pointer into the new page", () => {
+  vi.useFakeTimers();
+  const boundary = new SessionBoundary();
+  boundary.allowWrites();
+  const draft = new AttendanceDraft(boundary);
+  const { rerender } = render(
+    <GestureContext draft={draft} contextKey="initial" />,
+  );
+  fireEvent.pointerDown(screen.getByTestId("context-cell"), {
+    pointerType: "mouse",
+    pointerId: 9,
+    button: 0,
+    clientX: 2,
+    clientY: 2,
+  });
+  fireEvent.pointerMove(document, {
+    pointerType: "mouse",
+    pointerId: 9,
+    clientX: 3,
+    clientY: 2,
+  });
+  expect(screen.getByTestId("context-grid").className).toBe("dragging");
+  rerender(
+    <GestureContext draft={draft} contextKey="new-context" releaseInLayout />,
+  );
+  expect(draft.edit).toBeNull();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("active touch at450ms clears preview/RAF on context change and release cannot select or write", () => {
+  vi.useFakeTimers();
+  const boundary = new SessionBoundary();
+  boundary.allowWrites();
+  const draft = new AttendanceDraft(boundary);
+  const { rerender } = render(
+    <GestureContext draft={draft} contextKey="initial" />,
+  );
+  const touch = { identifier: 1, clientX: 2, clientY: 2 };
+  fireEvent.touchStart(screen.getByTestId("context-cell"), {
+    touches: [touch],
+    changedTouches: [touch],
+  });
+  act(() => vi.advanceTimersByTime(450));
+  expect(screen.getByTestId("context-grid").className).toBe("dragging");
+  rerender(<GestureContext draft={draft} contextKey="new-size" />);
+  expect(screen.getByTestId("context-grid").className).toBe("");
+  expect(
+    screen.getByTestId("context-grid").querySelector("output")!.textContent,
+  ).toBe("0");
+  expect(vi.getTimerCount()).toBe(0);
+  fireEvent.touchEnd(document, { touches: [], changedTouches: [touch] });
+  expect(draft.edit).toBeNull();
+});

@@ -1,4 +1,21 @@
 import type { AttendancePageDto, PageCriteria } from "./types";
+import type { AttendanceDraft } from "./attendance-draft";
+
+export type PageTransitionTicket = {
+  owner: AttendanceDraft;
+  generation: number;
+  epoch: number;
+  next: PageCriteria;
+};
+// Workspace also checks that ticket.owner is still its current draft instance.
+export function isPageTransitionCurrent(ticket: PageTransitionTicket): boolean {
+  return (
+    ticket.owner.ownerGeneration === ticket.generation &&
+    ticket.owner.boundary.canWrite(ticket.epoch) &&
+    ticket.owner.outcome.type !== "pending" &&
+    !ticket.owner.reconciling
+  );
+}
 
 export type PageLifetime = {
   userId: string;

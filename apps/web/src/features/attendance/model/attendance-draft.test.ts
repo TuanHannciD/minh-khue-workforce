@@ -8,6 +8,7 @@ import type {
   WriteAttendance,
   WriteResult,
 } from "../api/attendance";
+import type { AttendanceReadView } from "./attendance-read-view";
 
 afterEach(() => vi.restoreAllMocks());
 const employee = attendanceFixture.employees[0]!;
@@ -36,6 +37,38 @@ const snapshot = (revision = "new"): ReconcileSnapshot => ({
     },
   ],
   missingEmployeeIds: [],
+});
+it("page boundary cannot open a hidden cell even when its employee is displayed", () => {
+  const boundary = new SessionBoundary();
+  boundary.allowWrites();
+  const draft = new AttendanceDraft(boundary);
+  const page: AttendanceReadView = {
+    month: attendanceFixture.month,
+    employees: [employee],
+    cells: [cell],
+  };
+  expect(draft.open(page, { ...cell, date: "2024-03-02" }, "owner")).toBe(
+    false,
+  );
+  expect(draft.open(page, { ...cell, date: "2024-02-04" }, "owner")).toBe(
+    false,
+  );
+  expect(draft.edit).toBeNull();
+  expect(draft.open(page, cell, "owner")).toBe(true);
+});
+it("openBulk rejects any hidden endpoint/source instead of silently intersecting the page", () => {
+  const boundary = new SessionBoundary();
+  boundary.allowWrites();
+  const draft = new AttendanceDraft(boundary);
+  const page: AttendanceReadView = {
+    month: attendanceFixture.month,
+    employees: [employee],
+    cells: [cell],
+  };
+  const hidden = { ...cell, date: "2024-02-04", value: null };
+  expect(draft.openBulk(page, [cell, hidden], "owner")).toBe(false);
+  expect(draft.openBulk(page, [cell], "owner", hidden)).toBe(false);
+  expect(draft.edit).toBeNull();
 });
 function deferred<T>() {
   let resolve!: (v: T) => void;

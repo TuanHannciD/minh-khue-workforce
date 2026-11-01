@@ -1,9 +1,5 @@
-import type {
-  AttendanceKind,
-  CellKeyDto,
-  CellSnapshotDto,
-  MonthDto,
-} from "./types";
+import type { AttendanceReadView } from "./attendance-read-view";
+import type { AttendanceKind, CellKeyDto, CellSnapshotDto } from "./types";
 export function monthDays(
   month: string,
 ): { date: string; day: number; weekday: string }[] {
@@ -27,7 +23,7 @@ export function cellIdentity(cell: CellKeyDto): string {
   return `${cell.employeeId}/${cell.date}/${cell.kind}`;
 }
 export function orderedMonthCells(
-  month: Pick<MonthDto, "month" | "cells" | "employees">,
+  month: AttendanceReadView,
   kind: AttendanceKind,
 ): CellSnapshotDto[] {
   const cells = new Map(

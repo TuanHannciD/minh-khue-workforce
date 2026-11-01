@@ -35,6 +35,51 @@ it("same-user reauthentication remount restores overtime editor raw and identity
     screen.getByRole("tab", { name: "Tăng ca" }).getAttribute("aria-selected"),
   ).toBe("true");
 });
+
+it("Keep/Escape across context guard preserves bulk raw/error/reminder/mode/source and frozen counts", async () => {
+  const boundary = new SessionBoundary();
+  boundary.allowWrites();
+  const draft = new AttendanceDraft(boundary);
+  const cells = attendanceFixture.cells
+    .filter(
+      (c) =>
+        c.employeeId === attendanceFixture.employees[0]!.id &&
+        c.kind === "work",
+    )
+    .slice(0, 5);
+  draft.openBulk(attendanceFixture, cells, "owner", cells[2]!);
+  draft.change({
+    raw: "3,25",
+    custom: true,
+    error: "Sai bước",
+    reminder: true,
+    mode: "replace",
+  });
+  const before = structuredClone(draft.edit);
+  const counts = draft.bulkPreview;
+  render(
+    <AttendancePage
+      status="ready"
+      month={attendanceFixture}
+      onSubmit={() => {}}
+      draft={draft}
+      ownerUserId="owner"
+    />,
+  );
+  const user = userEvent.setup();
+  for (const decision of ["Escape", "Keep"]) {
+    await user.click(screen.getByRole("tab", { name: "Tăng ca" }));
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    if (decision === "Escape") await user.keyboard("{Escape}");
+    else
+      await user.click(screen.getByRole("button", { name: "Giữ phần nhập" }));
+    expect(draft.edit).toEqual(before);
+    expect(draft.bulkPreview).toEqual(counts);
+    expect(
+      screen.getByRole("tab", { name: "Công" }).getAttribute("aria-selected"),
+    ).toBe("true");
+  }
+});
 it("context_change_requires_draft_decision with protected focus and Escape keeps invalid raw/unit/identity", async () => {
   const boundary = new SessionBoundary();
   boundary.allowWrites();

@@ -1,10 +1,6 @@
+import type { AttendanceReadView } from "./attendance-read-view";
 import type { components } from "@/shared/api/generated/schema";
-import type {
-  CellKeyDto,
-  CellSnapshotDto,
-  CellValueDto,
-  MonthDto,
-} from "./types";
+import type { CellKeyDto, CellSnapshotDto, CellValueDto } from "./types";
 import { cellKey, unionCells, visibleCells } from "./cell-selection";
 import { cellIdentity } from "./month-view";
 export type WriteIntent = components["schemas"]["SetValueWriteDto"];
@@ -15,7 +11,7 @@ export type TargetPreview = components["schemas"]["TargetPreviewDto"] & {
 export const sameValue = (a: CellValueDto, b: CellValueDto) =>
   JSON.stringify(a) === JSON.stringify(b);
 export function captureBulkIntent(
-  month: MonthDto,
+  month: AttendanceReadView,
   selected: CellKeyDto[],
   value: CellValueDto,
   mode: WriteIntent["operation"]["mode"],
@@ -73,7 +69,7 @@ export function eligibleCells(intent: WriteIntent, cells: CellSnapshotDto[]) {
 }
 export function previewTargets(
   intent: WriteIntent,
-  month: Pick<MonthDto, "cells">,
+  month: Pick<AttendanceReadView, "cells">,
 ): TargetPreview {
   const eligible = eligibleCells(intent, month.cells);
   const selected = new Set(intent.targets.map(cellIdentity));

@@ -4,6 +4,7 @@
  * replies; reconcile reads original keys; recover requires an explicit decision.
  * Pure selection/fill/recovery builders live beside this owner (see README).
  */
+import type { AttendanceReadView } from "./attendance-read-view";
 import type { SessionRuntime } from "@/features/session/index";
 import {
   sessionBoundary,
@@ -18,7 +19,7 @@ import type {
   ReconcileRequest,
   ReconcileSnapshot,
 } from "../api/attendance";
-import type { CellSnapshotDto, MonthDto, EmployeeDto } from "./types";
+import type { CellSnapshotDto, EmployeeDto } from "./types";
 import { cellIdentity } from "./month-view";
 import { parseNumberInput, formatAttendanceValue } from "./number-input";
 import {
@@ -27,7 +28,7 @@ import {
   type WriteIntent,
 } from "./fill-intent";
 import { recoveryBulkIntent } from "./bulk-recovery";
-import { cellKey, unionCells } from "./cell-selection";
+import { cellKey, unionCells, visibleCells } from "./cell-selection";
 
 import type { EditingCell, SaveOutcome } from "./draft-types";
 export type { EditingCell, SaveOutcome } from "./draft-types";
@@ -120,8 +121,13 @@ export class AttendanceDraft {
       unregister?.();
     };
   }
-  open(month: MonthDto, cell: CellSnapshotDto, ownerUserId: string) {
-    if (this.edit || cell.state !== "editable" || !this.boundary.isActive())
+  open(month: AttendanceReadView, cell: CellSnapshotDto, ownerUserId: string) {
+    if (
+      this.edit ||
+      cell.state !== "editable" ||
+      !this.boundary.isActive() ||
+      !visibleCells(month, [cell]).length
+    )
       return false;
     const employee = month.employees.find((e) => e.id === cell.employeeId);
     if (!employee) return false;
@@ -147,12 +153,14 @@ export class AttendanceDraft {
     return true;
   }
   openBulk(
-    month: MonthDto,
+    month: AttendanceReadView,
     cells: CellSnapshotDto[],
     ownerUserId: string,
     source?: CellSnapshotDto,
   ) {
     if (this.edit || !this.boundary.isActive()) return false;
+    const selected = unionCells(cells, source ? [source] : []);
+    if (visibleCells(month, selected).length !== selected.length) return false;
     const intent = captureBulkIntent(month, cells, null, "fill-empty", source);
     if (!intent) return false;
     const cell = cells.find((c) =>

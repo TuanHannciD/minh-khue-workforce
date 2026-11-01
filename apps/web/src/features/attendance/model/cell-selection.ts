@@ -1,4 +1,5 @@
-import type { CellKeyDto, MonthDto } from "./types";
+import type { AttendanceReadView } from "./attendance-read-view";
+import type { CellKeyDto } from "./types";
 import { cellIdentity, orderedMonthCells } from "./month-view";
 export const cellKey = (cell: CellKeyDto): CellKeyDto => ({
   employeeId: cell.employeeId,
@@ -21,7 +22,7 @@ export function toggleCell(
     : unionCells(cells, [cell]);
 }
 export function visibleCells(
-  month: MonthDto,
+  month: AttendanceReadView,
   cells: CellKeyDto[],
 ): CellKeyDto[] {
   const people = new Set(month.employees.map((e) => e.id));
@@ -33,7 +34,7 @@ export function visibleCells(
   );
 }
 export function rectangleCells(
-  month: MonthDto,
+  month: AttendanceReadView,
   a: CellKeyDto,
   b: CellKeyDto,
 ): CellKeyDto[] {

@@ -4,6 +4,8 @@ import { SessionBoundary } from "@/shared/api/session-boundary";
 import { attendanceFixture as month } from "../preview/attendance-fixture";
 import { ApiError } from "@/shared/api/transport";
 import type { WriteAttendance, ReconcileRequest } from "../api/attendance";
+import type { AttendanceReadView } from "./attendance-read-view";
+import { cellKey } from "./cell-selection";
 const cells = month.cells
   .filter((c) => c.employeeId === month.employees[0]!.id && c.kind === "work")
   .slice(0, 5);
@@ -11,8 +13,13 @@ function setup(source = false) {
   const boundary = new SessionBoundary();
   boundary.allowWrites();
   const draft = new AttendanceDraft(boundary);
+  const view: AttendanceReadView = {
+    month: month.month,
+    employees: month.employees.slice(0, 1),
+    cells,
+  };
   draft.openBulk(
-    month,
+    view,
     [cells[1]!, cells[3]!, cells[4]!],
     "owner",
     source ? cells[2]! : undefined,
@@ -139,4 +146,61 @@ it("recovery creates new CAS intent only on explicit decision, unchanged fill-em
     source: { expectedRevision: "fresh" },
     expectedEmployees: [{ expectedRevision: "person-new" }],
   });
+});
+
+it("offpage_unknown_reconciles_original_keys incl source after response loss and month exit, no auto retry/retarget", async () => {
+  const { draft } = setup(true);
+  const original = structuredClone(draft.edit)!;
+  const counts = draft.bulkPreview;
+  const lost = vi.fn(async () => {
+    throw new TypeError("response lost");
+  });
+  await draft.submit(lost);
+  expect(draft.outcome.type).toBe("unknown");
+  // This displayed page has none of the old employee/keys. It is not recovery.
+  const next: AttendanceReadView = {
+    month: "2024-03",
+    employees: month.employees.slice(1),
+    cells: [],
+  };
+  expect(draft.openBulk(next, [], "owner")).toBe(false);
+  expect(draft.bulkPreview).toEqual(counts);
+  expect(draft.edit).toEqual(original);
+  const response = {
+    employees: [
+      {
+        ...original.employee,
+        startDate: "2024-03-01",
+        revision: "outside-month",
+      },
+    ],
+    cells: original.bulk!.cells.map((c) => ({
+      ...c,
+      revision: "outside-page",
+      state: "before-start" as const,
+      value: null,
+    })),
+    fetchedAt: "fresh",
+    missingEmployeeIds: [],
+  };
+  const read = vi.fn(
+    async (_input: ReconcileRequest) => (void _input, response),
+  );
+  await draft.reconcile(read);
+  expect(read.mock.calls[0]![0]).toEqual({
+    employeeIds: original.bulk!.intent.expectedEmployees.map(
+      (e) => e.employeeId,
+    ),
+    cells: [...original.targets, original.source!].map(cellKey),
+  });
+  expect(draft.current).toBe(response);
+  expect(draft.readError).toBe("");
+  expect(draft.outcome.type).toBe("unknown");
+  expect(draft.edit).toEqual(original);
+  await draft.submit(lost);
+  expect(lost).toHaveBeenCalledTimes(1);
+  expect(await draft.recover("draft", lost)).toBe(false);
+  expect(lost).toHaveBeenCalledTimes(1);
+  expect(draft.discard()).toBe(true);
+  expect(draft.outcome.type).toBe("unknown");
 });
