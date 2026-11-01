@@ -28,6 +28,9 @@ export const employeeReadFixture = {
     { id: "aabbccdd-1111-4111-8111-000000000124", name: "ß" },
     { id: "aabbccdd-1111-4111-8111-000000000125", name: "CAFE thật" },
     { id: "aabbccdd-1111-4111-8111-00000000cafe", name: "Bình" },
+    // R1 I1: Unicode 16 Cyrillic TJE cases; fixed from Node before SQL.
+    { id: "aabbccdd-1111-4111-8111-000000000126", name: "\u1C89" },
+    { id: "aabbccdd-1111-4111-8111-000000000127", name: "\u1C8A" },
   ],
   queries: [
     {
@@ -73,6 +76,20 @@ export const employeeReadFixture = {
       ],
     },
     { q: "not-present", expectedIds: [] },
+    {
+      q: "\u1C89",
+      expectedIds: [
+        "aabbccdd-1111-4111-8111-000000000127",
+        "aabbccdd-1111-4111-8111-000000000126",
+      ],
+    },
+    {
+      q: "\u1C8A",
+      expectedIds: [
+        "aabbccdd-1111-4111-8111-000000000127",
+        "aabbccdd-1111-4111-8111-000000000126",
+      ],
+    },
   ],
   // Observed and pinned before any SQL: Node24.22.1 / ICU78.3, vi variant.
   // Canonical pair 101/102 and duplicate An 108/109 use ID tie-breaks.
@@ -103,5 +120,7 @@ export const employeeReadFixture = {
     "aabbccdd-1111-4111-8111-000000000105",
     "aabbccdd-1111-4111-8111-000000000116",
     "aabbccdd-1111-4111-8111-000000000117",
+    "aabbccdd-1111-4111-8111-000000000127",
+    "aabbccdd-1111-4111-8111-000000000126",
   ],
 };

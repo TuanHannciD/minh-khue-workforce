@@ -50,7 +50,7 @@ const pool = (name) => ({
   },
 });
 mock.module("./attendance-sandbox.mjs", {
-  namedExports: {
+  exports: {
     root: resolve("../.."),
     origin: "http://127.0.0.1:5173",
     async openAttendanceTarget(path) {
@@ -78,7 +78,7 @@ mock.module("./attendance-sandbox.mjs", {
   },
 });
 mock.module("../dist/infrastructure/db/database.js", {
-  namedExports: {
+  exports: {
     Database: class {
       constructor(url) {
         assert.equal(url, "fixture-only");
@@ -92,7 +92,7 @@ mock.module("../dist/infrastructure/db/database.js", {
   },
 });
 mock.module("../dist/modules/auth/auth-operations.js", {
-  namedExports: {
+  exports: {
     async provisionAccounts(_db, candidates) {
       assert.deepEqual(
         candidates.map((a) => a.username),
@@ -112,7 +112,7 @@ mock.module("../dist/modules/auth/auth-operations.js", {
   },
 });
 mock.module("../dist/bootstrap.js", {
-  namedExports: {
+  exports: {
     async createApp(origin, options) {
       assert.equal(origin, "http://127.0.0.1:5173");
       assert.equal(options.databaseUrl, "fixture-only");
@@ -150,7 +150,7 @@ mock.module("../dist/bootstrap.js", {
   },
 });
 mock.module("node:net", {
-  namedExports: {
+  exports: {
     createConnection({ port, host }) {
       assert.equal(host, "127.0.0.1");
       const socket = new EventEmitter();
@@ -172,7 +172,7 @@ mock.module("node:net", {
   },
 });
 mock.module("node:fs/promises", {
-  namedExports: {
+  exports: {
     ...files,
     async writeFile(path, ...args) {
       const kind = String(path).endsWith("fixture-invalidated.json")

@@ -46,6 +46,21 @@ test("canonical_equivalent_order_uses_id_tie", () => {
     ],
   );
 });
+test("new_cyrillic_case_pair_keeps_current_js_search_semantics", () => {
+  const capital = fixture.employees.find((e) => e.name === "\u1C89");
+  const small = fixture.employees.find((e) => e.name === "\u1C8A");
+  assert(capital && small, "fixed oracle must include both Cyrillic TJE cases");
+  assert.equal(capital.name.toLocaleLowerCase("vi"), "\u1C8A");
+  assert.equal(small.name.toLocaleLowerCase("vi"), "\u1C8A");
+  for (const q of ["\u1C89", "\u1C8A"])
+    assert.deepEqual(
+      fixture.queries.find((query) => query.q === q)?.expectedIds,
+      [
+        "aabbccdd-1111-4111-8111-000000000127",
+        "aabbccdd-1111-4111-8111-000000000126",
+      ],
+    );
+});
 test("sql_capability_and_literal_order_match_fixed_oracle", async () => {
   const evidence = resolve(
     root,
@@ -169,6 +184,11 @@ test("sql_capability_and_literal_order_match_fixed_oracle", async () => {
           const sqlOrder = (
             await pool.query(`SELECT id FROM "Employee" ORDER BY ${order}`)
           ).rows.map((e) => e.id);
+          candidate.observations = {
+            orderedIds: sqlOrder,
+            lower: [],
+            queries: [],
+          };
           compare("order", sqlOrder, fixture.expectedOrderedIds);
           const equality = (
             await pool.query(
@@ -188,7 +208,13 @@ test("sql_capability_and_literal_order_match_fixed_oracle", async () => {
               `SELECT id, ${lowerName} AS lowered FROM "Employee" ORDER BY id`,
             )
           ).rows;
-          for (const row of lowered)
+          for (const row of lowered) {
+            candidate.observations.lower.push({
+              id: row.id,
+              codePoints: Array.from(row.lowered, (c) =>
+                c.codePointAt(0).toString(16),
+              ),
+            });
             compare(
               "lower",
               row.lowered,
@@ -197,6 +223,7 @@ test("sql_capability_and_literal_order_match_fixed_oracle", async () => {
                 .name.toLocaleLowerCase("vi"),
               { id: row.id },
             );
+          }
           for (const [
             queryIndex,
             { q, expectedIds },
@@ -207,6 +234,18 @@ test("sql_capability_and_literal_order_match_fixed_oracle", async () => {
                 [q.trim()],
               )
             ).rows;
+            const loweredQuery = (
+              await pool.query(`SELECT ${lowerQuery} AS lowered`, [q.trim()])
+            ).rows[0].lowered;
+            candidate.observations.queries.push({
+              queryIndex,
+              codePoints: Array.from(q, (c) => c.codePointAt(0).toString(16)),
+              loweredQueryCodePoints: Array.from(loweredQuery, (c) =>
+                c.codePointAt(0).toString(16),
+              ),
+              expectedIds,
+              actualIds: rows.map((e) => e.id),
+            });
             compare(
               "literal-search",
               rows.map((e) => e.id),
@@ -250,7 +289,8 @@ test("sql_capability_and_literal_order_match_fixed_oracle", async () => {
     async () => {
       if (failure) throw failure;
     },
-    () => writeFile(reportPath, JSON.stringify(report, null, 2)),
+    () =>
+      writeFile(reportPath, JSON.stringify(report, null, 2), { flag: "wx" }),
   );
   console.log(
     JSON.stringify({

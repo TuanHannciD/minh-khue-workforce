@@ -1,6 +1,35 @@
 # Validation — MKW-PRODUCT-001
 
+## Task1 fix R1 — SQL xác nhận FAIL, 01/11/2026
+
+Sole fix writer Sol/high, FIX BASE sạch `f746fe51a34e740335b53dca1007ae623db18d0a`, cùng branch/worktree; no children/helpers/reviewer. Scope3 test/fixture files + API8/matrix/validation; helper owner/product source/old harness/allowlist/main ledger giữ nguyên. Main owns fresh independent review. Áp dụng receiving-code-review/systematic-debugging/TDD/verification-before-completion; không whole-plan interview, install/network/new runtime/global/production/push/merge/deploy hoặc đổi approved semantics.
+
+Evidence root ignored `.agent-runs/MKW-PRODUCT-001/server-pagination/fix-r1-7c42e3f9-e160-42d5-80a0-22e20a4df29a/`. Trước SQL: `oracle-before-sql.json` ghi JS-only runtime/options/base, old fixture/hash, old artifact/hash, source additions và expected query/order; `fixed-source-before-sql.json` cùng snapshots hai source files ghi lúc `2026-11-01T10:24:03.630Z`, trước PG start/CREATE. Fixture SHA256 `0820f23fb1f8b269ec456bb3491c6a173f8e58a6bb502565e4bcab4fc75d6742`. Assertions bảo toàn26 employees/13 queries/relative ordered IDs cũ đều đạt; thêm ID126=U+1C89 và127=U+1C8A. Cả hai query JS khớp `[127,126]`; full order chỉ nối127,126 theo actual fixed JS oracle, không dựa SQL.
+
+Commands actual từ worktree root, portable process-only Node24.22.1/pnpm12.15.0:
+
+```powershell
+# RED trước khi thêm pair vào fixture: exit1, missing fixed case pair (không acquire SQL).
+pnpm --filter @mkw/api exec node --test --test-name-pattern=new_cyrillic test/employee-read-parity.integration.test.mjs
+# Sau fixture: exit0, 3/3 JS assertions trước SQL.
+pnpm --filter @mkw/api exec node --test --test-name-pattern='literal_unicode|canonical_equivalent|new_cyrillic' test/employee-read-parity.integration.test.mjs
+# Baseline và sau M1: exit0,24/24; before có namedExports deprecation, after chỉ ExperimentalWarning.
+pnpm --filter @mkw/api exec node --experimental-test-module-mocks --test test/attendance-read-sandbox.test.mjs
+# Exact Task10 owner env theo LOCAL_RUN + identity checks; actual exit1,3 pass/1 fail.
+pnpm --filter @mkw/api exec node --test --test-timeout=60000 test/employee-read-parity.integration.test.mjs
+```
+
+Full outputs giữ tại `oracle-red.log`, `oracle-green.log`, `lifecycle-before.log`, `lifecycle-after.log`, `parity-full.log`; `parity-exit.txt` ghi1. Actual SQL **FAIL4** candidate equivalent: lower ID126 vẫn U+1C89 thay expected U+1C8A; query U+1C89 chỉ ID126, U+1C8A chỉ ID127; order cuối list126,127 thay expected127,126. Deterministic candidate **FAIL5** gồm canonical-equivalence, order cũng tính một mismatch cho toàn list. Không forced GREEN, không thêm bespoke case mapping hoặc thay kỳ vọng. TDD bắt thiếu fixture rồi JS GREEN; live prerequisite RED được giữ đúng vì capability mismatch chưa có giải pháp được phép.
+
+Immutable artifact mới `.agent-runs/MKW-PRODUCT-001/server-pagination/parity-8063a9d5-8fcd-4608-b770-d5c1859151fb/collation-parity.json`, SHA256 `a1de4139120a2e612e11f6141d7b4f2ce81b8c402a4816c3b346da9e1b987175`, write exclusive. Có full actual ordered IDs, lower/query code points, expected+actual IDs cho mọi query, expressions và mismatches. PG17.11 actual loaded ICU67.1; provider i/vi/nondeterministic/collversion+actual153.14.37; Node ICU78.3/Unicode17/CLDR48. Old immutable PASS26/13 bytes được hash đối chiếu không đổi. [API8](technical/api-contract.md#task1--prerequisite-fail-sau-r1-chưa-pin-candidate) ghi proposed capability/contract options/tradeoffs, **Pending**, không Accepted/implemented. SQL3/4/8/9 vẫn gated; main tiếp tục independent2/5/6/7.
+
+Resource proof: `preflight.json` exact Task10 owner/hash/portable binary/data/role/loopback63771/PG17.11/stopped3/no pidfile/no listener; `started.json` own PID36524; `actual-before-write.json` actual DB/user/host/port/data/version qua existing gate trước CREATE. Scoped SQL owner tạo đúng UUID DB mới, không accounts; target retained `.agent-runs/MKW-PRODUCT-001/task10-acceptance/mkw_acceptance_97bda98c_7592_4ae1_b5e5_2fc177680c13/target.json`. `sql-confirmation-and-release-precondition.json`: User0/Session0/Employee28, run connections0, not-provisioned/rotated0/unrevokedSessions null, run/cluster pools released. `stop-identity.json` rechecks unchanged owner hash/exact executable/PID/-D/data và loaded ICU67 DLLs trước `pg_ctl -D <exact-data> stop -m fast -w` exit0. `resource-release-final.json`: status3/no own PID/no pidfile/listeners0/TCP refused/data+evidence retained; `pg-stop.log`/`postgres.log` giữ riêng. Không kill theo port/PID coincidence, drop hoặc history cleanup.
+
+**Disposition:** I1 confirmed actual SQL FAIL, prerequisite chưa hoàn tất; M1 fixed với supported `options.exports`, meaningful lifecycle assertions không đổi. Fresh independent review **Pending** do main, HTTP live **Not run**. Product source không đổi nên không rerun broad product:check; focused docs/static/format/lint closure và exact FIX BASE..TIP ghi trong appended ignored task-1-report.md. Historical fullDOM/performance/native/SR/dependency gates không đổi.
+
 ## Task1 server pagination — capability/parity và scoped owner, 01/11/2026
+
+Checkpoint lịch sử trước R1; kết quả PASS26/13 dưới đây giữ đúng scope đã đo, trạng thái prerequisite hiện hành là FAIL ở trên.
 
 Sole implementation writer, BASE sạch `4d2ac536a616de1591ab9c6af5e9a58535e8059e`, branch `agent/mkw-agent-002`, worktree `.worktrees/agent-bootstrap`. Scope chỉ4 test/helper files + API contract/matrix/validation theo Task1 brief; không product pagination/search/order/migration, không sửa harness/allowlist cũ. Không children/install/network/global/production/push/merge/deploy. Independent reviewer do main điều phối sau local commit; gate downstream chưa mở chỉ từ self-review.
 
@@ -15,7 +44,7 @@ pnpm --filter @mkw/api exec node --test --test-timeout=60000 test/employee-read-
 
 Lifecycle exit0,24/24 tests; HTTP request defaults và open-port refusal cũng được assert qua actual owner với mocked boundaries. `pnpm run product:check` exit0 trên patch cuối: lint/format/strict typecheck/build, tooling51/sandbox14/web174/API16 tests, dependency boundaries/cycles và regenerated contract drift đều đạt. `pnpm run check:docs` exit0,66 current documents; `git diff --check` exit0. Retained full log `server-pagination/resource-8c1a7f04-daa8-47f7-a946-4f80842e6dd9/product-check.log`; experimental module-mock/deprecated namedExports và existing Vite chunk>500kB warnings không bị suppress, không benchmark hoặc parity waiver.
 
-Parity exit0,3/3 tests,26 fake employees/13 pinned queries,0 mismatches cho static candidate ICU `vi`/`deterministic=false`; diagnostic deterministic candidate FAIL2 canonical-equivalence/order. Expected ID list pin trước SQL, UUID101/102 ngược binary name order, tên trùng/case/Đ/đ/Ă/Â/Ô/Ơ/Ư/emoji/combining/İ và literal `%`/`_`/backslash/NBSP/FEFF/IDcase. Không đổi expected để hợp SQL. Node ICU78.3/Unicode17/CLDR48; PG17.11 compiled MSVC/ICU DLL67.1 được kiểm actual loaded process modules; SQL collversion/actualVersion153.14.37, database UTF8/provider c/default C được ghi nhưng candidate expressions dùng explicit ICU. Policy candidate và exact lower/literal/order tại [API8](technical/api-contract.md#task1--policy-candidate-đã-có-parity-chờ-independent-review-pin), chờ independent review pin trước Task3.
+Parity exit0,3/3 tests,26 fake employees/13 pinned queries,0 mismatches cho static candidate ICU `vi`/`deterministic=false`; diagnostic deterministic candidate FAIL2 canonical-equivalence/order. Expected ID list pin trước SQL, UUID101/102 ngược binary name order, tên trùng/case/Đ/đ/Ă/Â/Ô/Ơ/Ư/emoji/combining/İ và literal `%`/`_`/backslash/NBSP/FEFF/IDcase. Không đổi expected để hợp SQL. Node ICU78.3/Unicode17/CLDR48; PG17.11 compiled MSVC/ICU DLL67.1 được kiểm actual loaded process modules; SQL collversion/actualVersion153.14.37, database UTF8/provider c/default C được ghi nhưng candidate expressions dùng explicit ICU. Policy candidate và exact lower/literal/order tại [API8](technical/api-contract.md#task1--prerequisite-fail-sau-r1-chưa-pin-candidate); gate hiện hành cập nhật ở R1 trên.
 
 Immutable final parity artifact `.agent-runs/MKW-PRODUCT-001/server-pagination/parity-ef12623b-2593-4b37-b19c-13279590d954/collation-parity.json`; retained target `.agent-runs/MKW-PRODUCT-001/task10-acceptance/mkw_acceptance_e664ba1e_9e5e_4d87_8425_d4cbcdd59190/target.json` được định vị bằng `targetFile` trong artifact (exact UUID tại report). Helper SQL-only không Database/accounts/login; live User0/Session0/Employee26,0 remaining run connections trước own PG stop. Invalidation not-provisioned/rotated0/unrevokedSessions null, release run/cluster pools success. HTTP mode rotation/revocation/session0/app-port closure mới có mocked proof, **live Not run**; không nâng claim `fixture.close()` cũ.
 
