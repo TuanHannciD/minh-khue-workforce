@@ -2,6 +2,8 @@ import type { components } from "@/shared/api/generated/schema";
 export type MonthDto = components["schemas"]["MonthDto"];
 export type AttendancePageQueryDto =
   components["schemas"]["AttendancePageQueryDto"];
+// Committed client criteria always carry all generated wire fields.
+export type PageCriteria = Required<AttendancePageQueryDto>;
 export type AttendancePageDto = components["schemas"]["AttendancePageDto"];
 export type AttendancePaginationDto =
   components["schemas"]["AttendancePaginationDto"];

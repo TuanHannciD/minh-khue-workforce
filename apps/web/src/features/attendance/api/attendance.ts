@@ -5,7 +5,7 @@ export type {
   ReconcileRequest,
   ReconcileSnapshot,
 } from "@/shared/api/reconcile";
-import type { MonthDto } from "../model/types";
+import type { AttendancePageDto, MonthDto, PageCriteria } from "../model/types";
 
 export type PatchAttendance = components["schemas"]["PatchCellWriteDto"];
 // Concrete generated variants avoid the redundant kind-specific oneOf
@@ -23,6 +23,29 @@ export function readAttendanceMonth(
   return apiRequest(`/attendance/month?month=${encodeURIComponent(month)}`, {
     signal,
     expectedEpoch,
+  });
+}
+export function readAttendancePage(
+  input: PageCriteria,
+  expectedEpoch: number,
+  signal: AbortSignal,
+): Promise<AttendancePageDto> {
+  return apiRequest("/attendance/search", {
+    method: "POST",
+    body: {
+      month: input.month,
+      q: input.q.trim(),
+      page: input.page,
+      pageSize: input.pageSize,
+    },
+    expectedEpoch,
+    signal,
+    read: async (response) => {
+      signal.throwIfAborted();
+      const data = (await response.json()) as AttendancePageDto;
+      signal.throwIfAborted();
+      return data;
+    },
   });
 }
 export function writeAttendance(
