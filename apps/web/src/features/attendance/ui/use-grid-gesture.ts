@@ -25,6 +25,7 @@ export function useGridGesture(
   const [active, setActive] = useState(false);
   const enabled = Boolean(interaction);
   const context = `${month.month}/${month.employees.map((e) => e.id).join(",")}/${kind}/${interaction?.epoch}/${interaction?.generation}/${interaction?.contextKey}`;
+  const ownerToken = interaction?.ownerToken;
   useLayoutEffect(() => {
     const element = region.current;
     if (!element || !latest.current.interaction) return;
@@ -42,7 +43,8 @@ export function useGridGesture(
       moved = false,
       append = false;
     let epoch = -1,
-      generation = -1;
+      generation = -1,
+      capturedOwnerToken: object | undefined;
     const read = (target: EventTarget | null) => {
       const element =
         target instanceof Element
@@ -110,6 +112,8 @@ export function useGridGesture(
       canActivate: () => {
         const options = latest.current.interaction;
         const allowed =
+          options?.ownerToken === ownerToken &&
+          options?.ownerToken === capturedOwnerToken &&
           options?.epoch === epoch &&
           options.generation === generation &&
           options.canStart();
@@ -150,7 +154,15 @@ export function useGridGesture(
         latest.current.interaction?.preview(null);
       },
       finish: () => {
-        latest.current.interaction?.commit(selected, captured, source, epoch);
+        const options = latest.current.interaction;
+        if (
+          options &&
+          options.ownerToken === ownerToken &&
+          options.ownerToken === capturedOwnerToken &&
+          options.epoch === epoch &&
+          options.generation === generation
+        )
+          options.commit(selected, captured, source, epoch);
       },
     });
     function begin(
@@ -174,6 +186,7 @@ export function useGridGesture(
       start = cell;
       source = handle ? cell : undefined;
       captured = structuredClone(options.capture());
+      capturedOwnerToken = options.ownerToken;
       epoch = options.epoch;
       generation = options.generation;
       before = [...options.keys];
@@ -316,7 +329,7 @@ export function useGridGesture(
       document.removeEventListener("scroll", pan, true);
       window.removeEventListener("blur", cancel);
     };
-  }, [region, context, enabled]);
+  }, [region, context, enabled, ownerToken]);
   return {
     active,
     consumeClick: () => {

@@ -459,3 +459,109 @@ it("active touch at450ms clears preview/RAF on context change and release cannot
   fireEvent.touchEnd(document, { touches: [], changedTouches: [touch] });
   expect(draft.edit).toBeNull();
 });
+
+function replacementOwners() {
+  const boundary = new SessionBoundary();
+  boundary.allowWrites();
+  const original = new AttendanceDraft(boundary);
+  const replacement = new AttendanceDraft(boundary);
+  expect(original.ownerGeneration).toBe(replacement.ownerGeneration);
+  return { original, replacement };
+}
+
+it("owner instance replacement cancels active capture and RAF with identical primitive context, release keeps both drafts unchanged", () => {
+  vi.useFakeTimers();
+  const { original, replacement } = replacementOwners();
+  const before = [original.edit, replacement.edit];
+  const { rerender } = render(
+    <GestureContext draft={original} contextKey="same" />,
+  );
+  const grid = screen.getByTestId("context-grid");
+  grid.setPointerCapture = vi.fn();
+  grid.hasPointerCapture = () => true;
+  grid.releasePointerCapture = vi.fn();
+  fireEvent.pointerDown(screen.getByTestId("context-cell"), {
+    pointerType: "mouse",
+    pointerId: 9,
+    button: 0,
+    clientX: 2,
+    clientY: 2,
+  });
+  fireEvent.pointerMove(document, {
+    pointerType: "mouse",
+    pointerId: 9,
+    clientX: 3,
+    clientY: 2,
+  });
+  expect(grid.setPointerCapture).toHaveBeenCalledWith(9);
+  expect(grid.className).toBe("dragging");
+  expect(vi.getTimerCount()).toBeGreaterThan(0);
+  rerender(<GestureContext draft={replacement} contextKey="same" />);
+  expect(grid.releasePointerCapture).toHaveBeenCalledWith(9);
+  expect(vi.getTimerCount()).toBe(0);
+  fireEvent.pointerUp(document, {
+    pointerType: "mouse",
+    pointerId: 9,
+    clientX: 3,
+    clientY: 2,
+  });
+  expect([original.edit, replacement.edit]).toEqual(before);
+  expect(grid.releasePointerCapture).toHaveBeenCalledWith(9);
+  expect(grid.className).toBe("");
+  expect(grid.querySelector("output")!.textContent).toBe("0");
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("owner instance replacement at449ms cancels pending activation with identical primitive context", () => {
+  vi.useFakeTimers();
+  const { original, replacement } = replacementOwners();
+  const { rerender } = render(
+    <GestureContext draft={original} contextKey="same" />,
+  );
+  const touch = { identifier: 1, clientX: 2, clientY: 2 };
+  fireEvent.touchStart(screen.getByTestId("context-cell"), {
+    touches: [touch],
+    changedTouches: [touch],
+  });
+  act(() => vi.advanceTimersByTime(449));
+  expect(vi.getTimerCount()).toBe(1);
+  rerender(<GestureContext draft={replacement} contextKey="same" />);
+  act(() => vi.advanceTimersByTime(1));
+  expect(screen.getByTestId("context-grid").className).toBe("");
+  expect(vi.getTimerCount()).toBe(0);
+  fireEvent.touchEnd(document, { touches: [], changedTouches: [touch] });
+  expect([original.edit, replacement.edit]).toEqual([null, null]);
+});
+
+it("same owner keeps pending and active gesture through poll and ordinary rerenders", () => {
+  vi.useFakeTimers();
+  const { original: draft } = replacementOwners();
+  const { rerender } = render(
+    <GestureContext draft={draft} contextKey="same" />,
+  );
+  const touch = { identifier: 1, clientX: 2, clientY: 2 };
+  fireEvent.touchStart(screen.getByTestId("context-cell"), {
+    touches: [touch],
+    changedTouches: [touch],
+  });
+  act(() => vi.advanceTimersByTime(449));
+  rerender(
+    <GestureContext
+      draft={draft}
+      contextKey="same"
+      view={{
+        ...month,
+        cells: month.cells.map((c) => ({ ...c, revision: "polled" })),
+      }}
+    />,
+  );
+  expect(vi.getTimerCount()).toBe(1);
+  act(() => vi.advanceTimersByTime(1));
+  expect(screen.getByTestId("context-grid").className).toBe("dragging");
+  rerender(<GestureContext draft={draft} contextKey="same" />);
+  expect(screen.getByTestId("context-grid").className).toBe("dragging");
+  fireEvent.touchEnd(document, { touches: [], changedTouches: [touch] });
+  expect(draft.edit?.targets).toHaveLength(1);
+  expect(draft.edit?.targets[0]?.expectedRevision).toBe("fixture-cell");
+  expect(vi.getTimerCount()).toBe(0);
+});

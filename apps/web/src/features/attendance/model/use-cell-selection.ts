@@ -12,6 +12,7 @@ import {
 import { formatAttendanceValue } from "./number-input";
 
 export interface SelectionInteraction {
+  ownerToken: object;
   contextKey: string;
   keys: CellKeyDto[];
   source: CellKeyDto | null;
@@ -45,6 +46,8 @@ export function useCellSelection(
     month?.month,
     month?.employees.map((e) => e.id),
   ]);
+  // Opaque identity survives poll/raw renders, but never a different owner.
+  const ownerToken = useMemo<object>(() => ({ draft, owner }), [draft, owner]);
   const [multi, setMulti] = useState(false);
   const [mode, setMode] = useState("cells");
   const [anchor, setAnchor] = useState<CellKeyDto | null>(null);
@@ -218,6 +221,7 @@ export function useCellSelection(
   const interaction: SelectionInteraction | undefined =
     draft && month
       ? {
+          ownerToken,
           contextKey,
           keys: preview ?? keys,
           source:
