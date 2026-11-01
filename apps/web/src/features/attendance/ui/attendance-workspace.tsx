@@ -74,6 +74,7 @@ export function AttendanceWorkspace({
     PageTransitionTicket,
     "owner" | "generation" | "epoch"
   > | null>(null);
+  const resetScrollAfter = useRef(false);
   const focusAfter = useRef(false);
   const root = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -87,13 +88,18 @@ export function AttendanceWorkspace({
     if (!delivery) return;
     if (accept(delivery) === "accepted") {
       adoptAttendancePage(client, delivery);
-      if (focusAfter.current || (!holdMembership && deferred)) {
-        focusAfter.current = false;
+      const releasedDeferred = !holdMembership && Boolean(deferred);
+      const resetScroll = resetScrollAfter.current || releasedDeferred;
+      const focus = focusAfter.current || releasedDeferred;
+      resetScrollAfter.current = false;
+      focusAfter.current = false;
+      if (resetScroll || focus) {
         queueMicrotask(() => {
           const region =
             root.current?.querySelector<HTMLElement>(".grid-scroll");
-          if (region) region.scrollTop = 0;
-          root.current?.querySelector<HTMLElement>("#sheet-title")?.focus();
+          if (resetScroll && region) region.scrollTop = 0;
+          if (focus)
+            root.current?.querySelector<HTMLElement>("#sheet-title")?.focus();
         });
       }
     }
@@ -142,6 +148,7 @@ export function AttendanceWorkspace({
   function navigate(next: PageCriteria, focus = true) {
     if (samePageCriteria(next, desired)) return;
     transition(next, () => {
+      resetScrollAfter.current = true;
       focusAfter.current = focus;
       request(next);
     });
@@ -245,6 +252,7 @@ export function AttendanceWorkspace({
                 disabled={locked}
                 onClick={() =>
                   transition(displayed!.criteria, () => {
+                    resetScrollAfter.current = true;
                     focusAfter.current = true;
                     request(displayed!.criteria);
                   })

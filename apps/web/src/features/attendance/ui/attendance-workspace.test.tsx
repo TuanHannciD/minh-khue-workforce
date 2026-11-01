@@ -382,6 +382,84 @@ it("raw search while guard pending stays local; stale owner reference cannot dis
     app.stop();
   }
 });
+it.each(["owner", "generation", "epoch"] as const)(
+  "editor Cancel guard closes on %s invalidation and leaves the current owner usable",
+  async (invalidation) => {
+    const app = await setupPages();
+    try {
+      await app.resolve(0, "first");
+      const cell = attendanceFixture.cells.find((c) => c.state === "editable")!;
+      act(() => {
+        app.draft.open(attendanceFixture, cell, "owner");
+        app.draft.change({
+          raw: "3,25",
+          custom: true,
+          reminder: true,
+          error: "Sai bước",
+        });
+      });
+      await app.flush();
+      const original = structuredClone(app.draft.edit);
+      fireEvent.click(screen.getByRole("button", { name: "Hủy" }));
+      await app.flush();
+      expect(screen.getByRole("alertdialog")).toBeTruthy();
+
+      const replacement = new AttendanceDraft(sessionBoundary);
+      replacement.open(attendanceFixture, cell, "owner");
+      replacement.change({ raw: "2,5", custom: true, reminder: true });
+      const replacementBefore = structuredClone(replacement.edit);
+      let current = app.draft;
+      if (invalidation === "owner") {
+        expect(replacement.ownerGeneration).toBe(app.draft.ownerGeneration);
+        current = replacement;
+      } else if (invalidation === "generation") {
+        act(() => {
+          app.draft.discard();
+          app.draft.open(attendanceFixture, cell, "owner");
+          app.draft.change({ raw: "2,5", custom: true, reminder: true });
+        });
+      } else {
+        act(() => {
+          sessionBoundary.invalidate();
+          sessionBoundary.allowWrites();
+        });
+      }
+      const currentBefore = structuredClone(current.edit);
+      app.rendered.rerender(app.wrapper(current));
+      await app.flush();
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(current.edit).toEqual(currentBefore);
+      expect(replacement.edit).toEqual(replacementBefore);
+      if (invalidation !== "generation")
+        expect(app.draft.edit).toEqual(original);
+      if (invalidation === "epoch") await app.resolve(1, "fresh-epoch");
+      fireEvent.change(screen.getByLabelText("Số công tùy chỉnh"), {
+        target: { value: "1,5" },
+      });
+      expect(current.edit?.raw).toBe("1,5");
+      fireEvent.click(screen.getByRole("button", { name: "Hủy" }));
+      await app.flush();
+      expect(screen.getByRole("alertdialog")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Giữ phần nhập" }));
+      await app.flush();
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(current.edit?.raw).toBe("1,5");
+      expect(app.calls).toHaveLength(invalidation === "epoch" ? 2 : 1);
+      if (invalidation === "epoch")
+        expect(app.calls[1]!.criteria).toEqual(app.calls[0]!.criteria);
+      expect(
+        app.calls.every(
+          (call) =>
+            call.path === "/api/v1/attendance/search" && call.method === "POST",
+        ),
+      ).toBe(true);
+      expect(app.unexpected).toEqual([]);
+    } finally {
+      app.stop();
+    }
+  },
+);
+
 it("held clamp keeps one envelope, raw baseline/footer/fetchedAt; explicit discard adopts canonical delivery", async () => {
   const app = await setupPages();
   try {
@@ -528,6 +606,39 @@ it("page success resets vertical position, preserves horizontal day, and poll do
     await app.flush(15000);
     await app.resolve(2, "poll");
     expect(document.activeElement).toBe(search);
+  } finally {
+    app.stop();
+  }
+});
+
+it("search success resets vertical scroll while preserving horizontal day and input focus; poll preserves both", async () => {
+  const app = await setupPages();
+  try {
+    await app.resolve(0, "first");
+    const region = screen.getByRole("region", {
+      name: "Bảng tháng, cuộn để xem thêm ngày và nhân sự",
+    });
+    region.scrollTop = 300;
+    region.scrollLeft = 400;
+    const input = screen.getByRole("searchbox");
+    input.focus();
+    app.search("an");
+    await app.flush();
+    expect(app.calls[1]!.criteria).toMatchObject({ q: "an", page: 1 });
+    expect(region.scrollTop).toBe(300);
+    await app.resolve(1, "searched");
+    expect(region.scrollTop).toBe(0);
+    expect(region.scrollLeft).toBe(400);
+    expect(document.activeElement).toBe(input);
+
+    region.scrollTop = 250;
+    await app.flush(15000);
+    expect(app.calls[2]!.criteria).toEqual(app.calls[1]!.criteria);
+    await app.resolve(2, "poll");
+    expect(region.scrollTop).toBe(250);
+    expect(region.scrollLeft).toBe(400);
+    expect(document.activeElement).toBe(input);
+    expect(app.unexpected).toEqual([]);
   } finally {
     app.stop();
   }

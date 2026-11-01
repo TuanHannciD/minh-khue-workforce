@@ -88,7 +88,12 @@ export function AttendancePage({
   const selection = draft ? draft.edit : localSelection;
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
-  const [guard, setGuard] = useState<{ action: () => void } | null>(null);
+  const [guard, setGuard] = useState<{
+    owner: AttendanceDraft;
+    generation: number;
+    epoch: number;
+    action: () => void;
+  } | null>(null);
   const root = useRef<HTMLElement>(null);
   const available = status === "ready" && Boolean(month);
   const employees = month?.employees ?? [];
@@ -153,6 +158,9 @@ export function AttendancePage({
       const generation = owner.ownerGeneration;
       const epoch = owner.boundary.current();
       setGuard({
+        owner,
+        generation,
+        epoch,
         action: () => {
           if (
             currentOwner.current !== owner ||
@@ -167,6 +175,13 @@ export function AttendancePage({
       });
     } else action();
   }
+  const currentGuard =
+    guard &&
+    guard.owner === draft &&
+    guard.generation === draft.ownerGeneration &&
+    draft.boundary.canWrite(guard.epoch)
+      ? guard
+      : null;
   function close() {
     if (draft) draft.discard();
     else setSelection(null);
@@ -443,12 +458,12 @@ export function AttendancePage({
         {!active && draft && (
           <SaveFeedback draft={draft} onSaved={() => onSaved?.()} />
         )}
-        {guard && (
+        {currentGuard && (
           <ConfirmDiscard
             title="Giữ hay bỏ phần nhập"
             onKeep={() => setGuard(null)}
             onDiscard={() => {
-              guard.action();
+              currentGuard.action();
               setGuard(null);
             }}
           >
