@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task8 sửa review R1 — chờ fresh review, 02/11/2026
+
+Review độc lập tại `26b12e17d40264a3ef733c2a3a99f659cfad6500` yêu cầu sửa **0 Critical/1 Important/1 Minor** (`task-8-review-r1.md` trong server-pagination plan). I1: observer invalidation phải luôn gọi destructor và giữ cả lỗi check/destructor; M1: pin đúng hai câu lỗi navigation/background và phủ định câu còn lại. Fix chỉ đổi test instrumentation/assertions, không đổi production. [Validation vòng sửa](validation.md#task8-fix-r1--cleanup-observer-và-wording-02112026) ghi RED→GREEN, SQL failure-path/release và regression mới; ignored `task-8-fix-r1-report.md` giữ exact commit/provenance. Main cần review tip sửa trước Task9; không claim gate review hoặc whole-branch hoàn tất. Task3/4 PASS giữ nguyên. Các checkpoint author Pending bên dưới là lịch sử trước R1.
+
 ## Task3/4 reviewed và Task8 chờ independent review — 02/11/2026
 
 Task3 independent SQL/transaction/contract review **PASS 0C/0I/0M** tại `3b957266494361ac7c54f1db7c46a4ba7b586322`; Task4 independent fullmonth/export review **PASS 0C/0I/0M** tại `9770df9c07cf590ec0db406b9f64888ff85e4a9d`. Reports nguồn: `.superpowers/sdd/server-pagination-implementation-plan/task-3-review-r1.md` và `task-4-review-r1.md`. Hai prerequisite đã đạt đúng scope; các câu chờ review/gated3/4 ở checkpoint cũ bên dưới là lịch sử.

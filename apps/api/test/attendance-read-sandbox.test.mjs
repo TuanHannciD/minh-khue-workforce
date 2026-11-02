@@ -11,6 +11,7 @@ import * as files from "node:fs/promises";
 import { resolve } from "node:path";
 import { mock, test } from "node:test";
 import { withCleanup } from "../../../scripts/product/cleanup.mjs";
+import { runCheckedDestroy } from "./attendance-page-race-cleanup.mjs";
 
 const calls = [],
   faults = new Set(),
@@ -278,6 +279,63 @@ test("http_rotates_both_and_verifies_before_disconnect", async () => {
   );
   assert.equal((await metadata(s, "http-released.json")).state, "released");
   assert.deepEqual(s.cookies, []);
+});
+
+test("observer failures cannot skip app and provision destructors or independent pools", async () => {
+  await setup();
+  const s = await startAttendanceReadSandbox({ mode: "http" });
+  const bodyError = new Error("injected race body failure");
+  const checkErrors = [];
+  for (const [i, database] of [
+    s.database,
+    ...s.apps.map((a) => a.get()),
+  ].entries()) {
+    const destroy = database.onModuleDestroy;
+    const checkError = new Error(`injected invalidation observer ${i}`);
+    checkErrors.push(checkError);
+    database.onModuleDestroy = function () {
+      return runCheckedDestroy({
+        check: async () => {
+          throw checkError;
+        },
+        destroy: () => destroy.call(this),
+      });
+    };
+  }
+  faults.add("app-0-db-end");
+  faults.add("db-0-end");
+  const independent = pool("independent-end");
+  const leaves = (error) =>
+    error instanceof AggregateError ? error.errors.flatMap(leaves) : [error];
+  await assert.rejects(
+    withCleanup(
+      async () => {
+        throw bodyError;
+      },
+      () => s.stop(),
+      () => independent.end(),
+    ),
+    (error) => {
+      assert.equal(error.cause, bodyError);
+      const retained = leaves(error);
+      assert(retained.includes(bodyError));
+      for (const checkError of checkErrors)
+        assert(retained.includes(checkError));
+      // Both observer and original destructor errors must survive nesting.
+      for (const name of ["app-0-db-end", "db-0-end"]) {
+        assert(errors.has(name), `original destructor was skipped: ${name}`);
+        assert(retained.includes(errors.get(name)));
+      }
+      return true;
+    },
+  );
+  for (const step of [...releases, "independent-end"])
+    assert(calls.includes(step), step);
+  assert(calls.indexOf("verify-sessions") < calls.indexOf("app-0-db-end"));
+  assert.equal(
+    (await metadata(s, "http-released.json")).state,
+    "release-failed",
+  );
 });
 test("http_request_preserves_actor_app_origin_session_and_signal_defaults", async () => {
   await setup();

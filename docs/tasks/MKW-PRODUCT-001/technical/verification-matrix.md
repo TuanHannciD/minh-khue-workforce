@@ -1,5 +1,11 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Task8 review R1 và fix — 02/11/2026
+
+R1 tại `26b12e17d40264a3ef733c2a3a99f659cfad6500`: **0C/1I/1M, CHANGES REQUESTED**. [Fix validation](../validation.md#task8-fix-r1--cleanup-observer-và-wording-02112026) sở hữu commands/evidence/limits; ignored fix report giữ exact new tip. I1 wrapper/helper luôn attempt destructor và giữ body/check/destroy causes; focused cleanup28/28, live race8/8 gồm SQL connections3→0 trước emergency fallback. M1 hai criteria branches được exact sentence/absence assertions và controlled wording negatives, Workspace15/15. Product check web247/API23 đạt; acceptance-only pagination UUID riêng/empty0/invocation1 và no-navigation-write đạt. Không production change. Fresh review tip sửa còn Pending; Task9/final gates chưa mở. Task3/4 PASS và mọi historical failures/budgets giữ nguyên; các đoạn Pending cũ bên dưới được đọc theo checkpoint hiện hành này.
+
+Final full E2E exit0 giữ mọi acceptance/pagination/two-session/recovery/bulk/input/employee/export suites. Cleanup audit24 real DBs/48 HTTP ports refused/sessions0/connections0,43 mock catalog-absent,0 external rotation; exact owned PG stopped/status3/no PID/pidfile/TCP refused/data retained. Không chuyển startup transport/failed precheck thành PASS, không native/reader claim từ runner desktop.
+
 ## Checkpoint Task3/4 reviewed → Task8, 02/11/2026
 
 Task3 independent **PASS 0C/0I/0M** tại `3b957266494361ac7c54f1db7c46a4ba7b586322`; Task4 independent **PASS 0C/0I/0M** tại `9770df9c07cf590ec0db406b9f64888ff85e4a9d`. [Validation hiện hành](../validation.md#task34--independent-review-đã-đạt-02112026) sở hữu range/report/evidence và giới hạn. Các dòng Task3 pending/Task4 gated bên dưới là checkpoint lịch sử.

@@ -17,6 +17,7 @@ import { startAttendanceReadSandbox } from "./attendance-read-sandbox.mjs";
 import { openAttendanceTarget } from "./attendance-sandbox.mjs";
 import { attendanceClient, pauseMethod } from "./attendance-test-client.mjs";
 import { withCleanup } from "../../../scripts/product/cleanup.mjs";
+import { runCheckedDestroy } from "./attendance-page-race-cleanup.mjs";
 import { AttendanceRepository } from "../dist/modules/attendance/attendance.repository.js";
 import { EmploymentConsistency } from "../dist/modules/employees/index.js";
 import { Database } from "../dist/infrastructure/db/database.js";
@@ -51,29 +52,33 @@ async function owned(name, body) {
         ]) {
           const destroy = database.onModuleDestroy;
           database.onModuleDestroy = async function () {
-            const after = (
-              await independent.pool.query(
-                'SELECT username,"passwordHash" FROM "User" ORDER BY username',
-              )
-            ).rows;
-            assert.equal(after.length, 2);
-            assert(
-              after.every(
-                (row, i) =>
-                  row.username === hashes[i].username &&
-                  row.passwordHash !== hashes[i].passwordHash,
-              ),
-            );
-            assert.equal(
-              (
-                await independent.pool.query(
-                  'SELECT count(*)::int n FROM "Session" WHERE "revokedAt" IS NULL',
-                )
-              ).rows[0].n,
-              0,
-            );
-            report.invalidationBeforeDisconnect = true;
-            return destroy.call(this);
+            return runCheckedDestroy({
+              check: async () => {
+                const after = (
+                  await independent.pool.query(
+                    'SELECT username,"passwordHash" FROM "User" ORDER BY username',
+                  )
+                ).rows;
+                assert.equal(after.length, 2);
+                assert(
+                  after.every(
+                    (row, i) =>
+                      row.username === hashes[i].username &&
+                      row.passwordHash !== hashes[i].passwordHash,
+                  ),
+                );
+                assert.equal(
+                  (
+                    await independent.pool.query(
+                      'SELECT count(*)::int n FROM "Session" WHERE "revokedAt" IS NULL',
+                    )
+                  ).rows[0].n,
+                  0,
+                );
+                report.invalidationBeforeDisconnect = true;
+              },
+              destroy: () => destroy.call(this),
+            });
           };
         }
         await body(s, independent.pool, report);
@@ -109,6 +114,80 @@ const read = async (s, extra = {}, status = 200) => {
   return response.json();
 };
 const number = (value) => ({ type: "number", value });
+
+test("observer_failure_releases_live_apps_provision_and_independent_pools", async () => {
+  const bodyError = new Error("injected race body failure");
+  const checkError = new Error("injected invalidation observer query failure");
+  let sandbox, independent;
+  let observerFaults = 0;
+  const leaves = (error) =>
+    error instanceof AggregateError ? error.errors.flatMap(leaves) : [error];
+  await withCleanup(
+    async () => {
+      await assert.rejects(
+        owned("expected-observer-failure", async (s, pool, report) => {
+          sandbox = s;
+          independent = pool;
+          report.expectedFailure = "body and invalidation observer";
+          const query = pool.query.bind(pool);
+          pool.query = (sql, ...args) => {
+            if (
+              sql ===
+              'SELECT username,"passwordHash" FROM "User" ORDER BY username'
+            ) {
+              report.observerFaults = ++observerFaults;
+              return Promise.reject(checkError);
+            }
+            return query(sql, ...args);
+          };
+          throw bodyError;
+        }),
+        (error) => {
+          assert.equal(error.cause, bodyError);
+          assert(leaves(error).includes(bodyError));
+          assert(leaves(error).includes(checkError));
+          return true;
+        },
+      );
+      assert.equal(sandbox.pool.ended, true);
+      assert.equal(independent.ended, true);
+      assert(sandbox.apps.every((app) => !app.getHttpServer().listening));
+      assert(observerFaults >= 3, "every database observer must be exercised");
+      const audit = await openAttendanceTarget(
+        process.env.MKW_ATTENDANCE_CLUSTER_OWNER,
+      );
+      await withCleanup(
+        async () => {
+          const connections = (
+            await audit.pool.query(
+              "SELECT count(*)::int n FROM pg_stat_activity WHERE datname=$1",
+              [sandbox.target.database],
+            )
+          ).rows[0].n;
+          assert.equal(
+            connections,
+            0,
+            "no pool may depend on the emergency fallback",
+          );
+        },
+        () => audit.pool.end(),
+      );
+      assert.equal(audit.pool.ended, true);
+    },
+    async () => {
+      // Emergency release also makes a failing fixture safe. The assertions
+      // above run before this fallback and cannot borrow its cleanup success.
+      if (sandbox) {
+        for (const database of [
+          sandbox.database,
+          ...sandbox.apps.map((a) => a.get(Database)),
+        ])
+          database.onModuleDestroy = Database.prototype.onModuleDestroy;
+        await sandbox.stop();
+      }
+    },
+  );
+});
 
 test("page_snapshot_survives_concurrent_insert_rename_dates_and_write", async (t) => {
   // Break caught: count/IDs/cells/aggregate split across snapshots (including

@@ -257,6 +257,12 @@ it("displayed_rows_keep_old_label_during_loading_or_error and late_body_cannot_r
     app.calls[5]!.fail();
     await app.flush();
     expect(screen.getByRole("alert").textContent).toContain("trang đã tải");
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Chưa tải được trang yêu cầu.",
+    );
+    expect(screen.getByRole("alert").textContent).not.toContain(
+      "Chưa cập nhật được dữ liệu nền.",
+    );
     expect(screen.getByRole("button", { name: "Thử lại" })).toBeTruthy();
     expect(screen.getByText("Snapshot đã lưu lúc new-A.")).toBeTruthy();
     fireEvent.click(
@@ -571,6 +577,12 @@ it("background error retains the saved envelope and the established stale-data r
     app.calls[3]!.fail();
     await app.flush();
     expect(screen.getByText(/Chưa cập nhật được dữ liệu nền/)).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Chưa cập nhật được dữ liệu nền.",
+    );
+    expect(screen.getByRole("alert").textContent).not.toContain(
+      "Chưa tải được trang yêu cầu.",
+    );
     expect(screen.getByText("Snapshot đã lưu lúc saved.")).toBeTruthy();
     expect(screen.getByLabelText("Tổng tháng · công").textContent).toBe("123");
     expect(screen.queryByText(/Chưa có nhân sự/)).toBeNull();
