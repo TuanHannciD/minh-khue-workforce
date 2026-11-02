@@ -28,3 +28,29 @@ test("first RAF predating registration starts the interval clock instead of prod
     globalThis.performance = original.performance;
   }
 });
+
+test("trusted drag frame clock does not programmatically move the table", async () => {
+  const queue = [],
+    region = {
+      scrollHeight: 1100,
+      clientHeight: 100,
+      scrollWidth: 1100,
+      clientWidth: 100,
+      scrollTop: 17,
+      scrollLeft: 19,
+    };
+  const raf = globalThis.requestAnimationFrame,
+    document = globalThis.document;
+  try {
+    globalThis.requestAnimationFrame = (callback) => queue.push(callback);
+    globalThis.document = { querySelector: () => region };
+    const result = measureScrollFrames({ scroll: false });
+    for (const timestamp of [100, 120, 5120]) queue.shift()(timestamp);
+    assert.deepEqual(await result, [20, 5000]);
+    assert.equal(region.scrollTop, 17);
+    assert.equal(region.scrollLeft, 19);
+  } finally {
+    globalThis.requestAnimationFrame = raf;
+    globalThis.document = document;
+  }
+});

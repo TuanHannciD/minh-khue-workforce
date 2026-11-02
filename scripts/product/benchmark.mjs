@@ -1,24 +1,29 @@
-/**
- * File map: dataset loop owns one fresh sandbox and browser context at a time.
- * Seed -> API/cold/warm -> feedback/scroll -> post-GC cycles -> budget/report.
- * --profile reuses immutable prior timing samples, reruns only render/heap/CPU.
- * Kept together to make resource lifetime and measurement order reviewable;
- * summary validation lives in benchmark-metrics.mjs, tested independently.
- */
+/** Current server-pagination acceptance. Dataset owner: fresh DB -> reviewed
+ * policy/runtime -> same-density seed -> SQL/export diagnostics -> four browser
+ * configurations -> rotation/revocation/release. No retained timing reuse. */
 import assert from "node:assert/strict";
 import { cpus, totalmem, release, platform } from "node:os";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { chromium } from "@playwright/test";
 import { startSandbox } from "../../tests/product-e2e/sandbox.mjs";
-
-import { measureScrollFrames } from "./benchmark-scroll.mjs";
+import {
+  measurePaginatedAttendance,
+  validatePaginatedMeasurements,
+} from "./benchmark-pagination.mjs";
 import { retainedMetrics } from "./benchmark-metrics.mjs";
-import { summarize as summary } from "./benchmark-metrics.mjs";
 import { withCleanup } from "./cleanup.mjs";
+import { Prisma } from "../../apps/api/dist/infrastructure/db/generated/client.js";
+import { buildEmployeeMonthRead } from "../../apps/api/dist/modules/employees/employee-month-read.js";
+import { AttendanceRepository } from "../../apps/api/dist/modules/attendance/attendance.repository.js";
+import { AttendanceService } from "../../apps/api/dist/modules/attendance/attendance.service.js";
+import { Database } from "../../apps/api/dist/infrastructure/db/database.js";
 
-const profileOnly = process.argv.includes("--profile");
+const exec = promisify(execFile),
+  hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const root = resolve(
   process.env.MKW_PRODUCT_EVIDENCE_ROOT ??
     ".agent-runs/MKW-PRODUCT-001/task10-acceptance",
@@ -29,12 +34,8 @@ const requested = process.argv.find((arg) => arg.startsWith("--sizes="));
 const sizes = requested
   ? requested.slice(8).split(",").map(Number)
   : [20, 200, 1000];
-assert(
-  sizes.length && sizes.every((n) => [20, 200, 1000].includes(n)),
-  "Only approved benchmark sizes20/200/1000 are supported",
-);
-let measured;
 const report = {
+  mode: "server-pagination",
   machine: {
     platform: platform(),
     os: release(),
@@ -44,442 +45,425 @@ const report = {
     node: process.version,
   },
   profile:
-    "production build; headless project-local Chromium; 1280x800; loopback; no network/CPU throttling; warm DB; fresh context cold route; browser cache warm reload",
-  mode: profileOnly
-    ? "profile + corrected heap; prior API/feedback/scroll samples retained"
-    : "full",
+    "production build; fresh headless project-local Chromium; 1280x800; loopback; no throttling; warm DB; no timing reuse",
   sizes: [],
-  reportFile,
+  measurements: [],
   result: "RUNNING",
+  reportFile,
 };
-const browser = await chromium.launch({ headless: true });
-report.browser = browser.version();
-let failed = false;
-try {
-  if (profileOnly) {
-    const sourceFile = resolve(
-      process.env.MKW_BENCHMARK_PRIOR ??
-        resolve(root, "benchmark-measured.json"),
-    );
-    report.sourceMetrics = sourceFile;
-    measured = JSON.parse(await readFile(sourceFile, "utf8"));
-    measured.sizes = measured.sizes.map(retainedMetrics);
-    for (const size of sizes) {
-      const prior = measured.sizes.find((entry) => entry.size === size);
-      if (
-        !prior ||
-        [
-          "apiMs",
-          "editorMs",
-          "inputMs",
-          "scrollFramesMs",
-          "coldLoadMs",
-          "warmLoadMs",
-          "renderAfterResponseMs",
-        ].some((key) => !prior[key]?.samples) ||
-        !prior.heapBytes?.length
+let browser,
+  failed = false;
+
+function observeApiSql(s) {
+  const client = s.app.get(Database).client,
+    original = client.$transaction;
+  s.benchmarkSqlEvents = [];
+  client.$transaction = function (operation, options) {
+    if (typeof operation !== "function")
+      return original.call(this, operation, options);
+    const record = { queries: [] },
+      start = performance.now();
+    return original
+      .call(
+        this,
+        (tx) =>
+          operation(
+            new Proxy(tx, {
+              get(target, key) {
+                if (key !== "$queryRaw")
+                  return typeof target[key] === "function"
+                    ? target[key].bind(target)
+                    : target[key];
+                return async (...args) => {
+                  const text = (args[0]?.strings ?? args[0]).join(" ");
+                  const name = text.includes("AS corrupt")
+                    ? "invariant"
+                    : text.includes('AS "monthEmployeeCount"')
+                      ? "count"
+                      : text.includes("GROUP BY c.kind")
+                        ? "aggregate"
+                        : text.includes("LIMIT")
+                          ? "offset"
+                          : text.includes('FROM "AttendanceCell"')
+                            ? "pageCells"
+                            : "clock";
+                  const at = performance.now();
+                  try {
+                    return await target.$queryRaw(...args);
+                  } finally {
+                    record.queries.push({ name, ms: performance.now() - at });
+                  }
+                };
+              },
+            }),
+          ),
+        options,
       )
-        throw new Error(`Missing retained raw prerequisites for size${size}`);
-    }
-  }
-  for (const size of sizes) {
-    const s = await startSandbox({ acceptance: true });
-    const metric = {
-      size,
-      days: 31,
-      kinds: 2,
-      cells: size * 62,
-      density:
-        "all logical cells; idx modulo10: number0..4, work absence5, otherwise empty; reminder idx modulo7=0; same distribution at each size",
-      runDir: s.runDir,
-      budgets: {
-        apiP95Ms: size === 200 ? 500 : size === 1000 ? 1500 : null,
-        loadMs: size === 200 ? 2000 : size === 1000 ? 5000 : null,
-        editorP95Ms: size === 1000 ? 150 : 100,
-        inputP95Ms: size === 1000 ? 150 : 100,
-        frameP95Ms: 33,
-        freezeMaxMs: 200,
-        heapGrowthPercent: 20,
-      },
-      result: "RUNNING",
-    };
-    if (profileOnly) {
-      const previous = measured.sizes.find((x) => x.size === size);
-      Object.assign(metric, retainedMetrics(previous), {
-        originalRunDir: previous.runDir,
-        runDir: s.runDir,
-        sourceMetrics: report.sourceMetrics,
+      .finally(() => {
+        record.ms = performance.now() - start;
+        s.benchmarkSqlEvents.push(record);
       });
-    }
-    report.sizes.push(metric);
-    let context, metricError;
-    try {
-      // Only the freshly enrolled, actual-identity-checked run DB is seeded.
-      await s.pool.query(
-        `INSERT INTO "Employee" (id,name,"startDate","endDate",revision,"createdAt","updatedAt") SELECT gen_random_uuid(),'Nhân sự benchmark giả '||lpad(i::text,4,'0'),'2024-01-01',NULL,gen_random_uuid(),now(),now() FROM generate_series(1,$1::int) i`,
-        [size],
+  };
+  return () => {
+    client.$transaction = original;
+  };
+}
+async function verifyPolicy(s) {
+  const reviewedTip = "321d488f041e6d5386adea9f86ca8749ef896144",
+    fixture = "apps/api/test/employee-read-db-policy-fixtures.mjs";
+  const pin = await readFile(
+    ".superpowers/sdd/server-pagination-implementation-plan/task-1-db-policy-pin-report.md",
+    "utf8",
+  );
+  assert(
+    pin.includes(reviewedTip) &&
+      pin.includes("READY TO PIN") &&
+      pin.includes("COMPLETE"),
+    "reviewed Task1 DB policy PASS missing",
+  );
+  const source = await readFile(fixture),
+    reviewed = (
+      await exec("git", ["show", `${reviewedTip}:${fixture}`], {
+        encoding: "buffer",
+      })
+    ).stdout;
+  assert.equal(
+    hash(source),
+    hash(reviewed),
+    "reviewed fixed DB fixture hash drift",
+  );
+  const identity = (
+    await s.pool.query(
+      `SELECT current_database() AS database,current_user AS username,host(inet_server_addr()) AS host,inet_server_port() AS port,current_setting('data_directory') AS directory,current_setting('server_version') AS version`,
+    )
+  ).rows[0];
+  const target = JSON.parse(await readFile(s.targetFile, "utf8")),
+    norm = (p) => resolve(p).replaceAll("\\", "/").toLowerCase();
+  assert.equal(identity.version, "17.11");
+  assert.equal(identity.database, target.database);
+  assert.equal(identity.username, "mkw_task10");
+  assert.equal(identity.host, "127.0.0.1");
+  assert.equal(identity.port, 63771);
+  assert.equal(norm(identity.directory), norm(target.dataDirectory));
+  const pid = Number(
+    (
+      await readFile(resolve(target.dataDirectory, "postmaster.pid"), "utf8")
+    ).split(/\r?\n/)[0],
+  );
+  assert(Number.isSafeInteger(pid) && pid > 0);
+  const runtime = JSON.parse(
+    (
+      await exec("powershell.exe", [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `$ErrorActionPreference='Stop'; $p=Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}'; if(!$p){throw 'Owned process absent'}; $m=@((Get-Process -Id ${pid}).Modules | Where-Object ModuleName -Like 'icu*.dll' | ForEach-Object { @{name=$_.ModuleName;version=$_.FileVersionInfo.FileVersion;file=$_.FileName} }); @{pid=$p.ProcessId;executable=$p.ExecutablePath;commandLine=$p.CommandLine;modules=$m}|ConvertTo-Json -Depth 5 -Compress`,
+      ])
+    ).stdout,
+  );
+  assert.equal(
+    norm(runtime.executable),
+    norm(resolve(target.binaryDirectory, "postgres.exe")),
+  );
+  assert(
+    runtime.commandLine
+      .replaceAll("\\", "/")
+      .toLowerCase()
+      .includes(norm(target.dataDirectory)),
+  );
+  assert.deepEqual(runtime.modules.map((m) => m.name).sort(), [
+    "icudt67.dll",
+    "icuin67.dll",
+    "icuuc67.dll",
+  ]);
+  for (const m of runtime.modules) {
+    assert.equal(m.version, "67, 1, 0, 0");
+    assert.equal(norm(m.file), norm(resolve(target.binaryDirectory, m.name)));
+  }
+  const catalog = (
+    await s.pool.query(
+      `SELECT collprovider AS provider,collisdeterministic AS deterministic,collversion,pg_collation_actual_version(oid) AS "actualVersion",COALESCE(to_jsonb(c)->>'colllocale',to_jsonb(c)->>'colliculocale') AS locale FROM pg_collation c WHERE collname='mkw_read_vi_equivalent'`,
+    )
+  ).rows[0];
+  assert.deepEqual(catalog, {
+    provider: "i",
+    deterministic: false,
+    collversion: "153.14.37",
+    actualVersion: "153.14.37",
+    locale: "vi",
+  });
+  return {
+    result: "PASS",
+    policyId: "pg17.11-icu67.1-vi-db-authority-v1",
+    reviewedTip,
+    fixtureHash: hash(source),
+    pg: identity.version,
+    icu: runtime.modules[0].version,
+    actualVersion: catalog.actualVersion,
+    identity,
+    catalog,
+    loadedRuntime: runtime,
+  };
+}
+async function seed(s, size) {
+  await s.pool.query(
+    `INSERT INTO "Employee" (id,name,"startDate","endDate",revision,"createdAt","updatedAt") SELECT gen_random_uuid(),'Nhân sự benchmark giả '||lpad(i::text,4,'0'),'2024-01-01',NULL,gen_random_uuid(),now(),now() FROM generate_series(1,$1::int) i`,
+    [size],
+  );
+  await s.pool.query(
+    `WITH e AS (SELECT id,row_number() OVER(ORDER BY name) n FROM "Employee"), c AS (SELECT id,d,k,(n+extract(day from d)::int)%10 idx FROM e CROSS JOIN generate_series('2026-10-01'::date,'2026-10-31'::date,'1 day') d CROSS JOIN unnest(ARRAY['work','overtime']::"AttendanceKind"[]) k) INSERT INTO "AttendanceCell" ("employeeId",date,kind,"valueType","halfUnits",reminder,revision,"updatedAt") SELECT id,d,k,(CASE WHEN idx<5 THEN 'number' WHEN idx=5 AND k='work' THEN 'absence' ELSE 'empty' END)::"CellValueType",CASE WHEN idx<5 THEN 3 ELSE NULL END,idx%7=0,gen_random_uuid(),now() FROM c`,
+  );
+  s.benchmarkHit = (
+    await s.pool.query(
+      'SELECT id FROM "Employee" ORDER BY name COLLATE "mkw_read_vi_equivalent" DESC,id DESC LIMIT 1',
+    )
+  ).rows[0].id;
+  s.benchmarkOffpage = (
+    await s.pool.query(
+      `SELECT c."employeeId" AS id FROM "AttendanceCell" c JOIN "Employee" e ON e.id=c."employeeId" WHERE c.date='2026-10-01' AND kind='work' AND "valueType"='number' ORDER BY e.name COLLATE "mkw_read_vi_equivalent" DESC,e.id DESC LIMIT 1`,
+    )
+  ).rows[0].id;
+  s.benchmarkTotals = await s.database.client.$transaction(async (tx) => {
+    const rows = await new AttendanceRepository().aggregateMonth(
+      tx,
+      "2026-10-01",
+      "2026-10-31",
+    );
+    return Object.fromEntries(
+      ["work", "overtime"].map((kind) => {
+        const byDate = rows
+          .filter((r) => r.kind === kind)
+          .map((r) => ({ date: r.date, value: Number(r.halfUnits) / 2 }));
+        return [
+          kind,
+          { byDate, grandTotal: byDate.reduce((n, r) => n + r.value, 0) },
+        ];
+      }),
+    );
+  });
+}
+async function globalCosts(s, size, pageSize) {
+  const costs = {
+    count: [],
+    aggregate: [],
+    invariant: [],
+    offset: [],
+    explain: [],
+    scope:
+      "independent actual repository SQL diagnostics; excluded from HTTP payload/render budgets",
+  };
+  await s.database.client.$transaction(async (tx) => {
+    const repo = new AttendanceRepository(),
+      sql = buildEmployeeMonthRead({
+        start: "2026-10-01",
+        end: "2026-10-31",
+        q: "",
+      });
+    const statements = {
+      count: Prisma.sql`SELECT count(*) AS "monthEmployeeCount",count(*) FILTER (WHERE ${sql.match}) AS "totalResults" FROM "Employee" WHERE ${sql.membership}`,
+      offset: Prisma.sql`SELECT id,name,to_char("startDate",'YYYY-MM-DD') AS "startDate",to_char("endDate",'YYYY-MM-DD') AS "endDate",revision FROM "Employee" WHERE ${sql.membership} AND ${sql.match} ORDER BY ${sql.order} LIMIT ${pageSize} OFFSET ${Math.max(0, (Math.ceil(size / pageSize) - 1) * pageSize)}`,
+    };
+    const observedTx = new Proxy(tx, {
+      get(target, key) {
+        if (key !== "$queryRaw")
+          return typeof target[key] === "function"
+            ? target[key].bind(target)
+            : target[key];
+        return (...args) => {
+          const statement = args[0]?.strings
+            ? args[0]
+            : Prisma.sql(args[0], ...args.slice(1));
+          const text = statement.strings.join(" ");
+          statements[
+            text.includes("GROUP BY c.kind") ? "aggregate" : "invariant"
+          ] = statement;
+          return target.$queryRaw(...args);
+        };
+      },
+    });
+    for (let i = 0; i < 5; i++)
+      for (const name of ["count", "aggregate", "invariant", "offset"]) {
+        const start = performance.now();
+        if (name === "aggregate")
+          await repo.aggregateMonth(observedTx, "2026-10-01", "2026-10-31");
+        else if (name === "invariant")
+          await repo.assertMonthInvariant(
+            observedTx,
+            "2026-10-01",
+            "2026-10-31",
+          );
+        else await tx.$queryRaw(statements[name]);
+        costs[name].push(performance.now() - start);
+      }
+    for (const [name, statement] of Object.entries(statements))
+      costs.explain.push({
+        name,
+        plan: await tx.$queryRaw(
+          Prisma.sql`EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) ${statement}`,
+        ),
+      });
+  });
+  return costs;
+}
+async function fullmonthCosts(s, browser, size) {
+  const context = await browser.newContext();
+  return withCleanup(
+    async () => {
+      const login = await context.request.post(
+        `${s.webOrigin}/api/v1/auth/login`,
+        { headers: { origin: s.webOrigin }, data: s.accounts[1] },
       );
-      await s.pool.query(
-        `WITH e AS (SELECT id,row_number() OVER(ORDER BY name) n FROM "Employee"), c AS (SELECT id,d,k,(n+extract(day from d)::int)%10 idx FROM e CROSS JOIN generate_series('2026-10-01'::date,'2026-10-31'::date,'1 day') d CROSS JOIN unnest(ARRAY['work','overtime']::"AttendanceKind"[]) k) INSERT INTO "AttendanceCell" ("employeeId",date,kind,"valueType","halfUnits",reminder,revision,"updatedAt") SELECT id,d,k,(CASE WHEN idx<5 THEN 'number' WHEN idx=5 AND k='work' THEN 'absence' ELSE 'empty' END)::"CellValueType",CASE WHEN idx<5 THEN 3 ELSE NULL END,idx%7=0,gen_random_uuid(),now() FROM c`,
-      );
-      let sessionState;
-      const login = async () => {
-        const c = await browser.newContext({
-          viewport: { width: 1280, height: 800 },
-          ...(sessionState ? { storageState: sessionState } : {}),
-        });
-        await c.addInitScript(() => {
-          const NativeDate = Date;
-          class BenchmarkDate extends NativeDate {
-            constructor(...args) {
-              super(...(args.length ? args : ["2026-10-15T12:00:00+07:00"]));
-            }
-            static now() {
-              return NativeDate.now();
-            }
-          }
-          window.Date = BenchmarkDate;
-        });
-        if (sessionState) return c;
-        const r = await c.request.post(`${s.webOrigin}/api/v1/auth/login`, {
-          headers: { origin: s.webOrigin },
-          data: s.accounts[0],
-        });
-        assert.equal(r.status(), 200);
-        sessionState = await c.storageState();
-        return c;
+      assert.equal(login.status(), 200);
+      const result = {
+        scope: "explicit fullmonth/export oracle; excluded from page budgets",
+        snapshotMs: [],
+        serializationMs: [],
+        fullGetMs: [],
+        fullGetBytes: [],
+        exportDownloadMs: [],
+        exportBytes: [],
+        peakHeapBytes: [],
+        logicalEmployees: size,
       };
-      context = await login();
-      if (!profileOnly) {
-        const api = [];
-        for (let i = 0; i < 5; i++) {
-          const start = performance.now();
+      // Actual production fullmonth producer uses these public dependencies.
+      const { EmploymentConsistency } =
+        await import("../../apps/api/dist/modules/employees/employment-consistency.js");
+      const { EmployeesRepository } =
+        await import("../../apps/api/dist/modules/employees/employees.repository.js");
+      const fullService = new AttendanceService(
+        s.database,
+        null,
+        new EmploymentConsistency(new EmployeesRepository()),
+        new AttendanceRepository(),
+      );
+      for (let i = 0; i < 5; i++) {
+        let peak = process.memoryUsage().heapUsed;
+        const sampler = setInterval(() => {
+          peak = Math.max(peak, process.memoryUsage().heapUsed);
+        }, 5);
+        try {
+          let start = performance.now();
+          const snapshot = await fullService.readMonth("2026-10");
+          result.snapshotMs.push(performance.now() - start);
+          start = performance.now();
+          JSON.stringify(snapshot);
+          result.serializationMs.push(performance.now() - start);
+          start = performance.now();
           const r = await context.request.get(
             `${s.webOrigin}/api/v1/attendance/month?month=2026-10`,
           );
           assert.equal(r.status(), 200);
-          const data = await r.json();
-          api.push(performance.now() - start);
+          const text = await r.text();
+          result.fullGetMs.push(performance.now() - start);
+          result.fullGetBytes.push(Buffer.byteLength(text));
+          const data = JSON.parse(text);
           assert.equal(data.employees.length, size);
           assert.equal(data.cells.length, size * 62);
-        }
-        metric.apiMs = summary(api);
-      }
-      await context.close();
-      context = undefined;
-      const ready = async (page) => {
-        await page
-          .locator(".grid-scroll tbody tr:last-child button[data-cell]")
-          .first()
-          .waitFor({ state: "visible", timeout: 120000 });
-        await page.evaluate(
-          () =>
-            new Promise((r) =>
-              requestAnimationFrame(() => requestAnimationFrame(r)),
-            ),
-        );
-      };
-      const cold = [],
-        warm = [],
-        render = [];
-      for (let i = 0; i < 5; i++) {
-        context = await login();
-        const page = await context.newPage();
-        let start = performance.now();
-        await page.goto(s.webOrigin, { waitUntil: "domcontentloaded" });
-        await ready(page);
-        cold.push(performance.now() - start);
-        render.push(
-          await page.evaluate(() => {
-            const r = performance
-              .getEntriesByType("resource")
-              .filter((x) => x.name.includes("/attendance/month?"))
-              .at(-1);
-            return performance.now() - r.responseEnd;
-          }),
-        );
-        start = performance.now();
-        await page.reload({ waitUntil: "domcontentloaded" });
-        await ready(page);
-        warm.push(performance.now() - start);
-        if (i < 4) {
-          await context.close();
-          context = undefined;
-        }
-      }
-      metric.coldLoadMs = summary(cold);
-      metric.warmLoadMs = summary(warm);
-      const page = context.pages()[0];
-      const cdp = await context.newCDPSession(page);
-      await cdp.send("Performance.enable");
-      await cdp.send("HeapProfiler.enable");
-      metric.dom = await cdp.send("Memory.getDOMCounters");
-      metric.jsResources = await page.evaluate(() =>
-        performance
-          .getEntriesByType("resource")
-          .filter((e) => e.name.includes("/assets/"))
-          .map((e) => ({
-            path: new URL(e.name).pathname,
-            transferSize: e.transferSize,
-            decodedBodySize: e.decodedBodySize,
-            duration: e.duration,
-          })),
-      );
-      const closeEditor = async () => {
-        await page
-          .getByRole("button", { name: "Hủy", exact: true })
-          .last()
-          .click();
-        const discard = page.getByRole("button", {
-          name: "Bỏ phần nhập và tiếp tục",
-          exact: true,
-        });
-        if (await discard.isVisible()) await discard.click();
-      };
-      metric.renderAfterResponseMs = summary(render);
-      if (!profileOnly) {
-        // Browser capture timestamp -> next paint opportunity. Playwright locator
-        // waiting/transport overhead is excluded; input uses trusted browser keys.
-        await page.evaluate(() => {
-          window.__feedback = [];
-          document.addEventListener(
-            "click",
-            (e) => {
-              if (e.target.closest("button[data-cell]")) {
-                const start = performance.now();
-                requestAnimationFrame(() =>
-                  requestAnimationFrame(() =>
-                    window.__feedback.push({
-                      type: "editor",
-                      ms: performance.now() - start,
-                    }),
-                  ),
-                );
-              }
-            },
-            true,
+          start = performance.now();
+          const exportResponse = await context.request.get(
+            `${s.webOrigin}/api/v1/attendance/export?month=2026-10`,
           );
-          document.addEventListener(
-            "input",
-            (e) => {
-              if (e.target.id === "custom-value") {
-                const start = performance.now();
-                requestAnimationFrame(() =>
-                  requestAnimationFrame(() =>
-                    window.__feedback.push({
-                      type: "input",
-                      ms: performance.now() - start,
-                    }),
-                  ),
-                );
-              }
-            },
-            true,
-          );
-        });
-        for (let i = 0; i < 30; i++) {
-          await page.locator("button[data-cell]").first().click();
-          await closeEditor();
-        }
-        await page.locator("button[data-cell]").first().click();
-        await page
-          .getByRole("button", { name: "Tùy chỉnh", exact: true })
-          .click();
-        const input = page.getByLabel("Số công tùy chỉnh");
-        const inputId = await input.getAttribute("id");
-        // Install against the actual labeled field, not an assumed DOM id.
-        await page.evaluate(
-          (id) =>
-            document.getElementById(id).addEventListener("input", () => {
-              const start = performance.now();
-              requestAnimationFrame(() =>
-                requestAnimationFrame(() =>
-                  window.__feedback.push({
-                    type: "keypress",
-                    ms: performance.now() - start,
-                  }),
-                ),
-              );
-            }),
-          inputId,
-        );
-        await input.focus();
-        for (let i = 0; i < 30; i++) {
-          await page.keyboard.press("ControlOrMeta+a");
-          await page.keyboard.press(String((i % 2) + 1));
-          await page.evaluate(
-            () =>
-              new Promise((r) =>
-                requestAnimationFrame(() => requestAnimationFrame(r)),
-              ),
+          assert.equal(exportResponse.status(), 200);
+          result.exportBytes.push((await exportResponse.body()).length);
+          result.exportDownloadMs.push(performance.now() - start);
+        } finally {
+          clearInterval(sampler);
+          result.peakHeapBytes.push(
+            Math.max(peak, process.memoryUsage().heapUsed),
           );
         }
-        await page
-          .getByRole("button", { name: "Hủy", exact: true })
-          .last()
-          .click();
-        await page
-          .getByRole("button", {
-            name: "Bỏ phần nhập và tiếp tục",
-            exact: true,
-          })
-          .click();
-        const feedback = await page.evaluate(() => window.__feedback);
-        metric.editorMs = summary(
-          feedback.filter((x) => x.type === "editor").map((x) => x.ms),
-        );
-        metric.inputMs = summary(
-          feedback.filter((x) => x.type === "keypress").map((x) => x.ms),
-        );
-        metric.scroll = [];
-        for (let i = 0; i < 5; i++) {
-          metric.scroll.push(await page.evaluate(measureScrollFrames));
-        }
-        metric.scrollFramesMs = summary(metric.scroll.flat());
-        delete metric.scroll;
       }
-      const heap = async () => {
-        await cdp.send("HeapProfiler.collectGarbage");
-        const { metrics } = await cdp.send("Performance.getMetrics");
-        return metrics.find((x) => x.name === "JSHeapUsedSize").value;
-      };
-      // Stabilize before baseline; then 10 month/editor close cycles with no writes.
-      const cycle = async () => {
-        await page.getByLabel("Tháng chấm công").fill("2026-09");
-        await ready(page);
-        await page.getByLabel("Tháng chấm công").fill("2026-10");
-        await ready(page);
-        await page.locator("button[data-cell]").first().click();
-        await closeEditor();
-      };
-      await cycle();
-      await cycle();
-      const baseline = await heap();
-      metric.heapBytes = [baseline];
-      for (let i = 0; i < 10; i++) {
-        await cycle();
-        metric.heapBytes.push(await heap());
-      }
-      metric.domAfterHeap = await cdp.send("Memory.getDOMCounters");
-      if (size === 1000) {
-        // Diagnostics run after every budget sample and heap measurement, so
-        // tracing cannot contaminate measured feedback/frame intervals.
-        const traceComplete = new Promise((done) =>
-          cdp.once("Tracing.tracingComplete", done),
-        );
-        await cdp.send("Tracing.start", {
-          categories: "devtools.timeline",
-          transferMode: "ReturnAsStream",
-        });
-        await cdp.send("Profiler.enable");
-        await cdp.send("Profiler.start");
-        await page.locator("button[data-cell]").first().click();
-        await page
-          .getByRole("button", { name: "Tùy chỉnh", exact: true })
-          .click();
-        await page.getByLabel("Số công tùy chỉnh").fill("2");
-        await page.evaluate(
-          () =>
-            new Promise((r) =>
-              requestAnimationFrame(() => requestAnimationFrame(r)),
-            ),
-        );
-        await closeEditor();
-        const { profile } = await cdp.send("Profiler.stop");
-        await writeFile(
-          resolve(s.runDir, "interaction.cpuprofile"),
-          JSON.stringify(profile),
-        );
-        metric.cpuProfile = resolve(s.runDir, "interaction.cpuprofile");
-        await cdp.send("Tracing.end");
-        const { stream } = await traceComplete;
-        let trace = "";
-        for (;;) {
-          const part = await cdp.send("IO.read", { handle: stream });
-          trace += part.data;
-          if (part.eof) break;
-        }
-        await cdp.send("IO.close", { handle: stream });
-        metric.interactionTrace = resolve(s.runDir, "interaction-trace.json");
-        await writeFile(metric.interactionTrace, trace);
-      }
-      metric.heapGrowthPercent = (metric.heapBytes.at(-1) / baseline - 1) * 100;
-      metric.heapMonotonic = metric.heapBytes
-        .slice(1)
-        .every((n, i) => n > metric.heapBytes[i]);
-      const b = metric.budgets;
-      metric.checks = {
-        api: b.apiP95Ms === null ? "NO_BUDGET" : metric.apiMs.p95 <= b.apiP95Ms,
-        load:
-          b.loadMs === null ? "NO_BUDGET" : metric.coldLoadMs.p95 <= b.loadMs,
-        editor: metric.editorMs.p95 <= b.editorP95Ms,
-        input: metric.inputMs.p95 <= b.inputP95Ms,
-        scroll:
-          metric.scrollFramesMs.p95 <= 33 && metric.scrollFramesMs.max <= 200,
-        heap: metric.heapGrowthPercent <= 20 && !metric.heapMonotonic,
-      };
-      metric.result = Object.values(metric.checks).includes(false)
-        ? "FAILED"
-        : "PASS";
-      if (metric.result === "FAILED") failed = true;
-    } catch (error) {
-      metricError = error;
-      metric.result = "FAILED";
-      metric.error = error.message;
-      failed = true;
-      console.error(`Benchmark ${size} failed: ${error.message}`);
-    } finally {
-      try {
-        await withCleanup(
-          async () => {
-            if (metricError) throw metricError;
-          },
-          () => context?.close(),
-          () => s.stop(),
-        );
-      } catch (error) {
-        failed = true;
-        metric.result = "FAILED";
-        // Keep a measurement failure distinct from cleanup failures. Never
-        // serialize nested DB errors from fixture invalidation.
-        metric.error ??= error.message;
-        if (error instanceof AggregateError)
-          metric.cleanupError = error.errors
-            .slice(metricError ? 1 : 0)
-            .map((e) => e.message)
-            .join("; ");
-      }
-      await writeFile(reportFile, JSON.stringify(report, null, 2));
-    }
-    // Publish a size result only after its owned resources have been released.
-    console.log(
-      JSON.stringify({
-        size,
-        result: metric.result,
-        checks: metric.checks,
-        cold: metric.coldLoadMs?.p95,
-        api: metric.apiMs?.p95,
-        editor: metric.editorMs?.p95,
-        input: metric.inputMs?.p95,
-        frame: metric.scrollFramesMs?.p95,
-        freeze: metric.scrollFramesMs?.max,
-        heapGrowth: metric.heapGrowthPercent,
-      }),
+      return result;
+    },
+    () => context.close(),
+  );
+}
+try {
+  assert(
+    sizes.length &&
+      new Set(sizes).size === sizes.length &&
+      sizes.every((n) => [20, 200, 1000].includes(n)),
+    "Only unique approved sizes20/200/1000 supported",
+  );
+  if (process.argv.includes("--profile")) {
+    const prior = JSON.parse(
+      await readFile(
+        process.env.MKW_BENCHMARK_PRIOR ??
+          resolve(root, "benchmark-measured.json"),
+        "utf8",
+      ),
     );
+    prior.sizes.forEach(retainedMetrics);
+    throw new Error(
+      "Legacy/profile reuse prohibited for fresh server-pagination acceptance",
+    );
+  }
+  browser = await chromium.launch({ headless: true });
+  report.browser = browser.version();
+  for (const size of sizes) {
+    const s = await startSandbox({ acceptance: true });
+    const dataset = {
+      size,
+      days: 31,
+      kinds: 2,
+      cells: size * 62,
+      runDir: s.runDir,
+      density:
+        "same modulo10 number0..4/work absence5/otherwise empty; reminder modulo7",
+      result: "RUNNING",
+    };
+    report.sizes.push(dataset);
+    try {
+      await withCleanup(
+        async () => {
+          s.benchmarkPolicy = await verifyPolicy(s);
+          dataset.policy = s.benchmarkPolicy;
+          await seed(s, size);
+          s.benchmarkGlobalCosts = {
+            25: await globalCosts(s, size, 25),
+            50: await globalCosts(s, size, 50),
+          };
+          dataset.globalCosts = s.benchmarkGlobalCosts;
+          dataset.fullmonth = await fullmonthCosts(s, browser, size);
+          const restore = observeApiSql(s);
+          const rows = await withCleanup(
+            () => measurePaginatedAttendance(s, browser, size),
+            restore,
+          );
+          report.measurements.push(...rows);
+          dataset.result = rows.some((r) => r.result !== "PASS")
+            ? "FAILED"
+            : "PASS";
+        },
+        () => s.stop(),
+      );
+    } catch (error) {
+      dataset.result = "FAILED";
+      dataset.error = (error.cause ?? error).message;
+      if (error instanceof AggregateError)
+        dataset.cleanupError = error.errors
+          .filter((e) => e !== error.cause)
+          .map((e) => e.message)
+          .join("; ");
+      failed = true;
+    }
+    await writeFile(reportFile, JSON.stringify(report, null, 2));
   }
 } catch (error) {
   failed = true;
   report.error = error.message;
-  console.error(`Benchmark prerequisite failed: ${error.message}`);
 } finally {
   try {
-    await browser.close();
+    await browser?.close();
   } catch (error) {
     failed = true;
     report.cleanupError = error.message;
   }
+  report.acceptance = validatePaginatedMeasurements(report.measurements);
+  if (report.acceptance.result !== "PASS") failed = true;
   report.result = failed ? "FAILED" : "PASS";
   await writeFile(reportFile, JSON.stringify(report, null, 2));
 }
-process.exitCode = failed ? 1 : 0;
 console.log(`Benchmark evidence ${reportFile}`);
+console.log(JSON.stringify(report.acceptance));
+process.exitCode = failed ? 1 : 0;

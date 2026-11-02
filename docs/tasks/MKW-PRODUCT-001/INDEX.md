@@ -1,5 +1,13 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task9 — triển khai benchmark và evidence hiện hành, 02/11/2026
+
+Task8 R2 tại `a19df7487fc7498c96086a9c70a21174d4ee1575` **PASS 0C/0I/0M**, I1/M1 Closed; report nguồn `.superpowers/sdd/server-pagination-implementation-plan/task-8-review-r2.md` đầy đủ. Transport interruption không làm mất verdict và không replay Task8. Các checkpoint Task8 Pending bên dưới là lịch sử.
+
+Task9 sole implementer dùng đúng clean BASE trên `agent-bootstrap`/`agent/mkw-agent-002`, giữ DB policy pinned. Benchmark hiện hành đo12 cấu hình server pagination, raw counts/costs/strict budgets, actual T3 desktop và cleanup owner; [validation](validation.md#task9--server-pagination-measurements-02112026) và [matrix](technical/verification-matrix.md#task9--current-paginated-gates-02112026) sở hữu số liệu/gate/giới hạn. Main cần fresh independent whole-branch BASE..TIP review; self-review không thay gate đó. Không product Done/G4 clearance, không sửa main ledger, không push/merge/deploy.
+
+Fresh `benchmark-final-source`10:12:42Z..10:35:18Z, exit1: **12 configurations measured,6 PASS/6 Failed chỉ vì heap tăng đơn điệu**. Mọi API/cold/editor/input/scroll/drag/page-search technical checks/SQL/raw/count/poll/network gates đạt trong scope của chúng; growth đều dưới20% nhưng monotonic gate vẫn Failed. Không hạ gate hoặc suy thành product leak diagnosis. **I3/G3 còn Open/Failed, native/SR/reader và fresh independent review chưa clearance.** Exact numeric rows/costs/raw artifacts và cleanup ở validation/matrix liên kết trên.10 DBs/20 HTTP ports/sessions0/connections0/own PG stopped; code/checks và review gates giữ tách biệt.
+
 ## Task8 sửa review R1 — chờ fresh review, 02/11/2026
 
 Review độc lập tại `26b12e17d40264a3ef733c2a3a99f659cfad6500` yêu cầu sửa **0 Critical/1 Important/1 Minor** (`task-8-review-r1.md` trong server-pagination plan). I1: observer invalidation phải luôn gọi destructor và giữ cả lỗi check/destructor; M1: pin đúng hai câu lỗi navigation/background và phủ định câu còn lại. Fix chỉ đổi test instrumentation/assertions, không đổi production. [Validation vòng sửa](validation.md#task8-fix-r1--cleanup-observer-và-wording-02112026) ghi RED→GREEN, SQL failure-path/release và regression mới; ignored `task-8-fix-r1-report.md` giữ exact commit/provenance. Main cần review tip sửa trước Task9; không claim gate review hoặc whole-branch hoàn tất. Task3/4 PASS giữ nguyên. Các checkpoint author Pending bên dưới là lịch sử trước R1.

@@ -1,5 +1,56 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Task9 — current paginated gates, 02/11/2026
+
+Task8 R2 **PASS 0C/0I/0M** tại `a19df7487fc7498c96086a9c70a21174d4ee1575`, I1/M1 Closed; ignored `task-8-review-r2.md` đầy đủ là nguồn review. Task8 Pending bên dưới là lịch sử. Task9 [validation](../validation.md#task9--server-pagination-measurements-02112026) ghi actual raw metrics,12 configs, commands và teardown; main fresh independent whole-branch review còn Pending. Không thay budgets hoặc historical fullDOM Failed66,6/333,3ms.
+
+| Gate Task9 | Evidence / trạng thái đúng scope |
+| --- | --- |
+| Harness unit/lint/types/build/contract/boundaries | Verified: focused17/17, product check62tooling/14sandbox/247web/23API exit0 trên exact measured source; missing/raw/count-only/legacy/strict33.1/200.1 negatives giữ |
+| DB policy/runtime trước seed | Verified trong từng measured dataset: reviewed fixture SHA256, PG17.11/loaded ICU67.1/vi nondeterministic/version153.14.37; không Node parity/repin |
+| Actual T3 desktop | Verified bounded:1000logical/page50/last20, global long-name search/focus/raw guard/last Tab;28–31days sticky/cột và44px, writes0/fullGET0 observed interval |
+| Native browser zoom/font/text scale | Not run từng gate; attempted Control+plus không đổi actual viewport/DPR/scale |
+| iPhone Safari và Android Chrome thật | Not run từng device: thiếu acquired model/OS/browser identity |
+| Hold449/450ms,10/11px, immediate pan/cancel/multitouch | Not run từng boundary trên từng phone; desktop mouse và synthetic tests không thay |
+| Edge-scroll/no page-turn,pinch,rotation,keyboard/footer occlusion,guard/no hidden writes native | Not run từng gate trên từng phone |
+| Phone200/1000 cold/editor/input/scroll/drag/heap | Not run từng metric/device, không simulated-viewport performance |
+| Named-version SR caption/fullID/date/kind/reminder | Not run từng utterance, DOM accessibility names chỉ bounded semantic evidence |
+| SR current/empty/loading/error/stale/clamp polite status | Not run từng trạng thái |
+| SR last Tab/page success focus/search focus/poll không steal focus | Not run từng SR gate; actual desktop keyboard giữ riêng |
+| Interactive Excel reader UI/reader khác | Not run; Task8 actual Excel engine16.0.20527.20112 giữ scope đã review, không replay |
+| buffers0.1.1 license provenance/six deprecated | Open concerns lịch sử, không dependency delta/clearance |
+| I3/G3/final whole-branch review và G4 release | Open/Pending theo từng gate; scoped metrics không product Done/all gates cleared |
+
+Fresh `benchmark-final-source`10:12:42Z..10:35:18Z, exit1: **12 configurations measured,6 PASS/6 Failed chỉ vì heap tăng đơn điệu**. Mọi API/cold/editor/input/scroll/drag/page-search technical checks/SQL/raw/count/poll/network gates đạt trong scope của chúng; growth đều dưới20% nhưng monotonic gate vẫn Failed. Không hạ gate hoặc suy thành product leak diagnosis. **I3/G3 còn Open/Failed, native/SR/reader và fresh independent review chưa clearance.**
+
+Raw report `E/browser/benchmark-run-0b8dbab1-79dd-4f6d-a3b5-7ee368144432.json`; mỗi dataset có `pagination-<logical>-<pageSize>-<kind>.json`, policy/SQL EXPLAIN/actual HTTP SQL samples và raw arrays. `E/fresh-final.summary.json` + `.md` là derived summary mới, không sửa raw. Máy Windows10.0.26300/Ryzen7 6800H/16logicalCPUs/RAM16387981312bytes, Node24.22.1/Chromium156.0.8078.4, built1280×800/loopback/no throttle/warm DB. Không check/UI đồng thời trong fresh run.
+
+Mọi timing bên dưới là ms, số raw không làm tròn để xét gate; p95 nearest-rank từ existing summarize. Scroll/drag hiển thị max của5 individual-run p95 và max của5 maxima; từng run đều kiểm riêng33/200. Size20 API/cold là NO_BUDGET/report-only; editor/input100ms, common scroll/heap giữ.200/1000 API500/1500,cold2000/5000,editor-input100/150ms. Page/search busy/editable/input là technical mapping trong brief, giữ nhãn Proposed ở bảng budget gốc, không tự đặt product threshold mới. Fullmonth/export/Node heap tách page budget.
+
+| Logical/page/kind | API p95 | Cold p95 | Editor/input p95 | Scroll p95/max | Drag p95/max | Heap % | Page busy/editable p95 | Search busy/editable/input p95 | Result |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 20/25/work | 22.219900000000052 | 257.08250000000044 | 28/25.400000035762787 | 16.799999999995634/16.80000000000291 | 16.79999999998836/16.80000000000291 | 3.457801485997325 | 21.599999964237213/47.09999996423721 | 24.099999964237213/48.19999998807907/351.5 | PASS |
+| 20/25/overtime | 28.374400000000605 | 292.3813000000082 | 28.30000001192093/26.30000001192093 | 16.799999999995634/16.80000000000291 | 16.79999999998836/16.80000000000291 | 3.5226621230259436 | 22.200000047683716/48.60000002384186 | 24.5/47.39999997615814/353.5 | FAIL |
+| 20/50/work | 28.887199999997392 | 351.76799999998184 | 27.399999976158142/25.5 | 16.799999999995634/16.80000000000291 | 16.80000000000291/16.80000000000291 | 3.3031218175608945 | 22.19999998807907/47.60000002384186 | 23.5/47/352 | FAIL |
+| 20/50/overtime | 18.37809999997262 | 391.4543999999878 | 28/25.600000023841858 | 16.799999999995634/16.80000000000291 | 16.799999999995634/16.80000000000291 | 3.1368545536368364 | 21.899999976158142/46.299999952316284 | 20.100000023841858/44.09999996423721/352.89999997615814 | FAIL |
+| 200/25/work | 40.52109999995446 | 272.94430000003194 | 26.69999998807907/25 | 16.80000000000291/16.80000000000291 | 16.799999999995634/16.80000000000291 | 3.2582868495065753 | 7/76.80000001192093 | 41.80000001192093/70.29999995231628/377.5999999642372 | PASS |
+| 200/25/overtime | 35.64579999994021 | 306.3310000000056 | 26.799999952316284/24.80000001192093 | 16.700000000004366/16.80000000000291 | 16.80000000000291/16.80000000000291 | 3.9169725985651382 | 7.299999952316284/65.89999997615814 | 32.60000002384186/59.200000047683716/369.80000001192093 | PASS |
+| 200/50/work | 46.728499999968335 | 407.73990000004414 | 36.40000003576279/26.30000001192093 | 16.799999999995634/33.39999999999418 | 16.80000000000291/33.30000000000291 | 1.7548673091930311 | 12.300000011920929/102.59999996423721 | 45.19999998807907/81.69999998807907/384 | FAIL |
+| 200/50/overtime | 42.85979999997653 | 472.7134000000078 | 34.09999996423721/22 | 16.80000000000291/33.400000000001455 | 16.79999999998836/33.30000000000291 | 1.6544890915302979 | 12.099999964237213/104.80000001192093 | 43.200000047683716/83.90000003576279/386.9000000357628 | PASS |
+| 1000/25/work | 107.39549999998417 | 338.38100000005215 | 27.100000023841858/25.400000035762787 | 16.799999999995634/16.80000000000291 | 16.80000000000291/16.80000000000291 | 7.701137430867155 | 7.199999988079071/144.39999997615814 | 107.09999996423721/133.9000000357628/438.7999999523163 | PASS |
+| 1000/25/overtime | 64.82839999999851 | 338.53630000003614 | 26.900000035762787/24.80000001192093 | 16.700000000004366/16.80000000000291 | 16.80000000000291/16.80000000000291 | 3.036408128452295 | 8.5/95.80000001192093 | 60/84.80000001192093/389.5999999642372 | PASS |
+| 1000/50/work | 68.00849999999627 | 471.10510000004433 | 37.69999998807907/22.19999998807907 | 16.799999999995634/33.400000000001455 | 16.80000000000291/16.80000000000291 | 1.653585054940132 | 12.800000011920929/129 | 71.5/112.69999998807907/413 | FAIL |
+| 1000/50/overtime | 66.54559999983758 | 522.2453000000678 | 38.80000001192093/22.30000001192093 | 16.799999999995634/33.400000000001455 | 16.80000000000291/33.30000000000291 | 1.665455095670243 | 12.5/128.70000004768372 | 70.69999998807907/109.10000002384186/416.9000000357628 | FAIL |
+
+- 20/25/overtime heap: monotonic heap growth
+- 20/50/work heap: monotonic heap growth
+- 20/50/overtime heap: monotonic heap growth
+- 200/50/work heap: monotonic heap growth
+- 1000/50/work heap: monotonic heap growth
+- 1000/50/overtime heap: monotonic heap growth
+
+Cleanup `cleanup-audit-final` exit0:10 real Task10 UUID DBs retained/20 HTTP ports independently refused,20 fixture password rotations do owner trước disconnect,0 unrevoked sessions/0 remaining connections,10 independent readback pools và audit pool ended,0 external rotations. Per-run app/web/provision pools released trong http-released/fixture-invalidated metadata. Direct-root UUIDs được audit; nested cleanup-fault fixtures là mocks, không giả live resources. `pg-before-stop-final` SQL identity PG17.11 và other client connections0; `pg-stop-final` exit0 verify exact PID39456/executable/-D/data rồi stop/status3/no process/pidfile/TCP refused, owner SHA256356D872AEF265534511BD87ED28AC5DBCD02CD2AE0D97FB09282823DBE69944D unchanged/data retained. `pg-start2` wrapper exit0 sau release inherited PG pipes; first pg-start exit1 Get-FileHash unavailable xảy ra trước start, không xóa failure. T3 own tab/interactive serve released exit0, browser contexts/runner browser closed. Không chạm PG khác, không drop/delete data/evidence.
+
 ## Task8 review R1 và fix — 02/11/2026
 
 R1 tại `26b12e17d40264a3ef733c2a3a99f659cfad6500`: **0C/1I/1M, CHANGES REQUESTED**. [Fix validation](../validation.md#task8-fix-r1--cleanup-observer-và-wording-02112026) sở hữu commands/evidence/limits; ignored fix report giữ exact new tip. I1 wrapper/helper luôn attempt destructor và giữ body/check/destroy causes; focused cleanup28/28, live race8/8 gồm SQL connections3→0 trước emergency fallback. M1 hai criteria branches được exact sentence/absence assertions và controlled wording negatives, Workspace15/15. Product check web247/API23 đạt; acceptance-only pagination UUID riêng/empty0/invocation1 và no-navigation-write đạt. Không production change. Fresh review tip sửa còn Pending; Task9/final gates chưa mở. Task3/4 PASS và mọi historical failures/budgets giữ nguyên; các đoạn Pending cũ bên dưới được đọc theo checkpoint hiện hành này.
