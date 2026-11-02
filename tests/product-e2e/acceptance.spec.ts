@@ -17,6 +17,11 @@ export async function runAcceptance(s, browser) {
     try {
       for (const [path, method, data] of [
         ["/attendance/month?month=2026-10", "GET", undefined],
+        [
+          "/attendance/search",
+          "POST",
+          { month: "2026-10", q: "", page: 1, pageSize: 25 },
+        ],
         ["/attendance/export?month=2026-10", "GET", undefined],
         ["/attendance/changes", "POST", {}],
       ])
@@ -137,6 +142,7 @@ export async function runAcceptance(s, browser) {
       ["2026-04", 30],
       ["2026-10", 31],
     ]) {
+      // Explicit coordinator full-contract calendar oracle, not browser traffic.
       const response = await f.request(
         `/attendance/month?month=${month}`,
         undefined,

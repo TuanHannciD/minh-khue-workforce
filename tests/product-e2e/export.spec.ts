@@ -3,6 +3,8 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { writeFile } from "node:fs/promises";
 import { expect } from "@playwright/test";
+import { matchesAttendancePageRead } from "./attendance-read-matchers.ts";
+import { withCleanup } from "../../scripts/product/cleanup.mjs";
 const requireApi = createRequire(
   new URL("../../apps/api/package.json", import.meta.url),
 );
@@ -14,6 +16,7 @@ export async function runExport(s, browser) {
     viewport: { width: 1280, height: 900 },
   });
   const anonymous = await browser.newContext();
+  let operationError;
   try {
     assert.equal(
       (
@@ -55,6 +58,7 @@ export async function runExport(s, browser) {
       kind,
     });
     async function save(date, kind, value, reminder = false) {
+      // Coordinator-only saved full-month CAS oracle, not a browser read.
       const month = await (
         await request("/attendance/month?month=2026-02")
       ).json();
@@ -77,13 +81,35 @@ export async function runExport(s, browser) {
     await save("03", "overtime", { type: "number", value: 2 });
     const page = await context.newPage();
     const writes = [];
+    // The boot month is the browser's current local calendar, before October/
+    // February changes. Read it from the actual input, without logging secrets.
+    let searchReads = 0;
+    let browserFullGets = 0;
+    // Capture the browser's local boot calendar before attaching the listener,
+    // then verify it against the actual input after navigation.
+    const bootMonth = await page.evaluate(() => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    });
     page.on("request", (r) => {
-      if (r.method() !== "GET") writes.push(new URL(r.url()).pathname);
+      const path = new URL(r.url()).pathname;
+      if (path === "/api/v1/attendance/month") browserFullGets++;
+      if (
+        [bootMonth, "2026-02"].some((month) =>
+          matchesAttendancePageRead(r, { month, q: "", page: 1, pageSize: 25 }),
+        )
+      ) {
+        searchReads++;
+      } else if (r.method() !== "GET") writes.push(path);
     });
     await page.goto(s.webOrigin);
     await expect(
       page.getByRole("heading", { name: "Bảng chấm công" }),
     ).toBeVisible();
+    assert.equal(
+      await page.getByLabel("Tháng chấm công").inputValue(),
+      bootMonth,
+    );
     await page.getByLabel("Tháng chấm công").fill("2026-02");
     await page
       .locator(`button[data-cell="${employee.id}/2026-02-03/work"]`)
@@ -149,6 +175,8 @@ export async function runExport(s, browser) {
     await expect(page.getByText(/Đã nhận tệp/)).toBeVisible();
     await expect(page.getByLabel("Số công tùy chỉnh")).toHaveValue("3,25");
     assert.deepEqual(writes, []);
+    assert(searchReads > 0);
+    assert.equal(browserFullGets, 0);
     const { rows } = await s.pool.query(
       'SELECT "halfUnits", reminder, kind::text, to_char(date, \'YYYY-MM-DD\') AS date FROM "AttendanceCell" ORDER BY date, kind::text',
     );
@@ -180,6 +208,9 @@ export async function runExport(s, browser) {
             "375/1280",
           ],
           readerRecalc: "Not run",
+          searchReads,
+          browserFullGets,
+          unexpectedNonGetRequests: writes,
           sql: rows,
         },
         null,
@@ -189,8 +220,16 @@ export async function runExport(s, browser) {
     console.log(
       "Export E2E passed: authenticated browser download, server snapshot, no draft write, retry/pending, typed formulas/style, anonymous401 and independent SQL.",
     );
+  } catch (error) {
+    operationError = error;
+    throw error;
   } finally {
-    await context.close();
-    await anonymous.close();
+    await withCleanup(
+      () => {
+        if (operationError) throw operationError;
+      },
+      () => context.close(),
+      () => anonymous.close(),
+    );
   }
 }

@@ -97,6 +97,53 @@ await withCleanup(
             const { runRecovery } =
               await import("../../tests/product-e2e/recovery.spec.ts");
             await runAcceptance(sandbox, browser);
+            // Acceptance owns its contexts/pools. Pagination requires a distinct
+            // empty UUID DB, never cleanup/truncation of acceptance residue.
+            const paginationSandbox = await startSandbox({ acceptance: true });
+            let paginationInvocations = 0;
+            await withCleanup(
+              async () => {
+                const { default: assert } = await import("node:assert/strict");
+                assert.notEqual(
+                  paginationSandbox.targetFile,
+                  sandbox.targetFile,
+                );
+                assert.notEqual(
+                  paginationSandbox.target.database,
+                  sandbox.target.database,
+                );
+                const emptyEmployeeCount = (
+                  await paginationSandbox.pool.query(
+                    'SELECT count(*)::int n FROM "Employee"',
+                  )
+                ).rows[0].n;
+                assert.equal(emptyEmployeeCount, 0);
+                const { runPagination } =
+                  await import("../../tests/product-e2e/pagination.spec.ts");
+                paginationInvocations++;
+                assert.equal(paginationInvocations, 1);
+                await writeFile(
+                  resolve(paginationSandbox.runDir, "pagination-route.json"),
+                  JSON.stringify(
+                    {
+                      route: acceptanceOnly
+                        ? "--acceptance-only"
+                        : "--acceptance",
+                      acceptanceTargetFile: sandbox.targetFile,
+                      acceptanceDatabase: sandbox.target.database,
+                      paginationTargetFile: paginationSandbox.targetFile,
+                      paginationDatabase: paginationSandbox.target.database,
+                      emptyEmployeeCount,
+                      paginationInvocations,
+                    },
+                    null,
+                    2,
+                  ),
+                );
+                await runPagination(paginationSandbox, browser);
+              },
+              () => paginationSandbox.stop(),
+            );
             if (!acceptanceOnly) {
               await runTwoSessions(sandbox, browser);
               await runRecovery(sandbox, browser);

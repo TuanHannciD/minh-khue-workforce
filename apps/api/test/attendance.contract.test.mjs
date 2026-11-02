@@ -5,6 +5,8 @@
  * compiler evidence. Reconcile/write/contextual tests cover existing G1 edges.
  */
 import { createEvidenceRun } from "../../../scripts/product/evidence-run.mjs";
+import "./attendance-page.contract.test.mjs";
+import "./attendance-read-matchers.contract.test.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";

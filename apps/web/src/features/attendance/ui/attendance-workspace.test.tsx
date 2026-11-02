@@ -556,6 +556,29 @@ it("held clamp keeps one envelope, raw baseline/footer/fetchedAt; explicit disca
   }
 });
 
+it("background error retains the saved envelope and the established stale-data reminder", async () => {
+  const app = await setupPages();
+  try {
+    await app.resolve(0, "saved");
+    fireEvent.click(screen.getByRole("button", { name: "Tải lại bảng" }));
+    await app.flush();
+    app.calls[1]!.fail();
+    await app.flush();
+    await app.flush(1000);
+    app.calls[2]!.fail();
+    await app.flush();
+    await app.flush(3000);
+    app.calls[3]!.fail();
+    await app.flush();
+    expect(screen.getByText(/Chưa cập nhật được dữ liệu nền/)).toBeTruthy();
+    expect(screen.getByText("Snapshot đã lưu lúc saved.")).toBeTruthy();
+    expect(screen.getByLabelText("Tổng tháng · công").textContent).toBe("123");
+    expect(screen.queryByText(/Chưa có nhân sự/)).toBeNull();
+    expect(app.unexpected).toEqual([]);
+  } finally {
+    app.stop();
+  }
+});
 it("initial error is not empty and can explicitly retry without full-month request", async () => {
   const app = await setupPages();
   try {

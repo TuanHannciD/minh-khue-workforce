@@ -7,6 +7,8 @@ import { expect } from "@playwright/test";
 import { openSandboxTarget } from "../../scripts/product/sandbox-target.mjs";
 import { EmploymentConsistency } from "../../apps/api/dist/modules/employees/index.js";
 import { pauseMethod } from "../../apps/api/test/attendance-test-client.mjs";
+import { matchesAttendancePageRead } from "./attendance-read-matchers.ts";
+import { withCleanup } from "../../scripts/product/cleanup.mjs";
 
 export async function runAttendanceE2E(s, browser) {
   const evidence = [];
@@ -19,12 +21,24 @@ export async function runAttendanceE2E(s, browser) {
   const [a, b] = pages;
   await b.clock.install();
   const counts = [0, 0];
+  let browserFullGets = 0;
   for (const [index, page] of pages.entries())
     page.on("request", (request) => {
       if (request.url().endsWith("/attendance/changes")) counts[index]++;
+      if (new URL(request.url()).pathname === "/api/v1/attendance/month")
+        browserFullGets++;
     });
   let independent;
   let barrier;
+  let bootMonth;
+  const pageCriteria = {
+    month: "2026-10",
+    q: "",
+    page: 1,
+    pageSize: 25 as const,
+  };
+  const faults = { background: 0, initial: 0 };
+  let operationError;
   try {
     for (const [i, page] of pages.entries()) {
       await page.goto(s.webOrigin);
@@ -44,6 +58,7 @@ export async function runAttendanceE2E(s, browser) {
       await expect(
         page.getByRole("heading", { name: "Bảng chấm công" }),
       ).toBeVisible();
+      bootMonth ??= await page.getByLabel("Tháng chấm công").inputValue();
       await page.getByLabel("Tháng chấm công").fill("2026-10");
     }
     independent = await openSandboxTarget(s.targetFile, s.alias);
@@ -65,9 +80,20 @@ export async function runAttendanceE2E(s, browser) {
         name: new RegExp(`ID ${employee.id}.*${date}.*${kind}`),
       });
     const reload = async (page) => {
+      const response = page.waitForResponse(
+        (r) =>
+          matchesAttendancePageRead(r.request(), pageCriteria) &&
+          r.status() === 200,
+      );
       await page
         .getByRole("button", { name: "Tải lại bảng", exact: true })
         .click();
+      const body = await (await response).json();
+      await expect(
+        page.getByRole("navigation", { name: "Phân trang đầu bảng" }),
+      ).toContainText(
+        `Trang ${body.pagination.page} / ${body.pagination.totalPages}`,
+      );
       await expect(cellButton(page)).toBeVisible();
     };
     await reload(a);
@@ -241,25 +267,37 @@ export async function runAttendanceE2E(s, browser) {
       .getByRole("button", { name: "Bỏ phần nhập và tiếp tục", exact: true })
       .click();
     // Background API outage preserves the snapshot, initial outage is not empty.
-    await a.route("**/api/v1/attendance/month?*", (route) =>
-      route.abort("failed"),
-    );
+    let initialFault = false;
+    const outage = async (route) => {
+      const expected = initialFault
+        ? { ...pageCriteria, month: bootMonth }
+        : pageCriteria;
+      if (!matchesAttendancePageRead(route.request(), expected))
+        return route.continue();
+      faults[initialFault ? "initial" : "background"]++;
+      await route.abort("failed");
+    };
+    await a.route("**/api/v1/attendance/search", outage);
     await a.getByRole("button", { name: "Tải lại bảng", exact: true }).click();
     await expect(a.getByText(/Chưa cập nhật được dữ liệu nền/)).toBeVisible({
       timeout: 10000,
     });
     await expect(cellButton(a)).toContainText("2,5");
+    initialFault = true;
     await a.reload();
     await expect(a.getByText(/Chưa tải được bảng tháng/)).toBeVisible({
       timeout: 10000,
     });
     await expect(a.getByText(/Chưa có nhân sự trong tháng/)).toBeHidden();
-    await a.unroute("**/api/v1/attendance/month?*");
+    await a.unroute("**/api/v1/attendance/search", outage);
     await a.getByRole("button", { name: "Thử lại", exact: true }).click();
     await a.getByLabel("Tháng chấm công").fill("2026-10");
     await expect(cellButton(a)).toContainText("2,5");
+    assert(faults.background > 0);
+    assert(faults.initial > 0);
     pass(
       "background staleness distinct from initial error; reload reads persisted value+reminder",
+      { faults },
     );
     // Choose the employee from the real cell UI. A dates PATCH commits, then its
     // response disappears, removing that ID from the current month membership.
@@ -432,6 +470,7 @@ export async function runAttendanceE2E(s, browser) {
     await expect(a.getByText("Đã lưu nhân sự.", { exact: true })).toBeVisible();
     assert.equal(createCalls, 1);
     a.off("request", countCreate);
+    assert.equal(browserFullGets, 0);
     pass(
       "create response loss no ID locks retry, duplicate names not deduped; explicit identified ID recovery uses PATCH",
     );
@@ -460,17 +499,27 @@ export async function runAttendanceE2E(s, browser) {
       ),
     );
   } catch (error) {
+    operationError = error;
     await a
       .screenshot({ path: resolve(s.runDir, "failure.png"), fullPage: true })
       .catch(() => {});
     await writeFile(
       resolve(s.runDir, "assertions.json"),
-      JSON.stringify({ evidence, failure: String(error) }, null, 2),
+      JSON.stringify(
+        { evidence, faults, browserFullGets, failure: String(error) },
+        null,
+        2,
+      ),
     );
     throw error;
   } finally {
-    barrier?.restore();
-    for (const context of contexts) await context.close();
-    await independent?.pool.end();
+    await withCleanup(
+      () => {
+        if (operationError) throw operationError;
+      },
+      () => barrier?.restore(),
+      ...contexts.map((context) => () => context.close()),
+      () => independent?.pool.end(),
+    );
   }
 }

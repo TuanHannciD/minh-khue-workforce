@@ -5,6 +5,8 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { expect } from "@playwright/test";
 import { openSandboxTarget } from "../../scripts/product/sandbox-target.mjs";
+import { matchesAttendancePageRead } from "./attendance-read-matchers.ts";
+import { withCleanup } from "../../scripts/product/cleanup.mjs";
 
 export async function runEmployeeRecoveryR1(s, browser) {
   const context = await browser.newContext();
@@ -12,6 +14,7 @@ export async function runEmployeeRecoveryR1(s, browser) {
   const independent = await openSandboxTarget(s.targetFile, s.alias);
   const assertions = [];
   const writes = [];
+  let operationError;
   page.on("request", (request) => {
     const path = new URL(request.url()).pathname;
     if (
@@ -159,9 +162,23 @@ export async function runEmployeeRecoveryR1(s, browser) {
       "unknown POST -> confirmed ID -> PATCH422 -> correction blocks normal POST; fresh reconcile PATCH200 persists same ID, total POST1; rejected PATCH leaves revision unchanged",
     );
 
+    const pageRead = page.waitForResponse(
+      (r) =>
+        matchesAttendancePageRead(r.request(), {
+          month: "2026-10",
+          q: "",
+          page: 1,
+          pageSize: 25,
+        }) && r.status() === 200,
+    );
     await page
       .getByRole("button", { name: "Tải lại bảng", exact: true })
       .click();
+    const displayed = await (await pageRead).json();
+    assert(displayed.employees.some((e) => e.id === createdId));
+    await expect(
+      page.getByRole("navigation", { name: "Phân trang đầu bảng" }),
+    ).toContainText("Trang 1 / 1");
     await page
       .getByRole("button", {
         name: new RegExp(`ID ${createdId}.*2026-10-16.*Công`),
@@ -209,23 +226,32 @@ export async function runEmployeeRecoveryR1(s, browser) {
     process.stdout.write(
       "PASS Task7 R1 targeted recovery422 and focus guards (real HTTP/DB)\n",
     );
+  } catch (error) {
+    operationError = error;
+    throw error;
   } finally {
-    await writeFile(
-      resolve(s.runDir, "assertions-r1.json"),
-      JSON.stringify(
-        {
-          owner: "MKW-PRODUCT-001/Task7FixR1",
-          browser: browser.version(),
-          webOrigin: s.webOrigin,
-          apiOrigin: s.apiOrigin,
-          assertions,
-          writes,
-        },
-        null,
-        2,
-      ),
+    await withCleanup(
+      () => {
+        if (operationError) throw operationError;
+      },
+      () =>
+        writeFile(
+          resolve(s.runDir, "assertions-r1.json"),
+          JSON.stringify(
+            {
+              owner: "MKW-PRODUCT-001/Task7FixR1",
+              browser: browser.version(),
+              webOrigin: s.webOrigin,
+              apiOrigin: s.apiOrigin,
+              assertions,
+              writes,
+            },
+            null,
+            2,
+          ),
+        ),
+      () => context.close(),
+      () => independent.pool.end(),
     );
-    await context.close();
-    await independent.pool.end();
   }
 }

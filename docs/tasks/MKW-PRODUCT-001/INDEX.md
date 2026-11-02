@@ -1,5 +1,11 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task3/4 reviewed và Task8 chờ independent review — 02/11/2026
+
+Task3 independent SQL/transaction/contract review **PASS 0C/0I/0M** tại `3b957266494361ac7c54f1db7c46a4ba7b586322`; Task4 independent fullmonth/export review **PASS 0C/0I/0M** tại `9770df9c07cf590ec0db406b9f64888ff85e4a9d`. Reports nguồn: `.superpowers/sdd/server-pagination-implementation-plan/task-3-review-r1.md` và `task-4-review-r1.md`. Hai prerequisite đã đạt đúng scope; các câu chờ review/gated3/4 ở checkpoint cũ bên dưới là lịch sử.
+
+Task8 thực thi riêng từ BASE Task4 trên worktree hiện có, sole writer/no children. [Validation Task8](validation.md#task8--actual-pagination-browser-và-snapshot-races-02112026) ghi kết quả thật, failures và cleanup; ignored `task-8-report.md` giữ full command/provenance/commit. Task8 có một product wording delta được test RED→GREEN và cần main review; independent review Task8 chưa chạy. Task9 performance/native/SR/final whole-branch vẫn chờ gate riêng. Không sửa main ledger hoặc nâng historical JS FAIL4/FAIL5 thành PASS.
+
 ## DB authority đã chốt — checkpoint hiện hành02/11/2026
 
 Người dùng **“Chốt phương án1”** và yêu cầu tiếp tục02/11/2026. [Decision](decisions.md#db-authority--accepted02112026)/[requirements](approved/requirements.md#chốt-db-authority--02112026)/[design15](design.md#15-phân-trang-server-và-tìm-toàn-tháng--accepted01112026)/[API8](technical/api-contract.md#db-authority--accepted02112026) đã ghi DB PG17.11/ICU67.1 là nguồn duy nhất cho name/query lower và name order page/fullmonth/Excel; vi equivalent nondeterministic canonical ties + ID, web không resort. q ECMAScript trim rồi DB lower/literal C, ID case-sensitive. TJE hoa chỉ126/thường chỉ127/order126,127 được chấp nhận; không exact-JS equality, không normalize/unaccent/fuzzy hay hạn chế tên mới.

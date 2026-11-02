@@ -238,8 +238,10 @@ export function AttendanceWorkspace({
           {query.isError && (
             <div role="alert">
               <p>
-                Chưa tải được trang yêu cầu. Bảng và tổng vẫn thuộc trang đã
-                tải; bản nháp được giữ.
+                {samePageCriteria(displayed.criteria, desired)
+                  ? "Chưa cập nhật được dữ liệu nền. "
+                  : "Chưa tải được trang yêu cầu. "}
+                Bảng và tổng vẫn thuộc trang đã tải; bản nháp được giữ.
               </p>
               <Button
                 onClick={() => {

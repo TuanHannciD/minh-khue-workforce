@@ -4,11 +4,14 @@ import { resolve } from "node:path";
 import { expect } from "@playwright/test";
 import { selectionFixture } from "./selection-fixture.ts";
 import { runBulkFence } from "./bulk-fence.spec.ts";
+import { matchesAttendancePageRead } from "./attendance-read-matchers.ts";
+import { withCleanup } from "../../scripts/product/cleanup.mjs";
 
 export async function runBulkEntry(s, browser) {
   const f = await selectionFixture(s, browser),
     [a] = f.pages;
   const evidence = [];
+  let operationError;
   const pass = (name) => {
     evidence.push({ name, result: "PASS" });
     process.stdout.write(`PASS ${name}\n`);
@@ -236,7 +239,23 @@ export async function runBulkEntry(s, browser) {
       "PATCH",
     );
     assert.equal(response.status(), 200);
-    await f.reload(a);
+    // This response changes membership while the source/targets are frozen.
+    // It must be deferred; reload() asserts an adopted envelope and is only
+    // appropriate for unchanged membership. Keep the original CAS intent.
+    const membershipRead = a.waitForResponse(
+      (r) =>
+        matchesAttendancePageRead(r.request(), {
+          month: "2026-10",
+          q: "",
+          page: 1,
+          pageSize: 25,
+        }) && r.status() === 200,
+    );
+    await a.getByRole("button", { name: "Tải lại bảng", exact: true }).click();
+    const membership = await (await membershipRead).json();
+    assert(!membership.employees.some((e) => e.id === sourcePerson.id));
+    await a.getByRole("button", { name: "Giữ phần nhập", exact: true }).click();
+    await expect(f.button(a, sourcePerson, "04")).toHaveCount(1);
     await f.apply(a, 409);
     const recovered = await f.reconcile(a);
     const source = recovered.cells.find(
@@ -248,7 +267,6 @@ export async function runBulkEntry(s, browser) {
     await expect(
       a.getByRole("list", { name: "Các ô đã đối chiếu" }),
     ).toContainText("Dữ liệu hiện tại: N");
-    await expect(f.button(a, sourcePerson, "04")).toHaveCount(0);
     await expect(
       a.getByRole("button", {
         name: "Điền giá trị nguồn hiện tại sau đối chiếu",
@@ -256,6 +274,15 @@ export async function runBulkEntry(s, browser) {
       }),
     ).toBeDisabled();
     assert.equal((await f.sqlCells(targetPerson)).length, 0);
+    // Only the explicit end of the dirty lifetime adopts the deferred page.
+    await a
+      .getByLabel("Nhập vùng")
+      .getByRole("button", { name: "Hủy", exact: true })
+      .click();
+    await a
+      .getByRole("button", { name: "Bỏ phần nhập và tiếp tục", exact: true })
+      .click();
+    await expect(f.button(a, sourcePerson, "04")).toHaveCount(0);
     pass(
       "cleared source employment exits displayed month, reconcile reads original tombstone key, retains draft and never re-adds row or fills N",
     );
@@ -265,7 +292,15 @@ export async function runBulkEntry(s, browser) {
       resolve(s.runDir, "bulk-entry.json"),
       JSON.stringify(evidence, null, 2),
     );
+  } catch (error) {
+    operationError = error;
+    throw error;
   } finally {
-    await f.close();
+    await withCleanup(
+      () => {
+        if (operationError) throw operationError;
+      },
+      () => f.close(),
+    );
   }
 }
