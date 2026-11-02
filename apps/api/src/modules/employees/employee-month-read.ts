@@ -3,6 +3,7 @@ import type { MonthEmployeeQuery } from "./employees.types.js";
 
 // pg17.11-icu67.1-vi-db-authority-v1. Static identifiers only; request text
 // remains bound data. C compares literal substrings after DB-owned lowering.
+// Page and full-month readers share membership/order; consumers preserve it.
 export function buildEmployeeMonthRead(
   query: Pick<MonthEmployeeQuery, "start" | "end" | "q">,
 ): { membership: Prisma.Sql; match: Prisma.Sql; order: Prisma.Sql } {

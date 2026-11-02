@@ -72,10 +72,6 @@ export class AttendanceService {
         calendar.start,
         calendar.end,
       );
-      const collator = new Intl.Collator("vi");
-      employees.sort(
-        (a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id),
-      );
       const stored = await this.repository.readMonth(
         tx,
         calendar.start,

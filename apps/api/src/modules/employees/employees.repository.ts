@@ -58,10 +58,15 @@ export class EmployeesRepository {
       await tx.$queryRaw`SELECT id FROM "Employee" WHERE id = ${id}::uuid FOR UPDATE`;
     return this.readByIds(tx, ids);
   }
-  listForMonth(tx: ProductTransaction, start: string, end: string) {
-    return tx.$queryRaw<
-      LockedEmployee[]
-    >`SELECT id, name, to_char("startDate", 'YYYY-MM-DD') AS "startDate", to_char("endDate", 'YYYY-MM-DD') AS "endDate", revision FROM "Employee" WHERE "startDate" <= ${end}::date AND ("endDate" IS NULL OR "endDate" >= ${start}::date)`;
+  listForMonth(
+    tx: ProductTransaction,
+    start: string,
+    end: string,
+  ): Promise<LockedEmployee[]> {
+    const sql = buildEmployeeMonthRead({ start, end, q: "" });
+    return tx.$queryRaw<LockedEmployee[]>(Prisma.sql`
+      SELECT id, name, to_char("startDate", 'YYYY-MM-DD') AS "startDate", to_char("endDate", 'YYYY-MM-DD') AS "endDate", revision
+      FROM "Employee" WHERE ${sql.membership} ORDER BY ${sql.order}`);
   }
   findExcludedCells(
     tx: ProductTransaction,

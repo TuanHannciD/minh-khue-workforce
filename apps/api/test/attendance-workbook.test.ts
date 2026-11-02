@@ -194,3 +194,24 @@ test("empty months and Gregorian 28–31-day headers including year0001 stay tex
     assert.match(sheet.getCell("A1").text, new RegExp(month));
   }
 });
+
+test("minus and at-prefixed names remain literal text in both saved tables", async () => {
+  const snapshot = fixture();
+  const safeNames = ["-Tên giả", "@Tên giả", names[2]];
+  snapshot.employees.forEach((employee, index) => {
+    employee.name = safeNames[index];
+  });
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load(await module.buildAttendanceWorkbook(snapshot));
+  assert.equal(book.worksheets.length, 1);
+  const sheet = book.worksheets[0];
+  for (const first of [7, 16])
+    for (const [index, name] of safeNames.entries()) {
+      const cell = sheet.getCell(first + index, 2);
+      assert.equal(cell.value, name);
+      assert.equal(cell.type, ExcelJS.ValueType.String);
+      assert.equal(cell.formula, undefined);
+    }
+  formula(sheet.getCell("AE10"), "SUM(AE7:AE9)", 1.5);
+  formula(sheet.getCell("AE19"), "SUM(AE16:AE18)", 2);
+});
