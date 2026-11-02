@@ -1,12 +1,18 @@
 # Yêu cầu người dùng đã thống nhất
 
+## Chốt DB authority — 02/11/2026
+
+Người dùng **“Chốt phương án1”** rồi yêu cầu tiếp tục02/11/2026: chấp nhận [delta DB authority](../decisions.md#db-authority--accepted02112026). PG17.11/ICU67.1 là nguồn duy nhất cho name/query lower và name ordering cho page/fullmonth/Excel; ICU vi equivalent/nondeterministic canonical ties + ID ASC, web không sắp lại. q vẫn ECMAScript trim rồi DB lower; ID case-sensitive/literal, substring `C` sau lower, không normalization/unaccent/fuzzy hoặc hạn chế alphabet/tên mới. TJE query hoa chỉID126, query thường chỉID127, order126,127 được chấp nhận, không đòi JS equality.
+
+Kế hoạch9 task đã được “Approved”01/11; tiếp tục necessary in-scope work không cần hỏi lại choice/plan approval. Independent review **plan delta trước code** và actual reviewed DB-policy PASS trước SQL3/4/8/9 vẫn bắt buộc. Old oracle JS/FAIL4/FAIL5/PASS26/13 giữ lịch sử bất biến; Task1 chưa complete/policy NOT PINNED/new gate Not run; completed2/5/6/7 không đổi. Quyền không gồm download/install/new runtime/enrollment; existing fake Task10 sandbox giữ nguyên. Các đoạn approval/next action phía dưới là diễn tiến lịch sử, được cập nhật này supersede đúng scope lower/order và quyền tiếp tục đã có.
+
 ## Duyệt thiết kế phân trang server — 01/11/2026
 
 Nguồn: sau gói thiết kế server và các ví dụ thực tế/khuyến nghị chọn trong trang, người dùng xác nhận **“Tôi chốt bản thiết kế này”**. Đây là approval bản viết [pagination/search](../technical/pagination-search-proposal.md), tiếp nối approval hướng server trước đó; không hỏi lại hướng, mặc định hoặc selection.
 
 Đã Accepted: server phân trang và tìm tên/ID trên toàn nhân sự thuộc tháng; mặc định25, tùy chọn50, nhảy số trang; poll15 giây chỉ trang active. Rectangle/chọn rời/fill **chỉ trong trang đang hiển thị**; không lật trang tự động hoặc tích lũy đích ẩn. Đổi trang/tìm kiếm/kích thước qua guard, giữ raw và tập ID/revision nguồn–đích đóng băng; Lưu/Áp dụng riêng, CAS và một batch nguyên tử, không ghi ngầm khi điều hướng. Tổng hàng cả tháng của người đó, tổng ngày/tháng của toàn nhân sự kể cả ngoài trang/không khớp tìm; Excel toàn tháng đã lưu. Acceptance dùng1000 nhân sự logical truy cập qua25/50 mỗi trang với cùng ngân sách hiện hành; không còn yêu cầu mount1000 dòng đồng thời và không xóa Failed của bài full DOM cũ.
 
-Approval cho đồng bộ spec và viết [kế hoạch mới](../technical/server-pagination-implementation-plan.md), **chưa duyệt kế hoạch hoặc cho triển khai/thử nghiệm mới**. Runtime SQL/collation/provider/version/lowercase/Unicode canonical-equivalent và ID tie chưa Verified; phải kiểm parity với JS hiện tại trước contract/code ordering/search phụ thuộc. Không suy approval thiết kế thành ICU khả dụng hay ngầm đổi semantics. Nghiệp vụ còn lại/AC01–AC23 giữ nguyên, AC21–AC22 được giới hạn page-local theo cập nhật này; phương pháp main coordinate và subagent/review tuần tự tối đa Sol/high giữ, cấm Astra mọi cấp.
+Tại thời điểm duyệt thiết kế01/11 (trước plan approval và delta02/11): approval cho đồng bộ spec và viết [kế hoạch mới](../technical/server-pagination-implementation-plan.md), **chưa duyệt kế hoạch hoặc cho triển khai/thử nghiệm mới**. Runtime SQL/collation/provider/version/lowercase/Unicode canonical-equivalent và ID tie chưa Verified; phải kiểm parity với JS hiện tại trước contract/code ordering/search phụ thuộc. Không suy approval thiết kế thành ICU khả dụng hay ngầm đổi semantics. Nghiệp vụ còn lại/AC01–AC23 giữ nguyên, AC21–AC22 được giới hạn page-local theo cập nhật này; phương pháp main coordinate và subagent/review tuần tự tối đa Sol/high giữ, cấm Astra mọi cấp.
 
 Nguồn: hội thoại trực tiếp tiếp nối MKW-AGENT-002, ghi nhận ngày 25/10/2026. Tài liệu này chỉ tổng hợp ý định đã xác nhận; bao gồm nền tảng, state và stack mục tiêu đã chốt ở cuối tài liệu; chưa phê duyệt version/API/schema chi tiết hay triển khai code.
 

@@ -1,5 +1,7 @@
 # Đề xuất gỡ chặn Unicode search/order
 
+**Cập nhật định tuyến02/11/2026:** người dùng đã “Chốt phương án1” DB authority và yêu cầu tiếp tục; [quyết định Accepted](../decisions.md#db-authority--accepted02112026), [API8 hiện hành](api-contract.md#db-authority--accepted02112026), [remaining plan](server-pagination-implementation-plan.md) sở hữu contract/gate mới. Nội dung01/11 bên dưới giữ nguyên như proposal lịch sử tại ngày viết; không còn là lựa chọn Pending phải hỏi lại hoặc quyền acquisition được duyệt. New DB-policy cần actual reviewed PASS; FAIL JS lịch sử không đổi.
+
 **Pending — chờ main review độc lập, rồi người dùng quyết định phạm vi đánh giá runtime.** Ngày 01/11/2026; checkpoint từ BASE `8c3db2e0fdbe26ce344a6ce4721f90b8eccf8b34`. Đây là đề xuất quyền khảo sát/kiểm chứng kỹ thuật, chưa là approval, runtime đã chọn, contract mới hoặc kế hoạch triển khai sản phẩm.
 
 Khuyến nghị giữ nghĩa tìm kiếm và thứ tự đã duyệt, bằng một lượt đánh giá PG/ICU portable trong sandbox cách ly. Không yêu cầu người dùng chọn tên ICU. Hiện chưa biết binary hoặc nguồn phân phối nào chắc chắn tương thích; tìm được nguồn và chứng minh thực tế là công việc của lượt được đề xuất, không phải kết luận của tài liệu này.

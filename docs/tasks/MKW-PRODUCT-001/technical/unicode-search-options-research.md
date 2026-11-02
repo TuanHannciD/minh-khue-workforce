@@ -1,5 +1,7 @@
 # Nghiên cứu phương án tìm tên và thứ tự Unicode
 
+**Cập nhật định tuyến02/11/2026:** người dùng đã “Chốt phương án1” DB authority và yêu cầu tiếp tục; [quyết định Accepted](../decisions.md#db-authority--accepted02112026), [API8 hiện hành](api-contract.md#db-authority--accepted02112026), [remaining plan](server-pagination-implementation-plan.md) sở hữu contract/gate mới. Nội dung01/11 bên dưới giữ nguyên như proposal lịch sử tại ngày viết; không còn là lựa chọn Pending phải hỏi lại hoặc quyền acquisition được duyệt. New DB-policy cần actual reviewed PASS; FAIL JS lịch sử không đổi.
+
 Ngày 01/11/2026. **Research proposal / Pending main review và quyết định người dùng; không phải contract đã duyệt.**
 
 Mục tiêu: xem lại lựa chọn kỹ thuật bằng tài liệu chính thức trên Internet, giải thích tác động bằng ví dụ, rồi đề xuất đánh đổi phù hợp sản phẩm. Nguồn hành vi hiện hành vẫn là [design mục15](../design.md#15-phân-trang-server-và-tìm-toàn-tháng--accepted01112026) và [API mục8](api-contract.md#8-đọc-trang-server--thiết-kế-đã-duyệt01112026). [Proposal trước](unicode-parity-unblock-proposal.md) ưu tiên khảo sát runtime tương thích; nghiên cứu này đề nghị cân nhắc lại ưu tiên đó, chưa thay nó bằng quyết định mới.
