@@ -1,8 +1,20 @@
 # Validation — MKW-PRODUCT-001
 
+## Task1 DB-policy pin/closure — 02/11/2026
+
+Policy `pg17.11-icu67.1-vi-db-authority-v1` **PINNED** và Task1 continuation **COMPLETE đúng bounded capability** sau independent R1 READY TO PIN/0C/0I/0M tại reviewed TIP `321d488f041e6d5386adea9f86ca8749ef896144`.
+
+Independent review taskId `node:delegated-task:command%3Amcp%3Aecaa155a-8ea8-4525-8f6a-c7e0c3d7a54d%3Adelegate-task%3Amkw-task1-db-policy-review-r1-321d488`; report `.superpowers/sdd/server-pagination-implementation-plan/task-1-db-policy-review-r1.md`; exact reviewed range `47f26cfb3aea58e24486e48b15aa8ed18a922d2f..321d488f041e6d5386adea9f86ca8749ef896144`, READY TO PIN/0C/0I/0M. Reviewer independently checked fixed literals/codepoints/source snapshots/report/identity/release without rerunning DB. Main approved status pin in this turn; no self-review substituted.
+
+Task3 đã đủ prerequisite Task1/2 và là next implementation; Task4 vẫn chờ3 reviewed PASS, Task8 chờ3/4/7 (7 đã complete), Task9 chờ8 và các gate riêng. Không claim Task3/4/8/9 complete. Main lấy clean status-closure commit làm **next Task3 execution BASE**; full immutable SHA ghi tại `.superpowers/sdd/server-pagination-implementation-plan/task-1-db-policy-pin-report.md` sau commit. Reviewed source/capability BASE vẫn là `321d488f041e6d5386adea9f86ca8749ef896144`; không tạo source mới trong pin closure.
+
+Old JS FAIL4/FAIL5/PASS26/13 hashes và artifacts giữ nguyên. Startup wrapper exit−1 và launch-script fix vẫn **Not verified**. Live HTTP/auth/Prisma/session/ports, product SQL/page/fullmonth/Excel, browser/performance/native/SR/reader/final whole-branch gates giữ riêng; không nâng thành PASS từ capability hữu hạn.
+
+Status-only docs closure: no source/build/test/SQL/PG/HTTP/browser/runtime/network/resource acquisition. Scoped docs/UTF-8/provenance-preservation/whitespace/commit checks and final execution BASE recorded in ignored `task-1-db-policy-pin-report.md`; old reports/reviews/seals/ledger remain read-only.
+
 ## Task1 DB-policy continuation — actual PASS chờ review, 02/11/2026
 
-**Author actual PASS0 mismatch,6/6 tests; chưa independent review/NOT PINNED/Task1 chưa complete;3/4/8/9 vẫn gated.** Execution BASE sạch `47f26cfb3aea58e24486e48b15aa8ed18a922d2f`, branch `agent/mkw-agent-002`, cwd `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`; amendment independent R1 READY0C/0I/0M tại BASE. Sole Sol/high, không children/helpers/delegation/Astra. Brief/goal/scope/acceptance/risk/resources/review route ghi trước sửa trong ignored `.superpowers/sdd/server-pagination-implementation-plan/task-1-db-policy-report.md`; main ledger chỉ đọc. User DB authority+Continue đã duyệt; không lặp choice/approval.
+**Implementation checkpoint trước pin:** actual PASS0 mismatch,6/6; source/oracle/provenance/cleanup dưới đây giữ historical result tại TIP `321d488f041e6d5386adea9f86ca8749ef896144`. Trạng thái hiện hành đã supersede bởi pin closure phía trên; không chạy lại tests. Execution BASE `47f26cfb3aea58e24486e48b15aa8ed18a922d2f`; branch `agent/mkw-agent-002`, cwd `.worktrees/agent-bootstrap`, sole Sol/high/no children/helpers/Astra; main ledger read-only.
 
 Scope đúng hai new files `apps/api/test/employee-read-db-policy-fixtures.mjs` và `employee-read-db-policy.integration.test.mjs`, API8/INDEX/validation/matrix. Inputs dùng lại immutable28 names/15 raw q; toàn bộ lower/query IDs/full order là literals chép reviewed Task1 tables trước SQL, không SQL/Intl/JS-generated expectations. Static guard reject90 observation mutations:28 name lowers,15 query lowers+15 result lists,27 adjacent order swaps (gồm canonical/duplicate/TJE),2 equality gates, missing/extra lower và missing query. Fail-stop classification test giữ mismatch/identity drift FAIL dù cleanup cũng lỗi; thiếu runtime/capability BLOCKED. Không product SQL/controller/migration/Task3, không sửa old fixture/checker/lifecycle helper/enrollment/allowlist, không cài/download/network/new worktree/global/production.
 
@@ -28,6 +40,7 @@ Final SQL-only DB `mkw_acceptance_92b815f5_313f_4f4a_b039_88c3345ee95e` qua exis
 **Transport concern đã xử lý, không giấu failure:** start wrapper lần đầu bị native stdout pipe giữ dù PG đã ready; lần final `Start-Process -Wait` chờ cả descendant PG. Chỉ terminate exact owned waiting shell sau inspect command/parent, không kill PG hoặc process khác. `pg-start-transport.json` ghi first wrapper terminated/exit unknown (tool exit−1); `pg-start-final.json` giữ exit−1, native start stdout “server started”. Tiếp tục bằng fresh actual identity/process/loaded-module checks, actual test PASS và ownership-checked stop0; mọi test có envelope. Hai historical startup transports không được gọi exit0. Ignored final launch script dùng process `WaitForExit` thay tree wait cho lần dùng sau; không rerun start chỉ để xanh transport hoặc sửa helper/product.
 
 Scoped lint/format/docs/strict UTF-8/whitespace/source/provenance closure và commit ghi exact outputs trong ignored report; không broad product/perf/browser rerun. HTTP live rotation/auth/Prisma/session0/ports, page/fullmonth/Excel/product SQL, browser/native/SR/reader/performance/final whole-branch gates **Not run trong continuation**. Main fresh independent exact commit/oracle/provenance/report/cleanup review mới pin/complete Task1 đúng scope và mở3; completed2/5/6/7 unchanged.
+
 
 ## Đồng bộ DB authority đã duyệt — 02/11/2026
 
