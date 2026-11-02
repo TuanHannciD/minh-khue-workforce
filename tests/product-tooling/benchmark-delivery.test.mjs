@@ -56,6 +56,7 @@ async function fixture() {
   };
   return {
     read,
+    page,
     ready: (...args) => pagination.ready(page, read.criteria, kind, ...args),
     set: (values) => {
       kind = values.kind ?? kind;
@@ -65,6 +66,50 @@ async function fixture() {
     },
   };
 }
+
+test("drag refresh must wait for a new delivery even when criteria match", async () => {
+  const source = await readFile(
+    new URL("../../scripts/product/benchmark-pagination.mjs", import.meta.url),
+    "utf8",
+  );
+  const marker =
+    "await measureTrustedDragRuns(page, metrics.dragRuns, async (i) => {";
+  let offset = 0,
+    callbacks = 0;
+  while ((offset = source.indexOf(marker, offset)) !== -1) {
+    const start = offset + marker.length;
+    const ends = [
+      source.indexOf("\n          audit.end();", start),
+      source.indexOf("\n        const cycle", start),
+    ];
+    const boundary = Math.min(...ends.filter((n) => n >= start));
+    const stop = source.lastIndexOf("});", boundary);
+    const f = await fixture();
+    f.page.getByRole = () => ({ click: async () => {} });
+    const callback = runInNewContext(
+      `(async (i) => {${source.slice(start, stop)}\n})`,
+      {
+        page: f.page,
+        criteria: f.read.criteria,
+        kind: "work",
+        audit: { expect() {} },
+        ready: pagination.ready,
+      },
+    );
+    await assert.rejects(
+      callback(0),
+      /not editable/,
+      "old editable delivery cannot satisfy a newly requested drag refresh",
+    );
+    callbacks++;
+    offset = start;
+  }
+  assert.equal(
+    callbacks,
+    2,
+    "both full and scoped producers must use the guarded refresh",
+  );
+});
 
 test("I3 shared response readiness attributes delayed overtime commit to overtime", async () => {
   const f = await fixture();

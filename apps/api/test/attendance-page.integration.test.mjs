@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { startAttendanceReadSandbox } from "./attendance-read-sandbox.mjs";
 import { openAttendanceTarget, root } from "./attendance-sandbox.mjs";
 import { withCleanup } from "../../../scripts/product/cleanup.mjs";
+import { runCheckedDestroy } from "./attendance-page-race-cleanup.mjs";
 import { employeeReadDbPolicyFixture as fixed } from "./employee-read-db-policy-fixtures.mjs";
 import { EmploymentConsistency } from "../dist/modules/employees/index.js";
 import { AttendanceService } from "../dist/modules/attendance/attendance.service.js";
@@ -76,29 +77,33 @@ async function sandboxTest(name, body) {
         ]) {
           const destroy = db.onModuleDestroy;
           db.onModuleDestroy = async function () {
-            const hashes = (
-              await independent.pool.query(
-                `SELECT username,"passwordHash" FROM "User" ORDER BY username`,
-              )
-            ).rows;
-            assert.equal(hashes.length, 2);
-            assert(
-              hashes.every(
-                (row, i) =>
-                  row.username === initialHashes[i].username &&
-                  row.passwordHash !== initialHashes[i].passwordHash,
-              ),
-            );
-            assert.equal(
-              (
-                await independent.pool.query(
-                  `SELECT count(*)::int AS n FROM "Session" WHERE "revokedAt" IS NULL`,
-                )
-              ).rows[0].n,
-              0,
-            );
-            report.invalidationBeforeDisconnect = true;
-            return destroy.call(this);
+            return runCheckedDestroy({
+              check: async () => {
+                const hashes = (
+                  await independent.pool.query(
+                    `SELECT username,"passwordHash" FROM "User" ORDER BY username`,
+                  )
+                ).rows;
+                assert.equal(hashes.length, 2);
+                assert(
+                  hashes.every(
+                    (row, i) =>
+                      row.username === initialHashes[i].username &&
+                      row.passwordHash !== initialHashes[i].passwordHash,
+                  ),
+                );
+                assert.equal(
+                  (
+                    await independent.pool.query(
+                      `SELECT count(*)::int AS n FROM "Session" WHERE "revokedAt" IS NULL`,
+                    )
+                  ).rows[0].n,
+                  0,
+                );
+                report.invalidationBeforeDisconnect = true;
+              },
+              destroy: () => destroy.call(this),
+            });
           };
         }
         await body(sandbox, independent.pool);
@@ -168,6 +173,124 @@ async function sandboxTest(name, body) {
     );
   }
 }
+
+test("observer query fault still releases actual Prisma connections", async () => {
+  const observerFault = new Error("OWNED_OBSERVER_QUERY_FAULT");
+  const leafErrors = (error) =>
+    error.errors ? error.errors.flatMap(leafErrors) : [error];
+  let owned;
+  const destroyAttempts = [0, 0, 0];
+  await assert.rejects(
+    sandboxTest("observer-fault", async (sandbox, pool) => {
+      owned = sandbox;
+      for (const [i, db] of [
+        sandbox.database,
+        ...sandbox.apps.map((app) => app.get(Database)),
+      ].entries()) {
+        const disconnect = db.client.$disconnect;
+        db.client.$disconnect = async function (...args) {
+          destroyAttempts[i]++;
+          return disconnect.apply(this, args);
+        };
+        await db.client.$queryRawUnsafe("SELECT 1");
+      }
+      const destroy = sandbox.database.onModuleDestroy;
+      sandbox.database.onModuleDestroy = async function () {
+        const query = pool.query;
+        // Fault the actual observer query only for the provision Prisma owner;
+        // app observers still verify invalidation and close their HTTP listeners.
+        pool.query = async () => {
+          throw observerFault;
+        };
+        try {
+          return await destroy.call(this);
+        } finally {
+          pool.query = query;
+        }
+      };
+    }),
+    (error) => {
+      assert(leafErrors(error).includes(observerFault));
+      return true;
+    },
+  );
+  assert(owned);
+  assert(destroyAttempts.every((count) => count >= 1));
+  assert.equal(owned.pool.ended, true);
+  assert(owned.apps.every((app) => !app.getHttpServer().listening));
+  const release = JSON.parse(
+    await readFile(resolve(owned.evidence, "http-released.json"), "utf8"),
+  );
+  assert.equal(
+    release.state,
+    "release-failed",
+    "observer failure stays reported despite actual disconnect",
+  );
+  const invalidation = JSON.parse(
+    await readFile(resolve(owned.evidence, "fixture-invalidated.json"), "utf8"),
+  );
+  assert.equal(invalidation.passwordsRotated, 2);
+  assert.equal(invalidation.unrevokedSessions, 0);
+  const observer = await openAttendanceTarget(
+    process.env.MKW_ATTENDANCE_CLUSTER_OWNER,
+  );
+  const proof = {
+    targetFile: owned.targetFile,
+    destroyAttempts,
+    invalidation,
+    release,
+    result: "RUNNING",
+  };
+  await withCleanup(
+    async () => {
+      const identity = (
+        await observer.pool.query(
+          "SELECT current_database() AS database,current_user AS username,host(inet_server_addr()) AS host,inet_server_port() AS port,current_setting('server_version') AS version",
+        )
+      ).rows[0];
+      assert.deepEqual(identity, {
+        database: "postgres",
+        username: "mkw_task10",
+        host: "127.0.0.1",
+        port: 63771,
+        version: "17.11",
+      });
+      proof.identity = identity;
+      proof.connections = (
+        await observer.pool.query(
+          "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname=$1",
+          [owned.target.database],
+        )
+      ).rows[0].n;
+      assert.equal(
+        proof.connections,
+        0,
+        "independent cluster query must prove all Prisma/run/observer connections ended",
+      );
+      const httpOwner = JSON.parse(
+        await readFile(resolve(owned.evidence, "http-owner.json"), "utf8"),
+      );
+      proof.ports = [];
+      for (const url of httpOwner.origins) {
+        await assert.rejects(
+          fetch(url, { signal: AbortSignal.timeout(1000) }),
+          (e) => e.cause?.code === "ECONNREFUSED",
+        );
+        proof.ports.push({ url, result: "ECONNREFUSED" });
+      }
+      proof.result = "PASS";
+    },
+    () => observer.pool.end(),
+  );
+  assert.equal(observer.pool.ended, true);
+  proof.clusterObserverPoolEnded = observer.pool.ended;
+  await writeFile(
+    resolve(evidence, `observer-fault-live-proof-${randomUUID()}.json`),
+    JSON.stringify(proof, null, 2),
+    { flag: "wx" },
+  );
+});
+
 async function employee(
   pool,
   employeeId,

@@ -13,6 +13,7 @@ import { startSandbox } from "../../tests/product-e2e/sandbox.mjs";
 import {
   measurePaginatedAttendance,
   validatePaginatedMeasurements,
+  validateScopedDragMeasurements,
 } from "./benchmark-pagination.mjs";
 import { retainedMetrics } from "./benchmark-metrics.mjs";
 import { withCleanup } from "./cleanup.mjs";
@@ -31,11 +32,13 @@ const root = resolve(
 await mkdir(root, { recursive: true });
 const reportFile = resolve(root, `benchmark-run-${randomUUID()}.json`);
 const requested = process.argv.find((arg) => arg.startsWith("--sizes="));
+const dragOnly = process.argv.includes("--drag-only");
 const sizes = requested
   ? requested.slice(8).split(",").map(Number)
   : [20, 200, 1000];
 const report = {
   mode: "server-pagination",
+  scope: dragOnly ? "drag-only" : "full",
   machine: {
     platform: platform(),
     os: release(),
@@ -419,15 +422,20 @@ try {
           s.benchmarkPolicy = await verifyPolicy(s);
           dataset.policy = s.benchmarkPolicy;
           await seed(s, size);
-          s.benchmarkGlobalCosts = {
-            25: await globalCosts(s, size, 25),
-            50: await globalCosts(s, size, 50),
-          };
-          dataset.globalCosts = s.benchmarkGlobalCosts;
-          dataset.fullmonth = await fullmonthCosts(s, browser, size);
-          const restore = observeApiSql(s);
+          if (!dragOnly) {
+            s.benchmarkGlobalCosts = {
+              25: await globalCosts(s, size, 25),
+              50: await globalCosts(s, size, 50),
+            };
+            dataset.globalCosts = s.benchmarkGlobalCosts;
+            dataset.fullmonth = await fullmonthCosts(s, browser, size);
+          }
+          const restore = dragOnly ? () => {} : observeApiSql(s);
           const rows = await withCleanup(
-            () => measurePaginatedAttendance(s, browser, size),
+            () =>
+              measurePaginatedAttendance(s, browser, size, {
+                scope: dragOnly ? "drag-only" : "full",
+              }),
             restore,
           );
           report.measurements.push(...rows);
@@ -459,7 +467,9 @@ try {
     failed = true;
     report.cleanupError = error.message;
   }
-  report.acceptance = validatePaginatedMeasurements(report.measurements);
+  report.acceptance = (
+    dragOnly ? validateScopedDragMeasurements : validatePaginatedMeasurements
+  )(report.measurements);
   if (report.acceptance.result !== "PASS") failed = true;
   report.result = failed ? "FAILED" : "PASS";
   await writeFile(reportFile, JSON.stringify(report, null, 2));

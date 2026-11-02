@@ -13,6 +13,59 @@ const pagination = existsSync(
   ? await import("../../scripts/product/benchmark-pagination.mjs")
   : {};
 const timings = (n, value = 10) => Array(n).fill(value);
+function dragFixture(kind) {
+  const employeeIds = ["employee-1", "employee-2", "employee-3"];
+  const dates = ["2026-10-01", "2026-10-02", "2026-10-03"];
+  const expectedTargets = employeeIds
+    .flatMap((id) => dates.map((d) => `${id}/${d}/${kind}`))
+    .sort();
+  const origin = expectedTargets[0],
+    endpoint = expectedTargets.at(-1);
+  const pointerDown = {
+    isTrusted: true,
+    pointerType: "mouse",
+    button: 0,
+    ctrlKey: true,
+    metaKey: false,
+  };
+  return {
+    durationMs: 5000,
+    frames: timings(301, 16.7),
+    gesture: {
+      modifier: "Control",
+      pointerDown,
+      employeeIds,
+      dates,
+      origin,
+      endpoint,
+      expectedTargets,
+      geometry: { fromHit: origin, toHit: endpoint },
+      delivery: {
+        deliveryId: "current",
+        kind,
+        employeeIds,
+        criteria: { month: "2026-10", q: "", page: 1, pageSize: 25 },
+      },
+      plain: {
+        pointerDown: { ...pointerDown, ctrlKey: false },
+        active: false,
+        targets: [],
+      },
+      activation: { active: true, targets: [origin], observedAt: 0 },
+      preview: {
+        active: true,
+        targets: [...expectedTargets],
+        observedAt: 5000,
+      },
+      committed: {
+        active: false,
+        targets: [...expectedTargets],
+        selectedCount: 9,
+        observedAt: 5010,
+      },
+    },
+  };
+}
 function paginatedFixture() {
   return [20, 200, 1000].flatMap((logicalEmployees) =>
     [25, 50].flatMap((pageSize) =>
@@ -66,10 +119,7 @@ function paginatedFixture() {
             durationMs: 5000,
             frames: timings(301, 16.7),
           })),
-          dragRuns: Array.from({ length: 5 }, () => ({
-            durationMs: 5000,
-            frames: timings(301, 16.7),
-          })),
+          dragRuns: Array.from({ length: 5 }, () => dragFixture(kind)),
           heapBytes: timings(11, 10000),
           listenerCounts: timings(11, 10),
           timerCounts: timings(11, 2),
@@ -382,6 +432,56 @@ test("missing trusted drag frames cannot pass scroll-only acceptance", () => {
   const rows = paginatedFixture();
   delete rows[0].metrics.dragRuns;
   assert.equal(pagination.validatePaginatedMeasurements(rows).result, "FAIL");
+});
+
+test("frames-only or fake trusted drag evidence cannot pass gesture acceptance", () => {
+  for (const mutate of [
+    (run) => delete run.gesture,
+    (run) => (run.gesture.activation.active = false),
+    (run) => (run.gesture.preview.active = false),
+    (run) => (run.gesture.plain.active = true),
+    (run) => (run.gesture.committed.targets = ["fake-target"]),
+    (run) => (run.gesture.pointerDown.ctrlKey = false),
+    (run) => (run.gesture.pointerDown.isTrusted = false),
+    (run) => (run.gesture.preview.targets = []),
+    (run) => (run.gesture.committed.selectedCount = 1),
+    (run) => (run.gesture.geometry.toHit = run.gesture.origin),
+    (run) => (run.gesture.delivery.kind = "fake"),
+    (run) => (run.gesture.committed.observedAt = 1),
+  ]) {
+    const rows = paginatedFixture();
+    mutate(rows[0].metrics.dragRuns[0]);
+    assert.equal(pagination.validatePaginatedMeasurements(rows).result, "FAIL");
+  }
+});
+
+test("drag-only evidence can clear its scoped gate but never overall performance", () => {
+  const rows = paginatedFixture().map((row) => {
+    row.metrics.scope = "drag-only";
+    row.metrics.network.coverage = [
+      {
+        id: 1,
+        attachedBeforeNavigation: true,
+        startAt: 0,
+        endAt: 10,
+        pending: false,
+      },
+    ];
+    row.metrics.network.facts = [
+      { ...row.metrics.network.facts[0], scenario: "drag-bootstrap" },
+    ];
+    return row;
+  });
+  const result = pagination.validateScopedDragMeasurements(rows);
+  assert.equal(result.result, "PASS");
+  assert.equal(result.overallPerformance, "NOT_RUN");
+  assert.equal(pagination.validatePaginatedMeasurements(rows).result, "FAIL");
+  assert.notEqual(
+    pagination.validateScopedDragMeasurements(rows.slice(1)).result,
+    "PASS",
+  );
+  delete rows[0].metrics.dragRuns[0].gesture;
+  assert.equal(pagination.validateScopedDragMeasurements(rows).result, "FAIL");
 });
 
 test("one HTTP SQL sample includes auth and page transactions without losing global work", () => {

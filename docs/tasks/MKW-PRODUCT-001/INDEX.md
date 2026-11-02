@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task9 whole-branch fix R1 — implementer checkpoint02/11/2026
+
+I1/I2 đã được sửa trên BASE `6b920d1eee3a382b8b14f5aa966564f5a67cb701`; full TIP trong ignored `whole-branch-fix-r1-report.md`: validator chỉ nhận trusted Ctrl/Cmd mouse gesture có activation/preview/expected targets/committed targets và negative plain drag; page observer dùng `runCheckedDestroy` nên check/query lỗi vẫn gọi Prisma destructor, giữ check-only/destroy-only/both và mọi owner attempt. Focused GREEN35/35; page integration8/8 với live observer-fault proof connections0, ports refused, rotations2/session0; `product:check` hiện tại exit0 (72 tooling/14 sandbox/247 web/23 API). Scoped corrected drag-only đo12/12 config,60 runs PASS, `overallPerformance=NOT_RUN`; raw và hash tại `.agent-runs/MKW-PRODUCT-001/server-pagination/whole-branch-fix-r1-20261102/`. Original drag evidence **invalid** do không kích hoạt gesture; diagnostic failures/old raw giữ bất biến. Performance overall vẫn **Failed** (old8 PASS/4 monotonic heap FAIL là stored verdict lịch sử), Task9/product chưa Done; main fresh independent re-review bắt buộc.
+
 ## Task9 fix R1 — checkpoint02/11/2026
 
 Tác giả đã sửa I1–I5 của review R1 bằng focused RED/GREEN và một fresh full12 trên source đóng băng. [Validation fix R1](validation.md#task9-fix-r1--instrumentation-đã-sửa-02112026) và [matrix](technical/verification-matrix.md#task9-fix-r1--checkpoint-instrumentation-02112026) giữ exact metrics/gates/raw/cleanup. Current performance **FAIL:8/12 PASS,4 monotonic-heap FAIL**. Checkpoint6/6 bên dưới giữ lịch sử; giới hạn bootstrap/matcher/render-kind/poll-footer cũ được ghi rõ, không relabel old raw. Main fresh scoped re-review Pending, sau đó whole-branch review riêng; native/SR/phoneperf/reader/dependency/G4 không clearance, không product Done.

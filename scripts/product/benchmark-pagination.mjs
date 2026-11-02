@@ -226,6 +226,371 @@ export function transitionTiming(t) {
   };
 }
 
+export function assertDragRun(run, kind, { budget = true } = {}) {
+  assert(
+    run?.durationMs >= 5000 && run.frames?.length > 1,
+    "five seconds of drag frames required",
+  );
+  const stats = summarize(run.frames);
+  if (budget)
+    assert(
+      stats.p95 <= 33 && stats.max <= 200,
+      `drag p95=${stats.p95} max=${stats.max}`,
+    );
+  const g = run.gesture;
+  assert(
+    g && ["Control", "Meta"].includes(g.modifier),
+    "valid additive modifier required",
+  );
+  const trustedMouse = (p, modifier) => {
+    assert(
+      p?.isTrusted === true && p.pointerType === "mouse" && p.button === 0,
+    );
+    assert.equal(p.ctrlKey, modifier === "Control");
+    assert.equal(p.metaKey, modifier === "Meta");
+  };
+  trustedMouse(g.pointerDown, g.modifier);
+  trustedMouse(g.plain?.pointerDown, undefined);
+  assert.equal(g.plain.active, false, "plain append drag must be rejected");
+  assert.deepEqual(
+    g.plain.targets,
+    [],
+    "ignored drag cannot provide selection evidence",
+  );
+  assert(g.employeeIds?.length === 3 && new Set(g.employeeIds).size === 3);
+  assert.deepEqual(g.dates, ["2026-10-01", "2026-10-02", "2026-10-03"]);
+  const expected = g.employeeIds
+    .flatMap((id) => g.dates.map((date) => `${id}/${date}/${kind}`))
+    .sort();
+  assert.equal(g.origin, `${g.employeeIds[0]}/${g.dates[0]}/${kind}`);
+  assert.equal(g.endpoint, `${g.employeeIds[2]}/${g.dates[2]}/${kind}`);
+  assert.equal(g.geometry?.fromHit, g.origin, "origin hit-test missing");
+  assert.equal(g.geometry?.toHit, g.endpoint, "endpoint hit-test missing");
+  assert.equal(g.delivery?.kind, kind);
+  assert(
+    g.delivery.deliveryId &&
+      g.employeeIds.every((id) => g.delivery.employeeIds.includes(id)),
+  );
+  assert.equal(g.delivery.criteria.month, "2026-10");
+  assert.equal(g.delivery.criteria.q, "");
+  assert.equal(g.delivery.criteria.page, 1);
+  assert.equal(g.activation?.active, true, "selection activation missing");
+  assert.deepEqual(g.activation.targets, [g.origin]);
+  assert.equal(g.preview?.active, true, "active selection preview missing");
+  assert.deepEqual(
+    g.preview.targets,
+    expected,
+    "preview must match the independent rectangle",
+  );
+  assert.equal(g.committed?.active, false);
+  assert.deepEqual(
+    g.committed.targets,
+    expected,
+    "selected targets mismatch after release",
+  );
+  assert.equal(
+    g.committed.selectedCount,
+    expected.length,
+    "bulk preview count mismatch",
+  );
+  assert.deepEqual(g.expectedTargets, expected);
+  summarize([
+    g.activation.observedAt,
+    g.preview.observedAt,
+    g.committed.observedAt,
+  ]);
+  assert(
+    g.preview.observedAt >= g.activation.observedAt &&
+      g.committed.observedAt >= g.preview.observedAt,
+  );
+  assert(
+    g.committed.observedAt - g.activation.observedAt >= 5000,
+    "frames must cover the active gesture",
+  );
+}
+
+// The same workload is used by full acceptance and the bounded drag-only rerun.
+// DOM state and trusted pointer facts prove that frames cover a real gesture.
+export async function measureTrustedDragRuns(page, frames, prepareRun) {
+  const state = () =>
+    page.evaluate(() => ({
+      observedAt: performance.now(),
+      active: document
+        .querySelector(".grid-scroll")
+        .classList.contains("selection-dragging"),
+      targets: [
+        ...document.querySelectorAll('button[data-cell][aria-pressed="true"]'),
+      ]
+        .map((el) => el.dataset.cell)
+        .sort(),
+      pointerDown: window.__dragPointer,
+      selectedCount: Number(
+        document
+          .querySelector('.bulk-editor [role="status"]')
+          ?.textContent.match(/^(\d+) ô chọn/)?.[1],
+      ),
+    }));
+  const tool = page.getByRole("button", { name: "Chọn nhiều", exact: true });
+  let stage = "toggle";
+  await tool.click();
+  try {
+    await page.evaluate(() => {
+      document.addEventListener(
+        "pointerdown",
+        (e) => {
+          window.__dragPointer = {
+            isTrusted: e.isTrusted,
+            pointerType: e.pointerType,
+            button: e.button,
+            ctrlKey: e.ctrlKey,
+            metaKey: e.metaKey,
+          };
+        },
+        { capture: true },
+      );
+    });
+    for (let i = 0; i < 5; i++) {
+      const delivery = await prepareRun(i);
+      stage = `run-${i}-plain`;
+      await page.locator(".grid-scroll").evaluate((el) => {
+        el.scrollIntoView({ block: "center" });
+        el.scrollTop = 0;
+        el.scrollLeft = 0;
+      });
+      const cells = page
+        .locator("tbody tr")
+        .first()
+        .locator("button[data-cell]");
+      await cells.first().scrollIntoViewIfNeeded();
+      const grid = await page.evaluate(() => {
+        const rows = [
+          ...document.querySelectorAll(".grid-scroll tbody tr"),
+        ].slice(0, 3);
+        const keys = rows.map((row) =>
+          [...row.querySelectorAll("button[data-cell]")]
+            .slice(0, 3)
+            .map((el) => el.dataset.cell),
+        );
+        return {
+          keys,
+          employeeIds: keys.map((r) => r[0].split("/")[0]),
+          dates: keys[0].map((key) => key.split("/")[1]),
+        };
+      });
+      const origin = grid.keys[0][0],
+        endpoint = grid.keys[2][2];
+      const point = async (key) => {
+        const box = await page
+          .locator(`button[data-cell="${key}"]`)
+          .boundingBox();
+        assert(box, "drag target visible");
+        return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      };
+      const from = await point(origin),
+        to = await point(endpoint);
+      const geometry = await page.evaluate(
+        ({ from, to }) => {
+          const grid = document.querySelector(".grid-scroll"),
+            box = grid.getBoundingClientRect();
+          const rect = (selector) => {
+            const r = grid.querySelector(selector)?.getBoundingClientRect();
+            return r
+              ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom }
+              : null;
+          };
+          return {
+            from,
+            to,
+            box: {
+              left: box.left,
+              right: box.right,
+              top: box.top,
+              bottom: box.bottom,
+            },
+            name: rect("tbody th.name"),
+            total: rect("tbody td.total"),
+            head: rect("thead"),
+            fromHit: document
+              .elementFromPoint(from.x, from.y)
+              ?.closest("[data-position]")
+              ?.getAttribute("data-position"),
+            toHit: document
+              .elementFromPoint(to.x, to.y)
+              ?.closest("[data-position]")
+              ?.getAttribute("data-position"),
+          };
+        },
+        { from, to },
+      );
+      assert.equal(
+        geometry.fromHit,
+        origin,
+        "origin must pass actual hit testing",
+      );
+      assert.equal(
+        geometry.toHit,
+        endpoint,
+        "endpoint must pass actual hit testing",
+      );
+      await page.mouse.move(from.x, from.y);
+      await page.mouse.down();
+      let plain;
+      await withCleanup(
+        async () => {
+          await page.mouse.move(to.x, to.y);
+          plain = await state();
+          assert.equal(plain.active, false);
+          assert.deepEqual(plain.targets, []);
+        },
+        () => page.mouse.up(),
+      );
+      assert.deepEqual(
+        (await state()).targets,
+        [],
+        "plain rejected drag must not commit targets",
+      );
+      await page.mouse.move(from.x, from.y);
+      await page.keyboard.down("Control");
+      stage = `run-${i}-active`;
+      let activation, preview, samples;
+      await withCleanup(
+        async () => {
+          await page.mouse.down();
+          await page.mouse.move(from.x + 2, from.y + 2);
+          await page.waitForFunction(() =>
+            document.querySelector(".selection-dragging"),
+          );
+          activation = await state();
+          const framePromise = page.evaluate(measureScrollFrames, {
+            scroll: false,
+          });
+          // Own the frame promise even when an interaction/assertion fails.
+          await withCleanup(
+            async () => {
+              for (let step = 0; step < 25; step++) {
+                const target = step % 2 ? from : to;
+                await page.mouse.move(target.x, target.y);
+                if (step === 24) preview = await state();
+                await page.waitForTimeout(200);
+              }
+            },
+            async () => {
+              samples = await framePromise;
+            },
+          );
+        },
+        () => page.mouse.up(),
+        () => page.keyboard.up("Control"),
+      );
+      const committed = await state();
+      stage = `run-${i}-commit`;
+      const run = {
+        durationMs: samples.reduce((a, b) => a + b, 0),
+        frames: samples,
+        gesture: {
+          modifier: "Control",
+          pointerDown: activation.pointerDown,
+          plain,
+          employeeIds: grid.employeeIds,
+          dates: grid.dates,
+          origin,
+          endpoint,
+          geometry,
+          delivery,
+          expectedTargets: grid.keys.flat().sort(),
+          activation,
+          preview,
+          committed,
+        },
+      };
+      frames.push(run);
+      // Gesture correctness is required even if frame timing exceeds the budget.
+      assert.deepEqual(preview.targets, run.gesture.expectedTargets);
+      assert.deepEqual(committed.targets, run.gesture.expectedTargets);
+      assert.equal(committed.selectedCount, 9);
+      assertDragRun(run, origin.split("/")[2], { budget: false });
+      await page
+        .getByRole("button", { name: "Hủy", exact: true })
+        .last()
+        .click();
+      const discard = page.getByRole("button", {
+        name: "Bỏ phần nhập và tiếp tục",
+        exact: true,
+      });
+      if (await discard.isVisible()) await discard.click();
+      assert.deepEqual((await state()).targets, []);
+    }
+    return frames;
+  } catch (error) {
+    if (!error.code || error.code === "ERR_ASSERTION")
+      error.code = `DRAG_${stage.toUpperCase().replaceAll("-", "_")}`;
+    throw error;
+  } finally {
+    await tool.click();
+  }
+}
+
+export function validateScopedDragMeasurements(rows) {
+  const failures = [],
+    keys = new Set();
+  for (const row of rows) {
+    const key = `${row.logicalEmployees}/${row.pageSize}/${row.kind}`;
+    try {
+      assert(
+        [20, 200, 1000].includes(row.logicalEmployees) &&
+          [25, 50].includes(row.pageSize) &&
+          ["work", "overtime"].includes(row.kind),
+      );
+      assert(!keys.has(key), "duplicate configuration");
+      assert.equal(row.metrics?.mode, "server-pagination");
+      assert.equal(row.metrics?.scope, "drag-only");
+      assert.equal(row.result, "PASS");
+      assert.equal(row.metrics.dragRuns?.length, 5);
+      for (const run of row.metrics.dragRuns) assertDragRun(run, row.kind);
+      const n = row.metrics.network;
+      assert(
+        n &&
+          n.unexpectedWrites === 0 &&
+          n.fullMonthSubscriptions === 0 &&
+          n.unexpectedReads === 0,
+      );
+      assert(
+        n.coverage.every(
+          (c) =>
+            c.attachedBeforeNavigation && c.endAt >= c.startAt && !c.pending,
+        ),
+      );
+      assert(n.facts.some((f) => f.scenario === "drag-bootstrap"));
+      for (const f of n.facts) {
+        assert(
+          n.coverage.some(
+            (c) => c.id === f.scopeId && f.at >= c.startAt && f.at <= c.endAt,
+          ),
+        );
+        if (f.path === "/api/v1/attendance/search") {
+          assert.equal(f.method, "POST");
+          assert(exactPageCriteria(f.criteria, f.expected));
+          assert(["scenario", "active-poll"].includes(f.classification));
+        } else assert(["GET", "HEAD"].includes(f.method));
+      }
+    } catch (error) {
+      failures.push(`${key} drag-only: ${error.message}`);
+    }
+    keys.add(key);
+  }
+  const missing = [];
+  for (const n of [20, 200, 1000])
+    for (const p of [25, 50])
+      for (const k of ["work", "overtime"])
+        if (!keys.has(`${n}/${p}/${k}`)) missing.push(`missing ${n}/${p}/${k}`);
+  return {
+    scope: "drag-only",
+    overallPerformance: "NOT_RUN",
+    result: failures.length ? "FAIL" : missing.length ? "NOT_RUN" : "PASS",
+    failures: [...failures, ...missing],
+  };
+}
+
 export function validatePaginatedMeasurements(rows) {
   const failures = [],
     missing = [];
@@ -267,7 +632,10 @@ export function validatePaginatedMeasurements(rows) {
       });
     check("mode", () =>
       assert(
-        m.mode === "server-pagination" && !m.sourceMetrics && !m.profile,
+        m.mode === "server-pagination" &&
+          !m.sourceMetrics &&
+          !m.profile &&
+          !m.scope,
         "fresh server-pagination evidence required",
       ),
     );
@@ -332,6 +700,7 @@ export function validatePaginatedMeasurements(rows) {
       check(name, () => {
         assert(m[name]?.length >= 5, "five 5s runs required");
         for (const run of m[name]) {
+          if (name === "dragRuns") assertDragRun(run, row.kind);
           assert(
             Number.isFinite(run.durationMs) &&
               run.durationMs >= 5000 &&
@@ -817,7 +1186,12 @@ async function markTransition(
   );
 }
 
-export async function measurePaginatedAttendance(sandbox, browser, size) {
+export async function measurePaginatedAttendance(
+  sandbox,
+  browser,
+  size,
+  { scope = "full" } = {},
+) {
   const rows = [];
   let storageState;
   const audits = new WeakMap();
@@ -867,7 +1241,8 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
       const metrics = {
         mode: "server-pagination",
         policy: sandbox.benchmarkPolicy,
-        globalCosts: sandbox.benchmarkGlobalCosts[pageSize],
+        globalCosts: sandbox.benchmarkGlobalCosts?.[pageSize],
+        ...(scope === "drag-only" ? { scope } : {}),
         apiMs: [],
         parseMs: [],
         projectionMs: [],
@@ -904,6 +1279,63 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
       let context;
       try {
         context = await login(metrics.network);
+        if (scope === "drag-only") {
+          const audit = audits.get(context);
+          const criteria = { month: "2026-10", q: "", page: 1, pageSize };
+          audit.begin("drag-bootstrap");
+          audit.expect({ ...criteria, pageSize: 25 }, "drag-bootstrap");
+          const page = await context.newPage();
+          await page.goto(sandbox.webOrigin, { waitUntil: "domcontentloaded" });
+          await ready(page, { ...criteria, pageSize: 25 }, "work");
+          if (pageSize === 50) {
+            audit.expect(criteria, "drag-configure-size50");
+            await page
+              .getByLabel("Số nhân sự mỗi trang")
+              .first()
+              .selectOption("50");
+            await ready(page, criteria, "work");
+          }
+          if (kind === "overtime")
+            await page
+              .getByRole("tab", { name: "Tăng ca", exact: true })
+              .click();
+          const delivery = await ready(page, criteria, kind);
+          metrics.delivery = delivery;
+          metrics.workload = await page.evaluate((kind) => {
+            const data = window.__paginationBench.reads.at(-1).data;
+            return {
+              logicalEmployees: data.pagination.monthEmployeeCount,
+              pageEmployees: data.employees.length,
+              activeCells: data.cells.filter((c) => c.kind === kind).length,
+            };
+          }, kind);
+          assert.equal(metrics.workload.logicalEmployees, size);
+          assert.equal(
+            metrics.workload.pageEmployees,
+            Math.min(size, pageSize),
+          );
+          metrics.phase = "trusted-mouse-drag";
+          metrics.dragRuns = [];
+          await measureTrustedDragRuns(page, metrics.dragRuns, async (i) => {
+            const previous = await ready(page, criteria, kind);
+            audit.expect(criteria, `drag-prepare-${i}`);
+            await page
+              .getByRole("button", { name: "Tải lại bảng", exact: true })
+              .click();
+            return ready(page, criteria, kind, {
+              afterDeliveryId: previous.deliveryId,
+            });
+          });
+          audit.end();
+          const validation = validateScopedDragMeasurements([row]);
+          row.failures = validation.failures.filter(
+            (f) => !f.startsWith("missing "),
+          );
+          row.checks = { dragOnly: row.failures.length === 0 };
+          if (!row.checks.dragOnly) row.result = "FAIL";
+          metrics.phase = "drag-only-measured";
+          continue;
+        }
         audits.get(context).begin("api");
         metrics.phase = "api";
         const criteria = { month: "2026-10", q: "", page: 1, pageSize };
@@ -1257,50 +1689,16 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
         }
         metrics.phase = "trusted-mouse-drag";
         metrics.dragRuns = [];
-        await page
-          .getByRole("button", { name: "Chọn nhiều", exact: true })
-          .click();
-        for (let i = 0; i < 5; i++) {
-          await page.locator(".grid-scroll").evaluate((el) => {
-            el.scrollTop = 0;
-            el.scrollLeft = 0;
+        await measureTrustedDragRuns(page, metrics.dragRuns, async (i) => {
+          const previous = await ready(page, criteria, kind);
+          audit.expect(criteria, `drag-prepare-${i}`);
+          await page
+            .getByRole("button", { name: "Tải lại bảng", exact: true })
+            .click();
+          return ready(page, criteria, kind, {
+            afterDeliveryId: previous.deliveryId,
           });
-          const cell = page.locator("button[data-cell]").first();
-          await cell.scrollIntoViewIfNeeded();
-          const box = await cell.boundingBox();
-          assert(box, "drag origin visible");
-          await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-          await page.mouse.down();
-          const framePromise = page.evaluate(measureScrollFrames, {
-            scroll: false,
-          });
-          try {
-            for (let step = 0; step < 25; step++) {
-              await page.mouse.move(
-                box.x + box.width / 2 + 20 + (step % 5) * 18,
-                box.y + box.height / 2 + 20 + (step % 3) * 18,
-              );
-              await page.waitForTimeout(200);
-            }
-          } finally {
-            await page.mouse.up();
-          }
-          const frames = await framePromise;
-          metrics.dragRuns.push({
-            durationMs: frames.reduce((a, b) => a + b, 0),
-            frames,
-          });
-          if (
-            await page
-              .getByRole("button", { name: "Hủy", exact: true })
-              .last()
-              .isVisible()
-          )
-            await closeEditor();
-        }
-        await page
-          .getByRole("button", { name: "Chọn nhiều", exact: true })
-          .click();
+        });
         const cycle = async () => {
           await jump(pages, "last");
           await jump(1, "initial");

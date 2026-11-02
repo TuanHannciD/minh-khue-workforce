@@ -41,6 +41,22 @@ test("check and destroy failures retain both causes", async () => {
   );
 });
 
+test("destroy-only failure is retained when the observer check passes", async () => {
+  const destroyError = new Error("destroy failed");
+  await assert.rejects(
+    runCheckedDestroy({
+      check: async () => {},
+      destroy: async () => {
+        throw destroyError;
+      },
+    }),
+    (error) => {
+      assert.deepEqual(error.errors, [destroyError]);
+      return true;
+    },
+  );
+});
+
 test("failure cleanup attempts every app, provision database, and pool", async () => {
   const attempted = [];
   const bodyError = new Error("body failed");
