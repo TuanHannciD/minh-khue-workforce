@@ -10,3 +10,19 @@ export interface EmploymentCellKey {
   date: string;
   kind: "work" | "overtime";
 }
+export interface MonthEmployeeQuery {
+  start: string;
+  end: string;
+  q: string;
+  page: number;
+  pageSize: 25 | 50;
+}
+export interface MonthEmployeePage {
+  employees: LockedEmployee[];
+  monthEmployeeCount: number;
+  totalResults: number;
+  page: number;
+  totalPages: number;
+  from: number;
+  to: number;
+}

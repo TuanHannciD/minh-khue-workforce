@@ -27,6 +27,11 @@ export interface StoredCell extends CellKey {
   reminder: boolean;
   revision: string;
 }
+export interface MonthAggregateHalves {
+  kind: AttendanceKind;
+  date: string;
+  halfUnits: bigint;
+}
 export interface KindTotals {
   byEmployee: { employeeId: string; value: number }[];
   byDate: { date: string; value: number }[];

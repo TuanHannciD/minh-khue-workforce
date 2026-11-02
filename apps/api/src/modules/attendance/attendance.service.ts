@@ -4,14 +4,10 @@ import { Database } from "../../infrastructure/db/database.js";
 import type { ProductTransaction } from "../../infrastructure/db/database.js";
 import { SessionAuthorizer } from "../auth/index.js";
 import type { MutationCredential } from "../auth/index.js";
-import {
-  EmploymentConsistency,
-  calendarMonth,
-  employmentState,
-} from "../employees/index.js";
-import type { LockedEmployee } from "../employees/index.js";
+import { EmploymentConsistency, calendarMonth } from "../employees/index.js";
 import type {
   MonthDto,
+  AttendancePageDto,
   ReconcileRequestDto,
   ReconcileSnapshotDto,
   WriteAttendanceDto,
@@ -23,40 +19,14 @@ import { attendanceError } from "./attendance-errors.js";
 import { normalizeValue, sameValue } from "./attendance-values.js";
 import { attendanceTotals } from "./attendance-totals.js";
 import { cellId, compareCells } from "./attendance.types.js";
-import type { CellKey, CellSnapshot, StoredCell } from "./attendance.types.js";
+import type {
+  CellKey,
+  CellSnapshot,
+  ParsedAttendancePageQuery,
+} from "./attendance.types.js";
+import { projectAttendanceCell as project } from "./attendance-projection.js";
+import { readAttendancePage } from "./attendance-page-read.js";
 
-function project(
-  key: CellKey,
-  employee: LockedEmployee,
-  stored?: StoredCell,
-): CellSnapshot {
-  const state = employmentState(employee, key.date);
-  if (
-    state !== "editable" &&
-    stored &&
-    (stored.valueType !== "empty" || stored.reminder)
-  )
-    attendanceError(
-      503,
-      "TEMPORARILY_UNAVAILABLE",
-      "Dữ liệu cần được kiểm tra trước khi tiếp tục.",
-    );
-  const value =
-    !stored || stored.valueType === "empty"
-      ? null
-      : stored.valueType === "absence"
-        ? { type: "absence" as const }
-        : { type: "number" as const, value: stored.halfUnits! / 2 };
-  return {
-    employeeId: key.employeeId,
-    date: key.date,
-    kind: key.kind,
-    value,
-    reminder: stored?.reminder ?? false,
-    revision: stored?.revision ?? "0",
-    state,
-  };
-}
 const employeeIds = (keys: CellKey[]) =>
   [...new Set(keys.map((k) => k.employeeId))].sort();
 @Injectable()
@@ -81,6 +51,17 @@ export class AttendanceService {
         return read(tx, clock!.now.toISOString());
       },
       { isolationLevel: "RepeatableRead", timeout: 10000 },
+    );
+  }
+  readPage(input: ParsedAttendancePageQuery): Promise<AttendancePageDto> {
+    return this.snapshot((tx, fetchedAt) =>
+      readAttendancePage(
+        tx,
+        fetchedAt,
+        input,
+        this.employment,
+        this.repository,
+      ),
     );
   }
   async readMonth(month: string): Promise<MonthDto> {

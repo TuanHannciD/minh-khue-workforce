@@ -1,6 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { ProductTransaction } from "../../infrastructure/db/database.js";
 import { EmployeesRepository } from "./employees.repository.js";
+import type {
+  MonthEmployeeQuery,
+  MonthEmployeePage,
+} from "./employees.types.js";
 
 // Public transaction seam for attendance. Never import the repository cross-module.
 @Injectable()
@@ -9,6 +13,12 @@ export class EmploymentConsistency {
     @Inject(EmployeesRepository)
     private readonly repository: EmployeesRepository,
   ) {}
+  readMonthPage(
+    tx: ProductTransaction,
+    query: MonthEmployeeQuery,
+  ): Promise<MonthEmployeePage> {
+    return this.repository.readMonthPage(tx, query);
+  }
   lockEmployees(tx: ProductTransaction, ids: string[]) {
     return this.repository.lockEmployees(tx, ids);
   }

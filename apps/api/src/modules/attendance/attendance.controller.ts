@@ -103,6 +103,13 @@ export class AttendanceController {
   month(@Query() query: unknown) {
     return this.service.readMonth(parseMonthQuery(query));
   }
+  @Post("search")
+  @HttpCode(200)
+  @ApiBody({ type: AttendancePageQueryDto })
+  @ApiOkResponse({ type: AttendancePageDto })
+  search(@Body() input: unknown) {
+    return this.service.readPage(parseAttendancePageQuery(input));
+  }
   @Post("reconcile")
   @HttpCode(200)
   @ApiBody({ type: ReconcileRequestDto })
@@ -125,6 +132,7 @@ export class AttendanceController {
 }
 
 import {
+  parseAttendancePageQuery,
   parseMonthQuery,
   parseReconcile,
   parseWrite,

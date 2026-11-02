@@ -8,3 +8,7 @@ export {
   employmentState,
 } from "./employment-date.js";
 export type { LockedEmployee, EmploymentCellKey } from "./employees.types.js";
+export type {
+  MonthEmployeeQuery,
+  MonthEmployeePage,
+} from "./employees.types.js";

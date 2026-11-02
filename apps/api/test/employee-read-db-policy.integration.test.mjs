@@ -525,6 +525,9 @@ test("db_capability_and_literal_order_match_fixed_policy", async (t) => {
           ["mkw_read_vi_equivalent", false],
           ["mkw_read_vi_deterministic", true],
         ]) {
+          // Task3 migration installs the production collation; this policy
+          // fixture recreates each reviewed candidate with its own setting.
+          await sandbox.pool.query(`DROP COLLATION IF EXISTS "${name}"`);
           await sandbox.pool.query(
             `CREATE COLLATION "${name}" (provider=icu, locale='vi', deterministic=${deterministic})`,
           );
