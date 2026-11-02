@@ -1,5 +1,35 @@
 # Validation — MKW-PRODUCT-001
 
+## Task9 fix R1 — instrumentation đã sửa, 02/11/2026
+
+Task9 R1 yêu cầu sửa I1–I5 trên FIX_BASE `9d56af960d90b6ef0061a14a00db69782767a69e`. Phần Task9 bên dưới giữ số liệu lịch sử và verdict6 PASS/6 Failed; các claim network/bootstrap, attribution render Tăng ca và poll footer cũ có giới hạn instrumentation đã được review chỉ ra, không là proof của các gate tương ứng. Evidence mới thay phạm vi kiểm chứng đó, không sửa/relabel raw cũ. Full report `.superpowers/sdd/server-pagination-implementation-plan/task-9-fix-r1-report.md`; main cần fresh independent scoped re-review rồi whole-branch review riêng.
+
+Focused RED I1–I4:20 tests/15 PASS/5 FAIL; RED I5:1 FAIL vì mất401 và cleanup cause. Sau sửa, focused22/22, product check69tooling/14sandbox/247web/23API, failure/caller/cleanup16/16 đều exit0; warning Vite chunk587.73kB và experimental/deprecated module mocks vẫn còn, M1/M2 được main hoãn. Không production/dependency/threshold delta.
+
+Một lượt fresh full12 trên source đóng băng, `benchmark-fresh-full12`11:16:20.949Z..11:39:07.148Z exit1: **8 PASS/4 FAIL chỉ vì heap tăng đơn điệu**. Bốn row FAIL:20/50/work1.8532721234359784%,200/50/work1.7529745698411592%,1000/50/work1.6651396798066598%,1000/50/overtime7.8867918204789556%. Đều dưới20% nhưng strict monotonic gate vẫn Failed; không causal product-leak claim. Raw `.agent-runs/MKW-PRODUCT-001/server-pagination/task9-fix-r1-20261102/browser/benchmark-run-a0fdb4b9-f8cb-45e2-8cf3-88d8ec0b0c49.json`; `fresh-corrected.summary.md`/`.json` cùng root giữ exact numeric tables/raw arrays/hashes. Máy/runtime/browser/budgets giống checkpoint trước, không check/UI/source edit đồng thời trong lượt đo.
+
+Mỗi config có audit trước5 cold navigation/5 warm reload, scope start/end và raw safe facts, canonical four keys/criteria lấy từ scenario độc lập, request dư phải fail. Năm render correlations có deliveryId/fetchedAt/criteria/resource responseEnd/observedAt/kind; mỗi phần tử theo thứ tự warm reload1–5, deliveryId chỉ có scope trong document đó. Render overtime p95 thực101.09999996423721–149.5ms theo raw, không reuse work timestamp. Poll mới assert response fetchedAt/new delivery, footer DOM ngày/tháng của active kind và active employee IDs không đổi; SQL active kind3→5→3, offpage khi có, size20 ghi false. Login/setup original assertion/status và từng cleanup cause được serialize cấu trúc an toàn, không ghi credential/body/raw DB error.
+
+Cleanup audit thực:3 UUID DB retained/6 HTTP ports refused,6 owner password rotations,0 unrevoked sessions/0 connections, independent pools ended. PG PID22072 đúng executable/data/SQL identity17.11 được stop, status3/no process/pidfile/TCP refused, owner SHA256 không đổi/data retained. Wrapper start báo lỗi đọc exitcode dù PG đã chạy; xác minh thực trước tiếp tục, không start lần hai. Capture audit đụng tên `cleanup-audit.json` sau khi child audit exit0; giữ artifact PASS/raw và ghi giới hạn wrapper, không relabel capture thành exit0. Native/SR/phoneperf/zoom/textscale/reader/dependency/G4 gaps giữ trạng thái cũ.
+
+Exact metrics của lượt sửa (ms, nearest-rank p95, không làm tròn để xét gate; scroll/drag là max của5 p95 và max của5 maxima):
+
+| Logical/page/kind | API/cold p95 ms | Warm/render p95 ms | Editor/input p95 ms | Scroll p95/max | Drag p95/max | Heap growth % | Result |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 20/25/work | 21.66060000000016/281.78960000000006 | 150.59649999999965/58.69999998807907 | 27.30000001192093/25 | 16.799999999995634/16.80000000000291 | 16.79999999998836/16.80000000000291 | 3.2198242611787498 | PASS |
+| 20/25/overtime | 26.407600000005914/305.78340000000026 | 199.92089999999735/114.59999996423721 | 28.899999976158142/25.19999998807907 | 16.799999999995634/16.80000000000291 | 16.80000000000291/16.80000000000291 | 0.8613056185623247 | PASS |
+| 20/50/work | 26.42840000000433/371.5914000000048 | 250.69080000001122/46.10000002384186 | 27.400000035762787/25.19999998807907 | 16.700000000004366/16.80000000000291 | 16.799999999995634/16.80000000000291 | 1.8532721234359784 | FAIL |
+| 20/50/overtime | 27.915600000007544/423.8422000000137 | 300.3466999999946/101.09999996423721 | 27.80000001192093/25.69999998807907 | 16.799999999995634/16.80000000000291 | 16.70000000001164/16.80000000000291 | 2.2794707095631805 | PASS |
+| 200/25/work | 40.81719999999041/288.6587999999756 | 167.12590000004275/58.10000002384186 | 26.80000001192093/24.700000047683716 | 16.799999999995634/16.80000000000291 | 16.79999999998836/16.80000000000291 | 7.278001959835567 | PASS |
+| 200/25/overtime | 33.48380000004545/350.5213999999687 | 233.64930000004824/131.89999997615814 | 26.899999976158142/24.899999976158142 | 16.799999999995634/16.80000000000291 | 16.70000000001164/16.80000000000291 | 3.379138472589771 | PASS |
+| 200/50/work | 42.85879999992903/422.06299999996554 | 316.55119999998715/91.60000002384186 | 35.59999996423721/22 | 16.799999999995634/33.30000000000291 | 16.70000000001164/33.20000000001164 | 1.7529745698411592 | FAIL |
+| 200/50/overtime | 45.900799999944866/489.0193000000436 | 383.48259999998845/137.79999995231628 | 36/22 | 16.700000000004366/33.400000000001455 | 16.80000000000291/33.30000000000291 | -2.9334674071416655 | PASS |
+| 1000/25/work | 107.41760000004433/704.7992999999551 | 234.25/59.30000001192093 | 26.899999976158142/25.19999998807907 | 16.799999999995634/16.80000000000291 | 16.70000000001164/16.80000000000291 | 7.693149569548496 | PASS |
+| 1000/25/overtime | 58.26729999994859/353.6533000000054 | 233.68739999993704/113 | 26.5/25.19999998807907 | 16.799999999995634/16.80000000000291 | 16.79999999998836/16.80000000000291 | 2.298628986496065 | PASS |
+| 1000/50/work | 69.24360000016168/473.18940000003204 | 366.6028999998234/78.30000001192093 | 39.59999996423721/21.399999976158142 | 16.799999999995634/33.39999999999418 | 16.80000000000291/33.40000000000873 | 1.6651396798066598 | FAIL |
+| 1000/50/overtime | 69.83609999995679/560.8441000001039 | 450.27370000001974/149.5 | 37.59999996423721/21.600000023841858 | 16.799999999995634/33.400000000001455 | 16.80000000000291/33.29999999998836 | 7.8867918204789556 | FAIL |
+
+
 ## Task9 — server pagination measurements, 02/11/2026
 
 Task8 R2 **PASS 0 Critical/0 Important/0 Minor** trên exact fix TIP `a19df7487fc7498c96086a9c70a21174d4ee1575`, I1/M1 Closed; source `.superpowers/sdd/server-pagination-implementation-plan/task-8-review-r2.md` đầy đủ. Transport interruption không replay Task8; checkpoints Pending bên dưới là lịch sử. Task9 sole Sol/high/no children dùng clean BASE đó, worktree `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`, branch `agent/mkw-agent-002`; main owns fresh independent whole-branch review sau local commit.

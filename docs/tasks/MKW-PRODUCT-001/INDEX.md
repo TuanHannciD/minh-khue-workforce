@@ -1,5 +1,9 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Task9 fix R1 — checkpoint02/11/2026
+
+Tác giả đã sửa I1–I5 của review R1 bằng focused RED/GREEN và một fresh full12 trên source đóng băng. [Validation fix R1](validation.md#task9-fix-r1--instrumentation-đã-sửa-02112026) và [matrix](technical/verification-matrix.md#task9-fix-r1--checkpoint-instrumentation-02112026) giữ exact metrics/gates/raw/cleanup. Current performance **FAIL:8/12 PASS,4 monotonic-heap FAIL**. Checkpoint6/6 bên dưới giữ lịch sử; giới hạn bootstrap/matcher/render-kind/poll-footer cũ được ghi rõ, không relabel old raw. Main fresh scoped re-review Pending, sau đó whole-branch review riêng; native/SR/phoneperf/reader/dependency/G4 không clearance, không product Done.
+
 ## Task9 — triển khai benchmark và evidence hiện hành, 02/11/2026
 
 Task8 R2 tại `a19df7487fc7498c96086a9c70a21174d4ee1575` **PASS 0C/0I/0M**, I1/M1 Closed; report nguồn `.superpowers/sdd/server-pagination-implementation-plan/task-8-review-r2.md` đầy đủ. Transport interruption không làm mất verdict và không replay Task8. Các checkpoint Task8 Pending bên dưới là lịch sử.

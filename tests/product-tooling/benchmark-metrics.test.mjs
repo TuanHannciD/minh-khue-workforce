@@ -48,6 +48,15 @@ function paginatedFixture() {
           coldLoadMs: timings(5),
           warmLoadMs: timings(5),
           renderAfterResponseMs: timings(5),
+          renderCorrelations: Array.from({ length: 5 }, (_, i) => ({
+            deliveryId: `delivery-${i}`,
+            kind,
+            criteria: { month: "2026-10", q: "", page: 1, pageSize },
+            startAt: 1,
+            resourceStart: 2,
+            responseEnd: 10,
+            observedAt: 20,
+          })),
           parseMs: timings(5),
           projectionMs: timings(5),
           payloadBytes: timings(5, 500),
@@ -103,8 +112,61 @@ function paginatedFixture() {
             invariant: timings(5),
             offset: timings(5),
           },
-          poll: { requests: 1, exactCriteria: true, totalsMatch: true },
-          network: { fullMonthSubscriptions: 0, unexpectedWrites: 0 },
+          poll: {
+            requests: 1,
+            exactCriteria: true,
+            totalsMatch: true,
+            beforeDeliveryId: "old",
+            responseFetchedAt: "snapshot2",
+            mutationKind: kind,
+            offpageAvailable: logicalEmployees > pageSize,
+            mutatedEmployeeId: "outside",
+            expected: {
+              footer: { day: 11, month: 11 },
+              employeeIds: ["active"],
+            },
+            observed: {
+              deliveryId: "new",
+              fetchedAt: "snapshot2",
+              kind,
+              footer: { day: 11, month: 11 },
+              employeeIds: ["active"],
+            },
+          },
+          network: {
+            fullMonthSubscriptions: 0,
+            unexpectedWrites: 0,
+            unexpectedReads: 0,
+            coverage: [
+              ...Array.from({ length: 10 }, (_, i) => ({
+                id: i + 1,
+                phase: i % 2 ? "warm" : "cold",
+                startAt: 0,
+                endAt: 10,
+                attachedBeforeNavigation: true,
+                pending: false,
+              })),
+              {
+                id: 11,
+                phase: "interactive",
+                startAt: 0,
+                endAt: 10,
+                attachedBeforeNavigation: true,
+                pending: false,
+              },
+            ],
+            facts: Array.from({ length: 10 }, (_, i) => ({
+              scopeId: i + 1,
+              scenario: i % 2 ? "warm-bootstrap" : "cold-bootstrap",
+              at: 1,
+              method: "POST",
+              path: "/api/v1/attendance/search",
+              keys: ["month", "page", "pageSize", "q"],
+              criteria: { month: "2026-10", q: "", page: 1, pageSize },
+              expected: { month: "2026-10", q: "", page: 1, pageSize },
+              classification: "scenario",
+            })),
+          },
           rawInputTableMutations: 0,
         },
       })),
@@ -342,6 +404,105 @@ test("one HTTP SQL sample includes auth and page transactions without losing glo
   assert.equal(sample.queries.length, 6);
   assert.equal(sample.queries[0].name, "auth");
   assert.throws(() => pagination.combineApiSqlSample([]), /transaction/);
+});
+
+test("I1 bootstrap-only fullmonth or write cannot hide behind zero network counters", () => {
+  for (const fact of [
+    { method: "GET", path: "/api/v1/attendance/month" },
+    { method: "PATCH", path: "/api/v1/employees/fake" },
+  ]) {
+    const rows = paginatedFixture();
+    rows[0].metrics.network.facts.push({ scopeId: 1, at: 1, ...fact });
+    const result = pagination.validatePaginatedMeasurements(rows);
+    assert.equal(
+      result.result,
+      "FAIL",
+      "bootstrap violation must fail actual validator",
+    );
+  }
+});
+
+test("I2 wrong criteria, unknown keys and an extra page read cannot pass accounting", () => {
+  const expected = { month: "2026-10", q: "", page: 1, pageSize: 25 };
+  for (const body of [
+    { ...expected, month: "2026-09" },
+    { ...expected, q: "other" },
+    { ...expected, page: 2 },
+    { ...expected, pageSize: 50 },
+    { arbitrary: 1, keys: 2, instead: 3, criteria: 4 },
+    { month: "2026-10", q: "", page: 1 },
+    { ...expected, unknown: 1 },
+  ]) {
+    const rows = paginatedFixture();
+    rows[0].metrics.network.facts[0] = {
+      ...rows[0].metrics.network.facts[0],
+      expected,
+      criteria: body,
+      keys: Object.keys(body).sort(),
+    };
+    assert.equal(pagination.validatePaginatedMeasurements(rows).result, "FAIL");
+  }
+  const rows = paginatedFixture();
+  rows[0].metrics.network.unexpectedReads = 1;
+  assert.equal(pagination.validatePaginatedMeasurements(rows).result, "FAIL");
+});
+
+test("I1 I2 context audit attaches before bootstrap and accounts duplicate/out-of-context reads", () => {
+  let listener,
+    now = 0;
+  const network = {
+    facts: [],
+    coverage: [],
+    unexpectedReads: 0,
+    unexpectedWrites: 0,
+    fullMonthSubscriptions: 0,
+  };
+  const audit = pagination.createPageNetworkAudit(
+    {
+      on(event, fn) {
+        assert.equal(event, "request");
+        listener = fn;
+      },
+    },
+    network,
+    () => now,
+  );
+  const expected = { month: "2026-10", q: "", page: 1, pageSize: 25 };
+  const request = (
+    body,
+    path = "/api/v1/attendance/search",
+    method = "POST",
+  ) => ({
+    url: () => `http://fixture.invalid${path}`,
+    method: () => method,
+    postDataJSON: () => body,
+  });
+  assert.equal(
+    typeof listener,
+    "function",
+    "must attach before any page exists",
+  );
+  audit.begin("cold");
+  audit.expect(expected, "bootstrap");
+  listener(request(expected));
+  listener(request(expected));
+  listener(request({ ...expected, q: "unexpected" }));
+  listener(request(null, "/api/v1/attendance/month", "GET"));
+  listener(request(null, "/api/v1/employees/fake", "PATCH"));
+  now = 16000;
+  listener(request(expected));
+  audit.end();
+  assert.deepEqual(network.facts.map((f) => f.classification).filter(Boolean), [
+    "scenario",
+    "unexpected-read",
+    "unexpected-read",
+    "active-poll",
+  ]);
+  assert.equal(network.unexpectedReads, 2);
+  assert.equal(network.fullMonthSubscriptions, 1);
+  assert.equal(network.unexpectedWrites, 1);
+  assert.equal(network.facts[2].expected.q, "");
+  assert.equal(network.coverage[0].pending, false);
 });
 
 test("benchmark nearest-rank p95 preserves a freeze hidden by the median", () => {

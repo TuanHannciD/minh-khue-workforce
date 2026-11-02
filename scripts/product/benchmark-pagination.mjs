@@ -20,6 +20,152 @@ import { toPageTable } from "../../apps/web/src/features/attendance/model/attend
 import { orderedMonthCells } from "../../apps/web/src/features/attendance/model/month-view.ts";
 import { matchesAttendancePageRead } from "../../tests/product-e2e/attendance-read-matchers.ts";
 
+// Error messages from drivers can contain credentials or raw SQL. Retain only
+// structural causes, harness stages, codes and scalar assertion facts.
+export function safeBenchmarkError(error, depth = 0, seen = new Set()) {
+  if (!error || depth > 5 || seen.has(error)) return { name: "TruncatedError" };
+  seen.add(error);
+  const result = {
+    name: [
+      "Error",
+      "AssertionError",
+      "AggregateError",
+      "TimeoutError",
+    ].includes(error.name)
+      ? error.name
+      : "Error",
+  };
+  if (/^[A-Z0-9_]{1,64}$/.test(String(error.code ?? "")))
+    result.code = error.code;
+  for (const key of ["actual", "expected", "status"])
+    if (typeof error[key] === "number" || typeof error[key] === "boolean")
+      result[key] = error[key];
+  if (
+    ["login", "context-setup", "context-close"].includes(error.benchmarkStage)
+  )
+    result.stage = error.benchmarkStage;
+  if (error.errors)
+    result.errors = [...error.errors]
+      .slice(0, 8)
+      .map((e) => safeBenchmarkError(e, depth + 1, new Set(seen)));
+  if (error.cause)
+    result.cause = safeBenchmarkError(error.cause, depth + 1, new Set(seen));
+  return result;
+}
+
+const canonicalKeys = ["month", "page", "pageSize", "q"];
+export function exactPageCriteria(body, expected) {
+  return (
+    body &&
+    expected &&
+    JSON.stringify(Object.keys(body).sort()) ===
+      JSON.stringify(canonicalKeys) &&
+    typeof body.month === "string" &&
+    /^\d{4}-\d{2}$/.test(body.month) &&
+    typeof body.q === "string" &&
+    Number.isInteger(body.page) &&
+    body.page > 0 &&
+    [25, 50].includes(body.pageSize) &&
+    canonicalKeys.every((key) => body[key] === expected[key])
+  );
+}
+
+// Node-owned facts never enter the measured renderer. Expectations are armed by
+// the scenario before its UI action; only the 15s active-page timer is unsolicited.
+export function createPageNetworkAudit(
+  context,
+  network,
+  now = () => performance.now(),
+) {
+  let scope,
+    pending,
+    active,
+    lastReadAt = -Infinity;
+  const end = () => {
+    if (scope && scope.endAt === undefined) {
+      scope.endAt = now();
+      scope.pending = Boolean(pending);
+    }
+  };
+  context.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (!path.startsWith("/api/")) return;
+    const at = now(),
+      method = request.method();
+    const fact = {
+      scopeId: scope?.id,
+      phase: scope?.phase ?? "unscoped",
+      at,
+      method,
+      path,
+    };
+    if (path === "/api/v1/attendance/search") {
+      let body;
+      try {
+        body = request.postDataJSON();
+      } catch {
+        /* malformed body is a failed read */
+      }
+      fact.keys = Object.keys(body ?? {}).sort();
+      fact.criteria = Object.fromEntries(
+        canonicalKeys
+          .filter(
+            (k) =>
+              typeof body?.[k] === "string" || typeof body?.[k] === "number",
+          )
+          .map((k) => [k, body[k]]),
+      );
+      const expected = pending ?? active;
+      fact.expected = expected ? { ...expected.criteria } : null;
+      fact.scenario = expected?.scenario;
+      fact.elapsedSinceReadMs = Number.isFinite(lastReadAt)
+        ? at - lastReadAt
+        : null;
+      const matches =
+        method === "POST" &&
+        exactPageCriteria(body, fact.expected) &&
+        matchesAttendancePageRead(request, fact.expected);
+      fact.classification =
+        matches && pending
+          ? "scenario"
+          : matches && active && at - lastReadAt >= 14900
+            ? "active-poll"
+            : "unexpected-read";
+      if (fact.classification === "scenario") {
+        active = pending;
+        pending = undefined;
+      }
+      if (fact.classification === "unexpected-read") network.unexpectedReads++;
+      lastReadAt = at;
+    } else if (path === "/api/v1/attendance/month")
+      network.fullMonthSubscriptions++;
+    else if (!["GET", "HEAD"].includes(method)) network.unexpectedWrites++;
+    network.facts.push(fact);
+  });
+  return {
+    begin(phase, carryActive = false) {
+      end();
+      pending = undefined;
+      if (!carryActive) {
+        active = undefined;
+        lastReadAt = -Infinity;
+      }
+      scope = {
+        id: network.coverage.length + 1,
+        phase,
+        startAt: now(),
+        attachedBeforeNavigation: true,
+      };
+      network.coverage.push(scope);
+    },
+    expect(criteria, scenario) {
+      assert(!pending, "previous network expectation unconsumed");
+      pending = { criteria: { ...criteria }, scenario };
+    },
+    end,
+  };
+}
+
 export function projectPaginatedWorkload(data, kind) {
   return {
     logicalEmployees: data.pagination.monthEmployeeCount,
@@ -277,21 +423,112 @@ export function validatePaginatedMeasurements(rows) {
           );
       }
     });
-    check("poll", () =>
+    check("renderCorrelations", () => {
+      assert.equal(
+        m.renderCorrelations?.length,
+        5,
+        "five delivery/kind correlations required",
+      );
+      m.renderCorrelations.forEach((r, i) => {
+        assert(
+          r.deliveryId &&
+            r.kind === row.kind &&
+            exactPageCriteria(r.criteria, {
+              month: "2026-10",
+              q: "",
+              page: 1,
+              pageSize: row.pageSize,
+            }),
+        );
+        summarize([r.startAt, r.resourceStart, r.responseEnd, r.observedAt]);
+        assert(
+          r.resourceStart >= r.startAt - 2 && r.observedAt >= r.responseEnd,
+        );
+        assert.equal(m.renderAfterResponseMs[i], r.observedAt - r.responseEnd);
+      });
+    });
+    check("poll", () => {
       assert(
         m.poll?.requests >= 1 &&
           m.poll.exactCriteria === true &&
           m.poll.totalsMatch === true,
         "actual active-page poll/global totals evidence required",
-      ),
-    );
-    check("network", () =>
+      );
+      const p = m.poll;
+      assert(
+        p.observed?.deliveryId &&
+          p.observed.deliveryId !== p.beforeDeliveryId &&
+          p.observed.fetchedAt === p.responseFetchedAt &&
+          p.observed.kind === row.kind,
+      );
+      assert.equal(p.observed.footer.day, p.expected.footer.day);
+      assert.equal(p.observed.footer.month, p.expected.footer.month);
+      assert.deepEqual(p.observed.employeeIds, p.expected.employeeIds);
+      assert.equal(p.mutationKind, row.kind);
+      assert.equal(p.offpageAvailable, size > row.pageSize);
+      if (p.offpageAvailable)
+        assert(!p.observed.employeeIds.includes(p.mutatedEmployeeId));
+    });
+    check("network", () => {
       assert(
         m.network?.fullMonthSubscriptions === 0 &&
-          m.network?.unexpectedWrites === 0,
+          m.network?.unexpectedWrites === 0 &&
+          m.network?.unexpectedReads === 0,
         "unbounded read or hidden write",
-      ),
-    );
+      );
+      const n = m.network;
+      for (const phase of ["cold", "warm"])
+        assert.equal(
+          n.coverage?.filter((c) => c.phase === phase).length,
+          5,
+          "bootstrap coverage missing",
+        );
+      assert(n.coverage.some((c) => c.phase === "interactive"));
+      for (const c of n.coverage)
+        assert(
+          c.attachedBeforeNavigation &&
+            Number.isFinite(c.startAt) &&
+            c.endAt >= c.startAt &&
+            !c.pending,
+        );
+      for (const c of n.coverage.filter((c) =>
+        ["cold", "warm"].includes(c.phase),
+      )) {
+        assert(
+          n.facts.some(
+            (f) =>
+              f.scopeId === c.id &&
+              f.scenario === `${c.phase}-bootstrap` &&
+              f.classification === "scenario",
+          ),
+          "bootstrap search facts missing",
+        );
+      }
+      assert(n.facts?.length > 0, "raw requests missing");
+      for (const f of n.facts) {
+        const c = n.coverage.find((c) => c.id === f.scopeId);
+        assert(c && f.at >= c.startAt && f.at <= c.endAt, "uncovered request");
+        assert.notEqual(
+          f.path,
+          "/api/v1/attendance/month",
+          "fullmonth subscription",
+        );
+        if (f.path === "/api/v1/attendance/search") {
+          assert.equal(f.method, "POST");
+          assert.deepEqual(f.keys, canonicalKeys);
+          assert(
+            exactPageCriteria(f.criteria, f.expected),
+            "independent criteria mismatch",
+          );
+          assert(
+            ["scenario", "active-poll"].includes(f.classification),
+            "extra read",
+          );
+          if (f.classification === "active-poll")
+            assert(f.elapsedSinceReadMs >= 14900);
+        } else assert(["GET", "HEAD"].includes(f.method), "unexpected write");
+      }
+    });
     check("rawInput", () =>
       assert(m.rawInputTableMutations === 0, "raw keypress invalidated table"),
     );
@@ -325,6 +562,7 @@ export function installPaginationTelemetry() {
     }
   };
   const telemetry = (window.__paginationBench = {
+    sequence: 0,
     reads: [],
     transitions: [],
     feedback: [],
@@ -368,6 +606,7 @@ export function installPaginationTelemetry() {
     let record;
     if (path === "/api/v1/attendance/search") {
       record = {
+        id: `delivery-${++telemetry.sequence}`,
         criteria: JSON.parse(options.body),
         startAt: performance.now(),
       };
@@ -460,63 +699,102 @@ export function installPaginationTelemetry() {
   });
 }
 
-async function ready(page, criteria, kind) {
-  await page.waitForFunction(
-    ({ criteria, kind }) => {
-      const t = window.__paginationBench;
-      const read = t?.reads.findLast(
-        (r) =>
-          r.data &&
-          Object.entries(criteria).every(([k, v]) => r.criteria[k] === v) &&
-          (!t.mark || t.mark.commitAt !== undefined || r.mark === t.mark),
-      );
-      if (!read) return false;
-      const data = read.data,
-        region = document.querySelector('.grid-scroll[aria-busy="false"]');
-      if (!region || document.querySelector('[role="alert"]')) return false;
-      const buttons = [...region.querySelectorAll("button[data-cell]")];
-      const ids = [
-        ...new Set(buttons.map((b) => b.dataset.cell.split("/")[0])),
-      ];
-      const expected = data.employees.map((e) => e.id);
-      if (
-        JSON.stringify(ids) !== JSON.stringify(expected) ||
-        buttons.length !==
-          expected.length *
-            new Date(
-              Number(criteria.month.slice(0, 4)),
-              Number(criteria.month.slice(5)),
-              0,
-            ).getDate() ||
-        buttons.some((b) => !b.dataset.cell.endsWith("/" + kind) || b.disabled)
-      )
-        return false;
-      // Snapshot status must belong to this exact delivery, including empty search.
-      if (!document.body.textContent.includes(data.fetchedAt)) return false;
-      read.usableAt ??= performance.now();
-      const mark = read.mark;
-      if (mark && mark.commitAt === undefined) {
-        // A sub-frame busy state may precede observer installation only on cold
-        // boot. The initial loading status is observed in ordinary navigation.
-        if (mark.busyAt === undefined) return false;
-        mark.responseAt = read.responseAt;
-        mark.commitAt = performance.now();
-        mark.criteriaMatched = true;
-        mark.editable = true;
-        mark.guardWaitMs = 0;
-        t.transitions.push({ ...mark });
-      }
-      return true;
-    },
-    { criteria, kind },
+export function observeEditableDelivery({ criteria, kind, requirement = {} }) {
+  const t = window.__paginationBench;
+  const read = t?.reads.findLast(
+    (r) =>
+      r.data &&
+      Object.entries(criteria).every(([k, v]) => r.criteria[k] === v) &&
+      (!t.mark || t.mark.commitAt !== undefined || r.mark === t.mark),
+  );
+  if (
+    !read ||
+    read.id === requirement.afterDeliveryId ||
+    (requirement.fetchedAt && read.data.fetchedAt !== requirement.fetchedAt)
+  )
+    return false;
+  const data = read.data,
+    region = document.querySelector('.grid-scroll[aria-busy="false"]');
+  if (!region || document.querySelector('[role="alert"]')) return false;
+  const buttons = [...region.querySelectorAll("button[data-cell]")];
+  const ids = [...new Set(buttons.map((b) => b.dataset.cell.split("/")[0]))];
+  const expected = data.employees.map((e) => e.id);
+  if (
+    JSON.stringify(ids) !== JSON.stringify(expected) ||
+    buttons.length !==
+      expected.length *
+        new Date(
+          Number(criteria.month.slice(0, 4)),
+          Number(criteria.month.slice(5)),
+          0,
+        ).getDate() ||
+    buttons.some((b) => !b.dataset.cell.endsWith("/" + kind) || b.disabled)
+  )
+    return false;
+  // Snapshot status must belong to this exact delivery, including empty search.
+  if (!document.body.textContent.includes(data.fetchedAt)) return false;
+  const footer = {};
+  if (requirement.footer) {
+    const unit = kind === "work" ? "công" : "giờ";
+    const number = (selector) => {
+      const text = region.querySelector(selector)?.textContent?.trim();
+      return text ? Number(text.replace(/\./g, "").replace(",", ".")) : NaN;
+    };
+    footer.day = number(
+      `tfoot [aria-label="Tổng ${requirement.footer.date} · ${unit}"]`,
+    );
+    footer.month = number(`tfoot [aria-label="Tổng tháng · ${unit}"]`);
+    if (
+      footer.day !== requirement.footer.day ||
+      footer.month !== requirement.footer.month
+    )
+      return false;
+  }
+  if (
+    requirement.employeeIds &&
+    JSON.stringify(ids) !== JSON.stringify(requirement.employeeIds)
+  )
+    return false;
+  const observedAt = performance.now();
+  const mark = read.mark;
+  if (mark && mark.commitAt === undefined) {
+    // A sub-frame busy state may precede observer installation only on cold
+    // boot. The initial loading status is observed in ordinary navigation.
+    if (mark.busyAt === undefined) return false;
+    mark.responseAt = read.responseAt;
+    mark.commitAt = performance.now();
+    mark.criteriaMatched = true;
+    mark.editable = true;
+    mark.guardWaitMs = 0;
+    t.transitions.push({ ...mark });
+  }
+  return {
+    deliveryId: read.id,
+    criteria: read.criteria,
+    kind,
+    observedAt,
+    fetchedAt: data.fetchedAt,
+    employeeIds: ids,
+    footer,
+    startAt: read.startAt,
+  };
+}
+
+export async function ready(page, criteria, kind, requirement = {}) {
+  const handle = await page.waitForFunction(
+    observeEditableDelivery,
+    { criteria, kind, requirement },
     { timeout: 30000 },
   );
+  const observed = await handle.jsonValue();
+  await handle.dispose?.();
   await page.evaluate(
     () =>
       new Promise((done) =>
         requestAnimationFrame(() => requestAnimationFrame(done)),
       ),
   );
+  return observed;
 }
 
 async function markTransition(
@@ -542,29 +820,45 @@ async function markTransition(
 export async function measurePaginatedAttendance(sandbox, browser, size) {
   const rows = [];
   let storageState;
-  const login = async () => {
+  const audits = new WeakMap();
+  const login = async (network) => {
     const context = await browser.newContext({
       viewport: { width: 1280, height: 800 },
       ...(storageState ? { storageState } : {}),
     });
-    context.setDefaultTimeout(10000);
+    let stage = "context-setup";
     try {
+      context.setDefaultTimeout(10000);
+      const audit = createPageNetworkAudit(context, network);
+      audits.set(context, audit);
+      audit.begin("setup");
       await context.addInitScript(installPaginationTelemetry);
       if (!storageState) {
+        stage = "login";
         const r = await context.request.post(
           `${sandbox.webOrigin}/api/v1/auth/login`,
           { headers: { origin: sandbox.webOrigin }, data: sandbox.accounts[0] },
         );
+        network.auth.push({ phase: "fixture-login", status: r.status() });
         assert.equal(r.status(), 200);
         storageState = await context.storageState();
       }
       return context;
     } catch (error) {
+      error.benchmarkStage = stage;
+      audits.get(context)?.end();
       await withCleanup(
         async () => {
           throw error;
         },
-        () => context.close(),
+        async () => {
+          try {
+            await context.close();
+          } catch (error) {
+            error.benchmarkStage = "context-close";
+            throw error;
+          }
+        },
       );
     }
   };
@@ -581,10 +875,20 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
         coldLoadMs: [],
         warmLoadMs: [],
         renderAfterResponseMs: [],
+        renderCorrelations: [],
         pageTransitions: [],
         searchTransitions: [],
         scrollRuns: [],
-        network: { fullMonthSubscriptions: 0, unexpectedWrites: 0 },
+        network: {
+          fullMonthSubscriptions: 0,
+          unexpectedWrites: 0,
+          unexpectedReads: 0,
+          coverage: [],
+          facts: [],
+          auth: [],
+          apiPhase:
+            "isolated APIRequestContext; fullmonth oracle owned by runner, never page",
+        },
       };
       const row = {
         logicalEmployees: size,
@@ -599,7 +903,8 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
       rows.push(row);
       let context;
       try {
-        context = await login();
+        context = await login(metrics.network);
+        audits.get(context).begin("api");
         metrics.phase = "api";
         const criteria = { month: "2026-10", q: "", page: 1, pageSize };
         const sqlStart = sandbox.benchmarkSqlEvents?.length ?? 0;
@@ -642,11 +947,13 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
             ),
           );
         }
+        audits.get(context).end();
         await context.close();
         context = undefined;
         const configure = async (page) => {
           await ready(page, { ...criteria, pageSize: 25 }, "work");
           if (pageSize === 50) {
+            audits.get(context).expect(criteria, "configure-size50");
             await page
               .getByLabel("Số nhân sự mỗi trang")
               .first()
@@ -657,43 +964,51 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
             await page
               .getByRole("tab", { name: "Tăng ca", exact: true })
               .click();
-          await ready(page, criteria, kind);
+          return ready(page, criteria, kind);
         };
         metrics.phase = "cold-warm";
         for (let i = 0; i < 5; i++) {
-          context = await login();
+          context = await login(metrics.network);
+          const audit = audits.get(context);
+          audit.begin("cold");
+          audit.expect({ ...criteria, pageSize: 25 }, "cold-bootstrap");
           const page = await context.newPage();
           let start = performance.now();
           await page.goto(sandbox.webOrigin, { waitUntil: "domcontentloaded" });
           await configure(page);
           metrics.coldLoadMs.push(performance.now() - start);
+          audit.begin("warm");
+          audit.expect({ ...criteria, pageSize: 25 }, "warm-bootstrap");
           start = performance.now();
           await page.reload({ waitUntil: "domcontentloaded" });
-          await configure(page);
+          const observed = await configure(page);
           metrics.warmLoadMs.push(performance.now() - start);
+          const correlation = await page.evaluate((observed) => {
+            const t = window.__paginationBench,
+              r = t.reads.find((r) => r.id === observed.deliveryId);
+            const resource = performance
+              .getEntriesByType("resource")
+              .filter(
+                (e) =>
+                  new URL(e.name).pathname === "/api/v1/attendance/search" &&
+                  e.startTime >= r.startAt - 2,
+              )
+              .at(-1);
+            if (!resource)
+              throw new Error("POST Resource Timing correlation missing");
+            return {
+              ...observed,
+              criteria: r.criteria,
+              startAt: r.startAt,
+              resourceStart: resource.startTime,
+              responseEnd: resource.responseEnd,
+            };
+          }, observed);
+          metrics.renderCorrelations.push(correlation);
           metrics.renderAfterResponseMs.push(
-            await page.evaluate(() => {
-              const t = window.__paginationBench,
-                r = t.reads.at(-1);
-              const resource = performance
-                .getEntriesByType("resource")
-                .filter(
-                  (e) =>
-                    new URL(e.name).pathname === "/api/v1/attendance/search" &&
-                    e.startTime >= r.startAt - 2,
-                )
-                .at(-1);
-              if (!resource)
-                throw new Error("POST Resource Timing correlation missing");
-              t.resourceCorrelation = {
-                criteria: r.criteria,
-                startAt: r.startAt,
-                resourceStart: resource.startTime,
-                responseEnd: resource.responseEnd,
-              };
-              return r.usableAt - resource.responseEnd;
-            }),
+            correlation.observedAt - correlation.responseEnd,
           );
+          audit.end();
           if (i < 4) {
             await context.close();
             context = undefined;
@@ -703,24 +1018,15 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
           cdp = await context.newCDPSession(page);
         await cdp.send("Performance.enable");
         await cdp.send("HeapProfiler.enable");
-        const requests = [];
-        page.on("request", (request) => {
-          const path = new URL(request.url()).pathname;
-          if (path === "/api/v1/attendance/search") {
-            const body = request.postDataJSON();
-            if (!matchesAttendancePageRead(request, body))
-              metrics.network.unexpectedWrites++;
-            requests.push(body);
-          } else if (path === "/api/v1/attendance/month")
-            metrics.network.fullMonthSubscriptions++;
-          else if (
-            path.startsWith("/api/") &&
-            !["GET", "HEAD"].includes(request.method())
-          )
-            metrics.network.unexpectedWrites++;
-        });
+        const audit = audits.get(context);
+        audit.begin("interactive", true);
+        const requests = () =>
+          metrics.network.facts.filter(
+            (f) => f.path === "/api/v1/attendance/search",
+          );
         const jump = async (target, scenario) => {
           const next = { ...criteria, page: target };
+          audit.expect(next, scenario);
           await page
             .getByLabel("Đến trang", { exact: true })
             .first()
@@ -758,6 +1064,7 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
                   ? Math.min(pages, current + 1)
                   : 1;
           if (target === current) {
+            audit.expect({ ...criteria, page: target }, scenario);
             await markTransition(page, { ...criteria, page: target }, scenario);
             await page
               .getByRole("button", { name: "Tải lại bảng", exact: true })
@@ -778,6 +1085,7 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
                   ? "not-present-benchmark"
                   : "";
           const next = { ...criteria, q };
+          audit.expect(next, scenario);
           const debounced = i % 2 === 0;
           await markTransition(
             page,
@@ -801,30 +1109,79 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
         }
         // Actual 15s poll of one page while an independent off-page SQL number
         // changes; global footer must update without bringing off-page rows in.
-        const before = requests.length;
+        const before = requests().length;
         metrics.phase = "poll";
-        await sandbox.pool.query(
-          'UPDATE "AttendanceCell" SET "halfUnits"=5 WHERE "employeeId"=$1::uuid AND date=\'2026-10-01\' AND kind=\'work\'',
-          [sandbox.benchmarkOffpage],
+        const previous = await ready(page, criteria, kind);
+        if (size > pageSize)
+          assert(
+            !previous.employeeIds.includes(sandbox.benchmarkOffpage),
+            "poll mutation must be outside active page",
+          );
+        const original = await sandbox.pool.query(
+          'SELECT "halfUnits" FROM "AttendanceCell" WHERE "employeeId"=$1::uuid AND date=\'2026-10-01\' AND kind=$2',
+          [sandbox.benchmarkOffpage, kind],
         );
-        const pollResponse = await page.waitForResponse(
-          (r) => matchesAttendancePageRead(r.request(), criteria),
-          { timeout: 20000 },
+        const halfUnits = original.rows[0]?.halfUnits;
+        assert.equal(
+          typeof halfUnits,
+          "number",
+          "numeric active-kind poll fixture required",
         );
-        const pollData = await pollResponse.json();
-        await ready(page, criteria, kind);
-        metrics.poll = {
-          requests: requests.length - before,
-          exactCriteria: requests
-            .slice(before)
-            .every((r) => JSON.stringify(r) === JSON.stringify(criteria)),
-          totalsMatch:
-            pollData.monthTotals.work.grandTotal ===
-            sandbox.benchmarkTotals.work.grandTotal + 1,
+        const expectedFooter = {
+          date: "2026-10-01",
+          day:
+            sandbox.benchmarkTotals[kind].byDate.find(
+              (d) => d.date === "2026-10-01",
+            ).value + 1,
+          month: sandbox.benchmarkTotals[kind].grandTotal + 1,
         };
-        await sandbox.pool.query(
-          'UPDATE "AttendanceCell" SET "halfUnits"=3 WHERE "employeeId"=$1::uuid AND date=\'2026-10-01\' AND kind=\'work\'',
-          [sandbox.benchmarkOffpage],
+        await withCleanup(
+          async () => {
+            await sandbox.pool.query(
+              'UPDATE "AttendanceCell" SET "halfUnits"=$3 WHERE "employeeId"=$1::uuid AND date=\'2026-10-01\' AND kind=$2',
+              [sandbox.benchmarkOffpage, kind, halfUnits + 2],
+            );
+            const pollResponse = await page.waitForResponse(
+              (r) => matchesAttendancePageRead(r.request(), criteria),
+              { timeout: 20000 },
+            );
+            const pollData = await pollResponse.json();
+            const observed = await ready(page, criteria, kind, {
+              fetchedAt: pollData.fetchedAt,
+              afterDeliveryId: previous.deliveryId,
+              footer: expectedFooter,
+              employeeIds: previous.employeeIds,
+            });
+            metrics.poll = {
+              requests: requests().length - before,
+              exactCriteria: requests()
+                .slice(before)
+                .every((r) => exactPageCriteria(r.criteria, criteria)),
+              totalsMatch:
+                pollData.monthTotals[kind].grandTotal === expectedFooter.month,
+              expected: {
+                footer: expectedFooter,
+                employeeIds: previous.employeeIds,
+              },
+              observed,
+              beforeDeliveryId: previous.deliveryId,
+              responseFetchedAt: pollData.fetchedAt,
+              mutationKind: kind,
+              mutatedEmployeeId: sandbox.benchmarkOffpage,
+              offpageAvailable: size > pageSize,
+              halfUnitsBefore: halfUnits,
+              halfUnitsMutated: halfUnits + 2,
+            };
+          },
+          async () => {
+            const restored = await sandbox.pool.query(
+              'UPDATE "AttendanceCell" SET "halfUnits"=$3 WHERE "employeeId"=$1::uuid AND date=\'2026-10-01\' AND kind=$2 RETURNING "halfUnits"',
+              [sandbox.benchmarkOffpage, kind, halfUnits],
+            );
+            assert.equal(restored.rows[0]?.halfUnits, halfUnits);
+            if (metrics.poll)
+              metrics.poll.halfUnitsRestored = restored.rows[0].halfUnits;
+          },
         );
         const closeEditor = async () => {
           await page
@@ -948,6 +1305,7 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
           await jump(pages, "last");
           await jump(1, "initial");
           for (const q of [hit, ""]) {
+            audit.expect({ ...criteria, q }, q ? "hit" : "clear");
             await markTransition(
               page,
               { ...criteria, q },
@@ -958,8 +1316,10 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
             await search.fill(q);
             await ready(page, { ...criteria, q }, kind);
           }
+          audit.expect({ ...criteria, month: "2026-09" }, "cycle-month09");
           await page.getByLabel("Tháng chấm công").fill("2026-09");
           await ready(page, { ...criteria, month: "2026-09" }, kind);
+          audit.expect(criteria, "cycle-month10");
           await page.getByLabel("Tháng chấm công").fill("2026-10");
           await ready(page, criteria, kind);
           await page.locator("button[data-cell]").first().click();
@@ -1027,10 +1387,11 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
           resourceCorrelation: window.__paginationBench.resourceCorrelation,
         }));
         metrics.resourceCorrelation = raw.resourceCorrelation;
-        metrics.requestCount = requests.length;
+        metrics.requestCount = requests().length;
         metrics.apiSqlAllEvents = sandbox.benchmarkSqlEvents?.slice(sqlStart);
         metrics.heapWarmups = 2;
         metrics.phase = "measured";
+        audit.end();
         const validation = validatePaginatedMeasurements([row]);
         row.failures = validation.failures.filter(
           (f) => !f.startsWith("missing "),
@@ -1041,7 +1402,8 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
         if (!row.checks.measured) row.result = "FAIL";
       } catch (error) {
         row.result = "FAIL";
-        row.error = error.message;
+        row.errorDetails = safeBenchmarkError(error);
+        row.error = JSON.stringify(row.errorDetails);
         const page = context?.pages()[0];
         if (page) {
           try {
@@ -1063,10 +1425,11 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
               ),
             }));
           } catch (diagnosticError) {
-            metrics.diagnosticError = diagnosticError.message;
+            metrics.diagnosticError = safeBenchmarkError(diagnosticError);
           }
         }
       } finally {
+        if (context) audits.get(context)?.end();
         try {
           await withCleanup(
             async () => {},
@@ -1074,7 +1437,7 @@ export async function measurePaginatedAttendance(sandbox, browser, size) {
           );
         } catch (error) {
           row.result = "FAIL";
-          row.cleanupError = error.message;
+          row.cleanupError = safeBenchmarkError(error);
         }
         await writeFile(
           resolve(

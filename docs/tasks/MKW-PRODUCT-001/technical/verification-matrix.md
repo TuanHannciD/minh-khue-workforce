@@ -1,5 +1,20 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Task9 fix R1 — checkpoint instrumentation, 02/11/2026
+
+[Validation fix R1](../validation.md#task9-fix-r1--instrumentation-đã-sửa-02112026) sở hữu corrected raw full12:8 PASS/4 FAIL monotonic heap, exit1, không hạ budget hoặc causal leak claim. Bảng6/6 và số liệu bên dưới giữ lịch sử; các claim bootstrap/network, render Tăng ca và poll footer ở checkpoint cũ bị giới hạn bởi I1–I4, không dùng làm proof gate đó. Raw cũ/verdict/manifest không sửa. Main fresh scoped re-review còn Pending; whole-branch review là gate riêng.
+
+| Gate sửa R1 | Evidence / trạng thái |
+| --- | --- |
+| I1 pre-navigation audit | Verified trong fresh run:5cold/5warm mỗi config, start/end/raw facts, thiếu coverage phải fail |
+| I2 canonical criteria/request dư | Verified:four keys/type/value độc lập từ scenario, wrong q/page/month/size/missing/unknown/extra-read negatives GREEN |
+| I3 render delivery/kind | Verified:5 correlations/config, target-kind observedAt; delayed shared-response overtime regression GREEN |
+| I4 active-kind poll/footer | Verified:delivery mới/fetchedAt/DOM day+month/employee IDs,3→5→3; size20 không offpage |
+| I5 login/setup cleanup | Verified focused failure-path:401 và nested context-close code cùng retained report, secret redaction,4 attempts |
+| Harness/checks | focused22/22; product69tooling/14sandbox/247web/23API; focused failure/caller/cleanup16/16 exit0; warnings/M1/M2 hoãn |
+| Performance | FAIL:20/50/work1.8532721234359784%;200/50/work1.7529745698411592%;1000/50/work1.6651396798066598%;1000/50/overtime7.8867918204789556% monotonic |
+| Native/SR/phoneperf/reader/dependency/G4 | Không đổi các Not run/Open bên dưới; desktop không thay device/SR/reader proof |
+
 ## Task9 — current paginated gates, 02/11/2026
 
 Task8 R2 **PASS 0C/0I/0M** tại `a19df7487fc7498c96086a9c70a21174d4ee1575`, I1/M1 Closed; ignored `task-8-review-r2.md` đầy đủ là nguồn review. Task8 Pending bên dưới là lịch sử. Task9 [validation](../validation.md#task9--server-pagination-measurements-02112026) ghi actual raw metrics,12 configs, commands và teardown; main fresh independent whole-branch review còn Pending. Không thay budgets hoặc historical fullDOM Failed66,6/333,3ms.
