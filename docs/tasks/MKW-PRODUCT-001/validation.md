@@ -10,6 +10,14 @@ Phạm vi writer: plan docs-only `docs/superpowers/plans/2026-11-03-tanstack-cac
 
 Planning validation: `npm run check:docs` tại worktree exit0, 71 current Markdown documents; `git diff --check` exit0. Checker không đếm `.superpowers/` ignored report. Product tests, build/typecheck, browser, DB/HTTP, benchmark/heap, native/SR/phoneperf/reader/dependency/G4 **Not run/Open**. Historical performance/heap **Failed** giữ nguyên; không causal leak closure, không validator/threshold amendment.
 
+## TanStack cache ownership — R1 docs fix, plan vẫn Pending, 03/11/2026
+
+Independent plan review R1 tại `.superpowers/sdd/server-pagination-implementation-plan/tanstack-cache-plan-review-r1.md` ghi I1/I2/M1. Docs-only fix trên BASE `e54020fde1c62182b01009ef3a6e915e3d4513db` đã sửa đúng phạm vi: I1 static scan dùng single-backslash regex, yêu cầu exit1 + stdout rỗng + stderr rỗng và có positive control read-only; I2 Task2 ghi ba test `refetch_wrapper_*` với `UseQueryResult<PageDelivery, Error>["refetch"]`, `RefetchOptions`, `QueryObserverResult`, `cancelRefetch`/`throwOnError`/signal/waiter semantics theo TanStack5.105.0 local; M1 Task3 RED command bao phủ retired observer/timer, unmount/handoff gap, session-change và export exact cases cùng expected semantic RED/regression-only.
+
+Disposition: I1/I2/M1 **fixed in plan; fresh independent review required**. Plan vẫn **Pending user plan approval**; không implementation approval. Source/test/dependency/runtime/DB/browser/HTTP/product tests/build/typecheck/heap/benchmark không chạy trong lượt này; performance/heap Failed, A/H1–H5 Pending, native/SR/phoneperf/reader/dependency/G4 Not run/Open giữ nguyên. Full disposition và command evidence ghi ở ignored `.superpowers/sdd/server-pagination-implementation-plan/tanstack-cache-plan-fix-r1-report.md`; historical R1 report/evidence không sửa.
+
+Kiểm chứng docs-fix tại worktree `agent-bootstrap`, branch `agent/mkw-agent-002`, GPT-6.1-Sol/high không children/helpers/Astra: `npm run check:docs` exit0/71 current documents; `git diff --check` exit0. Positive control read-only trên immutable BASE source exit0, stderr rỗng, đúng5 incumbent matches (`find`, `cache.build`, `setOptions`, hai `gcTime: Infinity`); đây là proof regex chạy được, không phải static boundary sau migration đạt. Tại actual BASE pattern đã dùng single backslash; fix giữ pattern đúng và bổ sung điều kiện/positive control, không sửa report R1 để che khác biệt.
+
 ## TanStack cache ownership spec — Proposed, 03/11/2026
 
 Phạm vi writer: chỉ docs/spec, branch `agent/mkw-agent-002`, worktree `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`, BASE sạch `3eff07d2d0a759fa665c89f75c12c6bb3ec3b017`. Hướng người dùng đã duyệt ghi riêng ở [decisions](decisions.md#tanstack-cache-ownership-direction--accepted03112026-specplan-pending); không duyệt heap amendment A/H1–H5, performance waiver hoặc nguyên nhân leak.
