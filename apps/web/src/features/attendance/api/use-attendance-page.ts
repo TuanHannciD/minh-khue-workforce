@@ -298,6 +298,15 @@ export function useAttendancePage(
         )
           client.removeQueries({ queryKey, exact: true });
       }
+      if (handoff && candidate && client.getQueryData(key) === candidate) {
+        // The target already adopted this exact delivery. Its fresh observer
+        // need not run queryFn, so record consumption before opening readiness;
+        // the next manual/automatic read must dispatch HTTP, never replay it.
+        consumed.current = {
+          lifetime: { ...bound.lifetime },
+          requestId: candidate.requestId,
+        };
+      }
       setReady(bound);
     })();
     return () => {

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /**
  * File map: page/setup own the shared real hook + view + session composition.
+ * readyHandoff covers an absent/exact-reference target and first fresh read;
  * gatedHandoff/nativeControl pin Task2 barrier/adoption demand, native refetch
  * Promise/options/cancellation outcomes, automatic reads and explicit retry.
  * Tests below also cover dispatch A/B/A, reauthentication, polling, cancel/retry,
@@ -288,6 +289,120 @@ it("public_handoff_has_no_inactive_seed_before_canonical_render", async () => {
   expect(vi.getTimerCount()).toBe(0);
 });
 
+async function readyHandoff(target: "absent" | "accepted" | "invalidated") {
+  const h = await setup({ ...initial, page: 40 });
+  const key = attendanceKeys.page(
+    { ...initial, page: 39 },
+    "owner",
+    h.view().state.lifetime.epoch,
+  );
+  if (target !== "absent") {
+    // Public fixture: install the same delivery before React commits canonical39.
+    // No second producer, copy, retag or private Query mutation is involved.
+    const stop = h.client.getQueryCache().subscribe((event) => {
+      if (
+        event.type === "updated" &&
+        event.action.type === "success" &&
+        event.query.queryKey[6] === 40
+      ) {
+        stop();
+        const delivery = h.client.getQueryData<PageDelivery>(
+          event.query.queryKey,
+        )!;
+        h.client.setQueryData(key, delivery);
+        expect(h.client.getQueryData(key)).toBe(delivery);
+        if (target === "invalidated")
+          void h.client.invalidateQueries({
+            queryKey: key,
+            exact: true,
+            refetchType: "none",
+          });
+      }
+    });
+  }
+  await h.resolve(0, "clamp1", 39);
+  const accepted = h.view().state.displayed!.delivery;
+  expect(accepted.requestId).toBe(1);
+  expect(accepted.requested.page).toBe(40);
+  expect(accepted.requestLifetime).toEqual(h.view().state.lifetime);
+  expect(h.query().data).toBe(accepted);
+  expect(h.client.getQueryData(key)).toBe(accepted);
+  return { ...h, key, accepted };
+}
+
+it.each(
+  (["accepted", "absent"] as const).flatMap((target) =>
+    (["manual", "poll", "focus", "invalidation"] as const).map((trigger) => ({
+      target,
+      trigger,
+    })),
+  ),
+)(
+  "fresh_read_after_exact_reference_handoff: target=$target trigger=$trigger",
+  async ({ target, trigger }) => {
+    const h = await readyHandoff(target);
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+    const settled = vi.fn();
+    let pending: Promise<unknown> | undefined;
+    if (trigger === "manual") pending = h.query().refetch();
+    if (trigger === "poll") await h.flush(15000);
+    if (trigger === "focus") {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    }
+    if (trigger === "invalidation")
+      pending = h.client.invalidateQueries({ queryKey: h.key, exact: true });
+    if (pending) void pending.then(settled, settled);
+    await h.flush();
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+    // Automatic triggers have no result Promise; join their actual HTTP read.
+    const read = h.query().refetch({ cancelRefetch: false });
+    void read.then(settled, settled);
+    await h.flush();
+    expect(settled).not.toHaveBeenCalled();
+    expect(h.query().data).toBe(h.accepted);
+    expect(h.client.getQueryData(h.key)).toBe(h.accepted);
+    expect(h.view().state.displayed!.delivery).toBe(h.accepted);
+    await h.resolve(1, "fresh2");
+    const fresh = (await read).data!;
+    if (pending) await pending;
+    expect(settled).toHaveBeenCalledTimes(pending ? 2 : 1);
+    expect(fresh.requestId).toBe(h.accepted.requestId + 1);
+    expect(fresh.requestLifetime).toEqual(h.accepted.requestLifetime);
+    expect(fresh.requested).toEqual({ ...initial, page: 39 });
+    expect(fresh).not.toBe(h.accepted);
+    expect(h.query().data).toBe(fresh);
+    expect(h.client.getQueryData(h.key)).toBe(fresh);
+    expect(h.view().state.displayed!.delivery).toBe(fresh);
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+    h.unmount();
+  },
+);
+
+it("fresh_read_after_exact_reference_handoff: invalidated before barrier reads HTTP", async () => {
+  const h = await readyHandoff("invalidated");
+  expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+  const settled = vi.fn();
+  const pending = h
+    .query()
+    .refetch({ cancelRefetch: false, throwOnError: true });
+  void pending.then(settled, settled);
+  await h.flush();
+  expect(settled).not.toHaveBeenCalled();
+  expect(h.client.getQueryData(h.key)).toBe(h.accepted);
+  await h.resolve(1, "fresh2");
+  const fresh = (await pending).data!;
+  expect(fresh.requestId).toBe(h.accepted.requestId + 1);
+  expect(fresh.requestLifetime).toEqual(h.accepted.requestLifetime);
+  expect(fresh.requested).toEqual({ ...initial, page: 39 });
+  expect(fresh).not.toBe(h.accepted);
+  expect(h.query().data).toBe(fresh);
+  expect(h.client.getQueryData(h.key)).toBe(fresh);
+  expect(h.view().state.displayed!.delivery).toBe(fresh);
+  expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+  h.unmount();
+});
+
 async function gatedHandoff(
   preinvalidated = false,
   beforeBarrier?: (delivery: PageDelivery) => PageDelivery | null,
@@ -410,32 +525,34 @@ it("refetch_wrapper_waits_for_canonical_http_and_settles_each_caller", async () 
   h.unmount();
 });
 
-it("refetch_wrapper_preserves_default_error_and_throwOnError", async () => {
-  const h = await setup({ ...initial, page: 40 });
-  await h.resolve(0, "clamp1", 39);
-  const accepted = h.query().data;
-  h.setCode(400);
-  const pending = h.query().refetch();
-  await h.flush();
-  const result = await pending;
-  expect(result).toMatchObject({ status: "error", isError: true });
-  expect(result.error).toBeInstanceOf(ApiError);
-  expect(result.error).toMatchObject({ status: 400 });
-  expect(result.error).toBe(
-    h.client.getQueryState(h.client.getQueryCache().getAll()[0]!.queryKey)
-      ?.error,
-  );
-  expect(result.data).toBe(accepted);
-  const rejected = vi.fn();
-  const throwing = h.query().refetch({ throwOnError: true });
-  void throwing.catch(rejected);
-  await h.flush();
-  expect(rejected).toHaveBeenCalledWith(h.query().error);
-  expect(rejected.mock.calls[0]![0]).not.toBe(result.error);
-  expect(rejected.mock.calls[0]![0]).toBeInstanceOf(ApiError);
-  expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39, 39]);
-  h.unmount();
-});
+it.each(["absent", "accepted"] as const)(
+  "refetch_wrapper_preserves_default_error_and_throwOnError: target=%s",
+  async (target) => {
+    const h = await readyHandoff(target);
+    const accepted = h.query().data;
+    h.setCode(400);
+    const pending = h.query().refetch();
+    await h.flush();
+    const result = await pending;
+    expect(result).toMatchObject({ status: "error", isError: true });
+    expect(result.error).toBeInstanceOf(ApiError);
+    expect(result.error).toMatchObject({ status: 400 });
+    expect(result.error).toBe(
+      h.client.getQueryState(h.client.getQueryCache().getAll()[0]!.queryKey)
+        ?.error,
+    );
+    expect(result.data).toBe(accepted);
+    const rejected = vi.fn();
+    const throwing = h.query().refetch({ throwOnError: true });
+    void throwing.catch(rejected);
+    await h.flush();
+    expect(rejected).toHaveBeenCalledWith(h.query().error);
+    expect(rejected.mock.calls[0]![0]).not.toBe(result.error);
+    expect(rejected.mock.calls[0]![0]).toBeInstanceOf(ApiError);
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39, 39]);
+    h.unmount();
+  },
+);
 
 it("refetch_wrapper_preserves_default_error_and_throwOnError_for_queued_callers", async () => {
   const h = await gatedHandoff();
@@ -509,17 +626,25 @@ const outcome = (
 });
 
 it.each(
-  [true, false].flatMap((withData) =>
+  (
+    [
+      { withData: true, target: "absent" },
+      { withData: true, target: "accepted" },
+      { withData: false, target: "absent" },
+    ] as const
+  ).flatMap(({ withData, target }) =>
     [undefined, true, false].map((cancelRefetch) => ({
       withData,
+      target,
       cancelRefetch,
     })),
   ),
 )(
-  "refetch_wrapper_preserves_cancelRefetch_and_signal_guards: data=$withData cancel=$cancelRefetch",
-  async ({ withData, cancelRefetch }) => {
-    const h = await setup({ ...initial, page: withData ? 40 : 39 });
-    if (withData) await h.resolve(0, "clamp1", 39);
+  "refetch_wrapper_preserves_cancelRefetch_and_signal_guards: data=$withData target=$target cancel=$cancelRefetch",
+  async ({ withData, target, cancelRefetch }) => {
+    const h = withData
+      ? await readyHandoff(target)
+      : await setup({ ...initial, page: 39 });
     const accepted = h.query().data;
     const control = nativeControl(accepted);
     const options = cancelRefetch === undefined ? undefined : { cancelRefetch };
@@ -666,20 +791,28 @@ it.each(["navigation", "unmount", "expire"] as const)(
 );
 
 it.each(
-  [true, false].flatMap((withData) =>
+  (
+    [
+      { withData: true, target: "absent" },
+      { withData: true, target: "accepted" },
+      { withData: false, target: "absent" },
+    ] as const
+  ).flatMap(({ withData, target }) =>
     ["navigation", "unmount", "expire"].flatMap((action) =>
       [undefined, true, false].map((cancelRefetch) => ({
         withData,
+        target,
         action,
         cancelRefetch,
       })),
     ),
   ),
 )(
-  "refetch_wrapper_preserves_cancelRefetch_and_signal_guards: HTTP data=$withData $action cancel=$cancelRefetch",
-  async ({ withData, action, cancelRefetch }) => {
-    const h = await setup({ ...initial, page: withData ? 40 : 39 });
-    if (withData) await h.resolve(0, "clamp1", 39);
+  "refetch_wrapper_preserves_cancelRefetch_and_signal_guards: HTTP data=$withData target=$target $action cancel=$cancelRefetch",
+  async ({ withData, target, action, cancelRefetch }) => {
+    const h = withData
+      ? await readyHandoff(target)
+      : await setup({ ...initial, page: 39 });
     const accepted = h.query().data;
     const baseline = structuredClone(h.draft.edit);
     const control = nativeControl(accepted);
