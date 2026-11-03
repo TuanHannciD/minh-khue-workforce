@@ -2,7 +2,10 @@
 /**
  * File map: page/setup own the shared real hook + view + session composition.
  * Tests below cover dispatch A/B/A, reauthentication, polling, cancel/retry,
- * cached return and clamp adoption. Kept together to exercise one composition.
+ * cached return and clamp handoff. public_handoff_* covers pre-commit absence,
+ * target identity, consume-once and candidate guards; lifecycle cases below
+ * retain observer/GC, delayed-body and held-envelope assertions.
+ * Kept together because these interleavings share one real producer/view owner.
  */
 import { afterEach, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
@@ -22,10 +25,7 @@ import { sessionBoundary } from "@/shared/api/session-boundary";
 import { usePageView } from "./use-page-view";
 import { canPollPage } from "./page-view";
 import type { PageDelivery } from "./page-view";
-import {
-  adoptAttendancePage,
-  useAttendancePage,
-} from "../api/use-attendance-page";
+import { useAttendancePage } from "../api/use-attendance-page";
 import { attendanceKeys, invalidateAttendancePages } from "../api/query-keys";
 import type { AttendancePageDto, PageCriteria } from "./types";
 import { AttendanceDraft } from "./attendance-draft";
@@ -130,6 +130,8 @@ async function setup(start = initial) {
   let current!: ReturnType<typeof usePageView>;
   let query!: ReturnType<typeof useAttendancePage>;
   let held = false;
+  let candidateOverride: ((delivery: PageDelivery) => PageDelivery) | null =
+    null;
   const deliveries: PageDelivery[] = [];
   const decisions: string[] = [];
   function View() {
@@ -144,10 +146,12 @@ async function setup(start = initial) {
       held,
     );
     current = view;
+    const displayed = view.state.displayed?.delivery ?? null;
     const result = useAttendancePage(
       view.state.desired,
       view.state.lifetime,
       canPollPage(view.state),
+      displayed && candidateOverride ? candidateOverride(displayed) : displayed,
     );
     query = result;
     const { accept } = view;
@@ -156,22 +160,6 @@ async function setup(start = initial) {
       deliveries.push(result.data);
       const decision = accept(result.data);
       decisions.push(decision);
-      if (decision === "accepted") {
-        adoptAttendancePage(client, result.data);
-        if (result.data.requested.page !== result.data.data.pagination.page)
-          expect(
-            client.getQueryData(
-              attendanceKeys.page(
-                {
-                  ...result.data.requested,
-                  page: result.data.data.pagination.page,
-                },
-                result.data.requestLifetime.userId,
-                result.data.requestLifetime.epoch,
-              ),
-            ),
-          ).toBe(result.data);
-      }
     }, [result.data, accept]);
     const shown = view.state.displayed;
     return (
@@ -205,6 +193,14 @@ async function setup(start = initial) {
     flush,
     view: () => current,
     query: () => query,
+    accept: (delivery: PageDelivery) => {
+      const decision = current.accept(delivery);
+      return decision;
+    },
+    overrideCandidate: (override: (delivery: PageDelivery) => PageDelivery) => {
+      candidateOverride = override;
+      act(() => rendered.rerender(wrapper()));
+    },
     request: async (next: PageCriteria) => {
       act(() => current.request(next));
       await flush();
@@ -238,6 +234,183 @@ async function setup(start = initial) {
     },
   };
 }
+
+it("public_handoff_has_no_inactive_seed_before_canonical_render", async () => {
+  const h = await setup({ ...initial, page: 40 });
+  await h.resolve(0, "initial1");
+  await h.hold(true);
+  await h.flush(15000);
+  await h.resolve(1, "held2", 39);
+  await h.hold(false);
+  const accepted = h.view().state.deferred!;
+  const key = attendanceKeys.page(
+    { ...initial, page: 39 },
+    "owner",
+    accepted.requestLifetime.epoch,
+  );
+  const beforeHandoffHttpCount = h.bodies.length;
+  await act(async () => {
+    expect(h.accept(accepted)).toBe("accepted");
+    // accept has run, but React has not committed the canonical render.
+    expect(h.client.getQueryData(key)).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(h.client.getQueryData(key)).toBeUndefined();
+  });
+  await h.flush();
+  expect(accepted.requested.page).toBe(40);
+  expect(accepted.data.pagination.requestedPage).toBe(40);
+  expect(h.view().state.desired.page).toBe(39);
+  expect(h.view().state.lifetime.generation).toBe(
+    accepted.requestLifetime.generation,
+  );
+  expect(h.client.getQueryData(key)).toBe(accepted);
+  expect(h.view().state.displayed!.delivery.data).toBe(accepted.data);
+  expect(h.bodies).toHaveLength(beforeHandoffHttpCount);
+  h.unmount();
+  await h.flush();
+  expect(h.client.getQueryCache().getAll()).toHaveLength(0);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it.each(["same lifetime and requestId", "old generation"])(
+  "public_handoff_evicts_equal_byte_wrong_reference_target: %s",
+  async (variant) => {
+    const h = await setup({ ...initial, page: 40 });
+    await h.resolve(0, "initial1");
+    await h.hold(true);
+    await h.flush(15000);
+    await h.resolve(1, "held2", 39);
+    await h.hold(false);
+    const accepted = h.view().state.deferred!;
+    const key = attendanceKeys.page(
+      { ...initial, page: 39 },
+      "owner",
+      accepted.requestLifetime.epoch,
+    );
+    const stale = {
+      ...accepted,
+      requestLifetime: {
+        ...accepted.requestLifetime,
+        generation:
+          variant === "old generation"
+            ? 0
+            : accepted.requestLifetime.generation,
+      },
+      data: structuredClone(accepted.data),
+    };
+    expect(stale.data).toEqual(accepted.data);
+    expect(stale).not.toBe(accepted);
+    h.client.setQueryData(key, stale);
+    const actualCancel = h.client.cancelQueries.bind(h.client);
+    let release!: () => void;
+    const gate = new Promise<void>((done) => {
+      release = done;
+    });
+    const cancel = vi
+      .spyOn(h.client, "cancelQueries")
+      .mockImplementation(async (...args) => {
+        await actualCancel(...args);
+        if (args[0]?.queryKey?.[6] === 39) await gate;
+      });
+    act(() => {
+      expect(h.accept(accepted)).toBe("accepted");
+    });
+    expect(h.query().data).toBeUndefined();
+    expect(h.view().state.displayed!.delivery).toBe(accepted);
+    await act(async () => release());
+    await h.flush();
+    cancel.mockRestore();
+    expect(h.client.getQueryData(key)).toBe(accepted);
+    expect(h.view().state.displayed!.delivery).toBe(accepted);
+    expect(h.bodies).toHaveLength(2);
+    expect(h.client.getQueryCache().getAll()).toHaveLength(1);
+    expect(h.client.getQueryCache().getAll()[0]!.getObserversCount()).toBe(1);
+    h.unmount();
+    await h.flush();
+    expect(vi.getTimerCount()).toBe(0);
+  },
+);
+
+it("public_handoff_duplicate_delivery_does_not_adopt_twice", async () => {
+  const h = await setup({ ...initial, page: 40 });
+  await h.resolve(0, "clamp1", 39);
+  const accepted = h.view().state.displayed!.delivery;
+  act(() => {
+    expect(h.accept(accepted)).toBe("ignored");
+  });
+  await h.hold(false);
+  act(() => {
+    expect(h.accept(accepted)).toBe("ignored");
+  });
+  await h.flush();
+  expect(h.query().data).toBe(accepted);
+  expect(h.view().state.lastAcceptedRequestId).toBe(accepted.requestId);
+  expect(
+    h.decisions.filter((decision) => decision === "accepted"),
+  ).toHaveLength(1);
+  expect(h.bodies).toHaveLength(1);
+  await h.flush(15000);
+  expect(h.bodies.map((body) => body.request.page)).toEqual([40, 39]);
+  await h.resolve(1, "poll2");
+  expect(h.view().state.displayed!.delivery.requestId).toBe(2);
+  h.unmount();
+});
+
+it.each([
+  "userId",
+  "epoch",
+  "generation",
+  "month",
+  "q",
+  "pageSize",
+  "effective-page",
+])(
+  "public_handoff_rejects_wrong_user_epoch_generation_criteria: %s",
+  async (field) => {
+    const h = await setup({ ...initial, page: 40 });
+    await h.resolve(0, "initial1");
+    await h.hold(true);
+    await h.flush(15000);
+    await h.resolve(1, "held2", 39);
+    await h.hold(false);
+    const accepted = h.view().state.deferred!;
+    h.overrideCandidate((delivery) => ({
+      ...delivery,
+      requestLifetime: {
+        ...delivery.requestLifetime,
+        ...(field === "userId" ? { userId: "other" } : {}),
+        ...(field === "epoch"
+          ? { epoch: delivery.requestLifetime.epoch + 1 }
+          : {}),
+        ...(field === "generation"
+          ? { generation: delivery.requestLifetime.generation + 1 }
+          : {}),
+      },
+      requested: {
+        ...delivery.requested,
+        ...(field === "month" ? { month: "2024-03" } : {}),
+        ...(field === "q" ? { q: "other" } : {}),
+        ...(field === "pageSize" ? { pageSize: 50 as const } : {}),
+      },
+      data:
+        field === "effective-page"
+          ? {
+              ...delivery.data,
+              pagination: { ...delivery.data.pagination, page: 38 },
+            }
+          : delivery.data,
+    }));
+    act(() => {
+      expect(h.accept(accepted)).toBe("accepted");
+    });
+    await h.flush();
+    expect(h.query().data).toBeUndefined();
+    expect(h.view().state.displayed!.delivery).toBe(accepted);
+    h.unmount();
+    await h.flush();
+    expect(vi.getTimerCount()).toBe(0);
+  },
+);
 it("dispatch_tags_survive_A_B_A_delayed_body", async () => {
   const h = await setup();
   expect(h.bodies).toHaveLength(1);
@@ -500,18 +673,29 @@ it("poll_and_accepted_clamp_share_dispatch_metadata", async () => {
       .getQueryCache()
       .getAll()
       .map((q) => q.queryKey[6]),
-  ).toEqual([39]);
-  expect(h.client.getQueryCache().getAll()[0]!.state.data).toBe(accepted);
+  ).toEqual([40]);
+  expect(h.query().data).toBeUndefined();
   expect(h.bodies).toHaveLength(2);
-  // Observer subscription protects the seed while enable awaits cancellation.
+  expect(h.view().state.displayed!.delivery).toBe(accepted);
+  // The requested observer stays attached until target eviction completes.
   await h.flush(10);
   expect(h.client.getQueryCache().getAll()).toHaveLength(1);
-  expect(h.client.getQueryCache().getAll()[0]!.state.data).toBe(accepted);
+  expect(h.query().data).toBeUndefined();
+  expect(
+    h.client.getQueryData(
+      attendanceKeys.page(
+        { ...initial, page: 39 },
+        "owner",
+        accepted.requestLifetime.epoch,
+      ),
+    ),
+  ).toBeUndefined();
   expect(h.client.getQueryCache().getAll()[0]!.getObserversCount()).toBe(1);
   expect(h.bodies).toHaveLength(2);
   await act(async () => release());
   await h.flush();
   cancel.mockRestore();
+  expect(h.client.getQueryCache().getAll()[0]!.state.data).toBe(accepted);
   await h.flush(15000);
   expect(h.bodies.map((b) => b.request.page)).toEqual([40, 40, 39]);
   await h.resolve(2, "next3");
@@ -659,7 +843,7 @@ it("canonical poll body cannot publish after navigation cancels its context", as
   await h.flush(30000);
   expect(h.bodies).toHaveLength(3);
 });
-it("unmount during accepted handoff removes the seed before a canonical observer subscribes", async () => {
+it("unmount during accepted handoff creates no seed before a canonical observer subscribes", async () => {
   const h = await setup({ ...initial, page: 40 });
   await h.resolve(0, "initial1");
   await h.hold(true);
@@ -674,13 +858,11 @@ it("unmount during accepted handoff removes the seed before a canonical observer
   );
   await act(async () => {
     expect(h.view().accept(delivery)).toBe("accepted");
-    adoptAttendancePage(h.client, delivery);
     await vi.advanceTimersByTimeAsync(10);
-    const canonical = h.client
-      .getQueryCache()
-      .find({ queryKey: key, exact: true })!;
-    expect(canonical.state.data).toBe(delivery);
-    expect(canonical.getObserversCount()).toBe(0);
+    expect(h.client.getQueryData(key)).toBeUndefined();
+    expect(
+      h.client.getQueryCache().find({ queryKey: key, exact: true }),
+    ).toBeUndefined();
     h.unmount();
   });
   await h.flush();
@@ -713,42 +895,29 @@ it("held clamp preserves the whole old envelope until release adopts latest deli
   await h.hold(false);
   const deferred = h.view().state.deferred!;
   // Perturb only the target cache: equal DTO bytes must not replace its identity.
-  h.client.setQueryData(
-    attendanceKeys.page(
-      { ...initial, page: 39 },
-      "owner",
-      deferred.requestLifetime.epoch,
-    ),
-    { ...deferred, requestId: 0, data: structuredClone(deferred.data) },
+  const canonicalKey = attendanceKeys.page(
+    { ...initial, page: 39 },
+    "owner",
+    deferred.requestLifetime.epoch,
   );
+  const stale = {
+    ...deferred,
+    requestId: 0,
+    data: structuredClone(deferred.data),
+  };
+  h.client.setQueryData(canonicalKey, stale);
   await act(async () => {
     if (h.view().accept(deferred) === "accepted") {
-      adoptAttendancePage(h.client, deferred);
-      expect(
-        h.client.getQueryData(
-          attendanceKeys.page(
-            { ...initial, page: 39 },
-            "owner",
-            deferred.requestLifetime.epoch,
-          ),
-        ),
-      ).toBe(deferred);
-      // Hold the accepted React update until after timers: adoption must not
-      // lose the exact seed before the canonical observer can subscribe.
+      expect(h.client.getQueryData(canonicalKey)).toBe(stale);
+      // Delayed React commit keeps the delivery in the view, without publishing
+      // over the stale cache target before the cancellation barrier.
       await vi.advanceTimersByTimeAsync(10);
-      expect(
-        h.client.getQueryData(
-          attendanceKeys.page(
-            { ...initial, page: 39 },
-            "owner",
-            deferred.requestLifetime.epoch,
-          ),
-        ),
-      ).toBe(deferred);
+      expect(h.client.getQueryData(canonicalKey)).toBe(stale);
     }
   });
   await h.flush();
   expect(h.view().state.displayed!.delivery).toBe(deferred);
+  expect(h.client.getQueryData(canonicalKey)).toBe(deferred);
   expect(
     h.client
       .getQueryCache()

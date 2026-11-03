@@ -6,10 +6,7 @@ import { Input } from "@/shared/ui/input";
 import { ConfirmDiscard } from "@/shared/ui/confirm-discard";
 import type { AttendanceDraft } from "../model/attendance-draft";
 import type { AttendanceKind, EmployeeDto, PageCriteria } from "../model/types";
-import {
-  adoptAttendancePage,
-  useAttendancePage,
-} from "../api/use-attendance-page";
+import { useAttendancePage } from "../api/use-attendance-page";
 import { invalidateAttendancePages } from "../api/query-keys";
 import { useAttendanceDraft } from "../model/use-attendance-draft";
 import { usePageView } from "../model/use-page-view";
@@ -57,6 +54,7 @@ export function AttendanceWorkspace({
     view.state.desired,
     view.state.lifetime,
     canPollPage(view.state),
+    view.state.displayed?.delivery ?? null,
   );
   const { accept, request } = view;
   const { deferred, displayed, desired, lifetime } = view.state;
@@ -81,13 +79,12 @@ export function AttendanceWorkspace({
     currentOwner.current = owner;
   });
   const locked = draft.outcome.type === "pending" || draft.reconciling;
-  // The exact producer delivery goes through one accept/adopt path, including
-  // deferred release. Adoption happens before the canonical criteria rerender.
+  // Accept the exact producer delivery once, including deferred release.
+  // The displayed owner supplies any clamp handoff on the canonical render.
   useEffect(() => {
     const delivery = !holdMembership && deferred ? deferred : query.data;
     if (!delivery) return;
     if (accept(delivery) === "accepted") {
-      adoptAttendancePage(client, delivery);
       const releasedDeferred = !holdMembership && Boolean(deferred);
       const resetScroll = resetScrollAfter.current || releasedDeferred;
       const focus = focusAfter.current || releasedDeferred;
@@ -103,7 +100,7 @@ export function AttendanceWorkspace({
         });
       }
     }
-  }, [query.data, deferred, holdMembership, accept, client]);
+  }, [query.data, deferred, holdMembership, accept]);
   const membershipTicket =
     deferred &&
     holdMembership &&

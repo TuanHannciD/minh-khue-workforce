@@ -1,16 +1,6 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  QueryClient,
-  QueryKey,
-  UseQueryResult,
-} from "@tanstack/react-query";
+import type { UseQueryResult } from "@tanstack/react-query";
 import { useSession } from "@/features/session/index";
 import { retryRead, readRetryDelay } from "@/shared/api/reconcile";
 import { ApiError } from "@/shared/api/transport";
@@ -31,11 +21,29 @@ const sameBinding = (a: Binding, b: Binding) =>
   samePageCriteria(a.criteria, b.criteria) &&
   samePageLifetime(a.lifetime, b.lifetime);
 class StalePageRequest extends Error {}
+class PageHandoffError extends Error {}
+
+function isPageHandoffCandidate(
+  delivery: PageDelivery | null,
+  criteria: PageCriteria,
+  lifetime: PageLifetime,
+): delivery is PageDelivery {
+  return (
+    delivery !== null &&
+    samePageLifetime(delivery.requestLifetime, lifetime) &&
+    delivery.requested.page !== delivery.data.pagination.page &&
+    samePageCriteria(
+      { ...delivery.requested, page: delivery.data.pagination.page },
+      criteria,
+    )
+  );
+}
 
 export function useAttendancePage(
   criteria: PageCriteria,
   lifetime: PageLifetime,
   polling: boolean,
+  accepted: PageDelivery | null = null,
 ): UseQueryResult<PageDelivery, Error> {
   const { runtime, status, session } = useSession();
   const client = useQueryClient();
@@ -55,12 +63,30 @@ export function useAttendancePage(
   const live = useRef<Binding | null>(null);
   const mounted = useRef(false);
   const requestId = useRef(0);
-  const canonicalKeys = useRef(
-    new Map<string, { queryKey: QueryKey; lifetime: PageLifetime }>(),
+  const owner = useRef<{
+    binding: Binding;
+    accepted: PageDelivery | null;
+  } | null>(null);
+  const consumed = useRef<{ lifetime: PageLifetime; requestId: number } | null>(
+    null,
   );
   const [ready, setReady] = useState<Binding | null>(null);
   const { month, q, page, pageSize } = bound.criteria;
   const { userId, epoch, generation } = bound.lifetime;
+  // Keep the previous observer binding until target eviction is complete.
+  // Subscribing to a stale target first would let its later detach recreate
+  // a GC timer on the retired instance, outside the cache's ownership.
+  const observed = ready ?? bound;
+  const current = () =>
+    mounted.current &&
+    live.current !== null &&
+    sameBinding(live.current, bound) &&
+    runtime.boundary.canWrite(epoch) &&
+    runtime.snapshot().status === "authenticated" &&
+    runtime.snapshot().session?.user.userId === userId;
+  useLayoutEffect(() => {
+    owner.current = { binding: bound, accepted };
+  });
   useLayoutEffect(() => {
     const next: Binding = {
       criteria: { month, q, page, pageSize },
@@ -83,13 +109,23 @@ export function useAttendancePage(
         ? [key]
         : [priorKey, key];
     void (async () => {
+      if (!current()) return;
       await Promise.all(
         keys.map((queryKey) => client.cancelQueries({ queryKey, exact: true })),
       );
-      if (canceled) return;
+      if (canceled || !current()) return;
+      const candidate = owner.current?.accepted ?? null;
+      const handoff = isPageHandoffCandidate(
+        candidate,
+        next.criteria,
+        next.lifetime,
+      );
       for (const queryKey of keys) {
         const delivery = client.getQueryData<PageDelivery>(queryKey);
         if (
+          (handoff &&
+            JSON.stringify(queryKey) === JSON.stringify(key) &&
+            delivery !== candidate) ||
           !delivery ||
           !samePageLifetime(delivery.requestLifetime, next.lifetime)
         )
@@ -100,20 +136,72 @@ export function useAttendancePage(
     return () => {
       canceled = true;
       mounted.current = false;
+      owner.current = null;
+      consumed.current = null;
     };
-  }, [client, month, q, page, pageSize, userId, epoch, generation]);
-  const current = () =>
-    mounted.current &&
-    live.current !== null &&
-    sameBinding(live.current, bound) &&
-    runtime.boundary.canWrite(epoch) &&
-    runtime.snapshot().status === "authenticated" &&
-    runtime.snapshot().session?.user.userId === userId;
-  const result = useQuery<PageDelivery, Error>({
-    queryKey: attendanceKeys.page(bound.criteria, userId, epoch),
+  }, [
+    client,
+    month,
+    q,
+    page,
+    pageSize,
+    userId,
+    epoch,
+    generation,
+    status,
+    session?.user.userId,
+  ]);
+  const result = useQuery<PageDelivery, Error, PageDelivery | undefined>({
+    queryKey: attendanceKeys.page(
+      observed.criteria,
+      observed.lifetime.userId,
+      observed.lifetime.epoch,
+    ),
+    // A disabled observer may see a cached target before cancellation settles.
+    // Keep delivery behind readiness without subscribing to unrelated fields.
+    select: (delivery) =>
+      ready && sameBinding(ready, bound) ? delivery : undefined,
     queryFn: async ({ signal }) => {
       if (!current() || !ready || !sameBinding(ready, bound) || signal.aborted)
         throw new StalePageRequest();
+      const latest = owner.current;
+      const candidate = latest?.accepted ?? null;
+      if (
+        candidate !== null &&
+        candidate.requested.page !== candidate.data.pagination.page &&
+        samePageLifetime(candidate.requestLifetime, bound.lifetime) &&
+        !isPageHandoffCandidate(candidate, bound.criteria, bound.lifetime)
+      ) {
+        throw new PageHandoffError();
+      }
+      if (
+        latest &&
+        sameBinding(latest.binding, bound) &&
+        isPageHandoffCandidate(candidate, bound.criteria, bound.lifetime)
+      ) {
+        const used = consumed.current;
+        if (
+          !used ||
+          !samePageLifetime(used.lifetime, bound.lifetime) ||
+          used.requestId !== candidate.requestId
+        ) {
+          consumed.current = {
+            lifetime: { ...bound.lifetime },
+            requestId: candidate.requestId,
+          };
+          await Promise.resolve();
+          if (!current() || signal.aborted) throw new StalePageRequest();
+          if (owner.current?.accepted !== candidate)
+            throw new PageHandoffError();
+          return candidate;
+        }
+        if (
+          !client.getQueryData(
+            attendanceKeys.page(bound.criteria, userId, epoch),
+          )
+        )
+          throw new PageHandoffError();
+      }
       const requested = { ...bound.criteria };
       const requestLifetime = { ...bound.lifetime };
       const id = ++requestId.current;
@@ -147,6 +235,7 @@ export function useAttendancePage(
       stopped(query.state.error) ? false : "always",
     retry: (count, error) =>
       !(error instanceof StalePageRequest) &&
+      !(error instanceof PageHandoffError) &&
       current() &&
       retryRead(count, error),
     retryDelay: readRetryDelay,
@@ -154,88 +243,5 @@ export function useAttendancePage(
     gcTime: 0,
     structuralSharing: false,
   });
-  useLayoutEffect(() => {
-    for (const [hash, { queryKey }] of canonicalKeys.current) {
-      if (!client.getQueryCache().find({ queryKey, exact: true }))
-        canonicalKeys.current.delete(hash);
-    }
-    // Read the cache without subscribing the caller to result.data alone.
-    const delivery = client.getQueryData<PageDelivery>(
-      attendanceKeys.page(bound.criteria, userId, epoch),
-    );
-    if (
-      !delivery ||
-      !samePageLifetime(delivery.requestLifetime, bound.lifetime) ||
-      delivery.requested.page === delivery.data.pagination.page
-    )
-      return;
-    const queryKey = attendanceKeys.page(
-      { ...delivery.requested, page: delivery.data.pagination.page },
-      userId,
-      epoch,
-    );
-    canonicalKeys.current.set(JSON.stringify(queryKey), {
-      queryKey,
-      lifetime: delivery.requestLifetime,
-    });
-  });
-  // Canonical seeds use Infinity GC: only this scoped cleanup owns retention.
-  // Detaching a retired Query or settling its canceled fetch cannot recreate
-  // a timer after it has been removed from the cache.
-  // useQuery's subscription cleanup runs before this passive effect cleanup.
-  useEffect(() => {
-    const keys = canonicalKeys.current;
-    return () => {
-      for (const { queryKey, lifetime } of keys.values()) {
-        client.removeQueries({
-          queryKey,
-          exact: true,
-          predicate: (query) => {
-            const delivery = query.state.data as PageDelivery | undefined;
-            return (
-              query.getObserversCount() === 0 &&
-              delivery !== undefined &&
-              samePageLifetime(delivery.requestLifetime, lifetime)
-            );
-          },
-        });
-      }
-      keys.clear();
-    };
-  }, [client]);
-  return result;
-}
-
-// The consumer calls this only after accept(), before the canonical rerender.
-export function adoptAttendancePage(
-  client: QueryClient,
-  delivery: PageDelivery,
-): void {
-  if (delivery.requested.page === delivery.data.pagination.page) return;
-  const { userId, epoch } = delivery.requestLifetime;
-  const canonicalKey = attendanceKeys.page(
-    { ...delivery.requested, page: delivery.data.pagination.page },
-    userId,
-    epoch,
-  );
-  const cache = client.getQueryCache();
-  const canonical =
-    cache.find({ queryKey: canonicalKey, exact: true }) ??
-    cache.build<unknown, Error, unknown, QueryKey>(client, {
-      queryKey: canonicalKey,
-      gcTime: Infinity,
-    });
-  // Existing equal DTO bytes must not structurally share a prior delivery tag.
-  // Infinity prevents both final observer detach and fetch-finally from
-  // scheduling a timer on an instance already removed during navigation.
-  canonical.setOptions({
-    ...canonical.options,
-    gcTime: Infinity,
-    structuralSharing: false,
-  });
-  client.setQueryData(canonicalKey, delivery);
-  client.removeQueries({
-    queryKey: attendanceKeys.page(delivery.requested, userId, epoch),
-    exact: true,
-  });
+  return result as UseQueryResult<PageDelivery, Error>;
 }
