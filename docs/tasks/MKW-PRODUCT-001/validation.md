@@ -1,5 +1,17 @@
 # Validation — MKW-PRODUCT-001
 
+## TanStack cache ownership spec — Proposed, 03/11/2026
+
+Phạm vi writer: chỉ docs/spec, branch `agent/mkw-agent-002`, worktree `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`, BASE sạch `3eff07d2d0a759fa665c89f75c12c6bb3ec3b017`. Hướng người dùng đã duyệt ghi riêng ở [decisions](decisions.md#tanstack-cache-ownership-direction--accepted03112026-specplan-pending); không duyệt heap amendment A/H1–H5, performance waiver hoặc nguyên nhân leak.
+
+Artifact trong scope: [TanStack cache ownership spec](technical/tanstack-cache-ownership-spec.md), decision/INDEX checkpoint và report writer ignored `.superpowers/sdd/server-pagination-implementation-plan/tanstack-cache-spec-report.md`. Source/tests/dependency/runtime/DB/browser/main ledger và evidence lịch sử chỉ đọc. Không acquire tài nguyên; không install/network mutation/product check/performance/heap run.
+
+Nguồn đã đọc: authority/routing/permissions/quality/source navigation; ADR-002/003; design/API/plan sản phẩm hiện hành; attendance README và source thật `use-attendance-page`, `query-keys`, `attendance`, `use-attendance-month`, Workspace/page-view/draft/session/transport cùng tests query/page/workspace/session; package local `@tanstack/react-query`/`@tanstack/query-core`5.105.0; docs chính thức TanStack v5 liên kết trong spec (HTTP200). Spec ghi actual `QueryCache.build`/`Query.setOptions`/`gcTime:Infinity` và lý do clamp/unmount, rồi đề nghị public query-function handoff + `gcTime:0`, chỉ thay sau equivalent tests. Giữ boundary polling/retry/visibility, signal/session, page-view/deferred/frozen draft, CAS/unknown/original-key reconcile và fullmonth/export.
+
+Trạng thái thiết kế: **Not implemented / Not Verified**. Self-review và docs checks chỉ kiểm checkpoint tài liệu; fresh independent spec review và user written-spec approval **Pending**. Trạng thái performance/heap/native/SR/reader/G4 lịch sử giữ nguyên.
+
+Kiểm tra tác giả: `npm run check:docs`, cwd worktree trên, Node22.12.0 đã có → exit0, UTF-8 và links/anchors/fences **70 tài liệu hiện hành**; `git diff --check` → exit0. Self-review đối chiếu actual source/test/core5.105.0, không placeholder TODO/TBD/FIXME; sửa rõ `initialData` giữ initial state, export là Blob/React lifetime riêng, handoff không tạo HTTP requestId mới và manual/invalidation không bị seed cũ nuốt. Không nhận kết quả product tests cũ làm check mới. Staged check/commit/full SHA và handoff ở report writer; main fresh review exact commit là bước tiếp, chưa dùng writing-plans.
+
 ## Task9 whole-branch fix R1 — I1/I2 và scoped drag evidence, 02/11/2026
 
 BASE `6b920d1eee3a382b8b14f5aa966564f5a67cb701`, worktree/branch `agent-bootstrap`/`agent/mkw-agent-002`; report đầy đủ `.superpowers/sdd/server-pagination-implementation-plan/whole-branch-fix-r1-report.md`. I1 producer dùng Ctrl mouse additive gesture, assert trusted pointer facts, activation class, preview target set, committed target set và negative plain drag; validator từ chối frames-only/fake/untrusted/wrong targets. I2 page integration observer dùng `runCheckedDestroy`, giữ lỗi check-only/destroy-only/both và mọi owner attempt.

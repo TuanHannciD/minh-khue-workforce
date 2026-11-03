@@ -1,5 +1,13 @@
 # Quyết định — MKW-PRODUCT-001
 
+## TanStack cache ownership direction — Accepted03/11/2026; spec/plan Pending
+
+Người dùng chấp thuận hướng giữ **TanStack Query5.105.0** cho server state/cache và **React state** cho UI/draft; giảm ownership cache tùy biến/direct Query internals; chỉ cân nhắc Zustand khi có nhu cầu UI chia sẻ được chứng minh. RTK/SWR và nâng dependency không được chọn. Đây là chấp thuận **direction**, không phải chấp thuận heap amendment A/H1–H5, performance waiver, hay kết luận root leak.
+
+Đặc tả Proposed hiện hành là [TanStack cache ownership spec](technical/tanstack-cache-ownership-spec.md). Spec đề nghị loại `QueryCache.build`, `Query.setOptions`, canonical `gcTime:Infinity` và imperative canonical seed; handoff clamp thử qua public `useQuery` query function, cùng cancellation/lifetime guards và `gcTime:0`, nhưng chỉ được triển khai sau written-spec review/approval, implementation plan và equivalent tests. `useQuery`/public `QueryClient` APIs vẫn là boundary; page-view/draft/session/CAS/unknown/reconcile vẫn custom vì đó là domain lifecycle, không phải cache copy.
+
+**Trạng thái:** direction Accepted03/11/2026; detailed spec **Proposed/Pending independent review + user written-spec approval**; implementation plan **chưa viết/chưa duyệt**; production implementation **chưa thực hiện**. Giữ nguyên historical heap/performance FAIL, heap amendment proposal và mọi evidence cũ; không sửa ADR-002 thành capability hiện tại. [Validation checkpoint](validation.md#tanstack-cache-ownership-spec--proposed-03112026) ghi provenance/checks và giới hạn của lượt docs-only này.
+
 ## DB authority — Accepted02/11/2026
 
 Nguồn thẩm quyền: người dùng chọn **“Chốt phương án1”** sau [nghiên cứu01/11](technical/unicode-search-options-research.md#phương-án1--postgresqlicu-là-nguồn-chuẩn-duy-nhất), rồi yêu cầu tiếp tục ngày02/11/2026. Research được independent R1 review tại tip `c7032792413f3eb18222abad79556e92e5dc399e`, 0C/0I/0M, ready for decision; review nghiên cứu không là policy PASS. Quyết định này thay nhánh ưu tiên tìm runtime khớp JS trong proposal lịch sử; không cấp quyền tải/cài hoặc enrollment mới.
