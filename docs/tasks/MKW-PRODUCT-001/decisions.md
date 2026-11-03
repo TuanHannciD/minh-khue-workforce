@@ -1,14 +1,22 @@
 # Quyết định — MKW-PRODUCT-001
 
+## Checkpoint điều phối/model phiên — 03/11/2026
+
+BASE/TIP thực tế trước lượt docs-only là `9bf68b2fcb3a7c15e81dbc0d366b6968ddc99582`, branch `agent/mkw-agent-002`, worktree `.worktrees/agent-bootstrap`; không sửa source sản phẩm. Written spec vẫn **Approved**; implementation plan 3 task vẫn **Pending/CHƯA Approved**. Quy tắc hiện hành được đồng bộ tại [EXECUTION_RULES](../../agent/EXECUTION_RULES.md) và [SKILL_POLICY](../../agent/SKILL_POLICY.md): cấm Astra mọi cấp; khám phá catalog runtime rồi chọn Luna/Terra/Sol theo độ phức tạp, reasoning tối đa `high`; main chỉ điều phối; subagent không tạo children/helpers; reviewer là fresh độc lập; async giữ taskId và chỉ đọc task_status khi cần.
+
+Next action là trình đúng implementation plan 3 task cho người dùng duyệt. Chưa có quyền hoặc checkpoint cho implementation/test/review trực tiếp trong lượt này.
+
+Independent plan R2 trên `9bf68b2fcb3a7c15e81dbc0d366b6968ddc99582` báo 0C/0I/0M, I1/I2/M1 Closed và ready for user approval; report ignored `.superpowers/sdd/server-pagination-implementation-plan/tanstack-cache-plan-review-r2.md`. Lượt đồng bộ sau review chỉ sửa quy tắc điều phối, không thay kỹ thuật plan; review R2 không bao phủ delta tài liệu sau tip đó.
+
 ## TanStack cache ownership — written spec Approved03/11/2026; implementation plan Pending
 
 Ngày03/11/2026, người dùng chấp thuận **written spec** [TanStack cache ownership spec](technical/tanstack-cache-ownership-spec.md) sau independent R1 tại commit `77980affa4c76e5052b3ea15963c3f4338f32ce9`, verdict **0 Critical / 0 Important / 0 Minor** mới. Approval này bao phủ đặc tả kỹ thuật và mở việc lập implementation plan; giữ hướng TanStack Query5.105.0 cho server state/cache, React state cho UI/draft, giảm ownership cache tùy biến/direct Query internals, không chọn RTK/SWR/upgrade. Đây không phải approval implementation, heap amendment A/H1–H5, performance waiver, hay kết luận root leak.
 
-Independent implementation-plan review R1 sau đó ghi I1/I2/M1. Docs-only disposition tại tip mới đã cập nhật plan với static scan gate/positive control, public refetch Promise/options/cancellation assertions và RED coverage cho retired/unmount/session/export cases. Các finding này cần fresh independent plan review; implementation plan vẫn Pending và không thay đổi written-spec approval, contract hay historical evidence.
+Independent implementation-plan review R1 sau đó ghi I1/I2/M1. Docs-only disposition đã cập nhật plan với static scan gate/positive control, public refetch Promise/options/cancellation assertions và RED coverage cho retired/unmount/session/export cases. R2 đã đóng các finding tại tip nêu ở checkpoint trên; implementation plan vẫn Pending và không thay đổi written-spec approval, contract hay historical evidence.
 
 Đặc tả **Approved written spec** là [TanStack cache ownership spec](technical/tanstack-cache-ownership-spec.md). Spec đề nghị loại `QueryCache.build`, `Query.setOptions`, canonical `gcTime:Infinity` và imperative canonical seed; handoff clamp thử qua public `useQuery` query function, cùng cancellation/lifetime guards và `gcTime:0`, nhưng implementation vẫn chờ plan approval và equivalent tests. `useQuery`/public `QueryClient` APIs vẫn là boundary; page-view/draft/session/CAS/unknown/reconcile vẫn custom vì đó là domain lifecycle, không phải cache copy.
 
-**Trạng thái:** direction và written spec **Accepted/Approved03/11/2026**; implementation plan [2026-11-03-tanstack-cache-ownership.md](../../superpowers/plans/2026-11-03-tanstack-cache-ownership.md) đã viết nhưng **Pending independent plan review + user plan approval**; production implementation **chưa thực hiện**. Giữ nguyên historical heap/performance FAIL, heap amendment proposal và mọi evidence cũ; không sửa ADR-002 thành capability hiện tại. [Validation checkpoint](validation.md#tanstack-cache-ownership--written-spec-approved-implementation-plan-pending-03112026) ghi provenance/checks và giới hạn của lượt docs-only này.
+**Trạng thái:** direction và written spec **Accepted/Approved03/11/2026**; implementation plan [2026-11-03-tanstack-cache-ownership.md](../../superpowers/plans/2026-11-03-tanstack-cache-ownership.md) đã viết nhưng **Pending user plan approval**; production implementation **chưa thực hiện**. Giữ nguyên historical heap/performance FAIL, heap amendment proposal và mọi evidence cũ; không sửa ADR-002 thành capability hiện tại. [Validation checkpoint](validation.md#tanstack-cache-ownership--written-spec-approved-implementation-plan-pending-03112026) ghi provenance/checks và giới hạn của lượt docs-only này.
 
 ## TanStack cache ownership direction — Accepted03/11/2026; spec/plan Pending
 

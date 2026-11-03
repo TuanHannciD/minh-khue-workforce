@@ -1,5 +1,11 @@
 # Validation — MKW-PRODUCT-001
 
+## Checkpoint điều phối/model phiên — 03/11/2026
+
+Phạm vi kiểm chứng docs-only: xác minh BASE/TIP `9bf68b2fcb3a7c15e81dbc0d366b6968ddc99582` trước sửa, đồng bộ quy tắc điều phối/model tại nguồn sở hữu, và giữ trạng thái written spec **Approved** nhưng implementation plan 3 task **CHƯA Approved**. Không sửa mã sản phẩm, test sản phẩm, dependency, runtime hoặc global config; không dispatch children/helpers, không chạy product checks.
+
+Tại worktree trên, `npm run check:docs` exit0, kiểm UTF-8 và link/anchor/fence 71 tài liệu hiện hành; `git diff --check` exit0. Tự rà soát diff tài liệu; independent review của delta này Not run. R2 plan report trên tip trước sửa ghi 0C/0I/0M và đóng I1/I2/M1, không bao phủ delta điều phối sau review. Các quy tắc cấm Astra, review độc lập và lưu ID đã có tương đương, chỉ bổ sung delta và cập nhật trạng thái; không tạo nguồn current mới. Next action: trình plan 3 task cho người dùng duyệt.
+
 ## TanStack cache ownership — written spec Approved; implementation plan Pending, 03/11/2026
 
 Approval ngày03/11/2026: người dùng duyệt written spec `technical/tanstack-cache-ownership-spec.md` sau independent R1 report `.superpowers/sdd/server-pagination-implementation-plan/tanstack-cache-spec-review-r1.md`, exact TIP `77980affa4c76e5052b3ea15963c3f4338f32ce9`, verdict 0C/0I/0M mới. Approval mở planning; không mở implementation, không waive heap/performance và không thay amendment A/H1–H5.
