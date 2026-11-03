@@ -1,5 +1,11 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Attendance integration sau TanStack — scoped status overlay, 03/11/2026
+
+[Independent evidence review R1](../../../../.superpowers/sdd/tanstack-cache-ownership/attendance-integration-evidence-review-r1.md) xác nhận **EVIDENCE INTEGRITY PASS / SCOPED INTEGRATION ACCEPTANCE PASS** trên BASE/HEAD `dfa16a0ad369543735845580b94536c998c9e68e` và reviewed code TIP `b605af75830db091ffa1d7d380756466aba6b4e1`. Build/acceptance/API export exit0; 10 fresh targets; review độc lập 4 workbooks; source unchanged/resources released. Đây là overlay cho scope integration đã chạy, không thay các hàng lịch sử hoặc biến toàn ma trận thành PASS.
+
+Giữ **Not run/Open** cho browser race/exact ref/clamp40→39/late fullmonth-export handoff, native/SR/phoneperf/reader/dependency/G4; giữ **Failed** cho performance/heap và historical bootstrap resource compliance; A/H1–H5 **Pending**. [Heap amendment proposal](../../../../.superpowers/sdd/server-pagination-implementation-plan/heap-measurement-amendment-proposal.md) là quyết định A/B cần user approval; chưa có review độc lập riêng của chính proposal, và chưa có approval nên chưa sửa dòng binding “Heap10 cycles sau2 warmups”.
+
 ## Task9 whole-branch fix R1 — corrected drag scope, 02/11/2026
 
 I1/I2 GREEN theo validation mới; source/check/UI hash freeze và preservation audit ghi tại `.agent-runs/MKW-PRODUCT-001/server-pagination/whole-branch-fix-r1-20261102/measurement-freeze-corrected.json` (18 source hashes/276 preserved entries). Corrected drag-only run PASS12/12 configs,60/60 runs, activation/preview/expected targets/committed targets và plain rejection đều được validator kiểm; `overallPerformance=NOT_RUN`. Đây chỉ là scope đo lại instrumentation drag, không clear performance tổng thể. **Original drag evidence invalid** vì gesture không kích hoạt, các cột drag cũ không là proof gate. Old full run raw8 PASS/4 monotonic heap FAIL giữ stored verdict lịch sử, monotonic gate vẫn Failed; M1/M2, native/SR/phoneperf/reader/G4 và final whole-branch review còn Open/Pending.
