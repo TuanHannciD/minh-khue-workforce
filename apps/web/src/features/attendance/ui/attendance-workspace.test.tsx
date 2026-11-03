@@ -3,7 +3,8 @@
  * File map: original month Keep/Escape checks; pageFixture/setupPages own the
  * shared real Workspace + query + session composition and delayed body seam.
  * Tests cover stale delivery, criteria/no-write, owner guards, deferred clamp,
- * initial errors and focus/scroll. Keep one fixture to pin actual wiring.
+ * initial errors and focus/scroll. export_during_page_handoff_* pins Blob/cache
+ * isolation while a dirty draft holds a clamped delivery. Keep one fixture.
  */
 import { afterEach, expect, it, vi } from "vitest";
 import {
@@ -126,7 +127,7 @@ function pageFixture(
     },
   };
 }
-async function setupPages() {
+async function setupPages(exportResponse?: () => Promise<Response>) {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2024-02-15T00:00:00Z"));
   const client = new QueryClient();
@@ -140,6 +141,11 @@ async function setupPages() {
     fail: () => void;
   }[] = [];
   const unexpected: string[] = [];
+  const exports: {
+    path: string;
+    method: string;
+    body: BodyInit | null | undefined;
+  }[] = [];
   vi.stubGlobal("fetch", async (path: string, options: RequestInit = {}) => {
     if (path.includes("/auth/"))
       return Response.json({
@@ -147,6 +153,14 @@ async function setupPages() {
         expiresAt,
         idleExpiresAt: expiresAt,
       });
+    if (path.includes("/attendance/export") && exportResponse) {
+      exports.push({
+        path,
+        method: options.method ?? "GET",
+        body: options.body,
+      });
+      return exportResponse();
+    }
     if (path !== "/api/v1/attendance/search" || options.method !== "POST") {
       unexpected.push(`${options.method ?? "GET"} ${path}`);
       throw new Error("unexpected table/write request");
@@ -200,6 +214,7 @@ async function setupPages() {
     draft,
     calls,
     unexpected,
+    exports,
     flush,
     resolve,
     search,
@@ -557,6 +572,117 @@ it("held clamp keeps one envelope, raw baseline/footer/fetchedAt; explicit disca
     await app.resolve(4, "poll39", 39);
     expect(document.activeElement).toBe(focus);
     expect(app.unexpected).toEqual([]);
+  } finally {
+    app.stop();
+  }
+});
+
+it("export_during_page_handoff_keeps_draft_and_cache_untouched", async () => {
+  let finish!: (body: Blob) => void;
+  const body = new Promise<Blob>((resolve) => {
+    finish = resolve;
+  });
+  const create = vi.fn(() => "blob:fixture");
+  const revoke = vi.fn();
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: create,
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: revoke,
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  const app = await setupPages(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        headers: new Headers({
+          "content-type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        blob: () => body,
+      }) as Response,
+  );
+  try {
+    await app.resolve(0, "first");
+    app.search("private query");
+    await app.flush();
+    await app.resolve(1, "filtered");
+    const top = screen.getByRole("navigation", { name: "Phân trang đầu bảng" });
+    fireEvent.change(within(top).getByLabelText("Đến trang"), {
+      target: { value: "40" },
+    });
+    fireEvent.submit(within(top).getByRole("form", { name: "Chuyển trang" }));
+    await app.flush();
+    await app.resolve(2, "old40");
+    act(() => {
+      app.draft.open(
+        attendanceFixture,
+        attendanceFixture.cells.find((c) => c.state === "editable")!,
+        "owner",
+      );
+      app.draft.change({
+        raw: "3,25",
+        reminder: true,
+        custom: true,
+        error: "frozen",
+      });
+    });
+    await app.flush();
+    const before = structuredClone(app.draft.edit);
+    const generation = app.draft.ownerGeneration;
+    await app.flush(15000);
+    await app.resolve(3, "clamp39", 39);
+    expect(screen.getAllByRole("alertdialog")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Giữ phần nhập" }));
+    await app.flush();
+    const pageKey = attendanceKeys.page(
+      app.calls[3]!.criteria,
+      "owner",
+      sessionBoundary.current(),
+    );
+    const accepted = app.client.getQueryData<PageDelivery>(pageKey)!;
+    expect(accepted.data.fetchedAt).toBe("clamp39");
+    const cacheBefore = app.client.getQueryCache().getAll();
+    fireEvent.click(screen.getByRole("button", { name: "Xuất Excel" }));
+    await app.flush();
+    expect(create).not.toHaveBeenCalled();
+    const pending = screen.getByRole("button", { name: "Đang nhận tệp…" });
+    expect(pending).toHaveProperty("disabled", true);
+    fireEvent.click(pending);
+    expect(app.client.getQueryData(pageKey)).toBe(accepted);
+    expect(app.draft.edit).toEqual(before);
+    const blob = new Blob([new Uint8Array([80, 75, 3, 4])]);
+    await act(async () => finish(blob));
+    await app.flush();
+    expect(create).toHaveBeenCalledExactlyOnceWith(blob);
+    expect(app.exports).toEqual([
+      {
+        path: "/api/v1/attendance/export?month=2024-02",
+        method: "GET",
+        body: undefined,
+      },
+    ]);
+    expect(app.calls).toHaveLength(4);
+    expect(app.unexpected).toEqual([]);
+    expect(app.client.getQueryData(pageKey)).toBe(accepted);
+    expect(app.client.getQueryCache().getAll()).toEqual(cacheBefore);
+    expect(
+      app.client
+        .getQueryCache()
+        .getAll()
+        .every((q) => !(q.state.data instanceof Blob)),
+    ).toBe(true);
+    expect(app.draft.edit).toEqual(before);
+    expect(app.draft.ownerGeneration).toBe(generation);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.getByText("Snapshot đã lưu lúc old40.")).toBeTruthy();
+    expect(screen.getByLabelText("Tổng tháng · công").textContent).toBe("123");
+    await app.flush(1000);
+    expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:fixture");
+    expect(app.exports).toHaveLength(1);
   } finally {
     app.stop();
   }

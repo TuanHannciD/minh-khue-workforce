@@ -8,6 +8,8 @@
  * cached return and clamp handoff. public_handoff_* covers pre-commit absence,
  * target identity, consume-once and candidate guards; lifecycle cases below
  * retain observer/GC, delayed-body and held-envelope assertions.
+ * handoff_does_not_rebase_* composes frozen bulk recovery with real reads;
+ * session_change_during_handoff_* pins cache clear against queued demand.
  * Kept together because these interleavings share one real producer/view owner.
  */
 import { afterEach, expect, it, vi } from "vitest";
@@ -45,6 +47,7 @@ import {
 import type { AttendancePageDto, PageCriteria } from "./types";
 import { AttendanceDraft } from "./attendance-draft";
 import { attendanceFixture } from "../preview/attendance-fixture";
+import type { ReconcileRequest, WriteAttendance } from "../api/attendance";
 
 const clients: QueryClient[] = [];
 afterEach(() => {
@@ -1700,6 +1703,13 @@ it("canonical poll body cannot publish after navigation cancels its context", as
   const h = await setup({ ...initial, page: 40 });
   await h.resolve(0, "clamp1", 39);
   const accepted = h.view().state.displayed!.delivery;
+  const retired = h.client.getQueryCache().getAll()[0]!;
+  const unrelatedKey = ["unrelated"];
+  h.client.getQueryCache().build(h.client, {
+    queryKey: unrelatedKey,
+    gcTime: Infinity,
+    initialData: "keep",
+  });
   await h.flush(15000);
   expect(h.bodies.map((body) => body.request.page)).toEqual([40, 39]);
   await h.request({ ...initial, page: 3 });
@@ -1710,6 +1720,14 @@ it("canonical poll body cannot publish after navigation cancels its context", as
   );
   await h.resolve(2, "fresh3");
   const fresh = h.view().state.displayed!.delivery;
+  const active = h.client.getQueryCache().find({
+    queryKey: attendanceKeys.page(
+      { ...initial, page: 3 },
+      "owner",
+      fresh.requestLifetime.epoch,
+    ),
+    exact: true,
+  })!;
   await h.resolve(1, "late-canonical2");
   expect(h.view().state.displayed!.delivery).toBe(fresh);
   expect(fresh.requestLifetime.generation).toBe(2);
@@ -1718,17 +1736,33 @@ it("canonical poll body cannot publish after navigation cancels its context", as
   expect(
     h.client
       .getQueryCache()
-      .getAll()
+      .findAll({ queryKey: ["attendance", "page"] })
       .map((query) => query.state.data),
   ).toEqual([fresh]);
   h.unmount();
   await h.flush();
-  expect(h.client.getQueryCache().getAll()).toHaveLength(0);
+  expect(retired.getObserversCount()).toBe(0);
+  expect(active.getObserversCount()).toBe(0);
+  expect(
+    h.client.getQueryCache().findAll({ queryKey: ["attendance", "page"] }),
+  ).toHaveLength(0);
+  expect(h.client.getQueryData(unrelatedKey)).toBe("keep");
   expect(vi.getTimerCount()).toBe(0);
   await h.flush(30000);
   expect(h.bodies).toHaveLength(3);
+  await h.remount({ ...initial, page: 3 });
+  expect(h.view().state.displayed).toBeNull();
+  expect(h.query().data).toBeUndefined();
+  await h.resolve(3, "remount4");
+  const remounted = h.view().state.displayed!.delivery;
+  expect(remounted.requestId).toBe(1);
+  expect(remounted).not.toBe(fresh);
+  h.unmount();
+  await h.flush();
+  expect(h.client.getQueryData(unrelatedKey)).toBe("keep");
+  expect(vi.getTimerCount()).toBe(0);
 });
-it("unmount during accepted handoff creates no seed before a canonical observer subscribes", async () => {
+it("unmount during accepted handoff creates no entry before a canonical observer subscribes", async () => {
   const h = await setup({ ...initial, page: 40 });
   await h.resolve(0, "initial1");
   await h.hold(true);
@@ -1736,6 +1770,13 @@ it("unmount during accepted handoff creates no seed before a canonical observer 
   await h.resolve(1, "held2", 39);
   await h.hold(false);
   const delivery = h.view().state.deferred!;
+  const requested = h.client.getQueryCache().getAll()[0]!;
+  const unrelatedKey = ["unrelated"];
+  h.client.getQueryCache().build(h.client, {
+    queryKey: unrelatedKey,
+    gcTime: Infinity,
+    initialData: "keep",
+  });
   const key = attendanceKeys.page(
     { ...initial, page: 39 },
     "owner",
@@ -1751,11 +1792,220 @@ it("unmount during accepted handoff creates no seed before a canonical observer 
     h.unmount();
   });
   await h.flush();
-  expect(h.client.getQueryCache().getAll()).toHaveLength(0);
+  expect(requested.getObserversCount()).toBe(0);
+  expect(
+    h.client.getQueryCache().find({ queryKey: key, exact: true }),
+  ).toBeUndefined();
+  expect(
+    h.client.getQueryCache().findAll({ queryKey: ["attendance", "page"] }),
+  ).toHaveLength(0);
+  expect(h.client.getQueryData(unrelatedKey)).toBe("keep");
   expect(vi.getTimerCount()).toBe(0);
   await h.flush(30000);
   expect(h.bodies.map((body) => body.request.page)).toEqual([40, 40]);
+  await h.remount({ ...initial, page: 39 });
+  expect(h.view().state.displayed).toBeNull();
+  expect(h.query().data).toBeUndefined();
+  await h.resolve(2, "remount3");
+  expect(h.view().state.displayed!.delivery.requestId).toBe(1);
+  expect(h.view().state.displayed!.delivery).not.toBe(delivery);
+  h.unmount();
+  await h.flush();
+  expect(h.client.getQueryData(unrelatedKey)).toBe("keep");
+  expect(vi.getTimerCount()).toBe(0);
 });
+it.each(["queued", "body"] as const)(
+  "session_change_during_handoff_cancels_pending_read_and_clears_private_cache: %s",
+  async (phase) => {
+    const h = await gatedHandoff();
+    const oldEpoch = h.accepted.requestLifetime.epoch;
+    let settled = false;
+    act(() => {
+      void h
+        .query()
+        .refetch()
+        .then(() => {
+          settled = true;
+        });
+    });
+    await h.flush();
+    expect(h.bodies).toHaveLength(1);
+    if (phase === "body") {
+      await h.release();
+      expect(h.bodies).toHaveLength(2);
+    }
+    const oldSignal = phase === "body" ? h.bodies[1]!.signal : null;
+    const before = structuredClone(h.draft.edit);
+    await act(async () => {
+      h.runtime.expire();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    if (oldSignal) expect(oldSignal.aborted).toBe(true);
+    expect(h.client.getQueryData(h.key)).toBeUndefined();
+    expect(
+      h.client
+        .getQueryCache()
+        .getAll()
+        .every((q) => q.state.data === undefined),
+    ).toBe(true);
+    expect(h.draft.edit).toEqual(before);
+    if (phase === "queued") await h.release();
+    else await h.resolve(1, "late-old-body");
+    expect(settled).toBe(true);
+    const oldCount = phase === "body" ? 2 : 1;
+    expect(h.bodies).toHaveLength(oldCount);
+    expect(h.view().state.displayed).toBeNull();
+    h.changeUser("other");
+    await act(async () => {
+      await h.runtime.login({ username: "other", password: "fixture" });
+    });
+    await h.flush();
+    expect(h.runtime.snapshot().status).toBe("account-change");
+    expect(h.bodies).toHaveLength(oldCount);
+    expect(h.draft.edit).toEqual(before);
+    act(() => h.runtime.confirmAccountChange());
+    await h.flush();
+    expect(h.draft.edit).toBeNull();
+    expect(h.bodies).toHaveLength(oldCount + 1);
+    await h.resolve(oldCount, "other2", 39);
+    expect(h.view().state.displayed!.delivery.requestLifetime).toMatchObject({
+      userId: "other",
+    });
+    expect(h.view().state.lifetime.epoch).toBeGreaterThan(oldEpoch);
+    expect(h.client.getQueryData(h.key)).toBeUndefined();
+    h.unmount();
+  },
+);
+
+it.each(["unknown", "conflict"] as const)(
+  "handoff_does_not_rebase_unknown_original_keys_or_frozen_draft: %s",
+  async (failure) => {
+    const h = await setup({ ...initial, page: 40 });
+    h.draft.clear();
+    const cells = attendanceFixture.cells.filter(
+      (c) =>
+        c.employeeId === attendanceFixture.employees[0]!.id &&
+        c.kind === "work",
+    );
+    expect(
+      h.draft.openBulk(
+        attendanceFixture,
+        [cells[1]!, cells[3]!, cells[4]!],
+        "owner",
+        cells[2]!,
+      ),
+    ).toBe(true);
+    h.draft.change({
+      raw: "3,5",
+      custom: true,
+      reminder: true,
+      error: "frozen error",
+    });
+    const before = structuredClone(h.draft.edit)!;
+    const ownerGeneration = h.draft.ownerGeneration;
+    const write = vi.fn(async (_input: WriteAttendance, _epoch: number) => {
+      void _input;
+      void _epoch;
+      if (failure === "conflict")
+        throw new ApiError(409, "CELL_CONFLICT", "Conflict");
+      throw new TypeError("response lost");
+    });
+    await h.resolve(0, "initial1");
+    const displayed = h.view().state.displayed;
+    await h.hold(true);
+    await h.flush(15000);
+    await h.resolve(1, "moved2", 39);
+    const deferred = h.view().state.deferred;
+    await h.flush(15000);
+    const latest = page(h.bodies[2]!.request, "moved3", 38);
+    latest.employees = [...attendanceFixture.employees.slice(1, 3)].reverse();
+    await act(async () => {
+      h.bodies[2]!.resolve(latest);
+    });
+    await h.flush();
+    expect(h.view().state.displayed).toBe(displayed);
+    expect(h.view().state.deferred).not.toBe(deferred);
+    expect(h.view().state.deferred!.data).toBe(latest);
+    expect(h.draft.edit).toEqual(before);
+    expect(h.draft.ownerGeneration).toBe(ownerGeneration);
+    expect(ownerGeneration).not.toBe(h.view().state.lifetime.generation);
+    expect(await h.draft.submit(write)).toBe(false);
+    expect(h.draft.outcome.type).toBe(failure);
+    await h.request({ ...initial, month: "2024-03", page: 1 });
+    await h.resolve(3, "outside-month4");
+    expect(h.view().state.displayed).toBe(displayed);
+    expect(h.draft.edit).toEqual(before);
+    const originalIds = [attendanceFixture.employees[0]!.id];
+    const originalUnionKeys = [
+      "2024-02-02",
+      "2024-02-04",
+      "2024-02-05",
+      "2024-02-03",
+    ].map((date) => ({
+      employeeId: originalIds[0]!,
+      date,
+      kind: "work" as const,
+    }));
+    const readError = vi.fn(async () => {
+      throw new TypeError("read offline");
+    });
+    await h.draft.reconcile(readError);
+    expect(h.draft.current).toBeNull();
+    expect(h.draft.readError).toContain(
+      "lỗi đọc không có nghĩa nhân sự bị thiếu",
+    );
+    expect(await h.draft.recover("draft", write)).toBe(false);
+    const snapshot = {
+      fetchedAt: "reconcile",
+      employees: [{ ...before.employee, revision: "person-new" }],
+      cells: before.bulk!.cells.map((c) => ({ ...c, revision: "cell-new" })),
+      missingEmployeeIds: [],
+    };
+    const read = vi.fn(async (_input: ReconcileRequest, _epoch: number) => {
+      void _input;
+      void _epoch;
+      return snapshot;
+    });
+    await h.draft.reconcile(read);
+    expect(read.mock.calls[0]).toEqual([
+      { employeeIds: originalIds, cells: originalUnionKeys },
+      h.runtime.boundary.current(),
+    ]);
+    expect(h.draft.current).toBe(snapshot);
+    expect(h.draft.outcome.type).toBe(failure);
+    await h.draft.submit(write);
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(h.draft.edit).toEqual(before);
+    const recover = vi.fn(async (_input: WriteAttendance, _epoch: number) => {
+      void _input;
+      void _epoch;
+      throw new ApiError(409, "CELL_CONFLICT", "Conflict");
+    });
+    expect(await h.draft.recover("draft", recover)).toBe(false);
+    expect(recover).toHaveBeenCalledTimes(1);
+    expect(recover.mock.calls[0]![0]).toMatchObject({
+      month: "2024-02",
+      operation: {
+        type: "set-value",
+        mode: "fill-empty",
+        value: { type: "number", value: 3.5 },
+      },
+      expectedEmployees: [
+        { employeeId: originalIds[0], expectedRevision: "person-new" },
+      ],
+      targets: originalUnionKeys
+        .slice(0, 3)
+        .map((c) => ({ ...c, expectedRevision: "cell-new" })),
+      source: { ...originalUnionKeys[3], expectedRevision: "cell-new" },
+    });
+    expect(h.draft.outcome.type).toBe("conflict");
+    expect(h.draft.edit).toEqual(before);
+    expect(h.draft.edit!.targets).toEqual(before.targets);
+    expect(h.draft.edit!.source).toEqual(before.source);
+    h.unmount();
+  },
+);
+
 it("held clamp preserves the whole old envelope until release adopts latest delivery", async () => {
   const h = await setup({ ...initial, page: 40 });
   await h.resolve(0, "initial1");
