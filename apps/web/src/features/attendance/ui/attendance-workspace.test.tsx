@@ -615,6 +615,54 @@ it("initial error is not empty and can explicitly retry without full-month reque
     app.stop();
   }
 });
+
+it.each(["manual", "background-retry", "initial-retry"] as const)(
+  "all_workspace_refetch_buttons_dispatch_one_real_read: %s",
+  async (route) => {
+    const app = await setupPages();
+    try {
+      if (route !== "initial-retry") await app.resolve(0, "saved");
+      if (route === "background-retry") {
+        fireEvent.click(screen.getByRole("button", { name: "Tải lại bảng" }));
+        await app.flush();
+      }
+      if (route !== "manual") {
+        const failedIndex = route === "initial-retry" ? 0 : 1;
+        app.calls[failedIndex]!.fail();
+        await app.flush();
+        await app.flush(1000);
+        app.calls[failedIndex + 1]!.fail();
+        await app.flush();
+        await app.flush(3000);
+        app.calls[failedIndex + 2]!.fail();
+        await app.flush();
+        expect(screen.getByRole("alert")).toBeTruthy();
+      }
+      const before = app.calls.length;
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: route === "manual" ? "Tải lại bảng" : "Thử lại",
+        }),
+      );
+      await app.flush();
+      expect(app.calls).toHaveLength(before + 1);
+      expect(app.calls[before]!.criteria).toEqual({
+        month: "2024-02",
+        q: "",
+        page: 1,
+        pageSize: 25,
+      });
+      await app.resolve(before, "explicit-retry");
+      expect(
+        screen.getByText("Snapshot đã lưu lúc explicit-retry."),
+      ).toBeTruthy();
+      expect(app.calls).toHaveLength(before + 1);
+      expect(app.unexpected).toEqual([]);
+    } finally {
+      app.stop();
+    }
+  },
+);
 it("page success resets vertical position, preserves horizontal day, and poll does not steal focus", async () => {
   const app = await setupPages();
   try {

@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 /**
  * File map: page/setup own the shared real hook + view + session composition.
- * Tests below cover dispatch A/B/A, reauthentication, polling, cancel/retry,
+ * gatedHandoff/nativeControl pin Task2 barrier/adoption demand, native refetch
+ * Promise/options/cancellation outcomes, automatic reads and explicit retry.
+ * Tests below also cover dispatch A/B/A, reauthentication, polling, cancel/retry,
  * cached return and clamp handoff. public_handoff_* covers pre-commit absence,
  * target identity, consume-once and candidate guards; lifecycle cases below
  * retain observer/GC, delayed-body and held-envelope assertions.
@@ -13,9 +15,17 @@ import { useEffect } from "react";
 import {
   QueryClient,
   QueryClientProvider,
+  QueryObserver,
+  CancelledError,
   focusManager,
   onlineManager,
 } from "@tanstack/react-query";
+import type {
+  RefetchOptions,
+  QueryObserverResult,
+  UseQueryResult,
+} from "@tanstack/react-query";
+import { ApiError } from "@/shared/api/transport";
 import {
   SessionProvider,
   SessionRuntime,
@@ -26,7 +36,11 @@ import { usePageView } from "./use-page-view";
 import { canPollPage } from "./page-view";
 import type { PageDelivery } from "./page-view";
 import { useAttendancePage } from "../api/use-attendance-page";
-import { attendanceKeys, invalidateAttendancePages } from "../api/query-keys";
+import {
+  attendanceKeys,
+  invalidateAttendancePages,
+  invalidateAttendanceScope,
+} from "../api/query-keys";
 import type { AttendancePageDto, PageCriteria } from "./types";
 import { AttendanceDraft } from "./attendance-draft";
 import { attendanceFixture } from "../preview/attendance-fixture";
@@ -130,8 +144,8 @@ async function setup(start = initial) {
   let current!: ReturnType<typeof usePageView>;
   let query!: ReturnType<typeof useAttendancePage>;
   let held = false;
-  let candidateOverride: ((delivery: PageDelivery) => PageDelivery) | null =
-    null;
+  let candidateOverride:
+    ((delivery: PageDelivery) => PageDelivery | null) | null = null;
   const deliveries: PageDelivery[] = [];
   const decisions: string[] = [];
   function View() {
@@ -197,7 +211,9 @@ async function setup(start = initial) {
       const decision = current.accept(delivery);
       return decision;
     },
-    overrideCandidate: (override: (delivery: PageDelivery) => PageDelivery) => {
+    overrideCandidate: (
+      override: (delivery: PageDelivery) => PageDelivery | null,
+    ) => {
       candidateOverride = override;
       act(() => rendered.rerender(wrapper()));
     },
@@ -271,6 +287,742 @@ it("public_handoff_has_no_inactive_seed_before_canonical_render", async () => {
   expect(h.client.getQueryCache().getAll()).toHaveLength(0);
   expect(vi.getTimerCount()).toBe(0);
 });
+
+async function gatedHandoff(
+  preinvalidated = false,
+  beforeBarrier?: (delivery: PageDelivery) => PageDelivery | null,
+) {
+  const h = await setup({ ...initial, page: 40 });
+  const staleRefetch = h.query().refetch;
+  const key = attendanceKeys.page(
+    { ...initial, page: 39 },
+    "owner",
+    h.view().state.lifetime.epoch,
+  );
+  if (preinvalidated) {
+    h.client.setQueryData(key, {
+      requested: { ...initial, page: 40 },
+      requestLifetime: h.view().state.lifetime,
+      requestId: 0,
+      data: page({ ...initial, page: 40 }, "stale", 39),
+    });
+    await h.client.invalidateQueries({
+      queryKey: key,
+      exact: true,
+      refetchType: "none",
+    });
+  }
+  const actualCancel = h.client.cancelQueries.bind(h.client);
+  let release!: () => void;
+  const gate = new Promise<void>((done) => {
+    release = done;
+  });
+  const cancel = vi
+    .spyOn(h.client, "cancelQueries")
+    .mockImplementation(async (...args) => {
+      await actualCancel(...args);
+      if (args[0]?.queryKey?.[6] === 39) await gate;
+    });
+  if (beforeBarrier) h.overrideCandidate(beforeBarrier);
+  await h.resolve(0, "clamp1", 39);
+  const accepted = h.view().state.displayed!.delivery;
+  return {
+    ...h,
+    accepted,
+    staleRefetch,
+    key,
+    release: async () => {
+      await act(async () => release());
+      await h.flush();
+      cancel.mockRestore();
+    },
+  };
+}
+
+it.each(["manual", "month", "scope", "target", "already-invalidated", "many"])(
+  "fresh_read_during_handoff_is_one_canonical_http_read: %s",
+  async (trigger) => {
+    const h = await gatedHandoff(trigger === "already-invalidated");
+    const epoch = h.accepted.requestLifetime.epoch;
+    const baseline = structuredClone(h.draft.edit);
+    const settled = vi.fn();
+    if (trigger === "manual" || trigger === "many")
+      void h.query().refetch().then(settled);
+    if (trigger === "month" || trigger === "many")
+      void invalidateAttendancePages(h.client, initial.month, "owner", epoch);
+    if (trigger === "scope" || trigger === "many")
+      void invalidateAttendanceScope(h.client, "owner", epoch);
+    if (trigger === "target") {
+      h.client.setQueryData(h.key, { ...h.accepted });
+      void h.client.invalidateQueries({ queryKey: h.key, exact: true });
+    }
+    await h.flush();
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+    expect(settled).not.toHaveBeenCalled();
+    await h.release();
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+    expect(settled).not.toHaveBeenCalled();
+    await h.resolve(1, "fresh2");
+    const fresh = h.query().data!;
+    expect(fresh.requestId).toBe(h.accepted.requestId + 1);
+    expect(fresh.requestLifetime).toEqual(h.accepted.requestLifetime);
+    expect(fresh.requested).toEqual({ ...initial, page: 39 });
+    expect(h.view().state.displayed!.delivery).toBe(fresh);
+    expect(fresh).not.toBe(h.accepted);
+    expect(h.draft.edit).toEqual(baseline);
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+    h.unmount();
+  },
+);
+
+it("refetch_wrapper_waits_for_canonical_http_and_settles_each_caller", async () => {
+  const h = await gatedHandoff();
+  const refetch: UseQueryResult<PageDelivery, Error>["refetch"] =
+    h.query().refetch;
+  const options: RefetchOptions = { cancelRefetch: true, throwOnError: true };
+  const settled = vi.fn();
+  const pendingA = refetch();
+  const pendingB: Promise<QueryObserverResult<PageDelivery, Error>> =
+    refetch(options);
+  void pendingA.then(settled, settled);
+  void pendingB.then(settled, settled);
+  await h.flush();
+  expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+  expect(settled).not.toHaveBeenCalled();
+  await h.release();
+  expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+  expect(settled).not.toHaveBeenCalled();
+  await h.resolve(1, "fresh2");
+  const fresh = h.view().state.displayed!.delivery;
+  for (const pending of [pendingA, pendingB]) {
+    const result = await pending;
+    expect(result).toMatchObject({
+      status: "success",
+      error: null,
+      fetchStatus: "idle",
+    });
+    expect(result.data).toBe(fresh);
+  }
+  expect(fresh.requestId).toBe(h.accepted.requestId + 1);
+  expect(fresh.requestLifetime).toEqual(h.accepted.requestLifetime);
+  expect(fresh.requested.page).toBe(39);
+  expect(fresh).not.toBe(h.accepted);
+  h.unmount();
+});
+
+it("refetch_wrapper_preserves_default_error_and_throwOnError", async () => {
+  const h = await setup({ ...initial, page: 40 });
+  await h.resolve(0, "clamp1", 39);
+  const accepted = h.query().data;
+  h.setCode(400);
+  const pending = h.query().refetch();
+  await h.flush();
+  const result = await pending;
+  expect(result).toMatchObject({ status: "error", isError: true });
+  expect(result.error).toBeInstanceOf(ApiError);
+  expect(result.error).toMatchObject({ status: 400 });
+  expect(result.error).toBe(
+    h.client.getQueryState(h.client.getQueryCache().getAll()[0]!.queryKey)
+      ?.error,
+  );
+  expect(result.data).toBe(accepted);
+  const rejected = vi.fn();
+  const throwing = h.query().refetch({ throwOnError: true });
+  void throwing.catch(rejected);
+  await h.flush();
+  expect(rejected).toHaveBeenCalledWith(h.query().error);
+  expect(rejected.mock.calls[0]![0]).not.toBe(result.error);
+  expect(rejected.mock.calls[0]![0]).toBeInstanceOf(ApiError);
+  expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39, 39]);
+  h.unmount();
+});
+
+it("refetch_wrapper_preserves_default_error_and_throwOnError_for_queued_callers", async () => {
+  const h = await gatedHandoff();
+  h.setCode(400);
+  const fulfilled = vi.fn();
+  const rejected = vi.fn();
+  const pending = h.query().refetch();
+  const throwing = h
+    .query()
+    .refetch({ throwOnError: true, cancelRefetch: true });
+  void pending.then(fulfilled, rejected);
+  void throwing.then(fulfilled, rejected);
+  await h.flush();
+  expect(fulfilled).not.toHaveBeenCalled();
+  expect(rejected).not.toHaveBeenCalled();
+  await h.release();
+  const result = await pending;
+  expect(result).toMatchObject({ status: "error", data: undefined });
+  expect(result.error).toBeInstanceOf(ApiError);
+  expect(result.error).toMatchObject({ status: 400 });
+  expect(result.error).toBe(h.query().error);
+  expect(rejected).toHaveBeenCalledExactlyOnceWith(result.error);
+  expect(fulfilled).toHaveBeenCalledTimes(1);
+  expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+  h.setCode(200);
+  const retry = h.query().refetch();
+  await h.flush();
+  expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39, 39]);
+  await h.resolve(2, "retry3");
+  const fresh = (await retry).data!;
+  expect(fresh).toBe(h.view().state.displayed!.delivery);
+  expect(fresh.requestId).toBe(h.accepted.requestId + 2);
+  expect(fresh.requestLifetime).toEqual(h.accepted.requestLifetime);
+  h.unmount();
+});
+
+// Oracle for the wrapper: public core observer with the same data/signal shape.
+function nativeControl(data?: PageDelivery) {
+  const client = new QueryClient();
+  clients.push(client);
+  const bodies: {
+    signal: AbortSignal;
+    resolve: (data: PageDelivery) => void;
+  }[] = [];
+  const observer = new QueryObserver<
+    PageDelivery,
+    Error,
+    PageDelivery | undefined
+  >(client, {
+    queryKey: ["native-control"],
+    enabled: true,
+    retry: false,
+    gcTime: 0,
+    staleTime: Infinity,
+    _optimisticResults: "optimistic",
+    structuralSharing: false,
+    ...(data ? { initialData: data } : {}),
+    queryFn: ({ signal }) =>
+      new Promise<PageDelivery>((resolve) => bodies.push({ signal, resolve })),
+  });
+  const detach = observer.subscribe(() => {});
+  return { client, observer, bodies, detach };
+}
+const outcome = (
+  result: QueryObserverResult<PageDelivery | undefined, Error>,
+) => ({
+  data: result.data,
+  error: result.error,
+  status: result.status,
+  fetchStatus: result.fetchStatus,
+});
+
+it.each(
+  [true, false].flatMap((withData) =>
+    [undefined, true, false].map((cancelRefetch) => ({
+      withData,
+      cancelRefetch,
+    })),
+  ),
+)(
+  "refetch_wrapper_preserves_cancelRefetch_and_signal_guards: data=$withData cancel=$cancelRefetch",
+  async ({ withData, cancelRefetch }) => {
+    const h = await setup({ ...initial, page: withData ? 40 : 39 });
+    if (withData) await h.resolve(0, "clamp1", 39);
+    const accepted = h.query().data;
+    const control = nativeControl(accepted);
+    const options = cancelRefetch === undefined ? undefined : { cancelRefetch };
+    const settled = vi.fn();
+    const first = h.query().refetch({ cancelRefetch: false });
+    const nativeFirst = control.observer.refetch({ cancelRefetch: false });
+    await h.flush();
+    const firstIndex = withData ? 1 : 0;
+    const second = h.query().refetch(options);
+    const nativeSecond = control.observer.refetch(options);
+    void first.then(settled, settled);
+    void second.then(settled, settled);
+    await h.flush();
+    const replace = withData && cancelRefetch !== false;
+    expect(h.bodies[firstIndex]!.signal.aborted).toBe(replace);
+    expect(control.bodies[0]!.signal.aborted).toBe(replace);
+    expect(h.bodies.map((b) => b.request.page)).toEqual(
+      withData ? (replace ? [40, 39, 39] : [40, 39]) : [39],
+    );
+    expect(settled).not.toHaveBeenCalled();
+    if (replace) {
+      await h.resolve(firstIndex, "late-old");
+      expect(h.view().state.displayed!.delivery).toBe(accepted);
+      expect(h.query().data).toBe(accepted);
+      expect(settled).not.toHaveBeenCalled();
+    }
+    await h.resolve(firstIndex + (replace ? 1 : 0), "fresh3");
+    const fresh = h.query().data!;
+    control.bodies.at(-1)!.resolve(fresh);
+    const actual = await Promise.all([first, second]);
+    const native = await Promise.all([nativeFirst, nativeSecond]);
+    expect(actual.map(outcome)).toEqual(native.map(outcome));
+    expect(actual.every((r) => r.data === fresh)).toBe(true);
+    expect(h.view().state.displayed!.delivery).toBe(fresh);
+    expect(fresh.requested.page).toBe(39);
+    if (accepted)
+      expect(fresh.requestLifetime).toEqual(accepted.requestLifetime);
+    control.detach();
+    h.unmount();
+  },
+);
+
+it.each(["navigation", "unmount", "expire"] as const)(
+  "refetch_wrapper_preserves_cancelRefetch_and_signal_guards: queued %s settles without dispatch",
+  async (action) => {
+    const h = await gatedHandoff();
+    const defaultSettled = vi.fn();
+    const throwSettled = vi.fn();
+    const pending = h.query().refetch();
+    const throwing = h
+      .query()
+      .refetch({ throwOnError: true, cancelRefetch: true });
+    void pending.then(defaultSettled, defaultSettled);
+    void throwing.then(throwSettled, throwSettled);
+    await h.flush();
+    expect(defaultSettled).not.toHaveBeenCalled();
+    expect(throwSettled).not.toHaveBeenCalled();
+    if (action === "navigation") await h.request({ ...initial, page: 3 });
+    else if (action === "unmount") h.unmount();
+    else act(() => h.runtime.expire());
+    await h.flush();
+    expect(defaultSettled).toHaveBeenCalledTimes(1);
+    expect(throwSettled).toHaveBeenCalledTimes(1);
+    expect(throwSettled.mock.calls[0]![0]).toBeInstanceOf(CancelledError);
+    await h.release();
+    const expected = action === "navigation" ? [40, 3] : [40];
+    expect(h.bodies.map((b) => b.request.page)).toEqual(expected);
+    if (action === "navigation") await h.resolve(1, "destination2");
+    const displayed = h.view().state.displayed?.delivery;
+    await h.staleRefetch();
+    h.visibility.mockReturnValue("hidden");
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    await h.flush(30000);
+    expect(h.bodies.map((b) => b.request.page)).toEqual(expected);
+    expect(h.view().state.displayed?.delivery).toBe(displayed);
+    if (action !== "unmount") h.unmount();
+  },
+);
+
+it.each(["navigation", "unmount", "expire"] as const)(
+  "refetch_wrapper_preserves_cancelRefetch_and_signal_guards: initial queued %s matches native no-data cancellation",
+  async (action) => {
+    const actualCancel = QueryClient.prototype.cancelQueries;
+    let release!: () => void;
+    const gate = new Promise<void>((done) => {
+      release = done;
+    });
+    const cancel = vi
+      .spyOn(QueryClient.prototype, "cancelQueries")
+      .mockImplementation(async function (this: QueryClient, ...args) {
+        await actualCancel.apply(this, args);
+        if (args[0]?.queryKey?.[6] === 39) await gate;
+      });
+    const h = await setup({ ...initial, page: 39 });
+    const control = nativeControl();
+    const settled = vi.fn();
+    const throwingSettled = vi.fn();
+    const pending = h.query().refetch();
+    const throwing = h
+      .query()
+      .refetch({ cancelRefetch: true, throwOnError: true });
+    void pending.then(settled, settled);
+    void throwing.then(throwingSettled, throwingSettled);
+    const nativePending = control.observer.refetch({ cancelRefetch: false });
+    const nativeThrowing = control.observer.refetch({
+      cancelRefetch: false,
+      throwOnError: true,
+    });
+    const nativeRejected = vi.fn();
+    void nativeThrowing.catch(nativeRejected);
+    control.observer.setOptions({
+      ...control.observer.options,
+      enabled: false,
+    });
+    await control.client.cancelQueries();
+    await h.flush();
+    expect(settled).not.toHaveBeenCalled();
+    expect(throwingSettled).not.toHaveBeenCalled();
+    expect(h.bodies).toHaveLength(0);
+    if (action === "navigation") await h.request({ ...initial, page: 3 });
+    else if (action === "unmount") h.unmount();
+    else act(() => h.runtime.expire());
+    await h.flush();
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(throwingSettled).toHaveBeenCalledTimes(1);
+    expect(outcome(await pending)).toEqual(outcome(await nativePending));
+    expect(throwingSettled.mock.calls[0]![0]).toBeInstanceOf(CancelledError);
+    expect(throwingSettled.mock.calls[0]![0]).toEqual(
+      nativeRejected.mock.calls[0]![0],
+    );
+    await act(async () => release());
+    await h.flush();
+    cancel.mockRestore();
+    if (action === "navigation") await h.resolve(0, "destination1");
+    h.visibility.mockReturnValue("hidden");
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    await h.flush(30000);
+    expect(h.bodies.map((b) => b.request.page)).toEqual(
+      action === "navigation" ? [3] : [],
+    );
+    control.detach();
+    if (action !== "unmount") h.unmount();
+  },
+);
+
+it.each(
+  [true, false].flatMap((withData) =>
+    ["navigation", "unmount", "expire"].flatMap((action) =>
+      [undefined, true, false].map((cancelRefetch) => ({
+        withData,
+        action,
+        cancelRefetch,
+      })),
+    ),
+  ),
+)(
+  "refetch_wrapper_preserves_cancelRefetch_and_signal_guards: HTTP data=$withData $action cancel=$cancelRefetch",
+  async ({ withData, action, cancelRefetch }) => {
+    const h = await setup({ ...initial, page: withData ? 40 : 39 });
+    if (withData) await h.resolve(0, "clamp1", 39);
+    const accepted = h.query().data;
+    const baseline = structuredClone(h.draft.edit);
+    const control = nativeControl(accepted);
+    const pending = h.query().refetch({ cancelRefetch: false });
+    const options: RefetchOptions = {
+      ...(cancelRefetch === undefined ? {} : { cancelRefetch }),
+      throwOnError: true,
+    };
+    const throwing = h.query().refetch(options);
+    const nativePending = control.observer.refetch({ cancelRefetch: false });
+    const nativeThrowing = control.observer.refetch(options);
+    const settled = vi.fn();
+    const nativeSettled = vi.fn();
+    const record = (
+      p: Promise<QueryObserverResult<PageDelivery | undefined, Error>>,
+    ) =>
+      p.then(
+        (r) => ({ result: outcome(r) }),
+        (error) => ({ error }),
+      );
+    const actualOutcomes = Promise.all([
+      record(pending),
+      record(throwing),
+    ]).then((r) => {
+      settled(r);
+      return r;
+    });
+    const nativeOutcomes = Promise.all([
+      record(nativePending),
+      record(nativeThrowing),
+    ]).then((r) => {
+      nativeSettled(r);
+      return r;
+    });
+    await h.flush();
+    expect(settled).not.toHaveBeenCalled();
+    if (action === "navigation") {
+      // During the barrier React retains the prior key but suppresses delivery.
+      control.observer.setOptions({
+        ...control.observer.options,
+        enabled: false,
+        select: () => undefined,
+      });
+      await control.client.cancelQueries();
+      await h.request({ ...initial, page: 3 });
+    } else if (action === "unmount") {
+      control.detach();
+      h.unmount();
+    } else {
+      // Session clear switches to an empty, disabled epoch before refetch settles.
+      const canceled = control.client.cancelQueries();
+      control.client.clear();
+      const options = { ...control.observer.options };
+      delete options.initialData;
+      control.observer.setOptions({
+        ...options,
+        queryKey: ["expired"],
+        enabled: false,
+      });
+      await canceled;
+      act(() => h.runtime.expire());
+    }
+    await h.flush();
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(nativeSettled).toHaveBeenCalledTimes(1);
+    const actual = await actualOutcomes;
+    const native = await nativeOutcomes;
+    for (let n = 0; n < 2; n++) {
+      if ("error" in native[n]!)
+        expect(actual[n]).toMatchObject({ error: expect.any(CancelledError) });
+      else expect(actual[n]).toEqual(native[n]);
+    }
+    const oldIndex = withData ? 1 : 0;
+    expect(h.bodies[oldIndex]!.signal.aborted).toBe(true);
+    expect(control.bodies[0]!.signal.aborted).toBe(true);
+    const replaced = withData && cancelRefetch !== false;
+    const activeIndex = oldIndex + (replaced ? 1 : 0);
+    expect(h.bodies[activeIndex]!.signal.aborted).toBe(true);
+    expect(h.bodies.map((b) => b.request.page)).toEqual(
+      action === "navigation"
+        ? withData
+          ? replaced
+            ? [40, 39, 39, 3]
+            : [40, 39, 3]
+          : [39, 3]
+        : withData
+          ? replaced
+            ? [40, 39, 39]
+            : [40, 39]
+          : [39],
+    );
+    if (action === "navigation")
+      await h.resolve(activeIndex + 1, "destination");
+    const displayed = h.view().state.displayed?.delivery;
+    await h.resolve(oldIndex, "ignored-late");
+    if (replaced) await h.resolve(activeIndex, "ignored-replacement");
+    expect(h.view().state.displayed?.delivery).toBe(displayed);
+    expect(h.draft.edit).toEqual(baseline);
+    const count = h.bodies.length;
+    // Hide the current destination: this check isolates canceled hidden work.
+    h.visibility.mockReturnValue("hidden");
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    await h.flush(30000);
+    expect(h.bodies).toHaveLength(count);
+    expect(
+      h.client
+        .getQueryCache()
+        .getAll()
+        .some(
+          (q) =>
+            (q.state.data as PageDelivery | undefined)?.data.fetchedAt ===
+            "ignored-late",
+        ),
+    ).toBe(false);
+    expect(
+      h.client
+        .getQueryCache()
+        .getAll()
+        .some(
+          (q) =>
+            (q.state.data as PageDelivery | undefined)?.data.fetchedAt ===
+            "ignored-replacement",
+        ),
+    ).toBe(false);
+    if (action !== "unmount") {
+      control.detach();
+      h.unmount();
+    }
+  },
+);
+
+it.each([
+  "manual",
+  "month",
+  "scope",
+  "target",
+  "focus",
+  "reconnect",
+  "many",
+] as const)(
+  "fresh_read_during_handoff_after_local_queryFn_start_waits_for_adoption: %s",
+  async (trigger) => {
+    const h = await setup({ ...initial, page: 40 });
+    let pendingA: Promise<QueryObserverResult<PageDelivery, Error>> | undefined;
+    let pendingB: Promise<QueryObserverResult<PageDelivery, Error>> | undefined;
+    const settled = vi.fn();
+    const stop = h.client.getQueryCache().subscribe((event) => {
+      if (
+        event.type === "updated" &&
+        event.action.type === "fetch" &&
+        event.query.queryKey[6] === 39
+      ) {
+        stop();
+        queueMicrotask(() => {
+          const epoch = h.view().state.lifetime.epoch;
+          if (trigger === "manual" || trigger === "many") {
+            pendingA = h.query().refetch();
+            pendingB = h
+              .query()
+              .refetch({ throwOnError: true, cancelRefetch: true });
+            void pendingA.then(settled, settled);
+            void pendingB.then(settled, settled);
+          }
+          if (trigger === "month" || trigger === "many")
+            void invalidateAttendancePages(
+              h.client,
+              initial.month,
+              "owner",
+              epoch,
+            );
+          if (trigger === "scope" || trigger === "many")
+            void invalidateAttendanceScope(h.client, "owner", epoch);
+          if (trigger === "target" || trigger === "many")
+            void h.client.invalidateQueries({
+              queryKey: attendanceKeys.page(
+                { ...initial, page: 39 },
+                "owner",
+                epoch,
+              ),
+              exact: true,
+            });
+          if (trigger === "focus" || trigger === "many") {
+            focusManager.setFocused(false);
+            focusManager.setFocused(true);
+          }
+          if (trigger === "reconnect" || trigger === "many") {
+            onlineManager.setOnline(false);
+            onlineManager.setOnline(true);
+          }
+          expect(settled).not.toHaveBeenCalled();
+        });
+      }
+    });
+    await h.resolve(0, "clamp1", 39);
+    const accepted = h.view().state.displayed!.delivery;
+    if (trigger === "manual" || trigger === "many")
+      expect(pendingA).toBeDefined();
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+    expect(settled).not.toHaveBeenCalled();
+    await h.resolve(1, "fresh2");
+    const fresh = h.query().data;
+    if (pendingA && pendingB) {
+      expect((await pendingA).data).toBe(fresh);
+      expect((await pendingB).data).toBe(fresh);
+    }
+    expect(fresh!.requestId).toBe(accepted.requestId + 1);
+    expect(fresh!.requestLifetime).toEqual(accepted.requestLifetime);
+    expect(h.view().state.displayed!.delivery).toBe(fresh);
+    h.unmount();
+  },
+);
+
+it("handoff_poll_focus_reconnect_hidden_drops_queued_work_and_stale_callback", async () => {
+  const h = await gatedHandoff();
+  const settled = vi.fn();
+  const pending = h.query().refetch();
+  void pending.then(settled, settled);
+  await h.flush();
+  expect(settled).not.toHaveBeenCalled();
+  h.visibility.mockReturnValue("hidden");
+  act(() => document.dispatchEvent(new Event("visibilitychange")));
+  await h.flush();
+  expect(settled).toHaveBeenCalledTimes(1);
+  focusManager.setFocused(false);
+  focusManager.setFocused(true);
+  onlineManager.setOnline(false);
+  onlineManager.setOnline(true);
+  await h.release();
+  await h.flush(30000);
+  expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+  h.visibility.mockReturnValue("visible");
+  act(() => document.dispatchEvent(new Event("visibilitychange")));
+  await h.flush();
+  expect(h.query().data).toBe(h.accepted);
+  await h.staleRefetch();
+  await h.flush();
+  expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+  h.unmount();
+});
+
+it.each(["poll", "focus", "reconnect"] as const)(
+  "handoff_poll_focus_reconnect_reads_canonical_without_local_replay: %s",
+  async (trigger) => {
+    const h = await gatedHandoff();
+    await h.flush(14999);
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+    await h.flush(1);
+    if (trigger === "focus") {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    }
+    if (trigger === "reconnect") {
+      onlineManager.setOnline(false);
+      onlineManager.setOnline(true);
+    }
+    await h.flush();
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+    await h.release();
+    if (trigger === "poll") {
+      expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+      await h.flush(14999);
+      expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+      await h.flush(1);
+    }
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+    await h.resolve(1, "fresh2");
+    expect(h.query().data!.requested.page).toBe(39);
+    expect(h.query().data!.requestId).toBe(h.accepted.requestId + 1);
+    if (trigger !== "poll") {
+      if (trigger === "focus") {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      } else {
+        onlineManager.setOnline(false);
+        onlineManager.setOnline(true);
+      }
+      await h.flush();
+      expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39, 39]);
+      await h.resolve(2, "fresh3");
+    }
+    h.unmount();
+  },
+);
+
+it.each([
+  "lost",
+  "cancel-after-consume",
+  "replaced-during-consume",
+  "lost-during-consume",
+  "wrong-before-barrier",
+] as const)(
+  "lost_or_canceled_current_handoff_exposes_retry_without_seed_loop: %s",
+  async (variant) => {
+    const h = await gatedHandoff(
+      false,
+      variant === "wrong-before-barrier"
+        ? (delivery) => ({
+            ...delivery,
+            requested: { ...delivery.requested, q: "wrong" },
+          })
+        : undefined,
+    );
+    if (variant === "lost") h.overrideCandidate(() => null);
+    else if (variant !== "wrong-before-barrier") {
+      const stop = h.client.getQueryCache().subscribe((event) => {
+        if (
+          event.type === "updated" &&
+          event.action.type === "fetch" &&
+          event.query.queryKey[6] === 39
+        ) {
+          stop();
+          queueMicrotask(() => {
+            if (variant === "cancel-after-consume")
+              void h.client.cancelQueries({ queryKey: h.key, exact: true });
+            else
+              h.overrideCandidate((delivery) =>
+                variant === "lost-during-consume" ? null : { ...delivery },
+              );
+          });
+        }
+      });
+    }
+    await h.release();
+    expect(h.query().isError).toBe(true);
+    expect(h.query().fetchStatus).toBe("idle");
+    expect(h.view().state.displayed!.delivery).toBe(h.accepted);
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+    await h.flush(30000);
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    onlineManager.setOnline(false);
+    onlineManager.setOnline(true);
+    await h.flush();
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40]);
+    const pending = h.query().refetch();
+    await h.flush();
+    expect(h.bodies.map((b) => b.request.page)).toEqual([40, 39]);
+    await h.resolve(1, "retry2");
+    expect((await pending).data).toBe(h.view().state.displayed!.delivery);
+    expect(h.query().data!.requestId).toBe(h.accepted.requestId + 1);
+    h.unmount();
+  },
+);
 
 it.each(["same lifetime and requestId", "old generation"])(
   "public_handoff_evicts_equal_byte_wrong_reference_target: %s",

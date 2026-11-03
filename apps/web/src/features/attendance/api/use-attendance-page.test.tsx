@@ -6,6 +6,8 @@ import {
   QueryClient,
   QueryClientProvider,
   QueryObserver,
+  focusManager,
+  onlineManager,
 } from "@tanstack/react-query";
 import { SessionProvider, SessionRuntime } from "@/features/session/index";
 import { sessionBoundary } from "@/shared/api/session-boundary";
@@ -30,6 +32,8 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  focusManager.setFocused(undefined);
+  onlineManager.setOnline(true);
 });
 async function setup(code = 200) {
   vi.useFakeTimers();
@@ -106,7 +110,18 @@ async function setup(code = 200) {
     await act(() => vi.advanceTimersByTimeAsync(ms));
   };
   await flush();
-  return { hook, calls: () => calls, bodies, client, runtime, visible, flush };
+  return {
+    hook,
+    calls: () => calls,
+    bodies,
+    client,
+    runtime,
+    visible,
+    flush,
+    setCode: (next: number) => {
+      code = next;
+    },
+  };
 }
 it("active_page_only_polls_15000; body trim preserves case and keys omit kind/generation", async () => {
   const h = await setup();
@@ -141,8 +156,20 @@ it("active_page_only_polls_15000; body trim preserves case and keys omit kind/ge
 it("4xx stops retries and automatic polling", async () => {
   const h = await setup(400);
   await h.flush(50000);
+  focusManager.setFocused(false);
+  focusManager.setFocused(true);
+  onlineManager.setOnline(false);
+  onlineManager.setOnline(true);
+  await h.flush();
   expect(h.calls()).toBe(1);
   expect(h.hook.result.current.isError).toBe(true);
+  h.setCode(200);
+  const pending = h.hook.result.current.refetch();
+  await h.flush();
+  expect(h.calls()).toBe(2);
+  expect((await pending).isSuccess).toBe(true);
+  h.hook.unmount();
+  h.client.clear();
 });
 it("5xx retries exactly twice at 1000 and 3000ms; expire stops dispatch", async () => {
   const h = await setup(503);
