@@ -1,5 +1,15 @@
 # Validation — MKW-PRODUCT-001
 
+## TanStack cache ownership — written spec Approved; implementation plan Pending, 03/11/2026
+
+Approval ngày03/11/2026: người dùng duyệt written spec `technical/tanstack-cache-ownership-spec.md` sau independent R1 report `.superpowers/sdd/server-pagination-implementation-plan/tanstack-cache-spec-review-r1.md`, exact TIP `77980affa4c76e5052b3ea15963c3f4338f32ce9`, verdict 0C/0I/0M mới. Approval mở planning; không mở implementation, không waive heap/performance và không thay amendment A/H1–H5.
+
+Phạm vi writer: plan docs-only `docs/superpowers/plans/2026-11-03-tanstack-cache-ownership.md`, status/decision/INDEX checkpoint và ignored `.superpowers/sdd/server-pagination-implementation-plan/tanstack-cache-plan-report.md`; BASE `77980affa4c76e5052b3ea15963c3f4338f32ce9`, branch `agent/mkw-agent-002`, worktree `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`. Không sửa source/test/dependency/runtime/DB/browser/main ledger/historical evidence; không network/install/resource/new worktree/push/merge/deploy; không chạy product tests trong planning. Sole GPT-6.1-Sol reasoning high; không Astra/children/helpers/subagents.
+
+Đã đọc read-only theo SOURCE_NAVIGATION: feature README/file map và các symbol `useAttendancePage`, `acceptPageResponse`, `usePageView`, `AttendanceWorkspace`, `invalidateAttendancePages`, `useAttendanceMonth`, `AttendanceDraft`, `SessionRuntime`, `SessionBoundary`, `downloadAttendance` cùng consumer/tests; package local TanStack5.105.0 và scripts/package commands. Không re-survey kiến trúc/UI đã duyệt. Plan ghi exact paths/interfaces, RED→GREEN commands/expected, commit/review gates, static boundary, one-shot public queryFn handoff, read-demand arbitration, draft/session/CAS/unknown/original-key, fullmonth/export và cleanup invariants.
+
+Planning validation: `npm run check:docs` tại worktree exit0, 71 current Markdown documents; `git diff --check` exit0. Checker không đếm `.superpowers/` ignored report. Product tests, build/typecheck, browser, DB/HTTP, benchmark/heap, native/SR/phoneperf/reader/dependency/G4 **Not run/Open**. Historical performance/heap **Failed** giữ nguyên; không causal leak closure, không validator/threshold amendment.
+
 ## TanStack cache ownership spec — Proposed, 03/11/2026
 
 Phạm vi writer: chỉ docs/spec, branch `agent/mkw-agent-002`, worktree `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`, BASE sạch `3eff07d2d0a759fa665c89f75c12c6bb3ec3b017`. Hướng người dùng đã duyệt ghi riêng ở [decisions](decisions.md#tanstack-cache-ownership-direction--accepted03112026-specplan-pending); không duyệt heap amendment A/H1–H5, performance waiver hoặc nguyên nhân leak.

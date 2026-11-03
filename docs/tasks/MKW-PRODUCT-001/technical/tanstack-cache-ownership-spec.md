@@ -1,6 +1,6 @@
 # Đặc tả sở hữu cache TanStack Query cho trang chấm công
 
-**Trạng thái: Proposed — đặc tả kỹ thuật ngày 03/11/2026.** Tài liệu này được viết sau khi người dùng chấp thuận hướng kiến trúc giữ TanStack Query5.105.0 cho server state/cache, React state cho UI/bản nháp và giảm ownership cache tùy biến. Hướng đó là **Accepted direction**; phương án handoff/lifetime cụ thể dưới đây chưa được duyệt triển khai. Không coi tài liệu là bằng chứng đã cài, đã migrate hoặc đã chứng minh hết rò rỉ heap.
+**Trạng thái: Written spec Approved — 03/11/2026; implementation plan Pending.** Người dùng đã duyệt written spec này sau independent R1 tại commit `77980affa4c76e5052b3ea15963c3f4338f32ce9` (0C/0I/0M mới). Approval mở việc lập implementation plan, chưa mở implementation hoặc heap amendment. Tài liệu này được viết sau khi người dùng chấp thuận hướng kiến trúc giữ TanStack Query5.105.0 cho server state/cache, React state cho UI/bản nháp và giảm ownership cache tùy biến. Không coi tài liệu là bằng chứng đã cài, đã migrate hoặc đã chứng minh hết rò rỉ heap.
 
 ## 1. Phạm vi và mục tiêu
 
@@ -8,15 +8,15 @@
 
 Ngoài phạm vi là đổi API/DTO/DB order, đổi giao diện giữ bản nháp, thêm Zustand/RTK/SWR, đổi dependency/version, hạ performance budget, đổi heap acceptance amendment A/H1–H5, hoặc hứa thư viện tự giải phóng callback tùy ý. Không đưa `keepPreviousData` vào để âm thầm thay UX: displayed/deferred envelope vẫn là quyết định của feature. [Design15](../design.md#15-phân-trang-server-và-tìm-toàn-tháng--accepted01112026) và [API8](api-contract.md#8-đọc-trang-server--thiết-kế-đã-duyệt01112026) sở hữu hành vi/wire đã duyệt; [ADR-002](../../../architecture/decisions/ADR-002-state-management.md) và [ADR-003](../../../architecture/decisions/ADR-003-product-stack.md) sở hữu lựa chọn state/stack lịch sử.
 
-## 2. Điều đã được duyệt và điều còn Proposed
+## 2. Điều đã được duyệt và phần chưa kiểm chứng
 
 | Nội dung | Trạng thái và nguồn |
 | --- | --- |
 | TanStack Query cho dữ liệu API/cache; React state cho selection/editor/draft; Zustand chỉ khi có nhu cầu UI cụ thể | Accepted trong ADR-002/003 và hướng người dùng 03/11/2026 |
 | Giữ bản nháp qua poll, CAS/revision, unknown write, reconcile original keys, page clamp và session isolation | Đã có trong design/API/plan và source/tests hiện tại; phạm vi contract hiện hành |
-| Dùng public `useQuery`, `QueryClient.cancelQueries/removeQueries/invalidateQueries`, `setQueryData` khi thật sự cần; tránh `QueryCache.build`/`Query.setOptions` | Proposed design của spec này |
-| Handoff clamp một lần qua public `useQuery.queryFn`; `gcTime:0` cho mọi page query từ khi tạo; không tạo canonical Query trực tiếp | Proposed, phải có implementation plan và test tương đương trước khi migrate |
-| Bỏ `gcTime:Infinity`, direct `cache.build` và `Query.setOptions` hiện tại | Proposed simplification, chưa được chấp thuận và chưa chứng minh an toàn |
+| Dùng public `useQuery`, `QueryClient.cancelQueries/removeQueries/invalidateQueries`, `setQueryData` khi thật sự cần; tránh `QueryCache.build`/`Query.setOptions` | Approved written design03/11/2026; chưa implementation |
+| Handoff clamp một lần qua public `useQuery.queryFn`; `gcTime:0` cho mọi page query từ khi tạo; không tạo canonical Query trực tiếp | Approved written design; implementation plan còn Pending approval và phải đạt test tương đương trước khi migrate |
+| Bỏ `gcTime:Infinity`, direct `cache.build` và `Query.setOptions` hiện tại | Approved written simplification; chưa triển khai hoặc chứng minh an toàn bằng runtime tests |
 | Heap amendment A/H1–H5, performance/native/SR/G4 | Pending/Failed theo hồ sơ hiện hành; spec không sửa hoặc waive |
 
 ADR-002 là quyết định lịch sử về lựa chọn/phân trách nhiệm, không được đọc như capability đã có ở thời điểm ADR. Phiên bản local thực tế được đọc là `@tanstack/react-query` và `@tanstack/query-core`5.105.0 từ package store; không cài hoặc nâng cấp.
@@ -48,7 +48,7 @@ ADR-002 là quyết định lịch sử về lựa chọn/phân trách nhiệm, 
 
 Mỗi delivery giữ cùng reference khi đi từ query result qua `acceptPageResponse` tới displayed envelope. Khi deferred, displayed có thể giữ một delivery cũ và deferred/query giữ delivery mới nhất; không buộc chúng thành một snapshot rồi mất guard. `PageViewState` là điều phối lifecycle, không phải global server-data store. `toPageTable` chỉ tạo wrapper/projection dùng lại employees/cells/totals references, không clone DTO hoặc dựng lịch sử page. Bounded frozen copies trong draft/selection và `current` reconcile snapshot độc lập là cần thiết cho CAS/đối chiếu, không phải cache phụ.
 
-## 5. Thiết kế Proposed: public API handoff và lifetime
+## 5. Thiết kế đã duyệt: public API handoff và lifetime
 
 ### 5.1 Page query bình thường
 
@@ -66,7 +66,7 @@ Identity/epoch trong key không thay auth guard. SessionRuntime invalidate epoch
 
 Server có thể trả `requestedPage != pagination.page`. Giữ `PageDelivery.requested` và `data.pagination.requestedPage` gốc; chỉ `desired` và `displayed.criteria.page` đổi về effective page. Handoff không là request HTTP mới, không tăng requestId/generation và không sửa tag của response. Query function được phép resolve dữ liệu đã có; việc cấp seed cục bộ này khác dispatch HTTP mới.
 
-Phương án được đề nghị để review dùng public `useQuery` và public `QueryClient` filters; không có imperative canonical cache seed trước render:
+Phương án written spec đã duyệt dùng public `useQuery` và public `QueryClient` filters; không có imperative canonical cache seed trước render:
 
 1. `acceptPageResponse` kiểm lifetime/criteria/request ordering. Khi `accepted`, React view giữ chính delivery reference và chuyển desired/displayed criteria về effective page trong một update. Workspace bỏ lệnh imperative `adoptAttendancePage` ghi cache sau accept; deferred release đi qua cùng accept. Nếu render bị trì hoãn, delivery còn ở displayed/deferred owner hiện hành, chưa có canonical cache seed inactive cần Infinity bảo vệ.
 2. Producer nhận một **ứng viên handoff** từ `displayed.delivery`, chỉ hợp lệ nếu nó là accepted clamp, cùng user/epoch/generation và month/q/pageSize, effective page bằng desired page. Không dùng delivery deferred chưa accepted, displayed từ generation trước, hoặc cached return A→B→A. Đây là tham chiếu đến cùng DTO, không một store/cache mới.
@@ -133,7 +133,7 @@ Full-month GET giữ `MonthDto`/query key riêng `["attendance",userId,epoch,mon
 
 ## 8. Acceptance và migration gates (cho implementation plan sau)
 
-Spec chỉ được chuyển sang plan sau written-spec approval. Implementation phải đạt tối thiểu:
+Written-spec approval03/11/2026 đã mở [implementation plan](../../../superpowers/plans/2026-11-03-tanstack-cache-ownership.md); plan approval còn Pending. Implementation phải đạt tối thiểu:
 
 1. Ranh giới tĩnh: không còn production feature import/core call `QueryCache.build`/`Query.setOptions`/`gcTime:Infinity`; mọi cache action qua `useQuery` hoặc public `QueryClient` methods.
 2. Hành vi hiện hành: toàn bộ test page-view/workspace/query vẫn giữ semantics A→B→A, clamp, deferred membership, stale response, session reauth/account change, error/retry, poll/focus/reconnect và no hidden writes.
@@ -170,10 +170,10 @@ Provenance package local: `apps/web/package.json` và `pnpm-lock.yaml` pin `@tan
 
 ## 10. Rủi ro migration và điểm dừng
 
-Rủi ro lớn nhất là đổi từ seed imperative trước rerender sang local queryFn adoption: gating emission, same-key rebuild, consume-once/cancel và exact-reference phải cùng nhất quán. Tạm thời isFetching trong local adoption được phép khóa new edits như hiện tại; không được đổi labels/fetchedAt, phát thêm HTTP chỉ để seed, loop accepted delivery hoặc giành focus. Chưa có kết quả runtime chứng minh đường mới; independent review đánh giá spec, rồi equivalent tests mới quyết định code có thể thay safeguards cũ.
+Rủi ro lớn nhất là đổi từ seed imperative trước rerender sang local queryFn adoption: gating emission, same-key rebuild, consume-once/cancel và exact-reference phải cùng nhất quán. Tạm thời isFetching trong local adoption được phép khóa new edits như hiện tại; không được đổi labels/fetchedAt, phát thêm HTTP chỉ để seed, loop accepted delivery hoặc giành focus. Chưa có kết quả runtime chứng minh đường mới; R1 đã review spec, còn equivalent tests sau plan approval mới quyết định code có thể thay safeguards cũ.
 
 `gcTime:0` không xoá mọi object lập tức: cache removal, observer detach, cancellation/fetch-finally và GC callback là các bước khác nhau; callbacks còn root qua React/DOM/projection có thể giữ DTO dù query đã remove. Existing R2 graph quan sát initial DTO qua live button callback là known residual, chưa causal closure/production fix. Spec này không sửa callback đó hoặc hứa thay cache sẽ giải phóng nó. Không nối thành proof H1–H5/no-leak/performance clearance; historical four heap FAIL/old raw và pending amendment giữ nguyên.
 
 App hiện không persist query cache. Migration phải được kiểm trên provider/QueryClient tạo mới từ build mới; thay code trong một QueryClient cũ đã có instance canonical Infinity không thể hạ gcTime bằng observer0. Không dùng hot reload giữa hai implementation làm bằng chứng target policy đạt, hoặc gọi global clear từ feature để che legacy instance. Tests stale/equal-byte target vẫn bắt buộc evict/rebuild đúng key và giữ unrelated entry.
 
-Chỉ cập nhật module README/source map đang mô tả Infinity cùng implementation được review sau plan approval; hiện tại mô tả cũ vẫn đúng với source. Nếu public-path migration không đạt test/cleanup hoặc phát hiện multi-owner/capability mới, ghi Failed/Blocked đúng scope và trả review, giữ safeguard hiện tại. Không dùng upgrade/fallback library/grace timeout/waiver để vượt gate. Main tiếp theo fresh independent spec review → concrete written-spec presentation/user approval → writing-plans; không plan/code/dispatch mới từ spec này.
+Chỉ cập nhật module README/source map đang mô tả Infinity cùng implementation được review sau plan approval; hiện tại mô tả cũ vẫn đúng với source. Nếu public-path migration không đạt test/cleanup hoặc phát hiện multi-owner/capability mới, ghi Failed/Blocked đúng scope và trả review, giữ safeguard hiện tại. Không dùng upgrade/fallback library/grace timeout/waiver để vượt gate. Main tiếp theo fresh independent implementation-plan review → user plan approval; written spec đã R1 review và user Approved03/11/2026, không lặp approval đó. Chưa code/dispatch mới trong lượt planning.
