@@ -1,6 +1,6 @@
 # Đặc tả sở hữu cache TanStack Query cho trang chấm công
 
-**Trạng thái: Written spec Approved — 03/11/2026; implementation plan Pending.** Người dùng đã duyệt written spec này sau independent R1 tại commit `77980affa4c76e5052b3ea15963c3f4338f32ce9` (0C/0I/0M mới). Approval mở việc lập implementation plan, chưa mở implementation hoặc heap amendment. Tài liệu này được viết sau khi người dùng chấp thuận hướng kiến trúc giữ TanStack Query5.105.0 cho server state/cache, React state cho UI/bản nháp và giảm ownership cache tùy biến. Không coi tài liệu là bằng chứng đã cài, đã migrate hoặc đã chứng minh hết rò rỉ heap.
+**Trạng thái: Written spec và implementation plan Approved; implementation/review local tại code TIP `b605af75830db091ffa1d7d380756466aba6b4e1`.** Người dùng đã duyệt written spec này sau independent R1 tại commit `77980affa4c76e5052b3ea15963c3f4338f32ce9` (0C/0I/0M mới). Plan đã được user Approved trong phiên; implementation/review local được ghi tại [validation](../validation.md#tanstack-cache-ownership--implementation-và-review-local-03112026). Approval không mở heap amendment. Tài liệu này được viết sau khi người dùng chấp thuận hướng kiến trúc giữ TanStack Query5.105.0 cho server state/cache, React state cho UI/bản nháp và giảm ownership cache tùy biến. Không coi tài liệu là bằng chứng đã cài, đã migrate hoặc đã chứng minh hết rò rỉ heap.
 
 ## 1. Phạm vi và mục tiêu
 
@@ -14,9 +14,9 @@ Ngoài phạm vi là đổi API/DTO/DB order, đổi giao diện giữ bản nh�
 | --- | --- |
 | TanStack Query cho dữ liệu API/cache; React state cho selection/editor/draft; Zustand chỉ khi có nhu cầu UI cụ thể | Accepted trong ADR-002/003 và hướng người dùng 03/11/2026 |
 | Giữ bản nháp qua poll, CAS/revision, unknown write, reconcile original keys, page clamp và session isolation | Đã có trong design/API/plan và source/tests hiện tại; phạm vi contract hiện hành |
-| Dùng public `useQuery`, `QueryClient.cancelQueries/removeQueries/invalidateQueries`, `setQueryData` khi thật sự cần; tránh `QueryCache.build`/`Query.setOptions` | Approved written design03/11/2026; chưa implementation |
-| Handoff clamp một lần qua public `useQuery.queryFn`; `gcTime:0` cho mọi page query từ khi tạo; không tạo canonical Query trực tiếp | Approved written design; implementation plan còn Pending approval và phải đạt test tương đương trước khi migrate |
-| Bỏ `gcTime:Infinity`, direct `cache.build` và `Query.setOptions` hiện tại | Approved written simplification; chưa triển khai hoặc chứng minh an toàn bằng runtime tests |
+| Dùng public `useQuery`, `QueryClient.cancelQueries/removeQueries/invalidateQueries`, `setQueryData` khi thật sự cần; tránh `QueryCache.build`/`Query.setOptions` | Approved written design03/11/2026; implementation local đã review |
+| Handoff clamp một lần qua public `useQuery.queryFn`; `gcTime:0` cho mọi page query từ khi tạo; không tạo canonical Query trực tiếp | Approved written design; implementation local đã review; giới hạn và gates riêng tại validation |
+| Bỏ `gcTime:Infinity`, direct `cache.build` và `Query.setOptions` hiện tại | Approved written simplification; implementation và local tests đã review, external gates riêng tại validation |
 | Heap amendment A/H1–H5, performance/native/SR/G4 | Pending/Failed theo hồ sơ hiện hành; spec không sửa hoặc waive |
 
 ADR-002 là quyết định lịch sử về lựa chọn/phân trách nhiệm, không được đọc như capability đã có ở thời điểm ADR. Phiên bản local thực tế được đọc là `@tanstack/react-query` và `@tanstack/query-core`5.105.0 từ package store; không cài hoặc nâng cấp.
@@ -133,7 +133,7 @@ Full-month GET giữ `MonthDto`/query key riêng `["attendance",userId,epoch,mon
 
 ## 8. Acceptance và migration gates (cho implementation plan sau)
 
-Written-spec approval03/11/2026 đã mở [implementation plan](../../../superpowers/plans/2026-11-03-tanstack-cache-ownership.md); plan approval còn Pending. Implementation phải đạt tối thiểu:
+Written-spec approval03/11/2026 đã mở [implementation plan](../../../superpowers/plans/2026-11-03-tanstack-cache-ownership.md); plan sau đó đã được user Approved và thực hiện local; tiêu chí thiết kế tối thiểu:
 
 1. Ranh giới tĩnh: không còn production feature import/core call `QueryCache.build`/`Query.setOptions`/`gcTime:Infinity`; mọi cache action qua `useQuery` hoặc public `QueryClient` methods.
 2. Hành vi hiện hành: toàn bộ test page-view/workspace/query vẫn giữ semantics A→B→A, clamp, deferred membership, stale response, session reauth/account change, error/retry, poll/focus/reconnect và no hidden writes.

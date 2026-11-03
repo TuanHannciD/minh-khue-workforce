@@ -1,5 +1,9 @@
 # Quyết định — MKW-PRODUCT-001
 
+## TanStack cache ownership — plan Approved, local implementation/review, 03/11/2026
+
+Người dùng đã **Approved** plan ba task trong phiên; quyết định này cho phép implementation local theo spec đã duyệt, không duyệt heap amendment hay external gates. Execution BASE `1121526ddead23ccb3ac01317dbfe146ed04b79c` → reviewed code TIP `b605af75830db091ffa1d7d380756466aba6b4e1`; task commits, review, resource deviation và checks tại [validation](validation.md#tanstack-cache-ownership--implementation-và-review-local-03112026). Whole review SPEC/local QUALITY PASS 0C/0I/0M; resource compliance Failed và không có waiver hồi tố. Giữ local code/evidence, không rerun product:check hoặc acquire thêm; next là xử lý integration/browser/heap amendment và quyền tài nguyên ở scope riêng. Không product/release Done. Những mục Pending bên dưới là checkpoint lịch sử.
+
 ## Checkpoint điều phối/model phiên — 03/11/2026
 
 BASE/TIP thực tế trước lượt docs-only là `9bf68b2fcb3a7c15e81dbc0d366b6968ddc99582`, branch `agent/mkw-agent-002`, worktree `.worktrees/agent-bootstrap`; không sửa source sản phẩm. Written spec vẫn **Approved**; implementation plan 3 task vẫn **Pending/CHƯA Approved**. Quy tắc hiện hành được đồng bộ tại [EXECUTION_RULES](../../agent/EXECUTION_RULES.md) và [SKILL_POLICY](../../agent/SKILL_POLICY.md): cấm Astra mọi cấp; khám phá catalog runtime rồi chọn Luna/Terra/Sol theo độ phức tạp, reasoning tối đa `high`; main chỉ điều phối; subagent không tạo children/helpers; reviewer là fresh độc lập; async giữ taskId và chỉ đọc task_status khi cần.

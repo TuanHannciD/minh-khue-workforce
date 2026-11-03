@@ -1,5 +1,13 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## TanStack cache ownership — implementation local đã review, 03/11/2026
+
+Người dùng đã trả **Approved** trong phiên cho [plan ba task](../../superpowers/plans/2026-11-03-tanstack-cache-ownership.md); [written spec](technical/tanstack-cache-ownership-spec.md) vẫn Approved. Implementation và independent code review local hoàn tất tại execution BASE `1121526ddead23ccb3ac01317dbfe146ed04b79c` → code TIP `b605af75830db091ffa1d7d380756466aba6b4e1`. Task1 `d851a0fccf0b878f689da81269a4e0c7ef0a71fd`; Task2 `0be8047d95f338038562a95a38a04552bb9920ec` và fix `0beb452513198c8ea89bef933d4eb9658228624f`; Task3 `b605af75830db091ffa1d7d380756466aba6b4e1` chỉ regression tests. Task1 review PASS; Task2 R1 I1 seed replay đã sửa, R2 PASS 0C/0I/0M, Minor exhaustive-deps trước đó CLOSED; Task3 PASS 0C/0I/0M. Whole-branch SPEC/local QUALITY PASS 0C/0I/0M tại exact code TIP; [validation](validation.md#tanstack-cache-ownership--implementation-và-review-local-03112026) ghi checks và giới hạn.
+
+**Resource compliance của whole review Failed:** `product:check` thực tế exit0 nhưng bootstrap test đã mở ephemeral loopback listener dù brief cấm server. Reviewer kiểm prerequisite thiếu và main nhận trách nhiệm dispatch thiếu side-effect preflight; không waiver hồi tố. Chi tiết và disposition ở validation. Performance/heap vẫn Failed, chưa causal leak closure; A/H1–H5 Pending user approval; native/SR/phoneperf/reader/dependency/G4 riêng Not run/Open. Actual attendance API–PG/browser/E2E/Excel persistence Not run/Blocked trong migration. Không product/release Done.
+
+**Next:** bảo toàn code và evidence local; không rerun product check hoặc acquire thêm. Xử lý integration/browser, heap amendment và quyền tài nguyên ở scope riêng; không mở lại spec/plan đã duyệt. Các checkpoint Pending bên dưới là lịch sử trước approval và implementation.
+
 ## Checkpoint điều phối/model phiên — 03/11/2026
 
 Checkpoint thực tế bắt đầu từ BASE/TIP `9bf68b2fcb3a7c15e81dbc0d366b6968ddc99582` trên `agent/mkw-agent-002`/`.worktrees/agent-bootstrap`; workspace tracked sạch và mọi ignored/untracked hiện hữu được bảo toàn. Written spec TanStack cache ownership đã **Approved**; implementation plan hiện **Draft/Pending, CHƯA Approved** và không được suy thành approval implementation. Quy tắc phiên: cấm Astra ở mọi cấp; main chỉ điều phối, không trực tiếp implement/test/review; trước dispatch/resume khám phá catalog runtime, chọn Luna/Terra/Sol theo độ phức tạp với reasoning tối đa `high`; subagent không tạo children/helpers; mỗi review dùng reviewer mới độc lập; async giữ `taskId`, chỉ đọc `task_status` khi cần.
