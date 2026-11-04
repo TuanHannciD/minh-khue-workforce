@@ -10,6 +10,8 @@ import {
  * pageRecords is the delivery/DTO oracle; detachedRecords is the grid oracle;
  * named tests cover witnesses, registry drift, identities, partials/boundaries
  * and malformed inputs. They share only raw encoding, never matcher predicates.
+ * Fix R1: tableRecords/prototype fixtures cover encoding vs DTO contradiction;
+ * allocation fixtures cover direct wrappers vs shared DTO/backing identities.
  * Raw fixture oracle: property names follow PageDelivery, generated DTOs,
  * toPageTable and AttendanceGrid, independently of the recognizer's rules.
  * raw encodes literal nodes/edges only; it never labels product categories.
@@ -663,4 +665,303 @@ test("employee arrays cannot become row.cells from a lone shared revision proper
   const result = recognize(graphOf(records), registry);
   assert.ok(!find(result, "grid-row", 9));
   assert.ok(!find(result, "row-cells", 12));
+});
+
+function tableRecords() {
+  const records = pageRecords();
+  records.push(
+    [
+      "object",
+      "",
+      [
+        p("month", 5),
+        p("employees", 7),
+        p("cells", 8),
+        p("employeeTotals", 13),
+        p("monthTotals", 14),
+        p("range", 22),
+      ],
+    ],
+    [
+      "object",
+      "",
+      [
+        p("from", 3),
+        p("to", 3),
+        p("totalResults", 3),
+        p("monthEmployeeCount", 3),
+      ],
+    ],
+  );
+  return records;
+}
+
+test("prototype properties preserve indexed array candidates and raw payload witnesses", () => {
+  for (const type of ["object", "array"]) {
+    for (const prototype of [
+      [
+        "object",
+        "",
+        [p("id", 6), p("name", 6), p("startDate", 5), p("extra", 24)],
+      ],
+      ["string", "not-an-employee"],
+    ]) {
+      const records = tableRecords();
+      records[7] = [type, "Array", [p("0", 9)]];
+      assert.ok(find(recognize(graphOf(records), registry), "page-table", 21));
+      records[7][2].push(p("__proto__", 23));
+      records.push(prototype, ["object", "prototype-descendant"]);
+      const graph = graphOf(records);
+      const result = recognize(graph, registry);
+      for (const [signature, index] of [
+        ["delivery", 0],
+        ["attendance-page", 4],
+        ["page-table", 21],
+      ]) {
+        const candidate = find(result, signature, index);
+        assert.ok(candidate, `${type}/${prototype[0]}/${signature}`);
+        assert.equal(candidate.binding, "unproven");
+        assert.ok(candidate.members.some((m) => m.rawId === 119));
+        assert.ok(!candidate.members.some((m) => [147, 149].includes(m.rawId)));
+        const slot = candidate.witnesses.find(
+          (w) => w.fromIndex === 7 && w.property === "0",
+        );
+        assert.equal(slot?.toIndex, 9);
+        assert.equal(graph.edgeAt(slot.edgeIndex).toIndex, 9);
+        assert.ok(hasObligation(result, "array-encoding-unproven", signature));
+        assert.ok(
+          hasObligation(result, "source-runtime-binding-unproven", signature),
+        );
+        const boundary = result.obligations.find(
+          (o) =>
+            o.signature === signature &&
+            o.code === "unresolved-boundary" &&
+            o.requiredEvidence.edge.fromIndex === 7 &&
+            o.requiredEvidence.edge.property === "__proto__",
+        )?.requiredEvidence.edge;
+        assert.equal(boundary?.toIndex, 23);
+        assert.equal(boundary.type, "property");
+        assert.equal(graph.edgeAt(boundary.edgeIndex).toIndex, 23);
+      }
+    }
+  }
+});
+
+test("prototype and backing storage boundaries never supply proven array members", () => {
+  for (const type of ["object", "array"]) {
+    const records = tableRecords();
+    records[7] = [
+      type,
+      "Array",
+      [
+        p("__proto__", 23),
+        ["internal", "elements", 24],
+        ["weak", "storage", 25],
+      ],
+    ];
+    records.push(
+      ["object", "", [p("0", 9)]],
+      ["array", "", [e(0, 9)]],
+      ["array", "", [e(0, 9)]],
+    );
+    const result = recognize(graphOf(records), registry);
+    for (const [signature, index] of [
+      ["delivery", 0],
+      ["attendance-page", 4],
+      ["page-table", 21],
+    ]) {
+      const candidate = find(result, signature, index);
+      assert.ok(candidate, `${type}/${signature}`);
+      assert.ok(
+        !candidate.members.some((m) => [119, 147, 149, 151].includes(m.rawId)),
+      );
+      assert.ok(
+        !candidate.witnesses.some(
+          (w) => w.fromIndex === 24 || w.fromIndex === 25,
+        ),
+      );
+      for (const [property, toIndex, edgeType] of [
+        ["__proto__", 23, "property"],
+        ["elements", 24, "internal"],
+        ["storage", 25, "weak"],
+      ]) {
+        const edge = result.obligations.find(
+          (o) =>
+            o.signature === signature &&
+            o.code === "unresolved-boundary" &&
+            o.requiredEvidence.edge.fromIndex === 7 &&
+            o.requiredEvidence.edge.property === property,
+        )?.requiredEvidence.edge;
+        assert.equal(edge?.toIndex, toIndex);
+        assert.equal(edge.type, edgeType);
+      }
+      assert.ok(hasObligation(result, "array-encoding-unproven", signature));
+      assert.ok(
+        hasObligation(result, "source-runtime-binding-unproven", signature),
+      );
+    }
+  }
+});
+
+test("row.cells prototype ambiguity keeps direct cells but rejects contradictory DTO targets", () => {
+  const records = detachedRecords();
+  records[12] = ["object", "Array", [p("0", 11), p("__proto__", 17)]];
+  records.push([
+    "object",
+    "",
+    [p("id", 16), p("name", 16), p("startDate", 16)],
+  ]);
+  const result = recognize(graphOf(records), registry);
+  for (const [signature, index] of [
+    ["grid-projection", 0],
+    ["grid-row", 9],
+    ["row-cells", 12],
+  ]) {
+    const candidate = find(result, signature, index);
+    assert.ok(candidate, signature);
+    assert.ok(candidate.members.some((m) => m.rawId === 123));
+    assert.ok(!candidate.members.some((m) => m.rawId === 135));
+    assert.ok(
+      candidate.witnesses.some(
+        (w) => w.fromIndex === 12 && w.toIndex === 11 && w.property === "0",
+      ),
+    );
+  }
+  records[12][2][0][2] = 10; // EmployeeDto is not a CellSnapshotDto.
+  assert.ok(!find(recognize(graphOf(records), registry), "grid-row", 9));
+  assert.ok(!find(recognize(graphOf(records), registry), "row-cells", 12));
+  const employee = pageRecords();
+  employee[7] = [
+    "object",
+    "Array",
+    [p("id", 6), p("name", 6), p("startDate", 5), p("__proto__", 9)],
+  ];
+  assert.ok(
+    !find(recognize(graphOf(employee), registry), "attendance-page", 4),
+  );
+});
+
+test("table range allocation cannot alias its table even with every numeric range witness", () => {
+  const records = tableRecords();
+  assert.ok(find(recognize(graphOf(records), registry), "page-table", 21));
+  records[21][2].find((link) => link[1] === "range")[2] = 21;
+  records[21][2].push(...records[22][2]);
+  const result = recognize(graphOf(records), registry);
+  assert.equal(result.status, "ok");
+  assert.ok(!find(result, "page-table", 21));
+  assert.ok(
+    result.diagnostics.some(
+      (d) =>
+        d.signature === "page-table" &&
+        d.nodeIndex === 21 &&
+        d.code === "distinct-wrapper-mismatch",
+    ),
+  );
+});
+
+test("projection direct allocations reject pairwise collapse and self aliases", () => {
+  // Source allocates all six fields independently of the returned wrapper.
+  // Empty indexed arrays avoid unrelated DTO-conjunction mismatches.
+  const fields = ["days", "cells", "totals", "ordered", "dayTotals", "rows"];
+  for (const [left, right] of [
+    ...fields.flatMap((name, i) =>
+      fields.slice(i + 1).map((other) => [name, other]),
+    ),
+    ...fields.map((name) => [name, null]),
+  ]) {
+    const records = detachedRecords();
+    for (const index of [1, 4, 6]) records[index][2] = [];
+    assert.ok(
+      find(recognize(graphOf(records), registry), "grid-projection", 0),
+    );
+    const target =
+      right === null ? 0 : records[0][2].find((link) => link[1] === right)[2];
+    records[0][2].find((link) => link[1] === left)[2] = target;
+    const result = recognize(graphOf(records), registry);
+    assert.equal(result.status, "ok", `${left}/${right}`);
+    assert.ok(!find(result, "grid-projection", 0), `${left}/${right}`);
+    assert.ok(
+      result.diagnostics.some(
+        (d) =>
+          d.signature === "grid-projection" &&
+          d.nodeIndex === 0 &&
+          d.code === "distinct-wrapper-mismatch",
+      ),
+      `${left}/${right}`,
+    );
+  }
+});
+
+test("nested row allocation rejects a row.cells self alias inside a projection", () => {
+  const records = detachedRecords();
+  records[9][2].find((link) => link[1] === "cells")[2] = 9;
+  const result = recognize(graphOf(records), registry);
+  assert.ok(!find(result, "grid-row", 9));
+  assert.ok(!find(result, "grid-projection", 0));
+  for (const signature of ["grid-row", "grid-projection"])
+    assert.ok(
+      result.diagnostics.some(
+        (d) =>
+          d.signature === signature && d.code === "distinct-wrapper-mismatch",
+      ),
+      signature,
+    );
+});
+
+test("distinct direct wrappers allow shared DTOs and backing storage with explicit encoding gaps", () => {
+  const records = detachedRecords();
+  for (const index of [1, 4, 6, 12]) {
+    records[index] = ["object", "Array", [["internal", "elements", 17]]];
+  }
+  records.push(["array", "", [e(0, 11)]]);
+  const result = recognize(graphOf(records), registry);
+  assert.equal(result.status, "ok");
+  for (const [signature, index] of [
+    ["grid-projection", 0],
+    ["grid-row", 9],
+    ["row-cells", 12],
+  ]) {
+    assert.ok(find(result, signature, index), signature);
+    assert.ok(hasObligation(result, "array-encoding-unproven", signature));
+    assert.ok(hasObligation(result, "unresolved-boundary", signature));
+    assert.ok(
+      hasObligation(result, "source-runtime-binding-unproven", signature),
+    );
+  }
+  // In the direct layout ordered and row.cells contain the SAME DTO, not
+  // separately allocated DTO copies. Their array wrappers remain different.
+  const direct = recognize(graphOf(detachedRecords()), registry);
+  assert.ok(find(direct, "grid-projection", 0));
+  assert.ok(
+    direct.aliases.some(
+      (a) =>
+        a.node.rawId === 123 &&
+        a.references.some((r) => r.witness.fromIndex === 4) &&
+        a.references.some((r) => r.witness.fromIndex === 12),
+    ),
+  );
+  const partial = tableRecords();
+  partial[22][2] = [];
+  const partialResult = recognize(graphOf(partial), registry);
+  assert.ok(find(partialResult, "page-table", 21));
+  assert.ok(
+    hasObligation(partialResult, "primitive-encoding-unproven", "page-table"),
+  );
+});
+
+test("partial projection wrapper mapping stays explicit instead of assuming missing allocations", () => {
+  const records = detachedRecords();
+  records[0][2] = records[0][2].filter((link) => link[1] !== "cells");
+  const result = recognize(graphOf(records), registry);
+  assert.equal(result.status, "ok");
+  assert.ok(find(result, "grid-projection", 0));
+  assert.ok(
+    hasObligation(result, "wrapper-mapping-unproven", "grid-projection"),
+  );
+  assert.ok(
+    hasObligation(result, "missing-required-property", "grid-projection"),
+  );
+  assert.ok(
+    hasObligation(result, "source-runtime-binding-unproven", "grid-projection"),
+  );
 });

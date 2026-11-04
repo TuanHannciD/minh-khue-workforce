@@ -1,7 +1,8 @@
 /**
  * D1 only: raw structural candidates, never source/runtime or GC proof.
  * File map: frozen pins/rules -> registry validation; indexFacts -> one raw
- * adjacency scan; matchShape -> finite DTO conjunctions; collectMembers ->
+ * adjacency scan; matchShape -> finite DTO conjunctions; matchDistinctWrappers
+ * -> direct source allocation relations; collectMembers ->
  * property/element witnesses and unresolved boundaries; recognize -> results.
  * Registry hashes are EXPECTATIONS. This pure module never reads source bytes.
  */
@@ -245,16 +246,32 @@ const signatures = {
   "page-table": {
     shape: "table",
     anchors: ["employees", "cells", "range"],
+    // Both toPageTable and toMonthTable allocate a fresh range literal.
+    // DTO arrays/totals are aliases, not members of this allocation group.
+    distinct: ["range"],
     sourceRef: `${model}attendance-read-view.ts#toPageTable,toMonthTable`,
   },
   "grid-projection": {
     shape: "projection",
     anchors: ["days", "ordered", "rows"],
+    // Source allocations only: do not follow Map/array backing storage or
+    // impose distinctness on employee/cell DTOs shared by ordered and rows.
+    distinct: [
+      "days",
+      "cells",
+      "totals",
+      "ordered",
+      "dayTotals",
+      "rows",
+      "rows.*",
+      "rows.*.cells",
+    ],
     sourceRef: `${ui}attendance-grid.tsx#AttendanceGrid.projection; ${model}month-view.ts#monthDays,orderedMonthCells`,
   },
   "grid-row": {
     shape: "row",
     anchors: ["employee", "cells"],
+    distinct: ["employee", "cells"],
     sourceRef: `${ui}attendance-grid.tsx#AttendanceGrid.projection.rows; ${ui}attendance-row.tsx#AttendanceRow`,
   },
   "row-cells": {
@@ -455,13 +472,17 @@ function matchShape(facts, index, shape, seen = new Set()) {
           /^(0|[1-9][0-9]*)$/.test(edge.label.value)),
     );
     // JSArray vs backing array vs ordinary indexed object is unresolved here.
-    // Explicit scalars cannot match; an object with non-index DTO properties is
-    // not accepted as an array just because its constructor is named Array.
+    // Prototype encoding is a boundary, not a DTO contradiction or brand proof.
+    // Other non-index DTO properties still contradict the supported layout;
+    // a constructor named Array cannot override that contradiction.
     if (
       node.type !== "array" &&
       properties[index].size &&
       [...properties[index].keys()].some(
-        (key) => key !== "length" && !/^(0|[1-9][0-9]*)$/.test(key),
+        (key) =>
+          key !== "length" &&
+          key !== "__proto__" &&
+          !/^(0|[1-9][0-9]*)$/.test(key),
       )
     )
       return { matches: false, gaps: [] };
@@ -516,6 +537,42 @@ function matchShape(facts, index, shape, seen = new Set()) {
   return result;
 }
 
+// Resolve only explicit direct property/index witnesses for source allocations.
+// Wildcards enumerate encoded row slots; they never traverse backing storage.
+// Missing mapping is an obligation, while witnessed identity collapse is a
+// contradiction even if numeric primitives or some other fields are omitted.
+function matchDistinctWrappers(facts, index, paths = []) {
+  const wrappers = [index],
+    gaps = [];
+  for (const path of paths) {
+    let parents = [index];
+    for (const part of path.split(".")) {
+      const targets = [];
+      for (const parent of parents) {
+        const links =
+          part === "*"
+            ? facts.outgoing[parent].filter(
+                (edge) =>
+                  edge.type === "element" ||
+                  (edge.type === "property" &&
+                    /^(0|[1-9][0-9]*)$/.test(edge.label.value)),
+              )
+            : (facts.properties[parent].get(part) ?? []);
+        if (part === "*" || links.length !== 1)
+          gaps.push({
+            code: "wrapper-mapping-unproven",
+            index: parent,
+            detail: `${path}: require exact direct wrapper mapping and array encoding; missing slots or backing edges do not establish source allocations`,
+          });
+        targets.push(...links.map((edge) => edge.toIndex));
+      }
+      parents = targets;
+    }
+    wrappers.push(...parents);
+  }
+  return { matches: new Set(wrappers).size === wrappers.length, gaps };
+}
+
 function collectMembers(facts, start) {
   const pending = [start],
     visited = new Set(),
@@ -532,7 +589,11 @@ function collectMembers(facts, start) {
       const target = facts.nodes[edge.toIndex];
       if (edge.type === "property" || edge.type === "element") {
         witnesses.push(witness(edge));
-        if (payload(target)) pending.push(edge.toIndex);
+        // Preserve a raw prototype property witness without treating its target
+        // or descendants as payload membership. Its semantics need D2 binding.
+        if (edge.type === "property" && edge.label.value === "__proto__")
+          boundaries.push({ ...witness(edge), type: edge.type });
+        else if (payload(target)) pending.push(edge.toIndex);
         else if (
           ["closure", "code", "native", "hidden", "synthetic"].includes(
             target.type,
@@ -625,6 +686,19 @@ export function recognizeAttendanceHeapStructures(graph, registry) {
             });
           continue;
         }
+        const allocations = matchDistinctWrappers(
+          facts,
+          node.index,
+          rule.distinct,
+        );
+        if (!allocations.matches) {
+          result.diagnostics.push({
+            code: "distinct-wrapper-mismatch",
+            signature,
+            nodeIndex: node.index,
+          });
+          continue;
+        }
         const match = matchShape(facts, node.index, rule.shape);
         if (!match.matches) {
           result.diagnostics.push({
@@ -633,20 +707,6 @@ export function recognizeAttendanceHeapStructures(graph, registry) {
             nodeIndex: node.index,
           });
           continue;
-        }
-        if (rule.distinct) {
-          const wrappers = [
-            node.index,
-            ...rule.distinct.map((name) => props.get(name)[0].toIndex),
-          ];
-          if (new Set(wrappers).size !== wrappers.length) {
-            result.diagnostics.push({
-              code: "distinct-wrapper-mismatch",
-              signature,
-              nodeIndex: node.index,
-            });
-            continue;
-          }
         }
         const closure = collectMembers(facts, node.index);
         closure.witnesses.push(...rowWitnesses.map(witness));
@@ -676,7 +736,7 @@ export function recognizeAttendanceHeapStructures(graph, registry) {
             "Distinguish page table vs month preview, ordinary read-view vs structuredClone gesture capture, and shared DTO/ordered/row arrays with source-location and lifecycle witnesses.",
           );
         const gaps = new Set();
-        for (const gap of match.gaps) {
+        for (const gap of [...match.gaps, ...allocations.gaps]) {
           const key = JSON.stringify(gap);
           if (!gaps.has(key))
             addObligation(
