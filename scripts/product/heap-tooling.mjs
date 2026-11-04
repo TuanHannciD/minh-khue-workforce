@@ -465,14 +465,21 @@ export function validateLifecycleEvidence(companion = {}) {
         failures.push(
           `${label} active attendance observer multiplicity ${activeObservers.length} != 1`,
         );
-      if (
-        activeQueries[0] &&
-        activeObservers[0] &&
-        activeObservers[0].queryId !== activeQueries[0].id
-      )
-        // A hole cannot repair this binding: another active candidate would
-        // itself exceed the fixed query/observer bound of one.
-        failures.push(`${label} observer/query identity mismatch`);
+      if (activeQueries[0] && activeObservers[0]) {
+        const queryId = activeQueries[0].id,
+          observerQueryId = activeObservers[0].queryId;
+        if (
+          typeof queryId !== "string" ||
+          !queryId ||
+          typeof observerQueryId !== "string" ||
+          !observerQueryId
+        )
+          missing.push(`${label} observer/query binding identity missing`);
+        // With both identities known, a hole cannot repair this binding:
+        // another active candidate would exceed the fixed bound of one.
+        else if (observerQueryId !== queryId)
+          failures.push(`${label} observer/query identity mismatch`);
+      }
     }
     validateRegistrations(point, label, failures, missing);
     let { entries: detached } = recordInventory(

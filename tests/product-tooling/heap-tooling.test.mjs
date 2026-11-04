@@ -2,6 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 
+// File map: metrics/points cover budget and graph primitives; reviewPoints and
+// R1/R2/R3 matrices cover partial lifecycle facts, proof guards and verdicts.
+// Shared hand-authored fixtures keep the review controls in one pure test unit.
+
 const path = new URL("../../scripts/product/heap-tooling.mjs", import.meta.url);
 const heap = existsSync(path) ? await import(path) : {};
 const metrics = () => ({
@@ -811,4 +815,141 @@ for (const [owner, lifetime, endedLifetime, result] of [
       assert(r.missing.some((s) => /T unknown native owner/.test(s)));
     if (!endedLifetime)
       assert(r.missing.some((s) => /T endedLifetime missing/.test(s)));
+  });
+
+// R3 I7: completing an existing endpoint can repair an unknown binding without
+// adding an active role. Holes must neither prove nor hide a binding mismatch.
+for (const partial of [["queries"], ["observers"], ["queries", "observers"]])
+  for (const [key, field] of [
+    ["queries", "id"],
+    ["observers", "queryId"],
+  ])
+    for (const [form, value] of [
+      ["omitted"],
+      ["undefined", undefined],
+      ["null", null],
+      ["empty", ""],
+      ["zero", 0],
+      ["number", 1],
+      ["false", false],
+      ["object", {}],
+      ["array", []],
+    ])
+      test(`R3 I7 ${partial.join("+")} holes with ${key}.${field} ${form} cannot prove mismatch`, () => {
+        const p = reviewPoints();
+        for (const inventory of partial) p[5][inventory].length = 2;
+        if (form === "omitted") delete p[5][key][0][field];
+        else p[5][key][0][field] = value;
+        const r = heap.validateLifecycleEvidence({ checkpoints: p });
+        assert.equal(r.result, "NOT_RUN");
+        assert.equal(r.exitCode, 2);
+        assert.deepEqual(r.failures, []);
+        assert(
+          r.missing.includes("S5 observer/query binding identity missing"),
+        );
+        for (const inventory of partial)
+          assert(
+            r.missing.includes(
+              `S5 ${inventory === "queries" ? "query" : "observer"} inventory missing or malformed`,
+            ),
+          );
+        // Fill the SAME record: no extra active candidate was necessary.
+        p[5][key][0][field] = "q";
+        const completed = heap.validateLifecycleEvidence({ checkpoints: p });
+        assert.equal(completed.result, "NOT_RUN");
+        assert.equal(completed.exitCode, 2);
+        assert.deepEqual(completed.failures, []);
+        assert(
+          !completed.missing.includes(
+            "S5 observer/query binding identity missing",
+          ),
+        );
+      });
+
+for (const partial of [false, true])
+  for (const value of [undefined, null, ""])
+    test(`R3 I7 both endpoints ${String(value)} with partial=${partial} remain Missing`, () => {
+      const p = reviewPoints();
+      p[5].queries[0].id = value;
+      p[5].observers[0].queryId = value;
+      if (partial) {
+        p[5].queries.length = 2;
+        p[5].observers.length = 2;
+      }
+      const r = heap.validateLifecycleEvidence({ checkpoints: p });
+      assert.equal(r.result, "NOT_RUN");
+      assert.equal(r.exitCode, 2);
+      assert.deepEqual(r.failures, []);
+      assert(r.missing.includes("S5 observer/query binding identity missing"));
+    });
+
+for (const [key, field] of [
+  ["queries", "id"],
+  ["observers", "queryId"],
+]) {
+  test(`R3 I7 complete inventory with missing ${key}.${field} uses the same proof guard`, () => {
+    const p = reviewPoints();
+    delete p[5][key][0][field];
+    const r = heap.validateLifecycleEvidence({ checkpoints: p });
+    assert.equal(r.result, "NOT_RUN");
+    assert.equal(r.exitCode, 2);
+    assert.deepEqual(r.failures, []);
+    assert(r.missing.includes("S5 observer/query binding identity missing"));
+  });
+  for (const violation of ["queries", "observers", "registration", "binding"])
+    test(`R3 I7 missing ${key}.${field} cannot hide independent ${violation} failure`, () => {
+      const p = reviewPoints();
+      delete p[5][key][0][field];
+      p[5].queries.length = 2;
+      p[5].observers.length = 2;
+      let failure;
+      if (violation === "registration") {
+        p[5].registrations = [retiredRegistration()];
+        failure = "S5 retired registration native-1 remains reachable";
+      } else if (violation === "binding") {
+        p[7].observers[0].queryId = "retired-query";
+        failure = "S7 observer/query identity mismatch";
+      } else {
+        p[5][violation].push({ ...p[5][violation][0] });
+        failure = `S5 active attendance ${violation === "queries" ? "query" : "observer"} multiplicity 2 != 1`;
+      }
+      const r = heap.validateLifecycleEvidence({ checkpoints: p });
+      assert.equal(r.result, "FAIL");
+      assert.equal(r.exitCode, 1);
+      assert.deepEqual(r.failures, [failure]);
+      assert(r.missing.includes("S5 observer/query binding identity missing"));
+    });
+  test(`R3 I7 complete empty ${key} still proves absence`, () => {
+    const p = reviewPoints();
+    p[5][key] = [];
+    const r = heap.validateLifecycleEvidence({ checkpoints: p });
+    assert.equal(r.result, "FAIL");
+    assert.equal(r.exitCode, 1);
+    assert.deepEqual(r.failures, [
+      `S5 active attendance ${key === "queries" ? "query" : "observer"} multiplicity 0 != 1`,
+    ]);
+  });
+}
+
+for (const [queryId, observerQueryId, result] of [
+  ["q", "q", "NOT_RUN"],
+  ["q", "retired-query", "FAIL"],
+  [" ", " ", "NOT_RUN"],
+  [" ", "q", "FAIL"],
+])
+  test(`R3 I7 both partial inventories preserve exact known binding ${JSON.stringify([queryId, observerQueryId])}`, () => {
+    const p = reviewPoints();
+    p[5].queries[0].id = queryId;
+    p[5].observers[0].queryId = observerQueryId;
+    p[5].queries.length = 2;
+    p[5].observers.length = 2;
+    const r = heap.validateLifecycleEvidence({ checkpoints: p });
+    assert.equal(r.result, result);
+    assert.equal(r.exitCode, result === "FAIL" ? 1 : 2);
+    assert.deepEqual(
+      r.failures,
+      result === "FAIL" ? ["S5 observer/query identity mismatch"] : [],
+    );
+    assert(r.missing.some((s) => /S5 .*inventory/.test(s)));
+    assert(!r.missing.includes("S5 observer/query binding identity missing"));
   });
