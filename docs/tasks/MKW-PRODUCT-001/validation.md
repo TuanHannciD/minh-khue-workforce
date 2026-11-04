@@ -1,5 +1,12 @@
 # Validation — MKW-PRODUCT-001
 
+## CURRENT — D2 method block và gate độc lập, 04/11/2026
+
+D2: phương pháp generic trace đã khảo sát thiếu liên kết native task→signal với heap identity và thiếu coverage cancel/terminal tại candidate source; collector/campaign **Blocked METHOD**, không phải từ chối quyền hay kết luận mọi engine bất khả thi. D1 offline recognizer chỉ cho candidates, không chứng minh native ownership. [Follow-up R1](../../../.superpowers/sdd/tanstack-cache-ownership/heap-native-feasibility-followup-r1.md) và [independent R2](../../../.superpowers/sdd/tanstack-cache-ownership/heap-native-feasibility-followup-review-r2.md) ACCEPT 0C/0I/0M, I1/I2 addressed. Không cần probe runtime cho method này; không nới H1–H5. H1–H5 mới **Not run/Blocked**, historical performance/heap và resource compliance **Failed**, không causal closure/waiver; scoped integration PASS giữ nguyên giới hạn, native/SR/phoneperf/reader/dependency/G4 Open/Not run.
+
+**Next:** independent browser attendance race/clamp gate theo [brief](../../../.superpowers/sdd/tanstack-cache-ownership/post-d2-next-gate-brief.md), sau live preflight đúng resource giả đã enrolled; fresh independent review sau execution. Không mặc định tiếp tục tooling heap khi method chưa đáp ứng contract. Các checkpoint dated bên dưới giữ lịch sử.
+
+
 ## Heap amendment A — Accepted 04/11/2026
 
 Người dùng chọn **Cách a** sau independent proposal R2 0C/0I/0M. [Contract owner H1–H5](technical/heap-measurement-contract.md) giữ budget20%, 2 warmups/10 cycles/11 post-GC/12 configs; strict total monotonic là diagnostic. Validation H1–H5 mới **Not run**; performance/heap **Failed** theo lịch sử, raw/verdict không đổi, không causal closure hoặc waiver. B không được chọn. Historical bootstrap resource compliance **Failed**. Integration scoped PASS và coverage/limits bên dưới giữ nguyên; native/SR/phoneperf/reader/dependency/G4 Open/Not run. Các checkpoint Pending bên dưới là lịch sử tại ngày ghi.

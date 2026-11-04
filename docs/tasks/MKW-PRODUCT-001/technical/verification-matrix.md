@@ -1,5 +1,9 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## CURRENT — D2 method block, 04/11/2026
+
+D1 chỉ là candidate recognizer; D2 generic trace thiếu native task→signal heap identity và cancel/terminal coverage: collector/campaign **Blocked METHOD**, không phải permission refusal hoặc universal impossibility; [R2](../../../../.superpowers/sdd/tanstack-cache-ownership/heap-native-feasibility-followup-review-r2.md) ACCEPT 0C/0I/0M. H1–H5 **Not run/Blocked**, historical performance/heap và resource compliance **Failed**; scoped integration PASS giữ nguyên giới hạn, native/SR/phoneperf/reader/dependency/G4 Open/Not run. Next: [browser race/clamp gate](../../../../.superpowers/sdd/tanstack-cache-ownership/post-d2-next-gate-brief.md), không tiếp tục tooling heap theo method đã blocked. Mục dated dưới đây là lịch sử.
+
 ## Heap amendment A — Accepted 04/11/2026
 
 [Contract owner H1–H5](heap-measurement-contract.md) là quy tắc heap hiện hành sau user chọn A và independent proposal R2. H1–H5 validation mới **Not run**; historical performance/heap và resource compliance **Failed**, raw/verdict không đổi. Integration scoped PASS giữ coverage/limits; native/SR/phoneperf/reader/dependency/G4 Open/Not run. Các checkpoint cũ bên dưới là lịch sử. Next: tooling → independent tooling review → finite validation mới → independent evidence review.
