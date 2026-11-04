@@ -126,6 +126,7 @@ export async function runAttendanceRaceClamp(
     );
     await a.clock.install();
     await installBodyGate(a);
+    // Scenario traffic starts after fixture login/goto/month setup, before reload.
     for (const p of f.pages)
       p.on("request", (r) => {
         const path = new URL(r.url()).pathname;
@@ -216,6 +217,7 @@ export async function runAttendanceRaceClamp(
     ).toBeChecked();
     await expect(f.button(a, people[976], "20")).toBeDisabled();
     const handoffReads = traffic.criteria.length;
+    assert.equal(handoffReads, 3, "scenario reads before canonical handoff");
     await a
       .getByRole("tabpanel", { name: "Công", exact: true })
       .getByRole("button", { name: "Hủy", exact: true })
@@ -318,6 +320,15 @@ export async function runAttendanceRaceClamp(
     });
     assert.equal(traffic.fullGets, 0);
     assert.deepEqual(traffic.unexpected, []);
+    assert.deepEqual(traffic.criteria, [
+      initial,
+      { ...initial, page: 40 },
+      { ...initial, page: 40 },
+      { ...initial, page: 39 },
+      { ...initial, page: 39 },
+      { ...initial, page: 39 },
+      { ...initial, q: people[0].id },
+    ]);
     assert.deepEqual(f.writes, []);
     const persisted = (await f.sql.pool.query('SELECT * FROM "AttendanceCell"'))
       .rows;
@@ -357,6 +368,8 @@ export async function runAttendanceRaceClamp(
               result: failure ? "FAILED" : "PASS",
               failure: failure ? String(failure) : undefined,
               evidence,
+              trafficWindow:
+                "Scenario listener installation before f.reload through final traffic assertions; excludes fixture login/goto/month setup and coordinator requests",
               traffic,
               events,
               browserReferenceIdentity: "Not run: no legitimate public oracle",
