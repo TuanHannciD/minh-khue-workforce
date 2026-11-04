@@ -5,7 +5,9 @@ import { createHash } from "node:crypto";
 
 // File map: fixture supplies raw flat records; graphOf checks graph-only scope;
 // literal graph/edge tests precede cases (schema/reference/identity negatives)
-// and public-boundary tests. Kept together as one offline encoding contract.
+// and public-boundary tests. UTF-8 seal and descriptor structure matrices cover
+// provenance replay and malformed-versus-unsupported validation precedence.
+// Kept together as one offline encoding contract.
 // Hand-authored flat records; expected labels/indices below are literal facts,
 // independent of reader offsets. Synthetic only: no runtime capability proof.
 const moduleUrl = new URL(
@@ -313,6 +315,67 @@ test("supports Uint8Array subviews without reading bytes outside the view", () =
   assert.equal(bytes.at(-1), 121);
 });
 
+for (const [name, literal] of [
+  ["high", String.fromCharCode(0xd800)],
+  ["low", String.fromCharCode(0xdc00)],
+]) {
+  test(`UTF-8 seal rejects a literal lone ${name} surrogate without exposing payload`, () => {
+    // Insert after stringify: JSON.stringify would escape the lone code unit.
+    const raw = JSON.stringify(fixture()).replace(
+      "SameName",
+      `private-payload${literal}`,
+    );
+    const result = read(raw);
+    assert.deepEqual(result, {
+      status: "error",
+      scope: "offline-raw-graph-only",
+      diagnostics: [{ code: "invalid-utf8", path: "$" }],
+    });
+  });
+}
+
+for (const [name, encoded, expected] of [
+  ["literal surrogate pair", "😀", "😀"],
+  ["literal replacement character", "\ufffd", "\ufffd"],
+  ["escaped high surrogate", "\\ud800", "\ud800"],
+  ["escaped low surrogate", "\\udc00", "\udc00"],
+  ["escaped surrogate pair", "\\ud83d\\ude00", "😀"],
+  ["unmodified Unicode", " Khue\u0302\\u0000", " Khue\u0302\u0000"],
+]) {
+  test(`UTF-8 seal reproduces all graph facts for ${name}`, () => {
+    const raw = JSON.stringify(fixture())
+      .replace("SameName", encoded)
+      .replace("weak-slot", encoded);
+    const options = { identityDomain: " domain ", source: " source " };
+    const sealedBytes = Buffer.from(raw, "utf8");
+    const fromText = read(raw, options);
+    const fromBytes = read(sealedBytes, options);
+    assert.equal(fromText.status, "ok");
+    assert.equal(fromBytes.status, "ok");
+    const graph = fromText.graph;
+    const replay = fromBytes.graph;
+    assert.equal(graph.nodeAt(1).name, expected);
+    assert.equal(graph.edgeAt(2).label.value, expected);
+    assert.deepEqual(graph.provenance, {
+      source: " source ",
+      byteLength: sealedBytes.length,
+      sha256: createHash("sha256").update(sealedBytes).digest("hex"),
+    });
+    assert.deepEqual(replay.provenance, graph.provenance);
+    assert.deepEqual(replay.metadata, graph.metadata);
+    assert.equal(replay.identityDomain, graph.identityDomain);
+    assert.equal(replay.nodeCount, graph.nodeCount);
+    assert.equal(replay.edgeCount, graph.edgeCount);
+    assert.deepEqual([...replay.nodes()], [...graph.nodes()]);
+    assert.deepEqual([...replay.edges()], [...graph.edges()]);
+    for (const node of graph.nodes())
+      assert.deepEqual(
+        [...replay.outgoing(node.index)],
+        [...graph.outgoing(node.index)],
+      );
+  });
+}
+
 test("accessors cannot corrupt later facts and invalid indices never escape as exceptions", () => {
   const graph = graphOf();
   const node = graph.nodeAt(1);
@@ -373,6 +436,65 @@ test("accepts an empty graph only with consistent declared zero counts", () => {
   assert.deepEqual([...graph.edges()], []);
   assert.equal(graph.nodeAt(0), undefined);
 });
+
+for (const reordered of [false, true]) {
+  for (const [kind, field] of [
+    ["node", "name"],
+    ["node", "id"],
+    ["node", "self_size"],
+    ["node", "edge_count"],
+    ["edge", "name_or_index"],
+    ["edge", "to_node"],
+  ]) {
+    for (const [name, descriptor, status] of [
+      ["empty enum", [], "error"],
+      ["empty label", [""], "error"],
+      ["duplicate labels", ["x", "x"], "error"],
+      ["nonstring label", [7], "error"],
+      ["wellformed wrong encoding", ["x"], "unsupported"],
+    ]) {
+      test(`descriptor structure ${reordered ? "reordered" : "original"} ${kind}.${field}: ${name}`, () => {
+        const value = fixture();
+        if (reordered) {
+          // Reverse complete records with their metadata, preserving the graph.
+          for (const [table, width] of [
+            ["node", 6],
+            ["edge", 3],
+          ]) {
+            value.snapshot.meta[`${table}_fields`].reverse();
+            value.snapshot.meta[`${table}_types`].reverse();
+            const cells = value[`${table}s`];
+            value[`${table}s`] = cells.flatMap((_, index) =>
+              index % width === 0
+                ? cells.slice(index, index + width).reverse()
+                : [],
+            );
+          }
+        }
+        // This layout is valid before the single descriptor mutation.
+        const baseline = graphOf(value);
+        assert.equal(baseline.nodeAt(1).rawId, 41);
+        assert.equal(baseline.edgeAt(7).toIndex, 2);
+        const index = value.snapshot.meta[`${kind}_fields`].indexOf(field);
+        value.snapshot.meta[`${kind}_types`][index] = descriptor;
+        assert.deepEqual(read(JSON.stringify(value)), {
+          status,
+          scope: "offline-raw-graph-only",
+          diagnostics: [
+            {
+              code:
+                status === "error" ? "invalid-metadata" : "unsupported-type",
+              path:
+                status === "error"
+                  ? `snapshot.meta.${kind}_types[${index}]`
+                  : `snapshot.meta.${kind}_types.${field}`,
+            },
+          ],
+        });
+      });
+    }
+  }
+}
 
 // Each mutation names the corrupt fact it must reject. Expected statuses/codes
 // are hand assigned; no validation or expected offsets come from the reader.

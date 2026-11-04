@@ -79,12 +79,19 @@ function layout(meta, kind, requiredTypes) {
     new Set(fields).size !== fields.length
   )
     malformed("invalid-metadata", path);
-  for (let index = 0; index < types.length; index++)
-    if (
-      !Array.isArray(types[index]) &&
-      (typeof types[index] !== "string" || types[index].length === 0)
-    )
+  // Validate every descriptor's structure before testing supported encodings.
+  for (let index = 0; index < types.length; index++) {
+    const type = types[index];
+    if (Array.isArray(type)) {
+      if (
+        type.length === 0 ||
+        type.some((label) => typeof label !== "string" || label.length === 0) ||
+        new Set(type).size !== type.length
+      )
+        malformed("invalid-metadata", `${path}_types[${index}]`);
+    } else if (typeof type !== "string" || type.length === 0)
       malformed("invalid-metadata", `${path}_types[${index}]`);
+  }
   const offsets = new Map(fields.map((field, index) => [field, index]));
   for (const [field, expected] of Object.entries(requiredTypes)) {
     if (!offsets.has(field))
@@ -95,14 +102,8 @@ function layout(meta, kind, requiredTypes) {
   }
   for (let index = 0; index < types.length; index++) {
     const type = types[index];
-    if (Array.isArray(type)) {
-      if (
-        type.length === 0 ||
-        type.some((label) => typeof label !== "string" || label.length === 0) ||
-        new Set(type).size !== type.length
-      )
-        malformed("invalid-metadata", `${path}_types[${index}]`);
-    } else if (
+    if (
+      !Array.isArray(type) &&
       !["number", "string", "node"].includes(type) &&
       !(
         kind === "edge" &&
@@ -352,6 +353,9 @@ export function readHeapSnapshot(raw, options = {}) {
       malformed("invalid-options", "options.source");
     let text, bytes;
     if (typeof raw === "string") {
+      // UTF-8 encoding replaces lone UTF-16 surrogates. Reject before parsing
+      // so every accepted text graph can be reproduced from its sealed bytes.
+      if (!raw.isWellFormed()) malformed("invalid-utf8", "$");
       text = raw;
       bytes = Buffer.from(raw, "utf8");
     } else {
