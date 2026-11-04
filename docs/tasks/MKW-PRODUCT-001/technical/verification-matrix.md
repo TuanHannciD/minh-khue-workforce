@@ -1,5 +1,10 @@
 # Ma trận kiểm chứng và ngân sách — thiết kế cho G1
 
+## Heap amendment A — Accepted 04/11/2026
+
+[Contract owner H1–H5](heap-measurement-contract.md) là quy tắc heap hiện hành sau user chọn A và independent proposal R2. H1–H5 validation mới **Not run**; historical performance/heap và resource compliance **Failed**, raw/verdict không đổi. Integration scoped PASS giữ coverage/limits; native/SR/phoneperf/reader/dependency/G4 Open/Not run. Các checkpoint cũ bên dưới là lịch sử. Next: tooling → independent tooling review → finite validation mới → independent evidence review.
+
+
 ## Attendance integration sau TanStack — scoped status overlay, 03/11/2026
 
 [Independent evidence review R1](../../../../.superpowers/sdd/tanstack-cache-ownership/attendance-integration-evidence-review-r1.md) xác nhận **EVIDENCE INTEGRITY PASS / SCOPED INTEGRATION ACCEPTANCE PASS** trên BASE/HEAD `dfa16a0ad369543735845580b94536c998c9e68e` và reviewed code TIP `b605af75830db091ffa1d7d380756466aba6b4e1`. Build/acceptance/API export exit0; 10 fresh targets; review độc lập 4 workbooks; source unchanged/resources released. Đây là overlay cho scope integration đã chạy, không thay các hàng lịch sử hoặc biến toàn ma trận thành PASS.
@@ -145,7 +150,7 @@ Budget G1 giữ nguyên,200/1000 là **dataset logical**, không số rows DOM. 
 | Cold route đến bảng dùng được | ≤2000/5000ms | ≤3000/7000ms | Giữ load budget G1, dataset logical25/50 page đều phải đạt |
 | Editor và input feedback | p95≤100/150ms | p95≤150/200ms | Giữ G1, đo raw update và editor usable; two-RAF chỉ proxy paint opportunity |
 | Scroll/drag5s | p95 frame≤33ms, max≤200ms | Cùng ngưỡng | Giữ G1; từng size/kind/pageSize, cả page edges/tên dài/sticky/zoom geometry |
-| Heap10 cycles sau2 warmups | tăng≤20%, không monotonic leak | Đo nếu browser có API; thiếu NR | Giữ G1; thêm page/search/size cycles và kiểm inactive cache/listeners/timers, không chỉ heap nhỏ |
+| Heap10 cycles sau2 warmups | (H10/H0−1)×100≤20%, 11 renderer post-GC samples sau2 warmups; H1–H5 phải đạt bằng validation mới. Strict total-heap trend là diagnostic, không causal leak proof. | Đo nếu browser có API; thiếu NR | Giữ budget G1 và workload; tiêu chí leak vận hành đổi theo [amendment A](heap-measurement-contract.md) sang không tích lũy thêm retired product generations/lifecycle registrations trong interval đo. Thiếu evidence→Not run/Blocked; vi phạm→Failed; không retrospective PASS. Bounded endpoints không đủ; historical FAIL giữ nguyên. |
 | Page/search busy feedback sau commit criteria | p95≤100/150ms | p95≤150/200ms | **Proposed technical check**, dùng input budget làm trần hiển thị busy; không product threshold mới đã được user duyệt |
 | Page/search đến đúng envelope editable, từ dispatch | p95≤2000/5000ms | p95≤3000/7000ms | **Proposed technical check**, mapping load budget cho transition; phải review trước đo, không giấu latency vì giữ rows cũ |
 | Search từ ký tự cuối đến kết quả usable | p95≤2300/5300ms | p95≤3300/7300ms | **Proposed technical check** = debounce300 + transition; Enter dùng2000/5000 hoặc3000/7000, IME clock bắt đầu compositionend; pause chờ guard/người dùng đo riêng |
@@ -316,6 +321,8 @@ Dataset giả20/200/1.000 nhân sự, tháng31 ngày, cả hai loại, tỷ lệ
 | Mở editor/keypress feedback ở200/1.000 | p95<=100ms /<=150ms | p95<=150ms /<=200ms |
 | Scroll/drag đoạn5s | p95 frame interval<=33ms, không freeze>200ms | Cùng ngưỡng, ghi thermal/battery/memory |
 | Heap sau10 lần đổi tháng/đóng editor | Không tăng đơn điệu do leaked listeners/timers; post-GC tăng<=20% baseline ổn định | Ghi metric nếu browser cho phép, thiếu heap API ghi Not run không tự fake |
+
+Hàng G1 gốc trên là lịch sử; tiêu chí heap hiện hành theo [amendment A](heap-measurement-contract.md), giữ budget và thay hardgate total trend bằng H1–H5.
 
 Đây là ngân sách kỹ thuật **Proposed**, cần review G1; chưa benchmark. Nếu semantic table vượt ngưỡng, profile owner DOM/query/selection trước; thay engine/virtualization phải trình ảnh hưởng zoom/sticky/selection/accessibility và test lại, không tự cài grid engine để che lỗi. Tên dài/trống/month28/29/31 và dataset tìm/lọc vẫn phải đúng sau tối ưu.
 

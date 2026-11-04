@@ -1,5 +1,13 @@
 # Validation — MKW-PRODUCT-001
 
+## Heap amendment A — Accepted 04/11/2026
+
+Người dùng chọn **Cách a** sau independent proposal R2 0C/0I/0M. [Contract owner H1–H5](technical/heap-measurement-contract.md) giữ budget20%, 2 warmups/10 cycles/11 post-GC/12 configs; strict total monotonic là diagnostic. Validation H1–H5 mới **Not run**; performance/heap **Failed** theo lịch sử, raw/verdict không đổi, không causal closure hoặc waiver. B không được chọn. Historical bootstrap resource compliance **Failed**. Integration scoped PASS và coverage/limits bên dưới giữ nguyên; native/SR/phoneperf/reader/dependency/G4 Open/Not run. Các checkpoint Pending bên dưới là lịch sử tại ngày ghi.
+
+Next: tooling implementation → fresh independent tooling review → finite validation mới → independent evidence review. Approval A không tự cấp runtime/dependency install/global/provider/time/cost/device/acquisition mới/nhân sự thật/push/merge/deploy.
+
+Lượt này chỉ sync docs; không chạy H1–H5, benchmark hoặc product validation. Independent proposal R2 là decision readiness, không phải tooling/evidence review.
+
 ## Attendance integration sau TanStack — independently reviewed scoped PASS, 03/11/2026
 
 - **Snapshot/owner:** CWD `D:/TinHoc/minh-khue-workforce/.worktrees/agent-bootstrap`, branch `agent/mkw-agent-002`, exact BASE/HEAD `dfa16a0ad369543735845580b94536c998c9e68e`; reviewed code TIP `b605af75830db091ffa1d7d380756466aba6b4e1`. Source unchanged. Run evidence tại `.agent-runs/MKW-PRODUCT-001/post-tanstack-integration/9ec5329a9be749fe9a5febfd747107d5/`; hai fullmonth targets được nêu trong run report.

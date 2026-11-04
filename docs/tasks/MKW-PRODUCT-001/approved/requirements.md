@@ -1,5 +1,7 @@
 # Yêu cầu người dùng đã thống nhất
 
+**Tham chiếu G1 heap hiện hành:** [amendment A Accepted 04/11/2026](../technical/heap-measurement-contract.md) giữ budget và cập nhật tiêu chí heap hữu hạn; không đổi nghiệp vụ hoặc kết quả lịch sử.
+
 ## Chốt DB authority — 02/11/2026
 
 Người dùng **“Chốt phương án1”** rồi yêu cầu tiếp tục02/11/2026: chấp nhận [delta DB authority](../decisions.md#db-authority--accepted02112026). PG17.11/ICU67.1 là nguồn duy nhất cho name/query lower và name ordering cho page/fullmonth/Excel; ICU vi equivalent/nondeterministic canonical ties + ID ASC, web không sắp lại. q vẫn ECMAScript trim rồi DB lower; ID case-sensitive/literal, substring `C` sau lower, không normalization/unaccent/fuzzy hoặc hạn chế alphabet/tên mới. TJE query hoa chỉID126, query thường chỉID127, order126,127 được chấp nhận, không đòi JS equality.

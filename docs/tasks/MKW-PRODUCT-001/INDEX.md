@@ -1,5 +1,12 @@
 # MKW-PRODUCT-001 — Đặc tả phiên bản chấm công đầu tiên
 
+## Heap amendment A — Accepted 04/11/2026
+
+Người dùng chọn **Cách a** sau independent proposal R2 0C/0I/0M. [Contract owner H1–H5](technical/heap-measurement-contract.md) giữ budget20%, 2 warmups/10 cycles/11 post-GC/12 configs; strict total monotonic là diagnostic. Validation H1–H5 mới **Not run**; performance/heap **Failed** theo lịch sử, raw/verdict không đổi, không causal closure hoặc waiver. B không được chọn. Historical bootstrap resource compliance **Failed**. Integration scoped PASS và coverage/limits bên dưới giữ nguyên; native/SR/phoneperf/reader/dependency/G4 Open/Not run. Các checkpoint Pending bên dưới là lịch sử tại ngày ghi.
+
+Next: tooling implementation → fresh independent tooling review → finite validation mới → independent evidence review. Approval A không tự cấp runtime/dependency install/global/provider/time/cost/device/acquisition mới/nhân sự thật/push/merge/deploy.
+
+
 ## Attendance integration sau TanStack — scoped acceptance PASS, heap decision Pending, 03/11/2026
 
 Lượt integration độc lập chạy trên exact BASE/HEAD `dfa16a0ad369543735845580b94536c998c9e68e`, đối chiếu reviewed code TIP `b605af75830db091ffa1d7d380756466aba6b4e1`; source/tracked hashes không đổi. [Run report](../../../.superpowers/sdd/tanstack-cache-ownership/attendance-integration-run-report.md), [independent evidence review R1](../../../.superpowers/sdd/tanstack-cache-ownership/attendance-integration-evidence-review-r1.md) và [static checks](../../../.superpowers/sdd/tanstack-cache-ownership/attendance-integration-evidence-review-r1-checks.json) ghi đầy đủ provenance.

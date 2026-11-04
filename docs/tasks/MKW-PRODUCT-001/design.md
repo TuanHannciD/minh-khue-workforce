@@ -1,5 +1,7 @@
 # Đặc tả đã duyệt — Chấm công Minh Khuê phiên bản đầu
 
+**Tham chiếu G1 heap hiện hành:** [amendment A Accepted 04/11/2026](technical/heap-measurement-contract.md) giữ budget và cập nhật tiêu chí heap hữu hạn; không đổi nghiệp vụ hoặc kết quả lịch sử.
+
 **Cập nhật hiện hành01/11/2026:** người dùng “Tôi chốt bản thiết kế này” sau gói server pagination và ví dụ page-local. Mục15 là delta Accepted, thay giới hạn hiện thị/chọn/tìm cũ ở mục3/13/14 khi có khác biệt. [Kế hoạch mới](technical/server-pagination-implementation-plan.md) Draft/Pending review và user plan approval; approval design không cho implementation/trial mới. Các checkpoint triển khai/G1 cũ bên dưới đọc theo INDEX/validation, không khởi động lại plan cũ.
 
 Ngày lập:25/10/2026; cập nhật28/10/2026. Trạng thái: **Người dùng đã duyệt toàn bộ bản đặc tả viết, gồm các đề xuất đã trình và mục13–14**. [Yêu cầu đã thống nhất](approved/requirements.md) ghi nhận quyết định này. Các đề xuất nghiệp vụ/UI bên dưới nay thuộc phạm vi đã duyệt; chi tiết kỹ thuật chưa viết vẫn cần thiết kế/review. Không thay approval API/schema hoặc quyền triển khai sản phẩm. Kế hoạch đã được người dùng duyệt ở bước tiếp nối; thiết kế Task1 còn chờ review G1 tại [implementation-plan](technical/implementation-plan.md).
