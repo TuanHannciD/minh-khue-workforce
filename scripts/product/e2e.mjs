@@ -10,8 +10,17 @@ const reviewR1 = process.argv.includes("--review-r1");
 const selection = process.argv.includes("--selection");
 const wholeBranchR1 = process.argv.includes("--whole-branch-r1");
 const acceptanceOnly = process.argv.includes("--acceptance-only");
+const attendanceRaceClamp = process.argv.includes("--attendance-race-clamp");
+if (
+  attendanceRaceClamp &&
+  process.argv.slice(2).some((arg) => arg !== "--attendance-race-clamp")
+)
+  throw new Error("--attendance-race-clamp is an exclusive focused route");
 const acceptance =
-  process.argv.includes("--acceptance") || acceptanceOnly || wholeBranchR1;
+  process.argv.includes("--acceptance") ||
+  acceptanceOnly ||
+  wholeBranchR1 ||
+  attendanceRaceClamp;
 const exporting = process.argv.includes("--export");
 const sandbox = await startSandbox({
   interactive,
@@ -82,7 +91,11 @@ await withCleanup(
               2,
             ),
           );
-          if (wholeBranchR1) {
+          if (attendanceRaceClamp) {
+            const { runAttendanceRaceClamp } =
+              await import("../../tests/product-e2e/pagination-race-clamp.spec.ts");
+            await runAttendanceRaceClamp(sandbox, browser);
+          } else if (wholeBranchR1) {
             const { runEmployeeRecoveryR1 } =
               await import("../../tests/product-e2e/employee-recovery-r1.spec.ts");
             const { runBulkPreviewR1 } =

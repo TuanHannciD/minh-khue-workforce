@@ -1,5 +1,22 @@
 # Tooling sản phẩm — Task2–11
 
+Post-D2 focused browser gate: `node scripts/product/e2e.mjs --attendance-race-clamp`
+chỉ chạy `pagination-race-clamp.spec.ts` trên **một** fresh Task10 UUID DB,
+hai fixture accounts, hai temporary loopback probes và hai built Nest/Vite origins;
+một headless Chromium, hai isolated contexts. Selector độc lập, không ghép flags
+khác/`--serve`, không chạy acceptance hoặc sequential pagination suite.
+Giữ Task10 live owner/runtime/ICU preflight và cleanup theo LOCAL_RUN;
+`MKW_PRODUCT_EVIDENCE_ROOT` phải là output root mới. Không standalone Playwright.
+Test đổi membership thật1000→975 qua Employee API, giữ draft qua clamp40→39,
+kiểm canonical read39 và không HTTP seed/write ngầm. `pagination-body-gate.ts`
+chỉ giữ kết quả **sau native JSON parse** trong browser test, forward nguyên fetch
+arguments/signal; control cùng context phải đổi footer, body cũ được release sau
+new context accepted rồi không đổi rows/footer/draft. Đây là post-body scheduling
+fault, không phải network abort-only proof hoặc browser exact JS reference.
+`focused-route.test.mjs` chạy coordinator subprocess với resource-boundary doubles,
+kiểm một acquisition/đúng route/finally cleanup, không acquire DB/browser/listener:
+`node --experimental-test-module-mocks --test tests/product-e2e/focused-route.test.mjs`.
+
 Whole-branch fix R1 (02/11): `measureTrustedDragRuns` dùng Ctrl trong Chọn nhiều, hit-test origin/endpoint, giữ trusted pointer facts/activation/preview/committed9 targets/negative plain drag. Mỗi run refresh qua UI và `ready(afterDeliveryId)` để không nhận envelope cũ hoặc để poll cắt ngang run5s. `assertDragRun` được cả full và scoped validator dùng; frames-only/fake evidence bị từ chối. `pnpm run product:benchmark -- --drag-only --sizes=20,200,1000` dùng existing owner/seed/runtime nhưng bỏ cold/search/heap/SQL/export measurements; chỉ scope drag, luôn ghi `overallPerformance=NOT_RUN`. Missing configs/nonvalid gesture/budget33/200 vẫn nonzero. Unit/failure tests tại benchmark metrics/delivery/scroll và `apps/api/test/attendance-page-observer.test.mjs`; live page integration chứng minh observer lỗi vẫn actual Prisma connections0. Original drag raw invalid; old8PASS4FAIL và heap monotonic Failed giữ nguyên. M1 split/M2 warnings vẫn hoãn, không product Done.
 
 Task9 fix R1: `createPageNetworkAudit` gắn listener trên context trước navigation/reload; scenario đặt expected canonical criteria trước UI action, raw facts và request dư được validator kiểm lại. `observeEditableDelivery`/`ready` trả observation theo delivery+kind, năm render correlations giữ đủ resource/readiness; poll phải có fetchedAt/delivery mới và footer DOM active kind/employee IDs. SQL poll restore luôn chạy qua owner cleanup. `safeBenchmarkError` giữ cây original/cleanup và scalar status/assertion/code/stage, bỏ arbitrary message/stack/body có thể chứa secret. Focused tests tại `benchmark-metrics.test.mjs` và `benchmark-delivery.test.mjs`; M1 split/M2 warnings hoãn, không product hooks/refactor/dependency delta. [Validation fix R1](../../docs/tasks/MKW-PRODUCT-001/validation.md#task9-fix-r1--instrumentation-đã-sửa-02112026) giữ fresh8/12 PASS/4 heap FAIL và giới hạn instrumentation lịch sử, không rewrite old raw.
