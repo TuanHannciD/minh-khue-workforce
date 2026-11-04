@@ -539,6 +539,7 @@ function matchShape(facts, index, shape, seen = new Set()) {
 
 // Resolve only explicit direct property/index witnesses for source allocations.
 // Wildcards enumerate encoded row slots; they never traverse backing storage.
+// A logical parent/slot on the indexed path is separate from its raw witnesses.
 // Missing mapping is an obligation, while witnessed identity collapse is a
 // contradiction even if numeric primitives or some other fields are omitted.
 function matchDistinctWrappers(facts, index, paths = []) {
@@ -564,7 +565,24 @@ function matchDistinctWrappers(facts, index, paths = []) {
             index: parent,
             detail: `${path}: require exact direct wrapper mapping and array encoding; missing slots or backing edges do not establish source allocations`,
           });
-        targets.push(...links.map((edge) => edge.toIndex));
+        if (part === "*") {
+          const slots = new Map();
+          for (const edge of links) {
+            // Reader element indices are exact nonnegative integers; property
+            // labels use the existing canonical decimal grammar above. Keep
+            // strings exact, including large labels; never parseInt/coerce them.
+            const slot = String(edge.label.value);
+            if (!slots.has(slot)) slots.set(slot, new Set());
+            slots.get(slot).add(edge.toIndex);
+          }
+          // Dual element/property witnesses of ONE parent/slot/target denote
+          // one logical occurrence. Conflicting targets leave that slot (and
+          // its nested path) unknown under the mapping obligation above. Only
+          // different slots can prove separate rows.map allocations collapsed.
+          // All raw records still go through collectMembers unchanged.
+          for (const slotTargets of slots.values())
+            if (slotTargets.size === 1) targets.push(...slotTargets);
+        } else targets.push(...links.map((edge) => edge.toIndex));
       }
       parents = targets;
     }

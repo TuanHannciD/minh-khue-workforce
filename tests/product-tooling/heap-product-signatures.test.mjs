@@ -12,6 +12,8 @@ import {
  * and malformed inputs. They share only raw encoding, never matcher predicates.
  * Fix R1: tableRecords/prototype fixtures cover encoding vs DTO contradiction;
  * allocation fixtures cover direct wrappers vs shared DTO/backing identities.
+ * Fix R2: wildcard fixtures distinguish logical slots, raw dual witnesses,
+ * conflicting mappings and source allocations while preserving DTO aliases.
  * Raw fixture oracle: property names follow PageDelivery, generated DTOs,
  * toPageTable and AttendanceGrid, independently of the recognizer's rules.
  * raw encodes literal nodes/edges only; it never labels product categories.
@@ -963,5 +965,183 @@ test("partial projection wrapper mapping stays explicit instead of assuming miss
   );
   assert.ok(
     hasObligation(result, "source-runtime-binding-unproven", "grid-projection"),
+  );
+});
+
+test("wildcard same-slot dual witnesses preserve projection and nested cells evidence", () => {
+  const records = detachedRecords();
+  records[6][2].push(p("0", 9));
+  // Both row slots and the nested cells array may have dual raw encodings.
+  records[12][2].push(p("0", 11));
+  const graph = graphOf(records);
+  const result = recognize(graph, registry);
+  const projection = find(result, "grid-projection", 0);
+  assert.ok(projection, "one logical row slot is not two allocations");
+  assert.equal(projection.binding, "unproven");
+  for (const [parent, target] of [
+    [6, 9],
+    [12, 11],
+  ]) {
+    const edges = [...graph.outgoing(parent)];
+    assert.deepEqual(
+      edges.map((edge) => [edge.type, edge.label.value]),
+      [
+        ["element", 0],
+        ["property", "0"],
+      ],
+    );
+    for (const edge of edges)
+      assert.ok(
+        projection.witnesses.some(
+          (w) =>
+            w.edgeIndex === edge.index &&
+            w.fromIndex === parent &&
+            w.toIndex === target,
+        ),
+        `raw witness ${edge.index}`,
+      );
+  }
+  for (const signature of ["grid-projection", "grid-row", "row-cells"])
+    assert.ok(
+      hasObligation(result, "source-runtime-binding-unproven", signature),
+    );
+  for (const code of ["wrapper-mapping-unproven", "array-encoding-unproven"])
+    assert.ok(hasObligation(result, code, "grid-projection"));
+  assert.ok(
+    !result.diagnostics.some(
+      (d) => d.signature === "grid-projection" && d.nodeIndex === 0,
+    ),
+  );
+  assert.ok(find(result, "row-cells", 12));
+  assert.ok(
+    result.aliases.some(
+      (a) =>
+        a.node.rawId === 119 &&
+        a.references.filter((r) => r.witness.fromIndex === 6).length === 2,
+    ),
+  );
+});
+
+test("wildcard distinct row slots still reject shared row and cells allocations", () => {
+  for (const links of [[e(1, 9)], [p("0", 9), p("1", 9)]]) {
+    const records = detachedRecords();
+    records[6][2].push(...links);
+    const result = recognize(graphOf(records), registry);
+    assert.ok(!find(result, "grid-projection", 0));
+    assert.ok(
+      result.diagnostics.some(
+        (d) =>
+          d.signature === "grid-projection" &&
+          d.nodeIndex === 0 &&
+          d.code === "distinct-wrapper-mismatch",
+      ),
+    );
+  }
+  const records = detachedRecords();
+  records[6][2].push(e(1, 17));
+  records.push(["object", "", [p("employee", 10), p("cells", 12)]]);
+  const result = recognize(graphOf(records), registry);
+  assert.ok(
+    !find(result, "grid-projection", 0),
+    "distinct rows cannot share their allocated cells array",
+  );
+  assert.ok(
+    result.diagnostics.some(
+      (d) =>
+        d.signature === "grid-projection" &&
+        d.nodeIndex === 0 &&
+        d.code === "distinct-wrapper-mismatch",
+    ),
+  );
+});
+
+test("wildcard distinct rows can share DTOs with dual slot witnesses", () => {
+  const records = detachedRecords();
+  records[6][2].push(p("0", 9), e(1, 17), p("1", 17));
+  records.push(
+    ["object", "", [p("employee", 10), p("cells", 18)]],
+    ["array", "", [e(0, 11), p("0", 11)]],
+  );
+  const result = recognize(graphOf(records), registry);
+  const projection = find(result, "grid-projection", 0);
+  assert.ok(projection);
+  assert.ok(find(result, "grid-row", 9));
+  assert.ok(find(result, "grid-row", 17));
+  assert.ok(find(result, "row-cells", 18));
+  assert.ok(projection.members.some((m) => m.rawId === 135));
+  assert.ok(projection.members.some((m) => m.rawId === 137));
+  assert.ok(
+    result.aliases.some(
+      (a) =>
+        a.node.rawId === 121 &&
+        a.references.some((r) => r.witness.fromIndex === 9) &&
+        a.references.some((r) => r.witness.fromIndex === 17),
+    ),
+  );
+  assert.ok(
+    result.aliases.some(
+      (a) =>
+        a.node.rawId === 123 &&
+        [4, 12, 18].every((parent) =>
+          a.references.some((r) => r.witness.fromIndex === parent),
+        ),
+    ),
+  );
+  assert.ok(
+    hasObligation(result, "wrapper-mapping-unproven", "grid-projection"),
+  );
+});
+
+test("wildcard conflicting slot targets stay unknown rather than prove allocations collapsed", () => {
+  const records = detachedRecords();
+  // Slot 0 has two possible rows, one also witnessed at slot 1. It does not
+  // prove which row belongs to slot 0, or prove slot 0/1 allocation collapse.
+  records[6][2].push(p("0", 17), e(1, 17));
+  records.push(
+    ["object", "", [p("employee", 10), p("cells", 18)]],
+    ["array", "", [e(0, 11)]],
+  );
+  const graph = graphOf(records);
+  const result = recognize(graph, registry);
+  const projection = find(result, "grid-projection", 0);
+  assert.ok(projection, "conflicting slot mapping remains unproven");
+  for (const edge of graph.outgoing(6))
+    assert.ok(projection.witnesses.some((w) => w.edgeIndex === edge.index));
+  for (const code of [
+    "wrapper-mapping-unproven",
+    "array-encoding-unproven",
+    "source-runtime-binding-unproven",
+  ])
+    assert.ok(hasObligation(result, code, "grid-projection"));
+  assert.ok(
+    !result.diagnostics.some(
+      (d) =>
+        d.signature === "grid-projection" &&
+        d.nodeIndex === 0 &&
+        d.code === "distinct-wrapper-mismatch",
+    ),
+  );
+});
+
+test("wildcard noncanonical numeric property is not silently normalized into a slot", () => {
+  const records = detachedRecords();
+  records[6][2].push(p("01", 9));
+  const graph = graphOf(records);
+  const result = recognize(graph, registry);
+  const projection = find(result, "grid-projection", 0);
+  assert.ok(projection);
+  const rawProperty = [...graph.outgoing(6)].find(
+    (edge) => edge.type === "property",
+  );
+  assert.ok(
+    projection.witnesses.some(
+      (w) => w.edgeIndex === rawProperty.index && w.property === "01",
+    ),
+  );
+  assert.ok(
+    hasObligation(result, "wrapper-mapping-unproven", "grid-projection"),
+  );
+  assert.ok(
+    hasObligation(result, "array-encoding-unproven", "grid-projection"),
   );
 });
