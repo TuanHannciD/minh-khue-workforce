@@ -668,3 +668,147 @@ test("R1 I3 unknown T owner matching an unclassified lifetime cannot prove clean
   assert.deepEqual(r.failures, []);
   assert(r.missing.some((s) => /T unknown native owner/.test(s)));
 });
+
+// R2: adding unknown slots/metadata must not erase an already proven fact.
+for (const key of ["queries", "observers"])
+  for (const binding of ["q", "retired-query"])
+    test(`R2 I4 ${key} hole preserves known binding ${binding}`, () => {
+      const p = reviewPoints();
+      p[5].observers[0].queryId = binding;
+      p[5][key].length = 2;
+      const r = heap.validateLifecycleEvidence({ checkpoints: p });
+      assert.equal(r.result, binding === "q" ? "NOT_RUN" : "FAIL");
+      assert.equal(r.exitCode, binding === "q" ? 2 : 1);
+      assert(r.missing.some((s) => /S5 .*inventory/.test(s)));
+      if (binding === "q") assert.deepEqual(r.failures, []);
+      else
+        assert(
+          r.failures.some((s) =>
+            /S5 observer\/query identity mismatch/.test(s),
+          ),
+        );
+    });
+
+for (const key of ["queries", "observers"])
+  test(`R2 I4 ${key} hole alone cannot prove an absent active role`, () => {
+    const p = reviewPoints();
+    p[5][key] = new Array(1);
+    const r = heap.validateLifecycleEvidence({ checkpoints: p });
+    assert.equal(r.result, "NOT_RUN");
+    assert.equal(r.exitCode, 2);
+    assert.deepEqual(r.failures, []);
+    assert(r.missing.some((s) => /S5 .*inventory/.test(s)));
+  });
+
+for (const nested of [undefined, null])
+  for (const attribution of ["product", "unknown"])
+    test(`R2 I5 nested detached ${nested} preserves ${attribution} fallback evidence`, () => {
+      const p = reviewPoints();
+      p[3].dom = { detached: nested };
+      p[3].detached = [
+        { id: "detached-cell", attribution, payloadIds: ["old"] },
+      ];
+      const r = heap.validateLifecycleEvidence({ checkpoints: p });
+      assert.equal(r.result, attribution === "product" ? "FAIL" : "NOT_RUN");
+      assert.equal(r.exitCode, attribution === "product" ? 1 : 2);
+      assert(r.missing.some((s) => /S3 detached DOM inventory/.test(s)));
+      if (attribution === "unknown") assert.deepEqual(r.failures, []);
+      else
+        assert(
+          r.failures.some((s) =>
+            /S3 detached product payload detached-cell/.test(s),
+          ),
+        );
+    });
+
+test("R2 I5 nonnull nested inventory keeps precedence over top-level fallback", () => {
+  const p = reviewPoints();
+  p[3].detached = [{ id: "fallback", attribution: "product" }];
+  const r = heap.validateLifecycleEvidence({ checkpoints: p });
+  assert.equal(r.result, "NOT_RUN");
+  assert.equal(r.exitCode, 2);
+  assert.deepEqual(r.failures, []);
+  assert(!r.missing.some((s) => /S3 detached DOM inventory/.test(s)));
+});
+
+for (const fallback of [null, {}, new Array(1)])
+  test(`R2 I5 malformed fallback ${String(fallback)} stays structured Missing`, () => {
+    const p = reviewPoints();
+    p[3].dom = {};
+    p[3].detached = fallback;
+    const r = heap.validateLifecycleEvidence({ checkpoints: p });
+    assert.equal(r.result, "NOT_RUN");
+    assert.equal(r.exitCode, 2);
+    assert.deepEqual(r.failures, []);
+    assert(r.missing.some((s) => /S3 detached DOM inventory/.test(s)));
+  });
+
+for (const lifetime of [undefined, null, "", "provider", "L"])
+  test(`R2 I6 known ended owner proves cleanup failure with lifetime ${String(lifetime)}`, () => {
+    const teardown = {
+      ...cleanupFailure(),
+      queries: [],
+      observers: [],
+      registrations: [
+        { id: "listener-1", kind: "listener", owner: "attendance", lifetime },
+      ],
+    };
+    delete teardown.endedProductDataPaths;
+    const r = heap.validateLifecycleEvidence({
+      checkpoints: reviewPoints(),
+      teardown,
+    });
+    assert.equal(r.result, "FAIL");
+    assert.equal(r.exitCode, 1);
+    assert(
+      r.failures.some((s) =>
+        /T attendance registration remains active/.test(s),
+      ),
+    );
+    if (!lifetime)
+      assert(
+        r.missing.some((s) => /T registration owner\/lifetime missing/.test(s)),
+      );
+  });
+
+for (const [owner, lifetime, endedLifetime, result] of [
+  ["SessionProvider", "L", "L", "FAIL"],
+  ["SessionProvider", "provider", "L", "NOT_RUN"],
+  ["SessionProvider", undefined, "L", "NOT_RUN"],
+  ["SessionProvider", undefined, undefined, "NOT_RUN"],
+  ["SessionProvider", "L", undefined, "NOT_RUN"],
+  ["unknown", "L", "L", "NOT_RUN"],
+  ["unknown-native-owner", "L", "L", "NOT_RUN"],
+  [undefined, "L", "L", "NOT_RUN"],
+])
+  test(`R2 I6 lifetime route requires known owner and ended proof: ${owner}/${lifetime}/${endedLifetime}`, () => {
+    const teardown = {
+      ...cleanupFailure(),
+      endedLifetime,
+      queries: [],
+      observers: [],
+      registrations: [{ id: "listener-1", kind: "listener", owner, lifetime }],
+    };
+    delete teardown.endedProductDataPaths;
+    const r = heap.validateLifecycleEvidence({
+      checkpoints: reviewPoints(),
+      teardown,
+    });
+    assert.equal(r.result, result);
+    assert.equal(r.exitCode, result === "FAIL" ? 1 : 2);
+    if (result === "FAIL")
+      assert(
+        r.failures.some((s) =>
+          /T attendance registration remains active/.test(s),
+        ),
+      );
+    else assert.deepEqual(r.failures, []);
+    if (!owner || !lifetime)
+      assert(
+        r.missing.some((s) => /T registration owner\/lifetime missing/.test(s)),
+      );
+    if (owner?.startsWith("unknown"))
+      assert(r.missing.some((s) => /T unknown native owner/.test(s)));
+    if (!endedLifetime)
+      assert(r.missing.some((s) => /T endedLifetime missing/.test(s)));
+  });

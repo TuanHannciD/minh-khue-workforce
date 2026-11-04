@@ -466,20 +466,32 @@ export function validateLifecycleEvidence(companion = {}) {
           `${label} active attendance observer multiplicity ${activeObservers.length} != 1`,
         );
       if (
-        queries.complete &&
-        observers.complete &&
         activeQueries[0] &&
         activeObservers[0] &&
         activeObservers[0].queryId !== activeQueries[0].id
       )
+        // A hole cannot repair this binding: another active candidate would
+        // itself exceed the fixed query/observer bound of one.
         failures.push(`${label} observer/query identity mismatch`);
     }
     validateRegistrations(point, label, failures, missing);
-    const { entries: detached } = recordInventory(
+    let { entries: detached } = recordInventory(
       isRecord(point.dom) ? point.dom.detached : point.detached,
       `${label} detached DOM`,
       missing,
     );
+    // Keep the malformed nested inventory diagnostic while retaining known
+    // facts from the supported nullish fallback at the same checkpoint.
+    if (
+      isRecord(point.dom) &&
+      point.dom.detached == null &&
+      point.detached != null
+    )
+      ({ entries: detached } = recordInventory(
+        point.detached,
+        `${label} detached DOM`,
+        missing,
+      ));
     for (const node of detached)
       if (node.attribution === "product" || node.owner === "product")
         failures.push(
@@ -525,10 +537,9 @@ export function validateLifecycleEvidence(companion = {}) {
     )
       failures.push("T attendance observer remains active");
     for (const registration of registrations.entries) {
-      if (!registration.owner || !registration.lifetime) {
+      if (!registration.owner || !registration.lifetime)
         missing.push("T registration owner/lifetime missing");
-        continue;
-      }
+      if (!registration.owner) continue;
       if (
         registration.owner === "unknown" ||
         registration.owner === "unknown-native-owner"
@@ -536,8 +547,12 @@ export function validateLifecycleEvidence(companion = {}) {
         missing.push(`T unknown native owner ${registration.id ?? "missing"}`);
         continue;
       }
+      // Ended-owner membership and an identified ended lifetime are separate
+      // proofs. Missing metadata must not hide the former or invent the latter.
       if (
-        registration.lifetime === teardown.endedLifetime ||
+        (registration.lifetime &&
+          teardown.endedLifetime &&
+          registration.lifetime === teardown.endedLifetime) ||
         (Array.isArray(teardown.owners) &&
           teardown.owners.includes(registration.owner))
       )
