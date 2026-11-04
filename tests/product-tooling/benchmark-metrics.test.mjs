@@ -121,6 +121,8 @@ function paginatedFixture() {
           })),
           dragRuns: Array.from({ length: 5 }, () => dragFixture(kind)),
           heapBytes: timings(11, 10000),
+          heapWarmups: 2,
+          heapCycles: 10,
           listenerCounts: timings(11, 10),
           timerCounts: timings(11, 2),
           queryCacheCounts: timings(11, 1),
@@ -231,7 +233,11 @@ test("paginated_workload_cannot_masquerade_as_25_employee_dataset", () => {
     "missing pagination validator",
   );
   const rows = paginatedFixture();
-  assert.equal(pagination.validatePaginatedMeasurements(rows).result, "PASS");
+  // Numeric/count fixtures have no companion graph/owner/cleanup evidence.
+  assert.equal(
+    pagination.validatePaginatedMeasurements(rows).result,
+    "NOT_RUN",
+  );
   const page25 = rows.find(
     (r) => r.logicalEmployees === 1000 && r.pageSize === 25,
   );
@@ -371,8 +377,47 @@ test("API SQL work requires actual query samples and cannot use page counts", ()
       ms: 5,
     }));
   });
-  assert.equal(pagination.validatePaginatedMeasurements(rows).result, "PASS");
+  assert.equal(
+    pagination.validatePaginatedMeasurements(rows).result,
+    "NOT_RUN",
+  );
   delete rows[0].metrics.apiSqlSamples;
+  assert.equal(pagination.validatePaginatedMeasurements(rows).result, "FAIL");
+});
+
+test("H5 count-only full matrix cannot PASS and total monotonicity is diagnostic", () => {
+  const rows = paginatedFixture();
+  rows[0].metrics.heapBytes = [
+    100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+  ];
+  const before = structuredClone(rows);
+  const r = pagination.validatePaginatedMeasurements(rows);
+  assert.equal(r.result, "NOT_RUN");
+  assert.equal(r.exitCode, 2);
+  assert.equal(r.heapDiagnostics["20/25/work"].strictMonotonic, true);
+  assert.equal(
+    r.heapDiagnostics["20/25/work"].growthPercent,
+    (110 / 100 - 1) * 100,
+  );
+  assert.equal(
+    r.violations.length,
+    0,
+    "all original non-heap positive fixtures must still satisfy their gates",
+  );
+  assert(r.missing.some((s) => /companion/.test(s)));
+  assert.deepEqual(rows, before, "validator must not rewrite raw evidence");
+  rows[0].metrics.heapBytes[10] = 121;
+  assert.equal(pagination.validatePaginatedMeasurements(rows).result, "FAIL");
+});
+
+test("missing heap lifecycle evidence keeps producer Not run without hiding executed failure", () => {
+  const rows = paginatedFixture();
+  rows[0].result = "NOT_RUN";
+  assert.equal(
+    pagination.validatePaginatedMeasurements(rows).result,
+    "NOT_RUN",
+  );
+  rows[0].metrics.inputMs.fill(100.1);
   assert.equal(pagination.validatePaginatedMeasurements(rows).result, "FAIL");
 });
 

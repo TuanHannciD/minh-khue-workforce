@@ -16,6 +16,7 @@ import {
   validateScopedDragMeasurements,
 } from "./benchmark-pagination.mjs";
 import { retainedMetrics } from "./benchmark-metrics.mjs";
+import { benchmarkOutcome } from "./heap-tooling.mjs";
 import { withCleanup } from "./cleanup.mjs";
 import { Prisma } from "../../apps/api/dist/infrastructure/db/generated/client.js";
 import { buildEmployeeMonthRead } from "../../apps/api/dist/modules/employees/employee-month-read.js";
@@ -439,9 +440,13 @@ try {
             restore,
           );
           report.measurements.push(...rows);
-          dataset.result = rows.some((r) => r.result !== "PASS")
-            ? "FAILED"
-            : "PASS";
+          dataset.result = benchmarkOutcome({
+            result: rows.some((r) => r.result === "FAIL")
+              ? "FAIL"
+              : rows.some((r) => r.result !== "PASS")
+                ? "NOT_RUN"
+                : "PASS",
+          }).result;
         },
         () => s.stop(),
       );
@@ -470,10 +475,10 @@ try {
   report.acceptance = (
     dragOnly ? validateScopedDragMeasurements : validatePaginatedMeasurements
   )(report.measurements);
-  if (report.acceptance.result !== "PASS") failed = true;
-  report.result = failed ? "FAILED" : "PASS";
+  const outcome = benchmarkOutcome(report.acceptance, failed);
+  report.result = outcome.result;
+  process.exitCode = outcome.exitCode;
   await writeFile(reportFile, JSON.stringify(report, null, 2));
 }
 console.log(`Benchmark evidence ${reportFile}`);
 console.log(JSON.stringify(report.acceptance));
-process.exitCode = failed ? 1 : 0;

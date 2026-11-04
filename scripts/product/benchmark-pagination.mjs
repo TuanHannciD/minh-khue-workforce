@@ -12,6 +12,7 @@
  */
 import assert from "node:assert/strict";
 import { summarize } from "./benchmark-metrics.mjs";
+import { validateHeapBudget, validateHeapAcceptance } from "./heap-tooling.mjs";
 import { measureScrollFrames } from "./benchmark-scroll.mjs";
 import { withCleanup } from "./cleanup.mjs";
 import { writeFile } from "node:fs/promises";
@@ -593,7 +594,8 @@ export function validateScopedDragMeasurements(rows) {
 
 export function validatePaginatedMeasurements(rows) {
   const failures = [],
-    missing = [];
+    missing = [],
+    heapDiagnostics = {};
   const keys = new Set();
   for (const row of rows) {
     const key = `${row.logicalEmployees}/${row.pageSize}/${row.kind}`;
@@ -744,17 +746,9 @@ export function validatePaginatedMeasurements(rows) {
             );
       });
     check("heap", () => {
-      assert(
-        m.heapBytes?.length === 11 && m.heapBytes[0] > 0,
-        "2 warmups +10 post-GC cycles required",
-      );
-      summarize(m.heapBytes);
-      const growth = (m.heapBytes.at(-1) / m.heapBytes[0] - 1) * 100;
-      assert(growth <= 20, `heap growth ${growth}%`);
-      assert(
-        !m.heapBytes.slice(1).every((n, i) => n > m.heapBytes[i]),
-        "monotonic heap growth",
-      );
+      const budget = validateHeapBudget(m);
+      heapDiagnostics[key] = budget.diagnostics;
+      assert.equal(budget.failures.length, 0, budget.failures.join("; "));
     });
     for (const name of ["listenerCounts", "timerCounts", "queryCacheCounts"])
       check(name, () => {
@@ -901,11 +895,9 @@ export function validatePaginatedMeasurements(rows) {
     check("rawInput", () =>
       assert(m.rawInputTableMutations === 0, "raw keypress invalidated table"),
     );
+    if (row.result === "NOT_RUN") missing.push(`${key} producer incomplete`);
     check("producer", () =>
-      assert(
-        row.result !== "FAIL" && row.result !== "NOT_RUN",
-        row.error ?? "producer incomplete",
-      ),
+      assert(row.result !== "FAIL", row.error ?? "producer incomplete"),
     );
     // Pure validation: the producer separately stores derived checks in its report.
   }
@@ -913,8 +905,21 @@ export function validatePaginatedMeasurements(rows) {
     for (const p of [25, 50])
       for (const k of ["work", "overtime"])
         if (!keys.has(`${n}/${p}/${k}`)) missing.push(`missing ${n}/${p}/${k}`);
+  const heap = validateHeapAcceptance(rows);
+  // Keep Missing evidence separate from executed violations. The compatibility
+  // failures list still includes missing prerequisites for existing consumers.
+  for (const failure of heap.failures)
+    if (!failures.includes(failure)) failures.push(failure);
+  for (const item of [...heap.missing, ...heap.blocked])
+    if (!missing.includes(item)) missing.push(item);
+  const result = failures.length ? "FAIL" : missing.length ? "NOT_RUN" : "PASS";
   return {
-    result: failures.length ? "FAIL" : missing.length ? "NOT_RUN" : "PASS",
+    result,
+    exitCode: result === "FAIL" ? 1 : result === "NOT_RUN" ? 2 : 0,
+    violations: failures,
+    missing,
+    blocked: heap.blocked,
+    heapDiagnostics,
     failures: [...failures, ...missing],
   };
 }
@@ -1788,16 +1793,21 @@ export async function measurePaginatedAttendance(
         metrics.requestCount = requests().length;
         metrics.apiSqlAllEvents = sandbox.benchmarkSqlEvents?.slice(sqlStart);
         metrics.heapWarmups = 2;
+        metrics.heapCycles = 10;
         metrics.phase = "measured";
         audit.end();
         const validation = validatePaginatedMeasurements([row]);
-        row.failures = validation.failures.filter(
+        row.failures = validation.violations;
+        row.missing = validation.missing.filter(
           (f) => !f.startsWith("missing "),
         );
+        metrics.heapDiagnostics =
+          validation.heapDiagnostics[`${size}/${pageSize}/${kind}`];
         row.checks = {
-          measured: !validation.failures.some((f) => !f.startsWith("missing ")),
+          measured: row.failures.length === 0 && row.missing.length === 0,
         };
-        if (!row.checks.measured) row.result = "FAIL";
+        if (row.failures.length) row.result = "FAIL";
+        else if (row.missing.length) row.result = "NOT_RUN";
       } catch (error) {
         row.result = "FAIL";
         row.errorDetails = safeBenchmarkError(error);
