@@ -449,3 +449,222 @@ test("observer contamination cannot masquerade as a product counterexample", () 
   assert.equal(r.result, "NOT_RUN");
   assert.equal(r.failures.length, 0);
 });
+
+// R1 reproductions use distinct runtime identities with the same product path.
+// The new identity at S5 must fail only when the S0/S5 pair is comparable.
+const reviewPoints = () =>
+  Array.from({ length: 11 }, (_, i) => ({
+    label: `S${i}`,
+    identityDomain: "D",
+    activeDataIds: [],
+    graph: {
+      nodes: [
+        { id: "product-root", category: "owner", selfBytes: 8 },
+        { id: "old", category: "data", selfBytes: 8 },
+      ],
+      roots: [{ id: "product-root", attribution: "product" }],
+      edges: [{ from: "product-root", to: "old", strength: "strong" }],
+    },
+    queries: [{ id: "q", scope: "attendance", status: "active" }],
+    observers: [{ queryId: "q", scope: "attendance", status: "active" }],
+    registrations: [],
+    dom: { detached: [] },
+  }));
+const replaceRetired = (point, id = "new") => {
+  point.graph.nodes[1].id = id;
+  point.graph.edges[0].to = id;
+};
+const retiredRegistration = (owner = "attendance") => ({
+  id: "native-1",
+  kind: "native-abort-deadline",
+  owner,
+  lifetime: "unclassified",
+  lifetimeStatus: "retired",
+  state: "scheduled",
+});
+const cleanupFailure = () => ({
+  action: "logout",
+  contextAlive: true,
+  endedLifetime: "L",
+  owners: ["attendance"],
+  readiness: "settled",
+  deadlineSource: "source",
+  endedProductDataPaths: [["product-root", "retired-cell"]],
+});
+
+for (const missingLabel of ["S10", "S3"]) {
+  for (const counterexample of ["H2", "registration", "T", "none"])
+    test(`R1 I1 missing ${missingLabel} preserves ${counterexample} verdict and labels`, () => {
+      const p = reviewPoints();
+      if (counterexample === "H2") replaceRetired(p[5]);
+      if (counterexample === "registration")
+        p[5].registrations = [retiredRegistration()];
+      const r = heap.validateLifecycleEvidence({
+        checkpoints: p.filter((point) => point.label !== missingLabel),
+        ...(counterexample === "T" ? { teardown: cleanupFailure() } : {}),
+      });
+      assert.equal(r.result, counterexample === "none" ? "NOT_RUN" : "FAIL");
+      assert.equal(r.exitCode, counterexample === "none" ? 2 : 1);
+      assert(r.missing.some((s) => s.includes(missingLabel)));
+      if (counterexample === "H2")
+        assert(r.failures.some((s) => /S5 retired identity new/.test(s)));
+      if (counterexample === "registration")
+        assert(r.failures.some((s) => /S5 retired registration/.test(s)));
+      if (counterexample === "T")
+        assert(r.failures.some((s) => /T product data/.test(s)));
+    });
+}
+
+for (const label of ["S0", "S5"])
+  test(`R1 I2 missing ${label} domain cannot prove an H2 violation`, () => {
+    const p = reviewPoints();
+    replaceRetired(p[5]);
+    delete p.find((point) => point.label === label).identityDomain;
+    const r = heap.analyzeGenerationGraphs(p);
+    assert.equal(r.result, "NOT_RUN");
+    assert.equal(r.exitCode, 2);
+    assert.deepEqual(r.failures, []);
+    assert(r.missing.some((s) => s.includes(`${label} identity domain`)));
+    p[7].registrations = [retiredRegistration()];
+    const independent = heap.validateLifecycleEvidence({ checkpoints: p });
+    assert.equal(independent.result, "FAIL");
+    assert.equal(independent.exitCode, 1);
+    assert(independent.failures.some((s) => /S7 retired registration/.test(s)));
+    assert(!independent.failures.some((s) => /retired identity new/.test(s)));
+  });
+
+for (const domain of [undefined, "other-session"])
+  test(`R1 I2 unrelated ${domain ?? "missing"} domain cannot mask a proven pair`, () => {
+    const p = reviewPoints();
+    replaceRetired(p[5]);
+    p[3].identityDomain = domain;
+    const r = heap.analyzeGenerationGraphs(p);
+    assert.equal(r.result, "FAIL");
+    assert.equal(r.exitCode, 1);
+    assert(r.failures.some((s) => /S5 retired identity new/.test(s)));
+    assert(r.missing.length > 0);
+  });
+
+test("R1 I2 missing comparison domain retains a separate proven H2 failure", () => {
+  const p = reviewPoints();
+  replaceRetired(p[5], "unproven");
+  delete p[5].identityDomain;
+  replaceRetired(p[7], "proven");
+  const r = heap.analyzeGenerationGraphs(p);
+  assert.equal(r.result, "FAIL");
+  assert(r.failures.some((s) => /S7 retired identity proven/.test(s)));
+  assert(!r.failures.some((s) => /unproven/.test(s)));
+});
+
+for (const owner of ["unknown", "unknown-native-owner"])
+  for (const duplicate of [false, true])
+    test(`R1 I3 ${owner} retired duplicate=${duplicate} is missing evidence`, () => {
+      const p = reviewPoints();
+      const record = retiredRegistration(owner);
+      p[5].registrations = duplicate ? [record, { ...record }] : [record];
+      const r = heap.validateLifecycleEvidence({ checkpoints: p });
+      assert.equal(r.result, "NOT_RUN");
+      assert.equal(r.exitCode, 2);
+      assert.deepEqual(r.failures, []);
+      assert(r.missing.some((s) => /S5 unknown native owner native-1/.test(s)));
+      p[7].registrations = [retiredRegistration()];
+      const known = heap.validateLifecycleEvidence({ checkpoints: p });
+      assert.equal(known.result, "FAIL");
+      assert(known.failures.some((s) => /S7 retired registration/.test(s)));
+      assert(!known.failures.some((s) => /S5 .*registration/.test(s)));
+    });
+
+for (const value of [null, undefined, "hole"])
+  test(`R1 M1 ${value ?? String(value)} checkpoint is structured missing and preserves failures`, () => {
+    const sparse = new Array(11);
+    const empty = heap.analyzeGenerationGraphs(sparse);
+    assert.equal(empty.result, "NOT_RUN");
+    assert.equal(empty.exitCode, 2);
+    assert(empty.missing.length > 0);
+    const p = reviewPoints();
+    if (value === "hole") delete p[3];
+    else p[3] = value;
+    const missing = heap.analyzeGenerationGraphs(p);
+    assert.equal(missing.result, "NOT_RUN");
+    assert(missing.missing.some((s) => /S3/.test(s)));
+    replaceRetired(p[5]);
+    const r = heap.validateLifecycleEvidence({ checkpoints: p });
+    assert.equal(r.result, "FAIL");
+    assert(r.failures.some((s) => /S5 retired identity new/.test(s)));
+    assert(r.missing.some((s) => /S3/.test(s)));
+  });
+
+for (const key of ["queries", "observers", "registrations", "dom"])
+  for (const value of [null, {}, undefined])
+    test(`R1 M1 malformed ${key} ${String(value)} inventory is structured missing`, () => {
+      const p = reviewPoints();
+      p[3][key] = value;
+      const r = heap.validateLifecycleEvidence({ checkpoints: p });
+      assert.equal(r.result, "NOT_RUN");
+      assert.equal(r.exitCode, 2);
+      assert.deepEqual(r.failures, []);
+      assert(r.missing.some((s) => /S3 .*inventory/.test(s)));
+      const failed = heap.validateLifecycleEvidence({
+        checkpoints: p,
+        teardown: cleanupFailure(),
+      });
+      assert.equal(failed.result, "FAIL");
+      assert(failed.failures.some((s) => /T product data/.test(s)));
+    });
+
+for (const key of ["queries", "observers", "registrations", "detached"])
+  for (const value of [null, {}, [null], new Array(1)])
+    test(`R1 M1 malformed ${key} entries ${String(value)} retain independent failure`, () => {
+      const p = reviewPoints();
+      if (key === "detached") p[3].dom.detached = value;
+      else p[3][key] = value;
+      const r = heap.validateLifecycleEvidence({ checkpoints: p });
+      assert.equal(r.result, "NOT_RUN");
+      assert.deepEqual(r.failures, []);
+      assert(r.missing.some((s) => /S3 .*inventory/.test(s)));
+      p[7].registrations = [retiredRegistration()];
+      const failed = heap.validateLifecycleEvidence({ checkpoints: p });
+      assert.equal(failed.result, "FAIL");
+      assert(failed.failures.some((s) => /S7 retired registration/.test(s)));
+    });
+
+for (const key of ["nodes", "roots", "edges"])
+  test(`R1 M1 malformed graph ${key} cannot pass or throw`, () => {
+    for (const value of [null, {}, [null], new Array(1)]) {
+      const p = reviewPoints();
+      p[3].graph[key] = value;
+      const r = heap.analyzeGenerationGraphs(p);
+      assert.equal(r.result, "NOT_RUN");
+      assert(r.missing.some((s) => /S3/.test(s)));
+      replaceRetired(p[5]);
+      assert.equal(heap.analyzeGenerationGraphs(p).result, "FAIL");
+    }
+  });
+
+for (const key of ["queries", "observers", "registrations"])
+  test(`R1 M1 malformed T ${key} inventory preserves cleanup failure`, () => {
+    for (const value of [null, {}, [null], new Array(1)]) {
+      const teardown = { ...cleanupFailure(), [key]: value };
+      const r = heap.validateLifecycleEvidence({
+        checkpoints: reviewPoints(),
+        teardown,
+      });
+      assert.equal(r.result, "FAIL");
+      assert(r.failures.some((s) => /T product data/.test(s)));
+      assert(r.missing.some((s) => /T .*inventory/.test(s)));
+    }
+  });
+
+test("R1 I3 unknown T owner matching an unclassified lifetime cannot prove cleanup failure", () => {
+  const teardown = cleanupFailure();
+  delete teardown.endedProductDataPaths;
+  teardown.endedLifetime = "unclassified";
+  teardown.registrations = [retiredRegistration("unknown-native-owner")];
+  const r = heap.validateLifecycleEvidence({
+    checkpoints: reviewPoints(),
+    teardown,
+  });
+  assert.equal(r.result, "NOT_RUN");
+  assert.deepEqual(r.failures, []);
+  assert(r.missing.some((s) => /T unknown native owner/.test(s)));
+});

@@ -150,37 +150,104 @@ function materializePath(previous, id) {
   return path.reverse();
 }
 
+const isRecord = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+// Array.from/for..of visit sparse holes. Retain valid facts from a partial
+// inventory, but never use its absence/count to prove a lifecycle violation.
+function recordInventory(value, label, missing) {
+  const entries = [];
+  let complete = Array.isArray(value);
+  for (const entry of Array.isArray(value) ? value : []) {
+    if (isRecord(entry)) entries.push(entry);
+    else complete = false;
+  }
+  if (!complete) missing.push(`${label} inventory missing or malformed`);
+  return { entries, complete };
+}
+
+// Labels belong to captures, not array positions: a missing S3 must not rename
+// S4..S10 or prevent an independent S0/S5 counterexample from being inspected.
+function labeledCheckpoints(points, missing) {
+  const entries = new Map();
+  if (!Array.isArray(points) || points.length !== HEAP_BUDGET.postGc)
+    missing.push("companion S0-S10 graph checkpoints missing");
+  for (const [index, point] of (Array.isArray(points)
+    ? points
+    : []
+  ).entries()) {
+    if (!isRecord(point) || !/^S(?:[0-9]|10)$/.test(point.label)) {
+      missing.push(`checkpoint entry ${index} shape/label missing`);
+      continue;
+    }
+    if (!entries.has(point.label)) entries.set(point.label, []);
+    entries.get(point.label).push(point);
+  }
+  const labeled = [];
+  for (let i = 0; i < HEAP_BUDGET.postGc; i++) {
+    const label = `S${i}`,
+      matches = entries.get(label) ?? [];
+    if (matches.length !== 1) {
+      missing.push(`${label} checkpoint missing or duplicate`);
+      continue;
+    }
+    labeled.push(matches[0]);
+  }
+  return labeled;
+}
+
 export function analyzeGenerationGraphs(points = []) {
   const failures = [],
     missing = [],
     blocked = [],
     checkpoints = [],
-    domains = new Set();
-  if (!Array.isArray(points) || points.length !== HEAP_BUDGET.postGc)
-    missing.push("companion S0-S10 graph checkpoints missing");
-  if (missing.length)
-    return { ...statuses(failures, missing, blocked), checkpoints };
-  points.forEach((point, index) => {
-    const label = `S${index}`;
-    if (point.label !== label)
-      missing.push(`missing intermediate graph ${label}`);
-    if (point.identityDomain) domains.add(point.identityDomain);
-    else missing.push(`${label} identity domain missing`);
-    if (!point.graph) {
+    domains = new Map();
+  labeledCheckpoints(points, missing).forEach((point) => {
+    const label = point.label,
+      missingBefore = missing.length,
+      failuresBefore = failures.length;
+    if (
+      typeof point.identityDomain !== "string" ||
+      point.identityDomain.trim().length === 0
+    )
+      missing.push(`${label} identity domain missing`);
+    else domains.set(label, point.identityDomain);
+    if (!isRecord(point.graph)) {
       missing.push(`${label} graph missing`);
       return;
     }
     const graph = point.graph,
-      nodes = graph.nodes ?? [],
+      nodeInventory = recordInventory(
+        graph.nodes,
+        `${label} graph nodes`,
+        missing,
+      ),
+      edgeInventory = recordInventory(
+        graph.edges,
+        `${label} graph edges`,
+        missing,
+      ),
+      rootInventory = recordInventory(
+        graph.roots,
+        `${label} graph roots`,
+        missing,
+      ),
+      nodes = nodeInventory.entries,
       ids = new Set();
     if (
-      !Array.isArray(graph.nodes) ||
-      !Array.isArray(graph.edges) ||
-      !Array.isArray(graph.roots) ||
-      graph.roots.length === 0
+      !nodeInventory.complete ||
+      !edgeInventory.complete ||
+      !rootInventory.complete
     )
-      missing.push(`${label} graph nodes/edges/root inventory missing`);
-    if (!Array.isArray(point.activeDataIds))
+      return;
+    if (!graph.roots.length)
+      missing.push(`${label} graph root inventory missing`);
+    if (
+      !Array.isArray(point.activeDataIds) ||
+      Array.from(point.activeDataIds).some(
+        (id) => typeof id !== "string" || !id,
+      )
+    )
       missing.push(`${label} active payload identity inventory missing`);
     for (const root of graph.roots ?? []) {
       if (!allowedRootAttribution.has(root.attribution))
@@ -189,7 +256,11 @@ export function analyzeGenerationGraphs(points = []) {
         );
     }
     for (const node of nodes) {
-      if (!node.id || ids.has(node.id))
+      if (typeof node.id !== "string" || !node.id) {
+        missing.push(`${label} graph identity missing`);
+        return;
+      }
+      if (ids.has(node.id))
         failures.push(
           `${label} duplicate graph identity ${node.id ?? "missing"}`,
         );
@@ -225,7 +296,9 @@ export function analyzeGenerationGraphs(points = []) {
       )
         missing.push(`${label} product owner path missing for ${node.id}`);
     }
-    const activeIds = new Set(point.activeDataIds ?? []);
+    const activeIds = new Set(
+      Array.isArray(point.activeDataIds) ? point.activeDataIds : [],
+    );
     const retired = nodes
       .filter(
         (node) =>
@@ -243,46 +316,30 @@ export function analyzeGenerationGraphs(points = []) {
     checkpoints.push({
       label,
       classificationComplete:
-        Array.isArray(point.activeDataIds) &&
-        graph.roots?.length > 0 &&
-        graph.roots.every(
-          (root) =>
-            allowedRootAttribution.has(root.attribution) && ids.has(root.id),
-        ) &&
-        nodes
-          .filter(isProductCategory)
-          .every(
-            (node) =>
-              paths.has(node.id) ||
-              observerPaths.has(node.id) ||
-              browserPaths.has(node.id),
-          ) &&
-        !(point.observerStrongHandles?.length > 0) &&
-        nodes.every(
-          (node) =>
-            dataCategories.has(node.category) || node.category === "owner",
-        ),
+        missing.length === missingBefore && failures.length === failuresBefore,
       active: [...activeIds].sort(),
       retired,
       retiredSelfBytes: retired.reduce((sum, node) => sum + node.selfBytes, 0),
     });
   });
-  if (domains.size > 1)
-    missing.push("companion graph checkpoints use different identity domains");
+  const baselinePoint = checkpoints.find((point) => point.label === "S0");
   const baseline = new Set(
-    (checkpoints[0]?.retired ?? []).map((node) => node.id),
+    (baselinePoint?.retired ?? []).map((node) => node.id),
   );
   checkpoints
     .filter((point) => point.label !== "S0")
     .forEach((checkpoint) => {
       if (
-        points[0].graph === undefined ||
-        checkpoints[0]?.label !== "S0" ||
-        !checkpoints[0].classificationComplete ||
+        !baselinePoint?.classificationComplete ||
         !checkpoint.classificationComplete ||
-        domains.size !== 1
+        !domains.has("S0") ||
+        !domains.has(checkpoint.label)
       )
         return;
+      if (domains.get(checkpoint.label) !== domains.get("S0")) {
+        missing.push(`${checkpoint.label} identity domain differs from S0`);
+        return;
+      }
       for (const node of checkpoint.retired)
         if (!baseline.has(node.id))
           failures.push(
@@ -297,11 +354,11 @@ export function analyzeGenerationGraphs(points = []) {
 }
 
 function validateRegistrations(checkpoint, label, failures, missing) {
-  const registrations = checkpoint.registrations;
-  if (!Array.isArray(registrations)) {
-    missing.push(`${label} registration inventory missing`);
-    return;
-  }
+  const { entries: registrations } = recordInventory(
+    checkpoint.registrations,
+    `${label} registration`,
+    missing,
+  );
   const identities = new Set();
   for (const registration of registrations) {
     if (
@@ -316,8 +373,10 @@ function validateRegistrations(checkpoint, label, failures, missing) {
     if (
       registration.owner === "unknown" ||
       registration.owner === "unknown-native-owner"
-    )
+    ) {
       missing.push(`${label} unknown native owner ${registration.id}`);
+      continue;
+    }
     const identity = JSON.stringify([
       registration.kind,
       registration.owner,
@@ -369,36 +428,46 @@ export function validateLifecycleEvidence(companion = {}) {
   failures.push(...graph.failures);
   missing.push(...graph.missing);
   if (graph.blocked?.length) blocked.push(...graph.blocked);
-  if (!Array.isArray(points) || points.length !== HEAP_BUDGET.postGc)
-    return { ...statuses(failures, missing, blocked), graph };
-  points.forEach((point, index) => {
-    const label = `S${index}`;
-    if (point.queries === undefined || point.observers === undefined) {
-      missing.push(`${label} query/observer inventory missing`);
-    } else {
-      const activeQueries = point.queries.filter(
+  labeledCheckpoints(points, []).forEach((point) => {
+    const label = point.label;
+    const queries = recordInventory(point.queries, `${label} query`, missing),
+      observers = recordInventory(
+        point.observers,
+        `${label} observer`,
+        missing,
+      );
+    {
+      const activeQueries = queries.entries.filter(
         (query) => query.scope === "attendance" && query.status === "active",
       );
-      const activeObservers = point.observers.filter(
+      const activeObservers = observers.entries.filter(
         (observer) =>
           observer.scope === "attendance" && observer.status === "active",
       );
       if (
-        point.queries.some(
+        queries.entries.some(
           (query) =>
             query.scope === "attendance" && query.status === "inactive",
         )
       )
         failures.push(`${label} inactive attendance query remains reachable`);
-      if (activeQueries.length !== 1)
+      if (
+        activeQueries.length > 1 ||
+        (queries.complete && activeQueries.length !== 1)
+      )
         failures.push(
           `${label} active attendance query multiplicity ${activeQueries.length} != 1`,
         );
-      if (activeObservers.length !== 1)
+      if (
+        activeObservers.length > 1 ||
+        (observers.complete && activeObservers.length !== 1)
+      )
         failures.push(
           `${label} active attendance observer multiplicity ${activeObservers.length} != 1`,
         );
       if (
+        queries.complete &&
+        observers.complete &&
         activeQueries[0] &&
         activeObservers[0] &&
         activeObservers[0].queryId !== activeQueries[0].id
@@ -406,7 +475,11 @@ export function validateLifecycleEvidence(companion = {}) {
         failures.push(`${label} observer/query identity mismatch`);
     }
     validateRegistrations(point, label, failures, missing);
-    const detached = point.dom?.detached ?? point.detached ?? [];
+    const { entries: detached } = recordInventory(
+      isRecord(point.dom) ? point.dom.detached : point.detached,
+      `${label} detached DOM`,
+      missing,
+    );
     for (const node of detached)
       if (node.attribution === "product" || node.owner === "product")
         failures.push(
@@ -431,27 +504,45 @@ export function validateLifecycleEvidence(companion = {}) {
       !["unmount", "logout"].includes(teardown.action)
     )
       failures.push(`T exact action ${teardown.action} is unsupported`);
+    const queries = recordInventory(teardown.queries, "T query", missing),
+      observers = recordInventory(teardown.observers, "T observer", missing),
+      registrations = recordInventory(
+        teardown.registrations,
+        "T registration",
+        missing,
+      );
     if (
-      teardown.queries?.some(
+      queries.entries.some(
         (query) => query.scope === "attendance" && query.status === "active",
       )
     )
       failures.push("T attendance query remains active");
     if (
-      teardown.observers?.some(
+      observers.entries.some(
         (observer) =>
           observer.scope === "attendance" && observer.status === "active",
       )
     )
       failures.push("T attendance observer remains active");
-    if (
-      teardown.registrations?.some(
-        (registration) =>
-          registration.lifetime === teardown.endedLifetime ||
-          teardown.owners?.includes(registration.owner),
+    for (const registration of registrations.entries) {
+      if (!registration.owner || !registration.lifetime) {
+        missing.push("T registration owner/lifetime missing");
+        continue;
+      }
+      if (
+        registration.owner === "unknown" ||
+        registration.owner === "unknown-native-owner"
+      ) {
+        missing.push(`T unknown native owner ${registration.id ?? "missing"}`);
+        continue;
+      }
+      if (
+        registration.lifetime === teardown.endedLifetime ||
+        (Array.isArray(teardown.owners) &&
+          teardown.owners.includes(registration.owner))
       )
-    )
-      failures.push("T attendance registration remains active");
+        failures.push("T attendance registration remains active");
+    }
     if (teardown.endedProductDataPaths?.length)
       failures.push("T product data remains reachable after cleanup");
   }
