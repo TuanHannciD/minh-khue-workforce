@@ -20,6 +20,7 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
 } else {
   let child,
     options,
+    nextPid,
     spawned = 0;
   mock.module("node:child_process", {
     namedExports: {
@@ -27,6 +28,8 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
         spawned++;
         options = opts;
         child = new EventEmitter();
+        child.pid = nextPid;
+        nextPid = undefined;
         child.stdout = new PassThrough();
         child.stderr = new PassThrough();
         child.stdin = new PassThrough();
@@ -38,9 +41,8 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
       },
     },
   });
-  const { command, readbackOwner } = await import(
-    "../../apps/api/test/auth-sandbox.mjs",
-  );
+  const { command, readbackOwner } =
+    await import("../../apps/api/test/auth-sandbox.mjs");
   const tick = () => new Promise((done) => setImmediate(done));
   test("preabort never spawns", async () => {
     const before = spawned;
@@ -81,7 +83,8 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
     assert.equal(child.listenerCount("close"), 0);
   });
   for (const mode of ["abort", "timeout", "error"])
-    test(`${mode} waits for close and removes listeners`, async () => {
+    test(`${mode} waits for close and removes listeners`, async (t) => {
+      t.mock.timers.enable({ apis: ["setTimeout"] });
       const c = new AbortController();
       let settled = false;
       const p = command("fixture", [], {
@@ -94,7 +97,7 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
       });
       if (mode === "abort") c.abort();
       if (mode === "error") child.emit("error", new Error("credential-secret"));
-      if (mode === "timeout") await new Promise((done) => setTimeout(done, 10));
+      if (mode === "timeout") t.mock.timers.tick(5);
       await tick();
       assert.equal(settled, false);
       child.emit("close", 1);
@@ -104,20 +107,25 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
         `COMMAND_${mode === "error" ? "PROCESS_ERROR" : mode === "abort" ? "ABORTED" : "TIMEOUT"}`,
       );
       assert.equal(e.drained, true);
-      assert.equal(e.lifecycle.causeCode, `COMMAND_${mode === "error" ? "PROCESS_ERROR" : mode === "abort" ? "ABORTED" : "TIMEOUT"}`);
+      assert.equal(
+        e.lifecycle.causeCode,
+        `COMMAND_${mode === "error" ? "PROCESS_ERROR" : mode === "abort" ? "ABORTED" : "TIMEOUT"}`,
+      );
       assert.equal(e.lifecycle.timeout, mode === "timeout");
       assert.equal(e.lifecycle.abort, mode === "abort");
       assert(!e.message.includes("credential-secret"));
       assert.equal(child.listenerCount("error"), 0);
       assert.equal(child.stdout.listenerCount("data"), 0);
     });
-  test("descendant-held stream/error before close remains owned after drain expires", async () => {
+  test("descendant-held stream/error before close remains owned after drain expires", async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
     let owner;
     const p = command("fixture", [], {
       drainMs: 5,
       onOwner: (o) => (owner = o),
     }).catch((e) => e);
     child.emit("error", new Error("fixture spawn failure"));
+    t.mock.timers.tick(5);
     const e = await p;
     assert.equal(e.code, "COMMAND_DRAIN_PENDING");
     assert.equal(e.lifecycle.causeCode, "COMMAND_PROCESS_ERROR");
@@ -155,6 +163,46 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
       ["start", "exit", "close"],
     );
   });
+  for (const code of [0, 7])
+    test(`owner identity is published after spawn for exit ${code}`, async () => {
+      let beforeSpawn;
+      let afterSpawn;
+      nextPid = 9123;
+      const p = command("fixture", [], {
+        role: "production-build",
+        executablePath: "C:/toolchain/fixture.exe",
+        onOwner: (owner) => {
+          beforeSpawn = owner.snapshot().identity;
+        },
+        onIdentity: (identity) => {
+          afterSpawn = identity;
+        },
+      });
+      child.emit("exit", code, null);
+      child.emit("close", code);
+      const result = await p;
+      assert.equal(beforeSpawn, null);
+      assert.equal(afterSpawn?.pid, 9123);
+      assert.equal(afterSpawn.executable, "fixture");
+      assert.equal(afterSpawn.path, "C:/toolchain/fixture.exe");
+      assert.equal(afterSpawn.startTime, null);
+      assert.equal(afterSpawn.startTimeSource, null);
+      assert.equal(afterSpawn.startTimeState, "unverified");
+      assert.deepEqual(result.identity, afterSpawn);
+    });
+  test("spawn acquisition time is distinct from unavailable OS creation time", async () => {
+    let owner;
+    const p = command("fixture", [], { onOwner: (value) => (owner = value) });
+    child.emit("close", 0);
+    await p;
+    const identity = owner.snapshot().identity;
+    assert.equal(identity.pid, null);
+    assert.equal(identity.startTime, null);
+    assert.equal(identity.startTimeSource, null);
+    assert.equal(identity.startTimeState, "unverified");
+    assert.match(identity.acquiredAt, /^\d{4}-/);
+    assert.equal(identity.executableSource, "spawn-request");
+  });
   test("nonzero close remains an observed build outcome", async () => {
     const p = command("fixture", [], { role: "production-build" });
     child.emit("close", 7);
@@ -171,12 +219,55 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
     assert.equal(result.lifecycle.exitCode, null);
     assert.equal(result.lifecycle.signal, "SIGTERM");
   });
+  for (const mode of ["timeout", "abort", "output-limit"])
+    test(`exit nonzero wins first-cause interleaving before ${mode}`, async (t) => {
+      t.mock.timers.enable({ apis: ["setTimeout"] });
+      const controller = new AbortController();
+      const p = command("fixture", [], {
+        role: "production-build",
+        signal: controller.signal,
+        timeout: mode === "timeout" ? 5 : undefined,
+        maxOutputBytes: mode === "output-limit" ? 1 : undefined,
+        drainMs: 100,
+      }).catch((error) => error);
+      child.emit("exit", 7, null);
+      if (mode === "abort") controller.abort();
+      if (mode === "timeout") t.mock.timers.tick(5);
+      if (mode === "output-limit") child.stdout.write("too much");
+      await tick();
+      child.emit("close", 7);
+      const error = await p;
+      assert.equal(error.lifecycle.causeCode, "COMMAND_NONZERO");
+      assert.equal(error.lifecycle.exitCode, 7);
+    });
+  for (const mode of ["timeout", "abort", "output-limit"])
+    test(`${mode} remains first cause when nonzero exit follows`, async (t) => {
+      t.mock.timers.enable({ apis: ["setTimeout"] });
+      const controller = new AbortController();
+      const p = command("fixture", [], {
+        signal: controller.signal,
+        timeout: mode === "timeout" ? 5 : undefined,
+        maxOutputBytes: mode === "output-limit" ? 1 : undefined,
+      }).catch((error) => error);
+      if (mode === "timeout") t.mock.timers.tick(5);
+      if (mode === "abort") controller.abort();
+      if (mode === "output-limit") child.stderr.write("xx");
+      child.emit("exit", 7, null);
+      child.emit("close", 7);
+      const error = await p;
+      assert.equal(
+        error.lifecycle.causeCode,
+        `COMMAND_${mode === "timeout" ? "TIMEOUT" : mode === "abort" ? "ABORTED" : "OUTPUT_LIMIT"}`,
+      );
+    });
   test("identity readback refuses PID reuse and never claims a complete tree", async () => {
     const identity = {
       pid: 123,
       executable: "pnpm.exe",
       path: "C:/toolchain/pnpm.exe",
       startTime: "2026-11-06T07:00:00.000Z",
+      startTimeSource: "os",
+      startTimeState: "verified",
     };
     assert.deepEqual(readbackOwner(identity, null), {
       state: "observed-absent",
@@ -189,6 +280,8 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
         executable: "pnpm.exe",
         path: "C:/toolchain/pnpm.exe",
         startTime: "2026-11-06T08:00:00.000Z",
+        startTimeSource: "os",
+        startTimeState: "verified",
       }),
       {
         state: "identity-reused",
@@ -202,6 +295,8 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
         executable: "pnpm.exe",
         path: "C:/toolchain/pnpm.exe",
         startTime: "2026-11-06T07:00:00.000Z",
+        startTimeSource: "os",
+        startTimeState: "verified",
       }),
       {
         state: "observed-present",
@@ -209,6 +304,38 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
         releaseClaim: false,
       },
     );
+    assert.deepEqual(
+      readbackOwner(
+        {
+          ...identity,
+          startTime: null,
+          startTimeSource: null,
+          startTimeState: "unverified",
+        },
+        { ...identity },
+      ),
+      {
+        state: "identity-unverified",
+        descendants: "tree-unverified",
+        releaseClaim: false,
+      },
+    );
+    for (const observed of [
+      undefined,
+      {},
+      { state: "unknown" },
+      {
+        ...identity,
+        startTimeSource: null,
+        startTimeState: "unverified",
+      },
+    ]) {
+      assert.equal(
+        readbackOwner(identity, observed).state,
+        "identity-unverified",
+      );
+      assert.equal(readbackOwner(identity, observed).releaseClaim, false);
+    }
   });
   test(
     "Windows termination cannot claim descendant release from parent close alone",

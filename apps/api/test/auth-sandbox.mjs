@@ -69,9 +69,20 @@ export function readbackOwner(identity, observed) {
     descendants: "tree-unverified",
     releaseClaim: false,
   };
-  if (!observed) return { state: "observed-absent", ...base };
-  if (observed.state === "unknown") return { state: "tree-unverified", ...base };
-  if (!identity) return { state: "tree-unverified", ...base };
+  if (observed === null) return { state: "observed-absent", ...base };
+  // Only an explicit absent observation proves absence. Spawn metadata and
+  // acquisition timestamps cannot verify a current PID or distinguish reuse.
+  const verified = (value) =>
+    Number.isSafeInteger(value?.pid) &&
+    value.pid > 0 &&
+    ["executable", "path", "startTime"].every(
+      (key) => typeof value[key] === "string" && value[key].length > 0,
+    ) &&
+    Number.isFinite(Date.parse(value.startTime)) &&
+    value.startTimeSource === "os" &&
+    value.startTimeState === "verified";
+  if (!verified(identity) || !verified(observed))
+    return { state: "identity-unverified", ...base };
   const same = ["pid", "executable", "path", "startTime"].every(
     (key) => observed[key] === identity[key],
   );
@@ -88,6 +99,7 @@ export async function command(executable, args, options = {}, input) {
     timeout,
     signal,
     onOwner,
+    onIdentity,
     role = "command",
     line = null,
     executablePath,
@@ -110,7 +122,7 @@ export async function command(executable, args, options = {}, input) {
     const lifecycle = {
       role,
       line,
-      startTime: startedAt,
+      acquiredAt: startedAt,
       exitTime: null,
       closeTime: null,
       timeout: false,
@@ -185,7 +197,12 @@ export async function command(executable, args, options = {}, input) {
       pid: child.pid ?? null,
       executable: String(executable),
       path: String(executablePath ?? executable),
-      startTime: startedAt,
+      executableSource: "spawn-request",
+      pathSource: "spawn-request",
+      acquiredAt: new Date().toISOString(),
+      startTime: null,
+      startTimeSource: null,
+      startTimeState: "unverified",
     };
     event("start", { identity: owner.identity });
     owner.state = "running";
@@ -221,7 +238,11 @@ export async function command(executable, args, options = {}, input) {
           code: childExitCode,
           output: Buffer.concat(chunks).toString(),
         };
-        if (role !== "command" || line !== null) result.lifecycle = finishLifecycle();
+        if (role !== "command" || line !== null) {
+          result.lifecycle = finishLifecycle();
+          result.identity = owner.identity;
+          result.knownDescendants = owner.knownDescendants;
+        }
         resolvePromise(result);
       }
     };
@@ -288,6 +309,14 @@ export async function command(executable, args, options = {}, input) {
       lifecycle.exitCode = code;
       lifecycle.signal = signalName ?? null;
       event("exit", { exitCode: code, signal: lifecycle.signal });
+      if (
+        Number.isInteger(code) &&
+        code !== 0 &&
+        lifecycle.causeCode === null
+      ) {
+        lifecycle.causeCode = "COMMAND_NONZERO";
+        event("cause", { causeCode: lifecycle.causeCode });
+      }
     };
     const onClose = (code, signalName) => {
       closed = true;
@@ -295,7 +324,10 @@ export async function command(executable, args, options = {}, input) {
       lifecycle.exitCode ??= code;
       lifecycle.signal ??= signalName ?? null;
       lifecycle.closeTime = new Date().toISOString();
-      event("close", { exitCode: lifecycle.exitCode, signal: lifecycle.signal });
+      event("close", {
+        exitCode: lifecycle.exitCode,
+        signal: lifecycle.signal,
+      });
       if (
         Number.isInteger(lifecycle.exitCode) &&
         lifecycle.exitCode !== 0 &&
@@ -344,6 +376,9 @@ export async function command(executable, args, options = {}, input) {
     }
     if (Number.isFinite(timeout) && timeout >= 0)
       timeoutTimer = setTimeout(() => pending("COMMAND_TIMEOUT"), timeout);
+    // Ownership is published before spawn; native-handle metadata is published
+    // after spawn and handler attachment. No OS creation time is available here.
+    onIdentity?.({ ...owner.identity });
     child.stdin.end(input);
   });
 }
