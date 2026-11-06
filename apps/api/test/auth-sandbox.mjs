@@ -247,6 +247,12 @@ export async function command(executable, args, options = {}, input) {
       }
     };
     const pending = (code) => {
+      // Every observed trigger is evidence, even after termination has started.
+      lifecycle.causeCode ??= code;
+      lifecycle.timeout ||= code === "COMMAND_TIMEOUT";
+      lifecycle.abort ||= code === "COMMAND_ABORTED";
+      lifecycle.outputLimit ||= code === "COMMAND_OUTPUT_LIMIT";
+      event("trigger", { triggerCode: code, causeCode: lifecycle.causeCode });
       if (failure) return;
       failure = new Error(
         code === "COMMAND_PROCESS_ERROR"
@@ -254,10 +260,6 @@ export async function command(executable, args, options = {}, input) {
           : `Command ${code.slice("COMMAND_".length).toLowerCase()}`,
       );
       failure.code = code;
-      lifecycle.causeCode ??= code;
-      lifecycle.timeout ||= code === "COMMAND_TIMEOUT";
-      lifecycle.abort ||= code === "COMMAND_ABORTED";
-      lifecycle.outputLimit ||= code === "COMMAND_OUTPUT_LIMIT";
       event("cause", { causeCode: lifecycle.causeCode });
       owner.state = "stopping";
       try {

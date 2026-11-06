@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { mock, test } from "node:test";
@@ -35,6 +36,7 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
         child.stdin = new PassThrough();
         child.kill = () => {
           child.killed = true;
+          child.killCalls = (child.killCalls ?? 0) + 1;
           return true;
         };
         return child;
@@ -260,6 +262,82 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
         `COMMAND_${mode === "timeout" ? "TIMEOUT" : mode === "abort" ? "ABORTED" : "OUTPUT_LIMIT"}`,
       );
     });
+  for (const order of [
+    ["abort", "output-limit"],
+    ["abort", "output-limit", "timeout"],
+    ["abort", "timeout", "output-limit"],
+    ["output-limit", "abort", "timeout"],
+    ["output-limit", "timeout", "abort"],
+    ["timeout", "abort", "output-limit"],
+    ["timeout", "output-limit", "abort"],
+  ])
+    for (const exitedFirst of [true, false])
+      test(`I4 retains observed triggers ${exitedFirst ? "exit7 -> " : ""}${order.join(" -> ")}`, async (t) => {
+        t.mock.timers.enable({ apis: ["setTimeout"] });
+        const controller = new AbortController();
+        let owner,
+          settled = false;
+        const p = command("fixture", [], {
+          role: "production-build",
+          signal: controller.signal,
+          maxOutputBytes: 1,
+          timeout: order.includes("timeout") ? 5 : undefined,
+          drainMs: 20,
+          onOwner: (value) => (owner = value),
+        }).catch((error) => {
+          settled = true;
+          return error;
+        });
+        const triggerCode = (trigger) =>
+          `COMMAND_${trigger === "abort" ? "ABORTED" : trigger === "timeout" ? "TIMEOUT" : "OUTPUT_LIMIT"}`;
+        if (exitedFirst) child.emit("exit", 7, null);
+        for (const trigger of order) {
+          if (trigger === "abort") controller.abort();
+          if (trigger === "timeout") t.mock.timers.tick(5);
+          if (trigger === "output-limit") child.stdout.write("xx");
+        }
+        const firstCause = exitedFirst
+          ? "COMMAND_NONZERO"
+          : triggerCode(order[0]);
+        const observed = owner.snapshot().lifecycle;
+        assert.equal(observed.causeCode, firstCause);
+        assert.equal(observed.abort, true);
+        assert.equal(observed.outputLimit, true);
+        assert.equal(observed.timeout, order.includes("timeout"));
+        assert.deepEqual(
+          observed.events
+            .filter((event) => event.name === "trigger")
+            .map((event) => event.triggerCode),
+          order.map(triggerCode),
+        );
+        assert.equal(child.killCalls, 1);
+        const elapsed = order.includes("timeout") ? 5 : 0;
+        const firstAt = order[0] === "timeout" ? 5 : 0;
+        t.mock.timers.tick(firstAt + 20 - elapsed - 1);
+        await tick();
+        assert.equal(settled, false);
+        assert.equal(owner.snapshot().state, "stopping");
+        t.mock.timers.tick(1);
+        const error = await p;
+        assert.equal(error.code, "COMMAND_DRAIN_PENDING");
+        assert.equal(error.drained, false);
+        assert.equal(owner.snapshot().state, "pending");
+        if (!exitedFirst) child.emit("exit", 7, null);
+        child.emit("close", 7);
+        await owner.drained;
+        const final = owner.snapshot().lifecycle;
+        assert.equal(final.causeCode, firstCause);
+        assert.equal(final.stdoutBytes, 2);
+        assert.equal(final.stderrBytes, 0);
+        assert.equal(
+          final.stdoutHash,
+          createHash("sha256").update("xx").digest("hex"),
+        );
+        assert.equal(child.killCalls, 1);
+        assert.equal(owner.snapshot().state, "drained");
+        assert.equal(owner.snapshot().descendants, "unverified");
+        assert.equal(child.stdout.listenerCount("data"), 0);
+      });
   test("identity readback refuses PID reuse and never claims a complete tree", async () => {
     const identity = {
       pid: 123,
