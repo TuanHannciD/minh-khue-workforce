@@ -490,3 +490,69 @@ test("pending invalidation metadata cannot delay independent pool/database relea
   await owner.drained;
   assert.equal(closed, true);
 });
+for (const fault of [
+  undefined,
+  "web-close",
+  "rotate-fixture-one",
+  "release-metadata",
+]) {
+  test(`release metadata after drain settles terminal owner facts with ${fault ?? "no failure"}`, async () => {
+    await setup();
+    let owner;
+    const s = await startSandbox({
+      acceptance: true,
+      lifecycle: { drainMs: 10, onOwner: (o) => (owner = o) },
+    });
+    calls.length = 0;
+    if (fault) faults.add(fault);
+    const release = hold("release-metadata");
+    let drainedSettled = false;
+    const drained = owner.drained.then((facts) => {
+      drainedSettled = true;
+      return facts;
+    });
+    const stopping = s.stop();
+    const rejected = assert.rejects(
+      stopping,
+      (e) => e.code === "SANDBOX_DRAIN_PENDING",
+    );
+    assert.equal(owner.stop(), stopping);
+    await holds.get("release-metadata").entered;
+    const beforeExpiry = owner.snapshot().state;
+    await rejected;
+    assert.equal(owner.snapshot().state, "pending");
+    assert.equal(drainedSettled, false);
+    assert.equal(owner.stop(), stopping);
+    release();
+    const facts = await drained;
+    const terminal = fault ? "release-failed" : "released";
+    assert.equal(facts.state, terminal);
+    assert.equal(owner.snapshot().state, terminal);
+    assert.notEqual(beforeExpiry, "released");
+    if (fault) assert(facts.error.errors.includes(errors.get(fault)));
+    else assert.equal(facts.error, undefined);
+    assert.equal(owner.snapshot().invalidated, fault !== "rotate-fixture-one");
+    if (fault !== "release-metadata")
+      assert.equal(
+        (await metadata(s, "http-released.json")).state,
+        fault === "web-close" ? "release-failed" : "released",
+      );
+    if (fault === "rotate-fixture-one")
+      assert.equal(
+        (await metadata(s, "fixture-invalidated.json")).state,
+        "incomplete",
+      );
+    if (!fault) {
+      calls.length = 0;
+      await owner.stop();
+      assert(
+        !calls.some(
+          (name) =>
+            name.startsWith("rotate-") ||
+            ["web-close", "app-close", "disconnect", "run-pool"].includes(name),
+        ),
+      );
+      assert.equal(owner.snapshot().state, "released");
+    }
+  });
+}

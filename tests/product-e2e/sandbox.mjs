@@ -226,7 +226,6 @@ export async function startSandbox({
     const allReleased = resources.every(
       ([name, resource]) => !resource || released.has(name),
     );
-    state = allReleased ? "released" : "release-failed";
     await attempt("release-metadata", () =>
       writeFile(
         resolve(runDir, "http-released.json"),
@@ -252,6 +251,11 @@ export async function startSandbox({
         ),
       ),
     );
+    // The drain observer may have marked the owner pending while the final
+    // metadata write was still in flight. At this point every owned operation
+    // and the final evidence write have settled, so publish terminal facts once.
+    state =
+      allReleased && failures.length === 0 ? "released" : "release-failed";
     if (failures.length)
       throw new AggregateError(
         [
