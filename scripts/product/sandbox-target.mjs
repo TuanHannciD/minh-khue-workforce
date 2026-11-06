@@ -14,7 +14,22 @@ const normalized = (value) => {
 
 // CLI supports only explicitly enrolled fake sandboxes, including Task11 rehearsal.
 // Production target enrollment belongs to the separately approved operations runbook.
-export async function openSandboxTarget(recordPath, alias) {
+export async function openSandboxTarget(
+  recordPath,
+  alias,
+  { signal, deadlineMs, onPool } = {},
+) {
+  const check = () => {
+    if (
+      signal?.aborted ||
+      (deadlineMs !== undefined && performance.now() >= deadlineMs)
+    ) {
+      const error = new Error("Sandbox target acquisition stopped");
+      error.code = "SANDBOX_TARGET_ABORTED";
+      throw error;
+    }
+  };
+  check();
   const target = JSON.parse(await readFile(recordPath, "utf8"));
   const policy =
     alias === "task10-acceptance"
@@ -94,14 +109,48 @@ export async function openSandboxTarget(recordPath, alias) {
   )
     throw new Error("Sandbox target is outside the authorized allowlist");
   const connectionString = `postgresql://${target.user}@127.0.0.1:${target.port}/${target.database}`;
-  const pool = new Pool({ connectionString, connectionTimeoutMillis: 3000 });
+  check();
+  const pool = new Pool({
+    connectionString,
+    connectionTimeoutMillis: 3000,
+    // PostgreSQL startup parameter: a server-side statement cancellation bound.
+    // pool.end()/a client timer cannot themselves cancel an executing query.
+    ...(deadlineMs === undefined
+      ? {}
+      : {
+          statement_timeout: Math.max(
+            1,
+            Math.ceil(deadlineMs - performance.now()),
+          ),
+        }),
+  });
+  let ending;
+  const closeErrors = [];
+  const end = () => {
+    if (!ending)
+      ending = Promise.resolve()
+        .then(() => pool.end())
+        .catch((error) => {
+          closeErrors.push(error);
+          ending = undefined;
+          throw error;
+        });
+    return ending;
+  };
+  const abort = () => {
+    end().catch(() => {});
+  };
   try {
+    onPool?.(pool, end);
+    signal?.addEventListener("abort", abort, { once: true });
+    check();
     const {
       rows: [actual],
     } =
       await pool.query(`SELECT current_database() AS database, current_user AS username,
       host(inet_server_addr()) AS host, inet_server_port() AS port, current_setting('data_directory') AS directory,
       current_setting('server_version') AS version`);
+    check();
     if (
       actual.database !== target.database ||
       actual.username !== target.user ||
@@ -111,9 +160,22 @@ export async function openSandboxTarget(recordPath, alias) {
       actual.version !== "17.11"
     )
       throw new Error("Sandbox database identity mismatch");
-    return { target, pool, connectionString };
+    return { target, pool, connectionString, end };
   } catch (error) {
-    await pool.end();
+    try {
+      await end();
+    } catch {
+      // end retains each original close error, including an abort's earlier attempt.
+    }
+    if (closeErrors.length) {
+      throw new AggregateError(
+        [error, ...closeErrors],
+        "Sandbox target acquisition and close failed",
+        { cause: error },
+      );
+    }
     throw error;
+  } finally {
+    signal?.removeEventListener("abort", abort);
   }
 }

@@ -65,21 +65,176 @@ export async function freshSandbox() {
 }
 
 export async function command(executable, args, options = {}, input) {
-  return new Promise((resolvePromise, reject) => {
-    const child = spawn(executable, args, {
-      ...options,
-      windowsHide: true,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    let output = "";
-    child.stdout.on("data", (chunk) => {
-      output += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      output += chunk;
-    });
-    child.on("error", reject);
-    child.on("close", (code) => resolvePromise({ code, output }));
+  const {
+    maxOutputBytes,
+    drainMs = 1500,
+    timeout,
+    signal,
+    onOwner,
+    ...spawnOptions
+  } = options;
+  const limit =
+    Number.isFinite(maxOutputBytes) && maxOutputBytes >= 0
+      ? maxOutputBytes
+      : Infinity;
+  if (signal?.aborted) {
+    const error = new Error("Command was aborted before spawn");
+    error.code = "COMMAND_ABORTED";
+    throw error;
+  }
+  return new Promise((resolvePromise, rejectPromise) => {
+    let child;
+    let markDrained;
+    const owner = {
+      state: "starting",
+      stdioClosed: false,
+      descendants: "unverified",
+      drained: new Promise((done) => (markDrained = done)),
+      snapshot() {
+        return {
+          state: owner.state,
+          stdioClosed: owner.stdioClosed,
+          descendants: owner.descendants,
+          pid: child?.pid,
+        };
+      },
+    };
+    onOwner?.(owner);
+    try {
+      child = spawn(executable, args, {
+        ...spawnOptions,
+        windowsHide: true,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    } catch {
+      owner.state = "drained";
+      markDrained();
+      const error = new Error("Command could not start");
+      error.code = "COMMAND_PROCESS_ERROR";
+      error.drained = true;
+      rejectPromise(error);
+      return;
+    }
+    owner.state = "running";
+    let bytes = 0;
+    const chunks = [];
+    let failure;
+    let settled = false;
+    let closed = false;
+    let drainTimer;
+    let timeoutTimer;
+    let abortListener;
+    const cleanup = () => {
+      child.removeListener("error", onError);
+      child.removeListener("close", onClose);
+      child.stdout?.removeListener("data", onOutput);
+      child.stderr?.removeListener("data", onOutput);
+      if (abortListener) signal?.removeEventListener("abort", abortListener);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (drainTimer) clearTimeout(drainTimer);
+    };
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      owner.state = "drained";
+      markDrained();
+      if (failure) {
+        failure.drained = true;
+        rejectPromise(failure);
+      } else
+        resolvePromise({
+          code: childExitCode,
+          output: Buffer.concat(chunks).toString(),
+        });
+    };
+    const pending = (code, cause) => {
+      if (failure) return;
+      failure = new Error(
+        code === "COMMAND_PROCESS_ERROR"
+          ? "Command process failed"
+          : `Command ${code.slice("COMMAND_".length).toLowerCase()}`,
+      );
+      failure.code = code;
+      failure.cause = cause;
+      owner.state = "stopping";
+      try {
+        child.kill();
+      } catch {
+        /* owned child termination is best effort */
+      }
+      drainTimer = setTimeout(
+        () => {
+          if (closed || settled) return;
+          owner.state = "pending";
+          const undrained = new Error(
+            "Command descendants or stdio remain pending",
+          );
+          undrained.code = "COMMAND_DRAIN_PENDING";
+          undrained.drained = false;
+          undrained.owner = owner;
+          settled = true;
+          if (timeoutTimer) clearTimeout(timeoutTimer);
+          if (abortListener)
+            signal?.removeEventListener("abort", abortListener);
+          // Retain the owned child's error/close and stream drain handlers. A
+          // timeout is not a close event, especially for pnpm descendants on Windows.
+          rejectPromise(undrained);
+        },
+        Math.max(0, drainMs),
+      );
+    };
+    let childExitCode;
+    const onOutput = (chunk) => {
+      if (failure) return;
+      const bytesInChunk = Buffer.byteLength(chunk);
+      bytes += bytesInChunk;
+      if (bytes > limit) {
+        pending("COMMAND_OUTPUT_LIMIT");
+        return;
+      }
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    };
+    const onError = () => pending("COMMAND_PROCESS_ERROR");
+    const onClose = (code) => {
+      closed = true;
+      childExitCode = code;
+      owner.stdioClosed = true;
+      if (
+        failure &&
+        process.platform === "win32" &&
+        Number.isInteger(child.pid)
+      ) {
+        // No Windows job/tree owner exists in spawn. Parent/stdio close after
+        // termination cannot attest descendants. Keep this invocation owned and
+        // FAILED pending identity-checked recovery; never kill a discovered PID.
+        cleanup();
+        owner.state = "pending";
+        failure.code = "COMMAND_DRAIN_PENDING";
+        failure.drained = false;
+        failure.owner = owner;
+        settled = true;
+        rejectPromise(failure);
+        return;
+      }
+      owner.descendants = failure ? "stdio-drained" : "normal-exit";
+      if (settled) {
+        cleanup();
+        owner.state = "drained";
+        markDrained();
+      } else settle();
+    };
+    child.stdout?.on("data", onOutput);
+    child.stderr?.on("data", onOutput);
+    child.on("error", onError);
+    child.on("close", onClose);
+    if (signal) {
+      abortListener = () => pending("COMMAND_ABORTED");
+      signal.addEventListener("abort", abortListener, { once: true });
+      if (signal.aborted) abortListener();
+    }
+    if (Number.isFinite(timeout) && timeout >= 0)
+      timeoutTimer = setTimeout(() => pending("COMMAND_TIMEOUT"), timeout);
     child.stdin.end(input);
   });
 }

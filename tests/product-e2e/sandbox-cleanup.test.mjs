@@ -11,8 +11,13 @@ import { createEvidenceRun } from "../../scripts/product/evidence-run.mjs";
 const calls = [];
 const faults = new Set();
 const errors = new Map();
+const holds = new Map();
 async function action(name) {
   calls.push(name);
+  if (holds.has(name)) {
+    holds.get(name).arrive();
+    await holds.get(name).promise;
+  }
   if (faults.has(name)) {
     const error = new Error(`injected ${name}`);
     errors.set(name, error);
@@ -33,6 +38,7 @@ mock.module("../../scripts/product/sandbox-target.mjs", {
   namedExports: {
     async openSandboxTarget() {
       opened++;
+      await action(opened === 1 ? "cluster-open" : "run-open");
       return {
         pool: pool(opened === 1 ? "cluster-pool" : "run-pool"),
         connectionString: "fixture-only",
@@ -95,7 +101,7 @@ mock.module("node:fs/promises", {
         : String(path).endsWith("http-released.json")
           ? "release-metadata"
           : "other-metadata";
-      if (faults.has(name)) await action(name);
+      if (faults.has(name) || holds.has(name)) await action(name);
       return files.writeFile(path, ...args);
     },
   },
@@ -138,6 +144,7 @@ async function setup(fail = []) {
   calls.length = 0;
   faults.clear();
   errors.clear();
+  holds.clear();
   opened = 0;
   for (const name of fail) faults.add(name);
   const run = await createEvidenceRun(resolve(evidenceRoot, "cleanup-fault-"));
@@ -291,5 +298,195 @@ test("acquisition fails at CREATE and failed cluster-pool release preserves the 
   }
   assert.equal(failure.cause, errors.get("create"));
   assert(failure.errors.includes(errors.get("cluster-pool")));
-  assert.deepEqual(calls, ["create", "cluster-pool"]);
+  assert.deepEqual(calls, ["cluster-open", "create", "cluster-pool"]);
+});
+
+function hold(name) {
+  let release, arrive;
+  const promise = new Promise((done) => (release = done));
+  const entered = new Promise((done) => (arrive = done));
+  holds.set(name, { promise, entered, arrive });
+  return release;
+}
+test("pre-aborted lifecycle acquires nothing and publishes the owner synchronously", async () => {
+  await setup();
+  const controller = new AbortController();
+  controller.abort();
+  let owner;
+  const starting = startSandbox({
+    lifecycle: { signal: controller.signal, onOwner: (o) => (owner = o) },
+  });
+  assert.equal(typeof owner?.stop, "function");
+  await assert.rejects(starting);
+  assert.equal(opened, 0);
+});
+for (const boundary of [
+  "cluster-open",
+  "create",
+  "run-open",
+  "migration",
+  "provision",
+  "app-acquire",
+  "listen",
+  "web-acquire",
+]) {
+  test(`stop fences setup and retains late ${boundary} until drained`, async () => {
+    await setup();
+    const release = hold(boundary);
+    let owner;
+    const starting = startSandbox({
+      acceptance: true,
+      lifecycle: { onOwner: (o) => (owner = o), drainMs: 15 },
+    });
+    const failure = starting.catch((error) => error);
+    await holds.get(boundary).entered;
+    assert(calls.includes(boundary));
+    if (!owner) {
+      release();
+      const s = await starting;
+      await s.stop();
+    }
+    assert.equal(typeof owner?.stop, "function");
+    const first = owner.stop();
+    assert.equal(owner.stop(), first);
+    await assert.rejects(first, (e) => e.code === "SANDBOX_DRAIN_PENDING");
+    assert.equal(owner.snapshot().state, "pending");
+    const atStop = [...calls];
+    release();
+    await failure;
+    await owner.drained;
+    assert.equal(owner.snapshot().state, "released");
+    const later = calls.slice(atStop.length);
+    assert(
+      !later.some((name) =>
+        [
+          "create",
+          "migration",
+          "provision",
+          "app-acquire",
+          "listen",
+          "web-acquire",
+        ].includes(name),
+      ),
+    );
+    if (["cluster-open", "create"].includes(boundary))
+      assert(calls.includes("cluster-pool"));
+    else assert(calls.includes("run-pool"));
+    if (
+      ["provision", "app-acquire", "listen", "web-acquire"].includes(boundary)
+    ) {
+      assert(calls.includes("rotate-fixture-one"));
+      assert(calls.includes("rotate-fixture-two"));
+      assert(calls.indexOf("rotate-fixture-one") > calls.indexOf("provision"));
+    }
+    if (["app-acquire", "listen", "web-acquire"].includes(boundary))
+      assert(calls.includes("app-close"));
+    if (boundary === "web-acquire") assert(calls.includes("web-close"));
+  });
+}
+test("setup deadline stops a pending acquisition without losing its late resource", async () => {
+  await setup();
+  const release = hold("cluster-open");
+  let owner;
+  const failure = startSandbox({
+    lifecycle: {
+      setupDeadlineMs: performance.now() + 20,
+      drainMs: 10,
+      onOwner: (o) => (owner = o),
+    },
+  }).catch((e) => e);
+  if (!owner) {
+    release();
+    const s = await failure;
+    await s.stop();
+  }
+  assert.equal(typeof owner?.stop, "function");
+  assert.equal((await failure).code, "SANDBOX_DRAIN_PENDING");
+  assert.equal(owner.snapshot().state, "pending");
+  release();
+  await owner.drained;
+  assert(calls.includes("cluster-pool"));
+  assert(!calls.includes("create"));
+});
+test("hung independent close does not skip other resources or claim release", async () => {
+  await setup();
+  let owner;
+  const s = await startSandbox({
+    acceptance: true,
+    lifecycle: { drainMs: 10, onOwner: (o) => (owner = o) },
+  });
+  assert.equal(typeof owner?.stop, "function");
+  const release = hold("web-close");
+  await assert.rejects(s.stop(), (e) => e.code === "SANDBOX_DRAIN_PENDING");
+  for (const name of ["app-close", "disconnect", "run-pool"])
+    assert(calls.includes(name));
+  assert.equal(owner.snapshot().state, "pending");
+  release();
+  await owner.drained;
+  assert.equal(owner.snapshot().state, "released");
+});
+test("one pending reset leaves DB owned, attempts the other reset and independent HTTP closes", async () => {
+  await setup();
+  let owner;
+  const s = await startSandbox({
+    acceptance: true,
+    lifecycle: {
+      cleanupDeadlineMs: performance.now() + 100,
+      drainMs: 10,
+      onOwner: (o) => (owner = o),
+    },
+  });
+  calls.length = 0;
+  const release = hold("rotate-fixture-one");
+  const stopping = s.stop();
+  await holds.get("rotate-fixture-one").entered;
+  await assert.rejects(stopping, (e) => e.code === "SANDBOX_DRAIN_PENDING");
+  assert(calls.includes("rotate-fixture-two"));
+  assert(calls.includes("web-close"));
+  assert(calls.includes("app-close"));
+  assert(!calls.includes("disconnect"));
+  assert(!calls.includes("run-pool"));
+  release();
+  await owner.drained;
+  assert.equal(owner.snapshot().invalidated, true);
+  assert(calls.includes("disconnect"));
+});
+test("signal abort during CREATE fences migration, closes maintenance and retains late original failure", async () => {
+  await setup();
+  const c = new AbortController();
+  let owner;
+  const release = hold("create");
+  const p = startSandbox({
+    lifecycle: { signal: c.signal, drainMs: 10, onOwner: (o) => (owner = o) },
+  }).catch((e) => e);
+  await holds.get("create").entered;
+  c.abort();
+  const result = await p;
+  assert.equal(result.code, "SANDBOX_DRAIN_PENDING");
+  faults.add("create");
+  faults.add("cluster-pool");
+  release();
+  const facts = await owner.drained;
+  assert(facts.error);
+  const leaves = (e) => (e.errors ? e.errors.flatMap(leaves) : [e]);
+  assert(leaves(facts.error).includes(errors.get("create")));
+  assert(leaves(facts.error).includes(errors.get("cluster-pool")));
+  assert(!calls.includes("migration"));
+});
+test("pending invalidation metadata cannot delay independent pool/database release", async () => {
+  await setup();
+  let owner;
+  const s = await startSandbox({
+    acceptance: true,
+    lifecycle: { drainMs: 10, onOwner: (o) => (owner = o) },
+  });
+  calls.length = 0;
+  const release = hold("invalidation-metadata");
+  const stopping = s.stop();
+  await holds.get("invalidation-metadata").entered;
+  await assert.rejects(stopping, (e) => e.code === "SANDBOX_DRAIN_PENDING");
+  const closed = calls.includes("disconnect") && calls.includes("run-pool");
+  release();
+  await owner.drained;
+  assert.equal(closed, true);
 });
