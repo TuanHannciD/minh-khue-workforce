@@ -1270,3 +1270,7 @@ Required checks exit0: API build; page integration7/7 explicit (script nối sui
 New owner `startAttendanceReadSandbox({mode:"http"})`/withCleanup kiểm actual password hashes changed2 và sessions0 trước mọi Database disconnect; own apps listeningfalse/TCP refused, own run/independent/audit pools ended. Final independent cleanup audit44 scoped recorded DBs (39 HTTP/5 SQL),78 HTTP ports refused,0 active sessions/remaining connections, data/evidence retained. Không nâng old attendance fixture.close thành teardown đã sửa. PostgreSQL stop/release bằng exact executable/-D/PID/data/owner identity; full actual closure ở ignored report/resource-release-final.json. Startup wrapper không được gọi verified từ SQL PASS.
 
 Giới hạn: independent Task3 review pending; Task4/full/export SQL order, snapshot races8, browser/E2E/Excel new order/reader/performance/native/SR/whole-branch **Not run**. Bounded payload/count không PASS aggregate/offset DB cost hoặc performance. Tasks2/5/6/7 behavior giữ nguyên; main review trước Task4, không tự mở task kế tiếp.
+
+## Phone branch disposition — 2026-11-06
+
+Người dùng đã **CANCELLED** nhánh phone ngày 06/11/2026. Không retry; native phone, phoneperf và trusted touch vẫn **NOT RUN**, không waiver. Đây là ghi chú trạng thái hiện hành; bằng chứng và báo cáo lịch sử giữ nguyên.

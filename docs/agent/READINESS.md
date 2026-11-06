@@ -39,3 +39,7 @@ Các mục bootstrap002 bên dưới là checkpoint lịch sử Node22/SQLite, k
 Gate cuối002 (tip đã review, check, tích hợp local) theo `completion-receipt.json` được chỉ dẫn tại validation; chỉ coi Done khi receipt xác nhận đủ. Sau bootstrap, làm rõ actor, danh tính, ca/giờ, quyền xem/sửa và dữ liệu chấm công; rồi duyệt kiến trúc FE/BE/API có thể phục vụ Android. Chưa dùng pilot áp đặt lựa chọn sản phẩm.
 
 Playwright MCP chưa cài vì T3 Browser + Playwright Test đã có hai vai trò cần thiết. Figma/Context7/GitHub/DB MCP chỉ bổ sung khi task cần và có quyền. Sau nâng skill/dependency/tool/harness, kiểm lại gate bị ảnh hưởng. Hash khớp không chứng minh mọi script an toàn; screenshot không thay assertion; checkpoint resume không thay recovery toàn phiên.
+
+### Phone branch disposition — 2026-11-06
+
+Người dùng đã **CANCELLED** nhánh phone ngày 06/11/2026. Không retry; native phone, phoneperf và trusted touch vẫn **NOT RUN**, không waiver.

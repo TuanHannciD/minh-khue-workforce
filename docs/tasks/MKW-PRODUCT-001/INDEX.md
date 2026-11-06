@@ -536,3 +536,7 @@ Người dùng chốt giữ450ms để kéo chọn vùng hoặc kéo tay nắm �
 ## Người dùng chấp nhận bản mẫu hiện hành — 28/10/2026
 
 Sau bản nhấn giữ tại commit `69c5fcc`, người dùng xác nhận “Đã đạt” và yêu cầu đề xuất bước tiếp. Chấp nhận bản mẫu hiện hành để chuyển sang review toàn bộ bản đặc tả; chưa phải phê duyệt đặc tả viết, chi tiết kỹ thuật, implementation plan hoặc triển khai sản phẩm. Không có thông tin mẫu máy/OS/trình duyệt hay thao tác cụ thể để nâng gate trusted touch thành Verified. Bước tiếp: review design.md (mục12–14 và AC01–AC23), gồm các đề xuất còn nêu rõ; sau duyệt bản viết mới writing-plans. Base `69c5fcc`, workspace sạch; scope ghi nhận review tại INDEX/BRIEF/validation, writer inline, tự review, check tài liệu, commit local; không resource mới hoặc đổi HTML.
+
+## Phone branch disposition — 2026-11-06
+
+Người dùng đã **CANCELLED** nhánh phone ngày 06/11/2026. Không retry; native phone, phoneperf và trusted touch vẫn **NOT RUN**, không waiver. Các báo cáo lịch sử, hash, validator và threshold giữ nguyên.
