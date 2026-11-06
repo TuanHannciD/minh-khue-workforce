@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -64,6 +64,23 @@ export async function freshSandbox() {
   }
 }
 
+export function readbackOwner(identity, observed) {
+  const base = {
+    descendants: "tree-unverified",
+    releaseClaim: false,
+  };
+  if (!observed) return { state: "observed-absent", ...base };
+  if (observed.state === "unknown") return { state: "tree-unverified", ...base };
+  if (!identity) return { state: "tree-unverified", ...base };
+  const same = ["pid", "executable", "path", "startTime"].every(
+    (key) => observed[key] === identity[key],
+  );
+  return {
+    state: same ? "observed-present" : "identity-reused",
+    ...base,
+  };
+}
+
 export async function command(executable, args, options = {}, input) {
   const {
     maxOutputBytes,
@@ -71,6 +88,10 @@ export async function command(executable, args, options = {}, input) {
     timeout,
     signal,
     onOwner,
+    role = "command",
+    line = null,
+    executablePath,
+    knownDescendants = null,
     ...spawnOptions
   } = options;
   const limit =
@@ -85,16 +106,58 @@ export async function command(executable, args, options = {}, input) {
   return new Promise((resolvePromise, rejectPromise) => {
     let child;
     let markDrained;
+    const startedAt = new Date().toISOString();
+    const lifecycle = {
+      role,
+      line,
+      startTime: startedAt,
+      exitTime: null,
+      closeTime: null,
+      timeout: false,
+      abort: false,
+      outputLimit: false,
+      exitCode: null,
+      signal: null,
+      causeCode: null,
+      stdoutBytes: 0,
+      stderrBytes: 0,
+      stdoutHash: createHash("sha256"),
+      stderrHash: createHash("sha256"),
+      events: [],
+    };
+    const finishLifecycle = () => {
+      const stdoutHash = lifecycle.stdoutHash.copy().digest("hex");
+      const stderrHash = lifecycle.stderrHash.copy().digest("hex");
+      return {
+        ...lifecycle,
+        outputHash: createHash("sha256")
+          .update(`${stdoutHash}${stderrHash}`)
+          .digest("hex"),
+        stdoutHash,
+        stderrHash,
+      };
+    };
+    const event = (name, details = {}) =>
+      lifecycle.events.push({ name, at: new Date().toISOString(), ...details });
     const owner = {
       state: "starting",
       stdioClosed: false,
       descendants: "unverified",
+      identity: null,
+      knownDescendants: Array.isArray(knownDescendants)
+        ? [...knownDescendants]
+        : null,
       drained: new Promise((done) => (markDrained = done)),
       snapshot() {
         return {
           state: owner.state,
           stdioClosed: owner.stdioClosed,
           descendants: owner.descendants,
+          identity: owner.identity,
+          knownDescendants: owner.knownDescendants
+            ? [...owner.knownDescendants]
+            : null,
+          lifecycle: finishLifecycle(),
           pid: child?.pid,
         };
       },
@@ -107,16 +170,25 @@ export async function command(executable, args, options = {}, input) {
         stdio: ["pipe", "pipe", "pipe"],
       });
     } catch {
+      event("start");
       owner.state = "drained";
       markDrained();
       const error = new Error("Command could not start");
       error.code = "COMMAND_PROCESS_ERROR";
+      lifecycle.causeCode = error.code;
+      error.lifecycle = finishLifecycle();
       error.drained = true;
       rejectPromise(error);
       return;
     }
+    owner.identity = {
+      pid: child.pid ?? null,
+      executable: String(executable),
+      path: String(executablePath ?? executable),
+      startTime: startedAt,
+    };
+    event("start", { identity: owner.identity });
     owner.state = "running";
-    let bytes = 0;
     const chunks = [];
     let failure;
     let settled = false;
@@ -126,9 +198,10 @@ export async function command(executable, args, options = {}, input) {
     let abortListener;
     const cleanup = () => {
       child.removeListener("error", onError);
+      child.removeListener("exit", onExit);
       child.removeListener("close", onClose);
-      child.stdout?.removeListener("data", onOutput);
-      child.stderr?.removeListener("data", onOutput);
+      child.stdout?.removeListener("data", onStdout);
+      child.stderr?.removeListener("data", onStderr);
       if (abortListener) signal?.removeEventListener("abort", abortListener);
       if (timeoutTimer) clearTimeout(timeoutTimer);
       if (drainTimer) clearTimeout(drainTimer);
@@ -141,14 +214,18 @@ export async function command(executable, args, options = {}, input) {
       markDrained();
       if (failure) {
         failure.drained = true;
+        failure.lifecycle = finishLifecycle();
         rejectPromise(failure);
-      } else
-        resolvePromise({
+      } else {
+        const result = {
           code: childExitCode,
           output: Buffer.concat(chunks).toString(),
-        });
+        };
+        if (role !== "command" || line !== null) result.lifecycle = finishLifecycle();
+        resolvePromise(result);
+      }
     };
-    const pending = (code, cause) => {
+    const pending = (code) => {
       if (failure) return;
       failure = new Error(
         code === "COMMAND_PROCESS_ERROR"
@@ -156,7 +233,11 @@ export async function command(executable, args, options = {}, input) {
           : `Command ${code.slice("COMMAND_".length).toLowerCase()}`,
       );
       failure.code = code;
-      failure.cause = cause;
+      lifecycle.causeCode ??= code;
+      lifecycle.timeout ||= code === "COMMAND_TIMEOUT";
+      lifecycle.abort ||= code === "COMMAND_ABORTED";
+      lifecycle.outputLimit ||= code === "COMMAND_OUTPUT_LIMIT";
+      event("cause", { causeCode: lifecycle.causeCode });
       owner.state = "stopping";
       try {
         child.kill();
@@ -173,6 +254,7 @@ export async function command(executable, args, options = {}, input) {
           undrained.code = "COMMAND_DRAIN_PENDING";
           undrained.drained = false;
           undrained.owner = owner;
+          undrained.lifecycle = finishLifecycle();
           settled = true;
           if (timeoutTimer) clearTimeout(timeoutTimer);
           if (abortListener)
@@ -185,20 +267,43 @@ export async function command(executable, args, options = {}, input) {
       );
     };
     let childExitCode;
-    const onOutput = (chunk) => {
-      if (failure) return;
+    const onOutput = (chunk, stream) => {
       const bytesInChunk = Buffer.byteLength(chunk);
-      bytes += bytesInChunk;
-      if (bytes > limit) {
+      if (stream === "stdout") {
+        lifecycle.stdoutBytes += bytesInChunk;
+        lifecycle.stdoutHash.update(chunk);
+      } else {
+        lifecycle.stderrBytes += bytesInChunk;
+        lifecycle.stderrHash.update(chunk);
+      }
+      if (lifecycle.stdoutBytes + lifecycle.stderrBytes > limit) {
         pending("COMMAND_OUTPUT_LIMIT");
         return;
       }
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     };
     const onError = () => pending("COMMAND_PROCESS_ERROR");
-    const onClose = (code) => {
+    const onExit = (code, signalName) => {
+      lifecycle.exitTime = new Date().toISOString();
+      lifecycle.exitCode = code;
+      lifecycle.signal = signalName ?? null;
+      event("exit", { exitCode: code, signal: lifecycle.signal });
+    };
+    const onClose = (code, signalName) => {
       closed = true;
       childExitCode = code;
+      lifecycle.exitCode ??= code;
+      lifecycle.signal ??= signalName ?? null;
+      lifecycle.closeTime = new Date().toISOString();
+      event("close", { exitCode: lifecycle.exitCode, signal: lifecycle.signal });
+      if (
+        Number.isInteger(lifecycle.exitCode) &&
+        lifecycle.exitCode !== 0 &&
+        lifecycle.causeCode === null
+      ) {
+        lifecycle.causeCode = "COMMAND_NONZERO";
+        event("cause", { causeCode: lifecycle.causeCode });
+      }
       owner.stdioClosed = true;
       if (
         failure &&
@@ -213,20 +318,24 @@ export async function command(executable, args, options = {}, input) {
         failure.code = "COMMAND_DRAIN_PENDING";
         failure.drained = false;
         failure.owner = owner;
+        failure.lifecycle = finishLifecycle();
         settled = true;
         rejectPromise(failure);
         return;
       }
-      owner.descendants = failure ? "stdio-drained" : "normal-exit";
+      owner.descendants = "unverified";
       if (settled) {
         cleanup();
         owner.state = "drained";
         markDrained();
       } else settle();
     };
-    child.stdout?.on("data", onOutput);
-    child.stderr?.on("data", onOutput);
+    const onStdout = (chunk) => onOutput(chunk, "stdout");
+    const onStderr = (chunk) => onOutput(chunk, "stderr");
+    child.stdout?.on("data", onStdout);
+    child.stderr?.on("data", onStderr);
     child.on("error", onError);
+    child.on("exit", onExit);
     child.on("close", onClose);
     if (signal) {
       abortListener = () => pending("COMMAND_ABORTED");

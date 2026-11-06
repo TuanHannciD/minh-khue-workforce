@@ -38,7 +38,9 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
       },
     },
   });
-  const { command } = await import("../../apps/api/test/auth-sandbox.mjs");
+  const { command, readbackOwner } = await import(
+    "../../apps/api/test/auth-sandbox.mjs",
+  );
   const tick = () => new Promise((done) => setImmediate(done));
   test("preabort never spawns", async () => {
     const before = spawned;
@@ -69,6 +71,10 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
     child.emit("close", null);
     const e = await p;
     assert.equal(e.code, "COMMAND_OUTPUT_LIMIT");
+    assert.equal(e.lifecycle.causeCode, "COMMAND_OUTPUT_LIMIT");
+    assert.equal(e.lifecycle.outputLimit, true);
+    assert.equal(e.lifecycle.stdoutBytes, 4);
+    assert.equal(e.lifecycle.stderrBytes, 2);
     assert.equal(e.drained, true);
     assert(!JSON.stringify(e).includes("secret"));
     assert.equal(options.maxOutputBytes, undefined);
@@ -98,6 +104,9 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
         `COMMAND_${mode === "error" ? "PROCESS_ERROR" : mode === "abort" ? "ABORTED" : "TIMEOUT"}`,
       );
       assert.equal(e.drained, true);
+      assert.equal(e.lifecycle.causeCode, `COMMAND_${mode === "error" ? "PROCESS_ERROR" : mode === "abort" ? "ABORTED" : "TIMEOUT"}`);
+      assert.equal(e.lifecycle.timeout, mode === "timeout");
+      assert.equal(e.lifecycle.abort, mode === "abort");
       assert(!e.message.includes("credential-secret"));
       assert.equal(child.listenerCount("error"), 0);
       assert.equal(child.stdout.listenerCount("data"), 0);
@@ -111,6 +120,7 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
     child.emit("error", new Error("fixture spawn failure"));
     const e = await p;
     assert.equal(e.code, "COMMAND_DRAIN_PENDING");
+    assert.equal(e.lifecycle.causeCode, "COMMAND_PROCESS_ERROR");
     assert.equal(e.drained, false);
     assert.equal(owner.snapshot().state, "pending");
     child.emit("close", 1);
@@ -124,6 +134,81 @@ if (!process.execArgv.includes("--experimental-test-module-mocks")) {
     child.stderr.write(" output");
     child.emit("close", 0);
     assert.deepEqual(await p, { code: 0, output: "normal output" });
+  });
+  test("normal exit persists role-scoped lifecycle and stream facts", async () => {
+    const p = command("fixture", [], { role: "production-build", line: 271 });
+    child.stdout.write("ok");
+    child.stderr.write("warn");
+    child.emit("exit", 0, null);
+    child.emit("close", 0);
+    const result = await p;
+    assert.equal(result.code, 0);
+    assert.equal(result.lifecycle.role, "production-build");
+    assert.equal(result.lifecycle.exitCode, 0);
+    assert.equal(result.lifecycle.causeCode, null);
+    assert.equal(result.lifecycle.stdoutBytes, 2);
+    assert.equal(result.lifecycle.stderrBytes, 4);
+    assert.match(result.lifecycle.outputHash, /^[a-f0-9]{64}$/);
+    assert.equal(result.lifecycle.line, 271);
+    assert.deepEqual(
+      result.lifecycle.events.map((event) => event.name),
+      ["start", "exit", "close"],
+    );
+  });
+  test("nonzero close remains an observed build outcome", async () => {
+    const p = command("fixture", [], { role: "production-build" });
+    child.emit("close", 7);
+    const result = await p;
+    assert.equal(result.code, 7);
+    assert.equal(result.lifecycle.exitCode, 7);
+    assert.equal(result.lifecycle.causeCode, "COMMAND_NONZERO");
+  });
+  test("signal is persisted independently from an absent exit code", async () => {
+    const p = command("fixture", [], { role: "production-build" });
+    child.emit("exit", null, "SIGTERM");
+    child.emit("close", null, "SIGTERM");
+    const result = await p;
+    assert.equal(result.lifecycle.exitCode, null);
+    assert.equal(result.lifecycle.signal, "SIGTERM");
+  });
+  test("identity readback refuses PID reuse and never claims a complete tree", async () => {
+    const identity = {
+      pid: 123,
+      executable: "pnpm.exe",
+      path: "C:/toolchain/pnpm.exe",
+      startTime: "2026-11-06T07:00:00.000Z",
+    };
+    assert.deepEqual(readbackOwner(identity, null), {
+      state: "observed-absent",
+      descendants: "tree-unverified",
+      releaseClaim: false,
+    });
+    assert.deepEqual(
+      readbackOwner(identity, {
+        pid: 123,
+        executable: "pnpm.exe",
+        path: "C:/toolchain/pnpm.exe",
+        startTime: "2026-11-06T08:00:00.000Z",
+      }),
+      {
+        state: "identity-reused",
+        descendants: "tree-unverified",
+        releaseClaim: false,
+      },
+    );
+    assert.deepEqual(
+      readbackOwner(identity, {
+        pid: 123,
+        executable: "pnpm.exe",
+        path: "C:/toolchain/pnpm.exe",
+        startTime: "2026-11-06T07:00:00.000Z",
+      }),
+      {
+        state: "observed-present",
+        descendants: "tree-unverified",
+        releaseClaim: false,
+      },
+    );
   });
   test(
     "Windows termination cannot claim descendant release from parent close alone",
