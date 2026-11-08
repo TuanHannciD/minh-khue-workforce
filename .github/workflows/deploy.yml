@@ -64,8 +64,17 @@ jobs:
           install -m 700 -d "$HOME/.ssh"
           ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
           test -s "$RUNNER_TEMP/mkw_known_hosts"
-          actual_fp="$(ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" | awk 'NR==1 {print $2}')"
-          test "$actual_fp" = "$MKW_SSH_HOST_FINGERPRINT"
+          # ssh-keyscan writes known_hosts records (host, key type, base64 key),
+          # while ssh-keygen -lf expects public-key records (key type, base64 key).
+          awk 'NF >= 3 && $2 ~ /^(ssh-|ecdsa-|rsa-)/ {print $2, $3}' \
+            "$RUNNER_TEMP/mkw_known_hosts" > "$RUNNER_TEMP/mkw_public_keys"
+          test -s "$RUNNER_TEMP/mkw_public_keys"
+          : > "$RUNNER_TEMP/mkw_fingerprints"
+          while read -r key_type key_data; do
+            printf '%s %s\n' "$key_type" "$key_data" |
+              ssh-keygen -lf - -E sha256 | awk '{print $2}' >> "$RUNNER_TEMP/mkw_fingerprints"
+          done < "$RUNNER_TEMP/mkw_public_keys"
+          grep -Fx -- "$MKW_SSH_HOST_FINGERPRINT" "$RUNNER_TEMP/mkw_fingerprints"
           install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
           test -n "${{ secrets.MKW_SSH_PRIVATE_KEY }}"
           printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
