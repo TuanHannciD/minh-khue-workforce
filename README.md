@@ -18,3 +18,4 @@ Một bộ tài liệu tiếng Việt là nguồn chuẩn của project. Skill u
 ## Trạng thái
 
 Bộ tài liệu và skill project-local đã có Git baseline; pilot ghi chú dùng UI/API/SQLite thật để kiểm tra workflow. Đây là ứng dụng thử dữ liệu giả. Trạng thái từng năng lực, review/resume và bằng chứng tại READINESS; nghiệp vụ chấm công, stack sản phẩm và Android chưa được chốt.
+# minh-khue-workforce
