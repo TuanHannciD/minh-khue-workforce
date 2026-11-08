@@ -1,0 +1,56 @@
+{
+  "name": "@mkw/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#app/*": "./dist/*"
+  },
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
+  "scripts": {
+    "dev": "tsc --watch --preserveWatchOutput",
+    "start": "node dist/main.js",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/bootstrap.test.mjs test/auth.contract.test.mjs test/auth.unit.test.mjs test/employment-date.test.mjs test/employees.contract.test.mjs test/attendance-values.test.mjs test/attendance-totals.test.mjs test/attendance.contract.test.mjs test/attendance-workbook.test.ts",
+    "test:export": "node --test --test-timeout=60000 test/attendance-export.integration.test.ts",
+    "test:integration": "node --test test/auth.integration.test.mjs",
+    "test:employees": "node --test test/employees.integration.test.mjs",
+    "test:attendance": "node --test --test-timeout=60000 test/attendance.integration.test.mjs test/attendance-concurrency.integration.test.mjs test/attendance-fixtures.integration.test.mjs test/attendance-target.integration.test.mjs",
+    "db:generate": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "auth:provision": "node ../../scripts/product/auth-cli.mjs provision",
+    "auth:reset-password": "node ../../scripts/product/auth-cli.mjs reset-password"
+  },
+  "dependencies": {
+    "@nestjs/common": "12.3.2",
+    "@nestjs/core": "12.3.2",
+    "@nestjs/platform-express": "12.3.2",
+    "@nestjs/swagger": "12.0.5",
+    "@nestjs/throttler": "6.7.1",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "argon2": "0.45.1",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.15.1",
+    "cookie-parser": "1.4.7",
+    "exceljs": "4.4.0",
+    "express": "5.3.0",
+    "helmet": "8.3.0",
+    "pg": "8.23.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "1.4.10",
+    "@types/express": "5.0.6",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "prisma": "7.10.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "typescript": "5.9.3"
+  }
+}

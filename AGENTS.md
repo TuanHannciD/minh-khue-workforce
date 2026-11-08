@@ -19,11 +19,16 @@ Hiệu lực: nền tảng Agent, theo phạm vi người dùng đã duyệt ng�
 
 ## Ràng buộc chung
 
+- Khi đọc/sửa source: theo [SOURCE_NAVIGATION](docs/architecture/SOURCE_NAVIGATION.md). Tách theo trách nhiệm; đọc module/file map nếu có, định vị lại symbol trong source hiện tại rồi đọc đầy đủ đơn vị, dependency/consumer/test liên quan. TOC không thay việc hiểu implementation hoặc review tác động.
+
+- Với thiết kế/code sản phẩm: đọc [kiến trúc](docs/architecture/ARCHITECTURE.md), [chuẩn code](docs/architecture/CODE_CONVENTIONS.md), [hệ UI](docs/architecture/UI_SYSTEM.md) và [nguyên tắc API](docs/architecture/API_CONTRACTS.md) theo phạm vi task. Nền tảng đã chốt tại [ADR-001](docs/architecture/decisions/ADR-001-product-foundation.md); chi tiết còn Pending không được tự coi là đã duyệt hoặc đã có công cụ enforce.
+
 - Không tự đặt nghiệp vụ chấm công, field, trạng thái hoặc contract. Ghi rõ điều chưa biết; hỏi phần chặn tính đúng, tiếp tục phần độc lập đã được phép.
 - Bảo toàn file dirty/untracked/ignored, bằng chứng và công việc khác. Không reset/clean/ghi đè hoặc xóa tài nguyên chưa rõ chủ sở hữu.
 - Mỗi task ghi mục tiêu, scope, acceptance, risk, writer/review route, base hoặc giới hạn chưa có Git, tài nguyên và bước tiếp theo trước khi sửa.
 - Với task code/tooling sau bootstrap: branch/worktree cách ly và base xác định; nhiều writer phải tách workspace/tài nguyên. Không tự dispatch Agent con nếu chỉ dẫn phiên chưa cho phép.
 - Chọn tool/provider/model từ runtime hiện tại, không chép tên từ báo cáo hoặc skill. Tool thiếu không được biến thành gate đạt.
+- **Giới hạn cứng subagent, hiệu lực ngay từ chỉ dẫn người dùng 28/10/2026:** tối đa Sol với reasoning `high` (runtime hiện tại: `gpt-6.1-sol`, `high`); cấm mọi model Astra trong mọi trường hợp. Áp dụng cho implementation, review, kiến trúc, escalation, fallback và mọi cấp Agent con. Quy tắc chi tiết tại [SKILL_POLICY](docs/agent/SKILL_POLICY.md#giới-hạn-cứng-model-subagent).
 - Phân biệt tài liệu đã viết, phần đã cài và khả năng đã kiểm chứng. Chỉ ghi Verified khi có bằng chứng đúng scope; dùng Failed/Not run/Blocked khi tương ứng.
 - Giữ UTF-8 và dấu tiếng Việt; đọc log có chọn lọc, không đưa secret/dữ liệu nhân sự vào tài liệu hoặc report.
 - Bàn giao ngắn gọn: kết quả, kiểm chứng, giới hạn và next action. Push/merge/deploy, scheduler và truy cập hệ thống thật theo PERMISSIONS và quyền phiên.

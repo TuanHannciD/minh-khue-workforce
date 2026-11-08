@@ -1,0 +1,50 @@
+name: mkw
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: ./shared/db.env
+    volumes:
+      - mkw_pgdata:/var/lib/postgresql/data
+    networks: [mkw-internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: ${MKW_API_IMAGE:?MKW_API_IMAGE is required}
+    restart: unless-stopped
+    env_file: ./shared/api.env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      NODE_ENV: production
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [mkw-internal]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  gateway:
+    image: ${MKW_WEB_IMAGE:?MKW_WEB_IMAGE is required}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MKW_GATEWAY_PORT:-3200}:8080"
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [mkw-internal]
+
+volumes:
+  mkw_pgdata:
+    name: mkw_pgdata
+
+networks:
+  mkw-internal:
+    name: mkw-internal
+    internal: true

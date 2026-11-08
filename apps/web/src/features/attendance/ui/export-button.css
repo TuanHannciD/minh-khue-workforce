@@ -1,0 +1,19 @@
+.attendance-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-2) 0;
+}
+.attendance-export p {
+  margin: 0;
+  max-width: 65ch;
+  color: var(--quiet);
+}
+.attendance-export [role="alert"] {
+  color: var(--danger);
+}
+.attendance-export button svg {
+  width: 18px;
+  height: 18px;
+}

@@ -1,0 +1,708 @@
+/* Monthly C surface. Table overflow is confined to grid-scroll.
+   Map: heading/tools/workspace → grid-scroll sticky table → editor/legend →
+   responsive and expanded rules → draft feedback → selection-tools/fill-handle.
+   One surface keeps its container/media overrides beside the incumbent rules. */
+.product-layout {
+  max-width: 1440px;
+  margin: 24px auto;
+  padding: 16px;
+  background: var(--paper);
+  border-radius: var(--radius);
+}
+.review-note {
+  color: var(--quiet);
+  font-size: 0.875rem;
+  margin: 0 0 16px;
+}
+.masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  margin: 0 -16px;
+  background: var(--header);
+  color: var(--paper);
+}
+.masthead .brand {
+  color: inherit;
+  margin: 0;
+}
+.masthead .brand span {
+  font-weight: 400;
+  color: var(--header-quiet);
+  font-size: 0.875rem;
+  letter-spacing: 0;
+  margin-left: 10px;
+}
+.masthead > span {
+  color: var(--header-quiet);
+  font-size: 0.875rem;
+}
+.attendance-screen {
+  container-type: inline-size;
+  min-width: 0;
+}
+.attendance-screen p,
+.attendance-screen h2 {
+  margin: 0;
+}
+.attendance-screen h2 {
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+.attendance-screen svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  stroke-width: 1.7;
+}
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  padding: 26px 0 22px;
+}
+.heading p {
+  margin-top: 8px;
+  font-size: 0.875rem;
+  color: var(--quiet);
+}
+.month {
+  font-size: 1rem;
+  font-weight: 650;
+  white-space: nowrap;
+  padding: 10px 0;
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  flex-wrap: wrap;
+}
+.switcher {
+  display: flex;
+  gap: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.switcher button {
+  border: 0;
+  border-radius: 0;
+  min-width: 100px;
+  color: var(--quiet);
+  padding: 12px 8px;
+  position: relative;
+  background: transparent;
+}
+.switcher button[data-state="active"] {
+  color: var(--ink);
+}
+.switcher button[data-state="active"]::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  height: 3px;
+  left: 8px;
+  right: 8px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+.expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+}
+.workspace[hidden] {
+  display: none;
+}
+.sheet {
+  min-width: 0;
+}
+.sheet-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 16px 0;
+}
+.sheet-heading h2 {
+  font-size: 1rem;
+}
+.sheet-heading > span {
+  font-size: 0.75rem;
+  color: var(--quiet);
+}
+.grid-scroll {
+  overflow: auto;
+  max-height: 428px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--wash);
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  scroll-padding: 64px 72px 56px 140px;
+}
+.grid-scroll:focus-visible {
+  outline: 3px solid var(--action);
+  outline-offset: 3px;
+}
+.grid-scroll table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
+.grid-scroll caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.grid-scroll th,
+.grid-scroll td {
+  height: 48px;
+  min-width: 48px;
+  border-right: 1px solid var(--grid-line);
+  border-bottom: 1px solid var(--grid-line);
+  text-align: center;
+  padding: 0;
+  background: var(--paper);
+}
+.grid-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 54px;
+  background: var(--wash);
+  font-weight: 650;
+}
+.grid-scroll small {
+  display: block;
+  color: var(--quiet);
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-top: 3px;
+}
+.grid-scroll .name {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: 128px;
+  min-width: 128px;
+  max-width: 128px;
+  text-align: left;
+  padding: 5px 12px;
+  font-weight: 550;
+}
+.employee-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grid-scroll thead .name {
+  z-index: 5;
+  background: var(--wash);
+  font-size: 0.75rem;
+  color: var(--quiet);
+}
+.grid-scroll .total {
+  position: sticky;
+  right: 0;
+  min-width: 64px;
+  z-index: 2;
+  background: var(--total);
+  font-weight: 700;
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+.grid-scroll thead .total {
+  z-index: 5;
+  background: var(--wash);
+}
+.grid-scroll td button {
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  min-width: 47px;
+  min-height: 48px;
+  width: 100%;
+  height: 100%;
+  font-weight: 450;
+  position: static;
+}
+/* Only reminder icons need a positioned button. Keeping every visible cell
+   positioned expands the table paint/focus work even when its data is stable. */
+.grid-scroll td button:has(> .reminder-icon) {
+  position: relative;
+}
+.grid-scroll td button:hover {
+  background: var(--wash);
+}
+.grid-scroll td button:focus-visible {
+  outline-offset: -4px;
+  outline-width: 2px;
+}
+.grid-scroll .reminded {
+  background: var(--reminder-surface);
+  color: var(--reminder-ink);
+}
+.grid-scroll .reminder-icon {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  top: 3px;
+  right: 3px;
+}
+.grid-scroll .selected {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.grid-scroll .inactive {
+  background: var(--inactive);
+  color: var(--quiet);
+}
+.grid-scroll tfoot th,
+.grid-scroll tfoot td {
+  background: var(--wash);
+  font-weight: 700;
+  border-bottom: 0;
+}
+.grid-scroll tfoot .name {
+  background: var(--wash);
+}
+.empty {
+  padding: 40px 16px;
+  text-align: center;
+  line-height: 1.7;
+  background: var(--wash);
+  border-radius: 8px;
+}
+.legend {
+  display: flex;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+  color: var(--quiet);
+  font-size: 0.75rem;
+  line-height: 1.7;
+  padding: 16px 0;
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend .mark {
+  width: 12px;
+  height: 12px;
+  background: var(--reminder-surface);
+  color: var(--reminder-ink);
+}
+.editor {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding: 22px 16px 18px;
+  background: var(--editor);
+  border-radius: 0 0 8px 8px;
+}
+.editor h2 {
+  overflow-wrap: anywhere;
+}
+.editor h2:focus {
+  outline: 2px solid var(--action);
+  outline-offset: 3px;
+}
+.editor-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.editor-top p {
+  margin-top: 6px;
+  font-size: 0.875rem;
+  color: var(--quiet);
+}
+.editor-identity {
+  overflow-wrap: anywhere;
+  font-size: 0.75rem !important;
+}
+.unit {
+  font-size: 0.75rem;
+  color: var(--quiet);
+}
+.editor .field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 20px 0 10px;
+}
+.values {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.values button {
+  padding: 8px 0;
+}
+.editor button[aria-pressed="true"] {
+  background: var(--soft);
+  border-color: var(--action);
+  color: var(--action);
+}
+.secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.secondary button {
+  padding: 8px 10px;
+  font-size: 0.75rem;
+}
+.help {
+  font-size: 0.75rem;
+  color: var(--quiet);
+  line-height: 1.7;
+  margin: 8px 0;
+}
+.editor .help {
+  margin-top: 8px;
+}
+.editor .error {
+  font-size: 0.875rem;
+  margin-top: 12px;
+}
+.reminder {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  padding: 22px 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.reminder input {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  margin: 0;
+}
+.reminder small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--quiet);
+  margin-top: 4px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.actions button {
+  flex: 1;
+}
+.editor-empty p {
+  font-size: 0.875rem;
+  margin-top: 12px;
+  color: var(--quiet);
+}
+.expanded .workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.expanded .grid-scroll {
+  max-height: 75vh;
+}
+.preview-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.preview-tools button {
+  font-size: 0.75rem;
+}
+.preview-feedback {
+  overflow-wrap: anywhere;
+  color: var(--quiet);
+  font-size: 0.875rem;
+}
+.preview-return {
+  display: inline-block;
+  color: var(--action);
+  padding: 12px 0;
+  text-underline-offset: 3px;
+}
+@container (min-width: 900px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 288px;
+    gap: 24px;
+  }
+  .editor {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    padding: 20px 16px;
+    border-radius: 0 0 8px 0;
+  }
+  .grid-scroll {
+    max-height: 526px;
+  }
+  .editor-top {
+    display: block;
+  }
+  .unit {
+    display: block;
+    margin-top: 12px;
+  }
+  .sheet-heading {
+    padding: 18px 0;
+  }
+}
+@media (max-width: 540px) {
+  .product-layout {
+    margin: 0;
+    border-radius: 0;
+  }
+  .masthead {
+    padding: 18px 16px;
+  }
+  .masthead .brand span {
+    display: block;
+    margin: 3px 0 0;
+    font-size: 0.75rem;
+  }
+  .masthead > span {
+    max-width: 100px;
+    text-align: right;
+  }
+  .heading {
+    display: block;
+    padding: 22px 0 16px;
+  }
+  .heading h1 {
+    font-size: 1.5rem;
+  }
+  .month {
+    padding: 14px 0 0;
+  }
+  .switcher {
+    flex: 1;
+    gap: 12px;
+  }
+  .switcher button {
+    min-width: 0;
+    flex: 1;
+  }
+  .expand {
+    padding: 10px;
+  }
+  .expand span {
+    display: none;
+  }
+  .grid-scroll {
+    max-height: 310px;
+    scroll-padding-left: 122px;
+  }
+  .grid-scroll .name {
+    min-width: 112px;
+    width: 112px;
+    max-width: 112px;
+    padding: 5px 10px;
+  }
+  .grid-scroll .total {
+    min-width: 56px;
+  }
+  .sheet-heading > span {
+    max-width: 130px;
+    text-align: right;
+  }
+  .editor {
+    padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .attendance-screen * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
+.editor-fields {
+  display: grid;
+  gap: var(--space-3);
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.editor-column {
+  min-width: 0;
+}
+.save-feedback,
+.snapshot-freshness,
+.month-control {
+  margin-block: var(--space-3);
+  overflow-wrap: anywhere;
+}
+.save-feedback {
+  padding: var(--space-3);
+  background: var(--paper);
+}
+.save-feedback p {
+  margin-block: var(--space-2);
+}
+.month-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.month-control input {
+  width: auto;
+}
+
+/* Task8: selection and fill retain native scrolling/zoom; only active dragging
+   suppresses text selection. Source and selected targets remain distinct. */
+.selection-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+}
+.selection-tools label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.selection-tools select,
+.bulk-editor select {
+  min-height: 44px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+.attendance-screen td[data-position]:has(> .fill-handle) {
+  position: relative;
+}
+.attendance-screen .fill-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 2px;
+  border: 1px solid var(--action);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--action);
+  cursor: crosshair;
+}
+.fill-handle svg {
+  width: 16px;
+  height: 16px;
+}
+.grid-scroll.selection-dragging {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+  user-select: none;
+}
+.bulk-editor p {
+  overflow-wrap: anywhere;
+}
+.bulk-editor .actions {
+  flex-wrap: wrap;
+}
+@media (any-pointer: coarse) {
+  .attendance-screen .fill-handle {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
+.attendance-search {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 36rem;
+  margin-block: var(--space-3);
+  font-size: 0.875rem;
+}
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.search-field svg {
+  width: 20px;
+  flex-shrink: 0;
+  color: var(--quiet);
+}
+.attendance-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  font-size: 0.875rem;
+}
+.page-range {
+  display: grid;
+  gap: var(--space-1);
+  margin-inline-end: auto;
+  font-variant-numeric: tabular-nums;
+}
+.attendance-pagination form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.attendance-pagination input {
+  width: 5rem;
+}
+.attendance-pagination input,
+.attendance-pagination select,
+.attendance-pagination button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.attendance-pagination select {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+}
+.attendance-pagination [role="alert"] {
+  flex-basis: 100%;
+  color: var(--danger);
+}
+#sheet-title:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 3px;
+}
+@media (max-width: 540px) {
+  .page-range {
+    flex-basis: 100%;
+  }
+}

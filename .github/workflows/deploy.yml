@@ -1,0 +1,90 @@
+name: MKW production deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Deployment mode
+        required: true
+        type: choice
+        options: [dry-run, bootstrap, release]
+        default: dry-run
+      release_sha:
+        description: Full commit SHA to deploy
+        required: true
+        type: string
+
+concurrency:
+  group: mkw-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 1
+
+      - name: Validate immutable release input
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'release_sha must be a full 40-char SHA'; exit 64; }
+          test -s scripts/product/deploy-entrypoint.sh
+
+      - name: Run remote deploy entrypoint
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
+          MKW_SSH_PORT: ${{ vars.MKW_SSH_PORT }}
+          MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
+          MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
+          MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
+          MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
+          MKW_COMPOSE_SOURCE: ${{ vars.MKW_COMPOSE_SOURCE }}
+          MKW_MANIFEST_SOURCE: ${{ vars.MKW_MANIFEST_SOURCE }}
+        run: |
+          set -Eeuo pipefail
+          : "${MKW_SSH_HOST:?Set production variable MKW_SSH_HOST}"
+          : "${MKW_SSH_PORT:?Set production variable MKW_SSH_PORT}"
+          : "${MKW_SSH_HOST_FINGERPRINT:?Set production variable MKW_SSH_HOST_FINGERPRINT}"
+          : "${MKW_DEPLOY_PATH:?Set production variable MKW_DEPLOY_PATH}"
+          : "${MKW_PROJECT_NAME:?Set production variable MKW_PROJECT_NAME}"
+          : "${MKW_GATEWAY_PORT:?Set production variable MKW_GATEWAY_PORT}"
+          install -m 700 -d "$HOME/.ssh"
+          ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
+          test -s "$RUNNER_TEMP/mkw_known_hosts"
+          actual_fp="$(ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" | awk 'NR==1 {print $2}')"
+          test "$actual_fp" = "$MKW_SSH_HOST_FINGERPRINT"
+          install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
+          test -n "${{ secrets.MKW_SSH_PRIVATE_KEY }}"
+          printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
+          chmod 600 "$RUNNER_TEMP/mkw_key"
+          remote_dir="${MKW_DEPLOY_PATH}/releases/${{ inputs.release_sha }}"
+          if [[ "$MODE" == release ]]; then
+            : "${MKW_COMPOSE_SOURCE:=deploy/compose.production.yml}"
+            : "${MKW_MANIFEST_SOURCE:=deploy/release.manifest}"
+            test -f "$MKW_COMPOSE_SOURCE"
+            test -f "$MKW_MANIFEST_SOURCE"
+            tar -czf "$RUNNER_TEMP/mkw-release.tgz" "$MKW_COMPOSE_SOURCE" "$MKW_MANIFEST_SOURCE"
+            ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir'"
+            scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-release.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
+            ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && rm -f '$remote_dir/release.tgz'"
+            printf -v REMOTE_ENV 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q bash -s -- --release --manifest %q --compose %q' \
+              "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$remote_dir/$MKW_MANIFEST_SOURCE" "$remote_dir/$MKW_COMPOSE_SOURCE"
+          else
+            printf -v REMOTE_ENV 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q bash -s -- --%q' \
+              "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$MODE"
+          fi
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "deploy@$MKW_SSH_HOST" "$REMOTE_ENV" < scripts/product/deploy-entrypoint.sh

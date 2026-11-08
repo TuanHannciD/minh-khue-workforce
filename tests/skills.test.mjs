@@ -24,3 +24,17 @@ test('skill verifier rejects tampering, missing files, traversal and unmanifeste
   await writeFile(join(root, '.agents/skills/example/extra.js'), 'extra');
   assert.match((await verifyManifest(root, manifest)).join(), /unmanifested/i);
 });
+
+test('skill verifier preserves generated Python cache while rejecting extra source', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'mkw-skills-cache-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const dir = '.agents/skills/example';
+  await mkdir(join(root, dir, '__pycache__'), { recursive: true });
+  const body = '---\nname: example\ndescription: Example\n---\n';
+  await writeFile(join(root, dir, 'SKILL.md'), body);
+  await writeFile(join(root, dir, '__pycache__/core.cpython-314.pyc'), 'generated');
+  const manifest = { skills: ['example'], sha256: { [`${dir}/SKILL.md`]: createHash('sha256').update(body).digest('hex') } };
+  assert.deepEqual(await verifyManifest(root, manifest), []);
+  await writeFile(join(root, dir, '__pycache__/extra.py'), 'unreviewed source');
+  assert.match((await verifyManifest(root, manifest)).join(), /unmanifested/i);
+});

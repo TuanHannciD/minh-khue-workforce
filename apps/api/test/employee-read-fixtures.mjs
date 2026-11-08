@@ -1,0 +1,126 @@
+// Fake data only. IDs 101/102 deliberately reverse binary name order:
+// U+00C1nh (101) > U+0041 U+0301nh (102), while Intl compares them equal.
+export const employeeReadFixture = {
+  employees: [
+    { id: "aabbccdd-1111-4111-8111-000000000101", name: "Ánh" },
+    { id: "aabbccdd-1111-4111-8111-000000000102", name: "A\u0301nh" },
+    { id: "aabbccdd-1111-4111-8111-000000000103", name: "NGUYỄN" },
+    { id: "aabbccdd-1111-4111-8111-000000000104", name: "Nguyễn" },
+    { id: "aabbccdd-1111-4111-8111-000000000105", name: "Tên % thử" },
+    { id: "aabbccdd-1111-4111-8111-000000000106", name: "Tên _ thử" },
+    { id: "aabbccdd-1111-4111-8111-000000000107", name: "Tên \\\\ thử" },
+    { id: "aabbccdd-1111-4111-8111-000000000108", name: "An" },
+    { id: "aabbccdd-1111-4111-8111-000000000109", name: "An" },
+    { id: "aabbccdd-1111-4111-8111-000000000110", name: "Đạt" },
+    { id: "aabbccdd-1111-4111-8111-000000000111", name: "đạt" },
+    { id: "aabbccdd-1111-4111-8111-000000000112", name: "Ăn" },
+    { id: "aabbccdd-1111-4111-8111-000000000113", name: "Ân" },
+    { id: "aabbccdd-1111-4111-8111-000000000114", name: "Ông" },
+    { id: "aabbccdd-1111-4111-8111-000000000115", name: "Ơn" },
+    { id: "aabbccdd-1111-4111-8111-000000000116", name: "Ưng" },
+    { id: "aabbccdd-1111-4111-8111-000000000117", name: "Zed" },
+    { id: "aabbccdd-1111-4111-8111-000000000118", name: "😀 An" },
+    { id: "aabbccdd-1111-4111-8111-000000000119", name: "a\u0308n" },
+    { id: "aabbccdd-1111-4111-8111-000000000120", name: "a" },
+    { id: "aabbccdd-1111-4111-8111-000000000121", name: "A" },
+    { id: "aabbccdd-1111-4111-8111-000000000122", name: "İ" },
+    { id: "aabbccdd-1111-4111-8111-000000000123", name: "I" },
+    { id: "aabbccdd-1111-4111-8111-000000000124", name: "ß" },
+    { id: "aabbccdd-1111-4111-8111-000000000125", name: "CAFE thật" },
+    { id: "aabbccdd-1111-4111-8111-00000000cafe", name: "Bình" },
+    // R1 I1: Unicode 16 Cyrillic TJE cases; fixed from Node before SQL.
+    { id: "aabbccdd-1111-4111-8111-000000000126", name: "\u1C89" },
+    { id: "aabbccdd-1111-4111-8111-000000000127", name: "\u1C8A" },
+  ],
+  queries: [
+    {
+      q: "nguyễn",
+      expectedIds: [
+        "aabbccdd-1111-4111-8111-000000000104",
+        "aabbccdd-1111-4111-8111-000000000103",
+      ],
+    },
+    {
+      q: "\u00a0\ufeffnguyễn\ufeff\u00a0",
+      expectedIds: [
+        "aabbccdd-1111-4111-8111-000000000104",
+        "aabbccdd-1111-4111-8111-000000000103",
+      ],
+    },
+    { q: "%", expectedIds: ["aabbccdd-1111-4111-8111-000000000105"] },
+    { q: "_", expectedIds: ["aabbccdd-1111-4111-8111-000000000106"] },
+    { q: "\\", expectedIds: ["aabbccdd-1111-4111-8111-000000000107"] },
+    { q: "Ánh", expectedIds: ["aabbccdd-1111-4111-8111-000000000101"] },
+    { q: "A\u0301nh", expectedIds: ["aabbccdd-1111-4111-8111-000000000102"] },
+    {
+      q: "cafe",
+      expectedIds: [
+        "aabbccdd-1111-4111-8111-00000000cafe",
+        "aabbccdd-1111-4111-8111-000000000125",
+      ],
+    },
+    { q: "CAFE", expectedIds: ["aabbccdd-1111-4111-8111-000000000125"] },
+    {
+      q: "đạt",
+      expectedIds: [
+        "aabbccdd-1111-4111-8111-000000000111",
+        "aabbccdd-1111-4111-8111-000000000110",
+      ],
+    },
+    { q: "İ", expectedIds: ["aabbccdd-1111-4111-8111-000000000122"] },
+    {
+      q: "i",
+      expectedIds: [
+        "aabbccdd-1111-4111-8111-000000000123",
+        "aabbccdd-1111-4111-8111-000000000122",
+      ],
+    },
+    { q: "not-present", expectedIds: [] },
+    {
+      q: "\u1C89",
+      expectedIds: [
+        "aabbccdd-1111-4111-8111-000000000127",
+        "aabbccdd-1111-4111-8111-000000000126",
+      ],
+    },
+    {
+      q: "\u1C8A",
+      expectedIds: [
+        "aabbccdd-1111-4111-8111-000000000127",
+        "aabbccdd-1111-4111-8111-000000000126",
+      ],
+    },
+  ],
+  // Observed and pinned before any SQL: Node24.22.1 / ICU78.3, vi variant.
+  // Canonical pair 101/102 and duplicate An 108/109 use ID tie-breaks.
+  expectedOrderedIds: [
+    "aabbccdd-1111-4111-8111-000000000118",
+    "aabbccdd-1111-4111-8111-000000000120",
+    "aabbccdd-1111-4111-8111-000000000121",
+    "aabbccdd-1111-4111-8111-000000000108",
+    "aabbccdd-1111-4111-8111-000000000109",
+    "aabbccdd-1111-4111-8111-000000000119",
+    "aabbccdd-1111-4111-8111-000000000101",
+    "aabbccdd-1111-4111-8111-000000000102",
+    "aabbccdd-1111-4111-8111-000000000112",
+    "aabbccdd-1111-4111-8111-000000000113",
+    "aabbccdd-1111-4111-8111-00000000cafe",
+    "aabbccdd-1111-4111-8111-000000000125",
+    "aabbccdd-1111-4111-8111-000000000111",
+    "aabbccdd-1111-4111-8111-000000000110",
+    "aabbccdd-1111-4111-8111-000000000123",
+    "aabbccdd-1111-4111-8111-000000000122",
+    "aabbccdd-1111-4111-8111-000000000104",
+    "aabbccdd-1111-4111-8111-000000000103",
+    "aabbccdd-1111-4111-8111-000000000114",
+    "aabbccdd-1111-4111-8111-000000000115",
+    "aabbccdd-1111-4111-8111-000000000124",
+    "aabbccdd-1111-4111-8111-000000000106",
+    "aabbccdd-1111-4111-8111-000000000107",
+    "aabbccdd-1111-4111-8111-000000000105",
+    "aabbccdd-1111-4111-8111-000000000116",
+    "aabbccdd-1111-4111-8111-000000000117",
+    "aabbccdd-1111-4111-8111-000000000127",
+    "aabbccdd-1111-4111-8111-000000000126",
+  ],
+};

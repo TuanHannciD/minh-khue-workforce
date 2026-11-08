@@ -1,0 +1,262 @@
+{
+  "schema": "mkw-heap-source-map-v1",
+  "contract": "docs/tasks/MKW-PRODUCT-001/technical/heap-measurement-contract.md",
+  "executionBase": "e38d99ba196a2a75d5a5a3c221d5ede632281bd2",
+  "reviewedProductTip": "b605af75830db091ffa1d7d380756466aba6b4e1",
+  "status": "Blocked: source map only; no runtime classifier or acquisition adapter",
+  "sourceHashes": {
+    "apps/web/src/features/attendance/api/use-attendance-page.ts": "69ec0860ddbb791365312845d7afc7e864babbf83d46107b4150ea62178ad6d3",
+    "apps/web/src/features/attendance/api/query-keys.ts": "f1cfc6614acf1867e6e959708e0c08e3cadbfa66fd39768d956b111794efa30a",
+    "apps/web/src/features/attendance/model/page-view.ts": "eb1513d4a89589ba0758e5dbb8799ca88eb65fe6c13d00485b05aa36ebfe3e80",
+    "apps/web/src/features/attendance/model/use-page-view.ts": "ec4162151067a129df27fdea7eb93b274a9894bfaf75465c22c48937ba761b37",
+    "apps/web/src/features/attendance/model/attendance-read-view.ts": "94fcfd9b4e426eb154232bbe5d65086875d2d8778747c681c4f869e30b41be15",
+    "apps/web/src/features/attendance/model/attendance-draft.ts": "05158901c7d400cd14cadcbafa32fa0b59bf1c15016fed2d3c7136cd456163f6",
+    "apps/web/src/features/attendance/model/use-cell-selection.ts": "936267882980fa4c5993ae6b556e224f3e6fd24b4c9b7180714a9f0dba4a264a",
+    "apps/web/src/features/attendance/ui/attendance-workspace.tsx": "0883119ac9bc533411c3dd35ba697a6c12f650f275737d12bdb82919ce015e4c",
+    "apps/web/src/features/attendance/ui/attendance-page.tsx": "073b2fb155960012bfd0f027ce157353c2c744359c3af41dcba4b6af76e9847b",
+    "apps/web/src/features/attendance/ui/attendance-grid.tsx": "732098c40654bb141b518809a001f148537c155d18b93448dc7286e57ed1229d",
+    "apps/web/src/features/attendance/ui/attendance-row.tsx": "8d994ac400efdb0cd583d4dd3fdc1fe1187e7c57a774f8ab37204b0c25f8cbb1",
+    "apps/web/src/features/attendance/ui/attendance-cell.tsx": "73c0db0bbbde871aefbf2ad613d8bdfc35c707e6cf248e542af64e676ee331af",
+    "apps/web/src/features/attendance/ui/use-grid-gesture.ts": "f7a1ef11a4a5b656fef8fc2207b402f801671d9696e9132ea1ae3a440dbab186",
+    "apps/web/src/features/attendance/ui/attendance-search.tsx": "00e2a2bc664184e9d0ab4c1e889288162f843afee31d9199a0fc2581bdad8de2",
+    "apps/web/src/features/session/model/session-runtime.ts": "802b50680cf982946a4f5634d3ab43a717ea571ff3f04e1d09ef7e56908b93eb",
+    "apps/web/src/features/session/model/session-context.tsx": "1bfff4d5e57dc34d94caba15f0898ce10208e7256b97ec98cb39137a90de2e5c",
+    "apps/web/src/shared/api/session-boundary.ts": "e17f48eafd6af4cb5a0ed9ee5a5cc76863a2bf69623bb2dbed975738548e520c",
+    "apps/web/src/shared/api/transport.ts": "bf1a330b28c28a93683dfe6012da9814e56669eabfa01a1cd3650041121a10b4",
+    "apps/web/src/shared/api/reconcile.ts": "9c749f02a60d080cdb6d97fd1b330335efa504f2b92dcfed8e7aad8949101d66",
+    "apps/web/src/app/providers.tsx": "d6fc522d1f27efb30b6ebf079a722ed03ae94398b403e6d2890b194591a56ffc",
+    "apps/web/src/app/app-shell.tsx": "1d299d202255ad93f4f4515d9d54948b20982025ab1d7184dae87949c1997ca7",
+    "apps/web/src/app/router.tsx": "7da818cf6c2dc567f1d42bb0e4ba61275b6135a25a2e67897d5ee2e3980268fc"
+  },
+  "budget": {
+    "metric": "Performance.JSHeapUsedSize",
+    "warmups": 2,
+    "cycles": 10,
+    "postGcSamples": 11,
+    "growthPercentMaximum": 20,
+    "configurations": "20/200/1000 x 25/50 x work/overtime",
+    "intervalForbidden": [
+      "heap snapshot",
+      "allocation sampler",
+      "buffer clearing"
+    ],
+    "totalStrictMonotonic": "diagnostic only"
+  },
+  "identity": {
+    "key": "runtime object/node identity in one retained CDP HeapProfiler session per companion context",
+    "metadataOnly": [
+      "requestId",
+      "requestLifetime",
+      "employee ID",
+      "constructor name"
+    ],
+    "mustPreserveRawGraph": "S0 through S10 and T, distinct from budget interval, file writes create-only",
+    "predicate": "Ri subset R0 for all i=1..10, including every transitive payload/projection node",
+    "graphPrimitiveInput": "normalized graph nodes{id,category,selfBytes}, strong directed edges, attributed roots, activeDataIds; caller classifications are NOT runtime evidence"
+  },
+  "roles": [
+    {
+      "role": "displayed delivery",
+      "source": "model/page-view.ts + model/use-page-view.ts + ui/attendance-workspace.tsx",
+      "idleMultiplicity": 1,
+      "aliases": [
+        "PageViewState.displayed.delivery",
+        "usePageView latest.current.state",
+        "Workspace data",
+        "useAttendancePage owner.accepted",
+        "Query.state.data"
+      ],
+      "identityConstraint": "aliases share the same PageDelivery and AttendancePageDto references; requestId/lifetime are metadata"
+    },
+    {
+      "role": "active attendance query/observer",
+      "source": "api/use-attendance-page.ts + api/query-keys.ts",
+      "idleMultiplicity": {
+        "query": 1,
+        "observer": 1
+      },
+      "key": [
+        "attendance",
+        "page",
+        "userId",
+        "epoch",
+        "month",
+        "trim(q)",
+        "page",
+        "pageSize"
+      ],
+      "policy": "gcTime:0, structuralSharing:false; no inactive attendance cache",
+      "identityConstraint": "query data is displayed delivery; observer bound to exact current query/lifetime; not one DTO per owner alias"
+    },
+    {
+      "role": "table projection",
+      "source": "model/attendance-read-view.ts::toPageTable",
+      "idleMultiplicity": 1,
+      "newObjects": ["AttendanceTableData", "range"],
+      "sameReferences": ["employees", "cells", "employeeTotals", "monthTotals"]
+    },
+    {
+      "role": "grid/row/cell projections and callbacks",
+      "source": "ui/attendance-grid.tsx + attendance-row.tsx + attendance-cell.tsx",
+      "newObjects": [
+        "projection",
+        "days",
+        "cells Map",
+        "ordered",
+        "rows",
+        "row.cells arrays",
+        "employeeTotals Map",
+        "dayTotals Map",
+        "latest ref"
+      ],
+      "sameReferences": [
+        "employee DTOs",
+        "CellSnapshotDto values",
+        "monthTotals.byDate"
+      ],
+      "requiredTransitiveCoverage": [
+        "cells entries",
+        "employees",
+        "cell.value",
+        "row.cells",
+        "Map backing storage",
+        "ordered array",
+        "React props/hooks/memo/alternate",
+        "DOM callback closure contexts"
+      ],
+      "frameworkMultiplicity": "Blocked: exact production React alternate/memo/hook bounds and identity classification are not derived"
+    },
+    {
+      "role": "deferred delivery/frozen draft/fill/gesture/guard",
+      "source": "page-view.ts + attendance-draft.ts + use-cell-selection.ts + use-grid-gesture.ts + attendance-page.tsx",
+      "idleMultiplicity": 0,
+      "condition": "readiness is idle/editable, editor/guard closed, no dirty/reconciling/pending operation; do not legalize stale closure as an active role"
+    }
+  ],
+  "registrations": [
+    {
+      "owner": "useAttendancePage",
+      "purpose": "visibility",
+      "identity": "document/visibilitychange/capture=false/callback",
+      "idleMultiplicity": 1,
+      "cleanup": "subscribe disposer"
+    },
+    {
+      "owner": "useAttendancePage",
+      "purpose": "cache/focusManager/onlineManager subscriptions",
+      "idleMultiplicity": "one each per active binding",
+      "cleanup": "layout cleanup stopCache/stopFocus/stopOnline; callback graph required"
+    },
+    {
+      "owner": "TanStack QueryObserver",
+      "purpose": "active poll",
+      "sourceMs": 15000,
+      "idleMultiplicity": 1,
+      "cleanup": "native observer unmount/cancellation; exact runtime handle classification Blocked"
+    },
+    {
+      "owner": "AttendanceSearch",
+      "purpose": "debounce",
+      "sourceMs": 300,
+      "idleMultiplicity": 0,
+      "cleanup": "cancel on completion/Enter/disable/unmount"
+    },
+    {
+      "owner": "useGridGesture",
+      "purpose": "hold/RAF/pointer/touch/global cancellation",
+      "sourceMs": 450,
+      "idlePendingJobs": 0,
+      "listenerMultiplicity": "3 on grid, 10 on document, 1 on window per enabled effect; callback/target/capture identity required",
+      "cleanup": "gesture.dispose and matching removeEventListener calls"
+    },
+    {
+      "owner": "shared transport",
+      "purpose": "native AbortSignal.timeout/any",
+      "sourceMs": 15000,
+      "multiplicity": "each actual in-flight request; native deadline may outlive settled response until source expiry; Blocked attribution/expiry collector",
+      "cleanup": "finally untrack; must not equate wrapper timeout count with native cancellation"
+    },
+    {
+      "owner": "read retry",
+      "purpose": "retry",
+      "sourceMs": [1000, 3000],
+      "idleMultiplicity": 0,
+      "cleanup": "query cancellation/lifetime retirement"
+    },
+    {
+      "owner": "SessionRuntime",
+      "purpose": "session deadline",
+      "sourceMs": "remaining<=0:60000; otherwise max(1000,min(remaining,7200000))",
+      "activeMultiplicity": 1,
+      "cleanup": "logout/expire/connect disposer clearTimeout"
+    },
+    {
+      "owner": "SessionProvider/SessionRuntime",
+      "purpose": "window focus + boundary failure subscription",
+      "providerMultiplicity": 1,
+      "cleanup": "connect disposer; provider remains mounted after logout so these owners may remain without attendance payload"
+    },
+    {
+      "owner": "React/Radix/browser/harness",
+      "purpose": "delegated/global/native registrations",
+      "multiplicity": "Blocked: full source/runtime inventory not derived; never tolerance from observed totals"
+    }
+  ],
+  "dom": {
+    "source": "AttendancePage/Grid/Row/Cell",
+    "idle": {
+      "rows": "current envelope employees.length",
+      "cells": "rows * 31 for complete October data of active kind",
+      "heading": "#sheet-title=1",
+      "table": ".grid-scroll table=1",
+      "editor": 0
+    },
+    "mustCheck": [
+      "correct month/q/page/pageSize/kind/ordered IDs/fetchedAt/new delivery",
+      "no hidden all-page/fullmonth tree",
+      "detached product subtree and handlers via raw graph paths"
+    ],
+    "notAnOracle": [
+      "fixed1817nodes",
+      "fixed620buttons",
+      "document querySelectorAll includes detached DOM"
+    ]
+  },
+  "teardown": {
+    "action": "trusted click AppShell button exact name Đăng xuất after S10 idle/closed-editor readiness",
+    "ends": [
+      "authenticated session epoch",
+      "AttendanceWorkspace/Page mount and query/observer/gesture/editor lifetimes"
+    ],
+    "remains": [
+      "same browser page/context",
+      "Providers/SessionProvider/SessionRuntime object",
+      "provider focus/failure subscription without attendance payload"
+    ],
+    "readiness": [
+      "successful POST logout completion",
+      "SessionRuntime status anonymous and LoginPage committed",
+      "no attendance query/data/observer from ended lifetime",
+      "source cleanup callbacks settled",
+      "native deadline cancelled or expired under its source schedule metadata",
+      "explicit GC then T graph while same context alive"
+    ],
+    "deadlineSources": [
+      "shared/api/transport.ts: AbortSignal.timeout(options.timeoutMs ?? 15000)",
+      "SessionRuntime.logout: immediate invalidation and finally clearTimeout",
+      "useAttendancePage layout cleanup and gcTime0",
+      "useGridGesture layout disposer"
+    ],
+    "sleepOrNewTolerance": false,
+    "status": "Not run; exact action pinned but actual native cleanup readiness cannot yet be collected",
+    "sessionScope": "logout/session is planned, explicitly unexercised; if an attendance-only unmount replaces this action, re-review map and report logout/session unexercised"
+  },
+  "capabilityGaps": [
+    "No raw V8 snapshot reader/capture adapter or signature-complete source-to-runtime attribution",
+    "No production React alternate/retaining-root bound; activeDataIds are predicate-fixture input only",
+    "No native AbortSignal/TanStack/React/Radix owner-complete registration and schedule/fire/cancel/epoch inventory",
+    "No observer telemetry-alias/console/JSHandle/weak-edge validity proof",
+    "No companion producer S0-S10+T, source/runtime/context pin at campaign command start, readiness or cleanup collector",
+    "No finite campaign authorized or run; H1-H5 production gate deliberately cannot PASS"
+  ]
+}

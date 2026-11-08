@@ -1,0 +1,322 @@
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from "@nestjs/swagger";
+import type { ApiPropertyOptions, SchemaObject } from "@nestjs/swagger";
+import { EmployeeDto } from "../employees/index.js";
+import type { CellValue } from "./attendance.types.js";
+
+export class NumberValueDto {
+  @ApiProperty({ enum: ["number"] }) type!: "number";
+  @ApiProperty({ type: Number, multipleOf: 0.5, minimum: 0, maximum: 30 })
+  value!: number;
+}
+export class AbsenceValueDto {
+  @ApiProperty({ enum: ["absence"] }) type!: "absence";
+}
+const valueSchema = {
+  oneOf: [
+    { $ref: getSchemaPath(NumberValueDto) },
+    { $ref: getSchemaPath(AbsenceValueDto) },
+    { type: "object" as const, nullable: true, enum: [null] },
+  ],
+};
+export class CellKeyDto {
+  @ApiProperty({ format: "uuid" }) employeeId!: string;
+  @ApiProperty({ format: "date" }) date!: string;
+  @ApiProperty({ enum: ["work", "overtime"] }) kind!: "work" | "overtime";
+}
+export class CellExpectationDto extends CellKeyDto {
+  @ApiProperty({ minLength: 1 }) expectedRevision!: string;
+}
+export class CellSnapshotDto extends CellKeyDto {
+  @ApiProperty(valueSchema) value!: CellValue;
+  @ApiProperty() reminder!: boolean;
+  @ApiProperty() revision!: string;
+  @ApiProperty({ enum: ["editable", "before-start", "after-end"] }) state!:
+    "editable" | "before-start" | "after-end";
+}
+export class EmployeeExpectationDto {
+  @ApiProperty({ format: "uuid" }) employeeId!: string;
+  @ApiProperty({ minLength: 1 }) expectedRevision!: string;
+}
+export class SetValueOperationDto {
+  @ApiProperty({ enum: ["set-value"] }) type!: "set-value";
+  @ApiProperty(valueSchema) value!: CellValue;
+  @ApiProperty({ enum: ["fill-empty", "replace"] }) mode!:
+    "fill-empty" | "replace";
+}
+export class SetReminderOperationDto {
+  @ApiProperty({ enum: ["set-reminder"] }) type!: "set-reminder";
+  @ApiProperty() reminder!: boolean;
+}
+export class CellPatchDto {
+  @ApiPropertyOptional(valueSchema) value?: CellValue;
+  @ApiPropertyOptional() reminder?: boolean;
+}
+export class PatchCellOperationDto {
+  @ApiProperty({ enum: ["patch-cell"] }) type!: "patch-cell";
+  @ApiProperty({ type: CellPatchDto }) patch!: CellPatchDto;
+}
+class WriteBaseDto {
+  @ApiProperty({ pattern: "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$" })
+  month!: string;
+  @ApiProperty({ type: [EmployeeExpectationDto], minItems: 1 })
+  expectedEmployees!: EmployeeExpectationDto[];
+  @ApiProperty({ type: [CellExpectationDto], minItems: 1 })
+  targets!: CellExpectationDto[];
+}
+export class SetValueWriteDto extends WriteBaseDto {
+  @ApiProperty({
+    oneOf: [{ $ref: getSchemaPath(SetValueOperationDto) }],
+    discriminator: {
+      propertyName: "type",
+      mapping: { "set-value": getSchemaPath(SetValueOperationDto) },
+    },
+  })
+  operation!: SetValueOperationDto;
+  @ApiPropertyOptional({ type: CellExpectationDto })
+  source?: CellExpectationDto;
+}
+// OpenAPI 3.0 has no false schema. This impossible intersection represents a
+// forbidden optional property and generates never. Explicit exclusion also
+// prevents TS union excess-property checks from borrowing source from set-value
+// when the discriminator lives inside operation rather than at the root.
+const forbiddenSource = {
+  type: "string",
+  allOf: [{ type: "string" }, { type: "number" }],
+} satisfies ApiPropertyOptions;
+export class SetReminderWriteDto extends WriteBaseDto {
+  @ApiPropertyOptional(forbiddenSource) source?: never;
+  @ApiProperty({ type: [CellExpectationDto], minItems: 1, maxItems: 1 })
+  declare targets: CellExpectationDto[];
+  @ApiProperty({
+    oneOf: [{ $ref: getSchemaPath(SetReminderOperationDto) }],
+    discriminator: {
+      propertyName: "type",
+      mapping: { "set-reminder": getSchemaPath(SetReminderOperationDto) },
+    },
+  })
+  operation!: SetReminderOperationDto;
+}
+export class PatchCellWriteDto extends WriteBaseDto {
+  @ApiPropertyOptional(forbiddenSource) source?: never;
+  @ApiProperty({ type: [CellExpectationDto], minItems: 1, maxItems: 1 })
+  declare targets: CellExpectationDto[];
+  @ApiProperty({
+    oneOf: [{ $ref: getSchemaPath(PatchCellOperationDto) }],
+    discriminator: {
+      propertyName: "type",
+      mapping: { "patch-cell": getSchemaPath(PatchCellOperationDto) },
+    },
+  })
+  operation!: PatchCellOperationDto;
+}
+export type WriteAttendanceDto =
+  SetValueWriteDto | SetReminderWriteDto | PatchCellWriteDto;
+// OpenAPI3.0 cannot express a nested discriminator at the request root. Each
+// request branch uses the operation discriminator and exact target cardinality.
+// Context narrows numeric bounds/absence for the common target/source kind.
+export const writeAttendanceSchema: SchemaObject = {
+  oneOf: ["work", "overtime"].flatMap((kind) =>
+    [SetValueWriteDto, SetReminderWriteDto, PatchCellWriteDto].map((c) => {
+      const contextualValue: SchemaObject = {
+        oneOf: [
+          {
+            type: "object",
+            required: ["type", "value"],
+            properties: {
+              type: { type: "string", enum: ["number"] },
+              value: {
+                type: "number",
+                minimum: kind === "work" ? 0 : 0.5,
+                maximum: kind === "work" ? 30 : 24,
+                multipleOf: 0.5,
+              },
+            },
+          },
+          ...(kind === "work"
+            ? [{ $ref: getSchemaPath(AbsenceValueDto) }]
+            : []),
+          { type: "object", nullable: true, enum: [null] },
+        ],
+      };
+      return {
+        allOf: [
+          { $ref: getSchemaPath(c) },
+          {
+            type: "object",
+            properties: {
+              targets: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { kind: { type: "string", enum: [kind] } },
+                },
+              },
+              ...(c === SetValueWriteDto
+                ? {
+                    source: {
+                      type: "object" as const,
+                      properties: {
+                        kind: { type: "string" as const, enum: [kind] },
+                      },
+                    },
+                  }
+                : {}),
+              ...(c !== SetReminderWriteDto
+                ? {
+                    operation: {
+                      type: "object" as const,
+                      properties:
+                        c === SetValueWriteDto
+                          ? { value: contextualValue }
+                          : {
+                              patch: {
+                                type: "object" as const,
+                                properties: { value: contextualValue },
+                              },
+                            },
+                    },
+                  }
+                : {}),
+            },
+          },
+        ],
+      };
+    }),
+  ),
+};
+export class ReconcileRequestDto {
+  @ApiProperty({ type: [String], items: { type: "string", format: "uuid" } })
+  employeeIds!: string[];
+  @ApiProperty({ type: [CellKeyDto] }) cells!: CellKeyDto[];
+}
+export class ReconcileSnapshotDto {
+  @ApiProperty({ format: "date-time" }) fetchedAt!: string;
+  @ApiProperty({ type: [EmployeeDto] }) employees!: EmployeeDto[];
+  @ApiProperty({ type: [CellSnapshotDto] }) cells!: CellSnapshotDto[];
+  @ApiProperty({ type: [String], items: { type: "string", format: "uuid" } })
+  missingEmployeeIds!: string[];
+}
+export class EmployeeTotalDto {
+  @ApiProperty({ format: "uuid" }) employeeId!: string;
+  @ApiProperty({ type: Number }) value!: number;
+}
+export class DateTotalDto {
+  @ApiProperty({ format: "date" }) date!: string;
+  @ApiProperty({ type: Number }) value!: number;
+}
+export class KindTotalsDto {
+  @ApiProperty({ type: [EmployeeTotalDto] }) byEmployee!: EmployeeTotalDto[];
+  @ApiProperty({ type: [DateTotalDto] }) byDate!: DateTotalDto[];
+  @ApiProperty({ type: Number }) grandTotal!: number;
+}
+export class AttendanceTotalsDto {
+  @ApiProperty({ type: KindTotalsDto }) work!: KindTotalsDto;
+  @ApiProperty({ type: KindTotalsDto }) overtime!: KindTotalsDto;
+}
+export class MonthDto {
+  @ApiProperty() month!: string;
+  @ApiProperty({ format: "date-time" }) fetchedAt!: string;
+  @ApiProperty({ type: [EmployeeDto] }) employees!: EmployeeDto[];
+  @ApiProperty({ type: [CellSnapshotDto] }) cells!: CellSnapshotDto[];
+  @ApiProperty({ type: AttendanceTotalsDto }) totals!: AttendanceTotalsDto;
+}
+export class AttendancePageQueryDto {
+  @ApiProperty({ pattern: "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$" })
+  month!: string;
+  @ApiPropertyOptional({
+    description:
+      'Omission defaults to ""; parser áp dụng ECMAScript trim và giới hạn tối đa200 Unicode code points sau trim. Schema không chuẩn hóa hoặc kiểm giới hạn sau trim này.',
+  })
+  q?: string;
+  @ApiPropertyOptional({
+    type: "integer",
+    minimum: 1,
+    maximum: 2147483647,
+    description: "Omission defaults to 1",
+  })
+  page?: number;
+  @ApiPropertyOptional({
+    type: "integer",
+    enum: [25, 50],
+    description: "Omission defaults to 25",
+  })
+  pageSize?: 25 | 50;
+}
+export class AttendancePaginationDto {
+  @ApiProperty({ type: "integer", minimum: 1, maximum: 2147483647 })
+  requestedPage!: number;
+  @ApiProperty({ type: "integer", minimum: 1, maximum: 2147483647 })
+  page!: number;
+  @ApiProperty({ type: "integer", enum: [25, 50] }) pageSize!: 25 | 50;
+  @ApiProperty({ type: "integer", minimum: 0 }) totalResults!: number;
+  @ApiProperty({ type: "integer", minimum: 0 }) monthEmployeeCount!: number;
+  @ApiProperty({ type: "integer", minimum: 0 }) totalPages!: number;
+  @ApiProperty({ type: "integer", minimum: 0 }) from!: number;
+  @ApiProperty({ type: "integer", minimum: 0 }) to!: number;
+}
+export class AttendancePageEmployeeTotalsDto {
+  @ApiProperty({ type: [EmployeeTotalDto] }) work!: EmployeeTotalDto[];
+  @ApiProperty({ type: [EmployeeTotalDto] }) overtime!: EmployeeTotalDto[];
+}
+export class AttendancePageKindTotalsDto {
+  @ApiProperty({ type: [DateTotalDto] }) byDate!: DateTotalDto[];
+  @ApiProperty({ type: Number }) grandTotal!: number;
+}
+export class AttendancePageMonthTotalsDto {
+  @ApiProperty({ type: AttendancePageKindTotalsDto })
+  work!: AttendancePageKindTotalsDto;
+  @ApiProperty({ type: AttendancePageKindTotalsDto })
+  overtime!: AttendancePageKindTotalsDto;
+}
+export class AttendancePageDto {
+  @ApiProperty({ pattern: "^(?!0000)[0-9]{4}-(0[1-9]|1[0-2])$" })
+  month!: string;
+  @ApiProperty({ format: "date-time" }) fetchedAt!: string;
+  @ApiProperty({ type: AttendancePaginationDto })
+  pagination!: AttendancePaginationDto;
+  @ApiProperty({ type: [EmployeeDto] }) employees!: EmployeeDto[];
+  @ApiProperty({ type: [CellSnapshotDto] }) cells!: CellSnapshotDto[];
+  @ApiProperty({ type: AttendancePageEmployeeTotalsDto })
+  employeeTotals!: AttendancePageEmployeeTotalsDto;
+  @ApiProperty({ type: AttendancePageMonthTotalsDto })
+  monthTotals!: AttendancePageMonthTotalsDto;
+}
+export class TargetPreviewDto {
+  @ApiProperty({ minimum: 0 }) selected!: number;
+  @ApiProperty({ minimum: 0 }) eligible!: number;
+  @ApiProperty({ minimum: 0 }) skipped!: number;
+  @ApiProperty({ minimum: 0 }) changed!: number;
+}
+export class WriteResultDto {
+  @ApiProperty({ enum: ["saved"] }) state!: "saved";
+  @ApiProperty({ type: [CellSnapshotDto] }) cells!: CellSnapshotDto[];
+  @ApiProperty({ type: [EmployeeDto] }) employees!: EmployeeDto[];
+  @ApiProperty({ type: TargetPreviewDto }) counts!: TargetPreviewDto;
+  @ApiProperty({ format: "date-time" }) savedAt!: string;
+}
+export class AttendanceFieldErrorDto {
+  @ApiProperty() path!: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() message!: string;
+}
+export class AttendanceErrorDetailsDto {
+  @ApiPropertyOptional({ type: [CellSnapshotDto] }) cells?: CellSnapshotDto[];
+  @ApiPropertyOptional({ type: [EmployeeDto] }) employees?: EmployeeDto[];
+  @ApiPropertyOptional() sourceChanged?: boolean;
+  @ApiPropertyOptional({ type: [AttendanceFieldErrorDto] })
+  fields?: AttendanceFieldErrorDto[];
+}
+export class AttendanceErrorDto {
+  @ApiProperty() code!: string;
+  @ApiProperty() message!: string;
+  @ApiPropertyOptional({ type: AttendanceErrorDetailsDto })
+  details?: AttendanceErrorDetailsDto;
+}
+export class AttendanceApiErrorDto {
+  @ApiProperty({ type: AttendanceErrorDto }) error!: AttendanceErrorDto;
+  @ApiProperty() requestId!: string;
+}

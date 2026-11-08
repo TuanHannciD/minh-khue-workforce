@@ -38,9 +38,9 @@ Trước sửa ghi base SHA khi có Git, acceptance, risk, vùng file, writer/re
 
 ## Ownership và Agent con
 
-Agent chính chịu trách nhiệm điều phối và kết quả. Khi được phép dispatch, mỗi child nhận mục tiêu, acceptance, nguồn chuẩn, base, file zone, role đọc/ghi, check/resource và đầu ra cần trả. Reviewer chỉ đọc trừ khi được giao vai trò ghi riêng.
+Agent chính chịu trách nhiệm điều phối và kết quả; main chỉ điều phối, không trực tiếp implement, test hoặc review phần việc đã giao cho child. Khi được phép dispatch, mỗi child nhận mục tiêu, acceptance, nguồn chuẩn, base, file zone, role đọc/ghi, check/resource và đầu ra cần trả. Subagent không tự tạo children/helpers hoặc vòng delegation lồng nhau. Reviewer phải là reviewer mới, độc lập với implementer và đọc exact snapshot cuối; reviewer chỉ đọc trừ khi được giao vai trò ghi riêng.
 
-Writer đồng thời cần workspace và tài nguyên riêng; không chỉnh checkout của nhau. Worktree mới không mặc định chứa file chưa commit của parent; xác minh snapshot trước khi giao. Model/provider phải từ runtime live và tuân chỉ dẫn phiên, không hardcode trong rule.
+Writer đồng thời cần workspace và tài nguyên riêng; không chỉnh checkout của nhau. Worktree mới không mặc định chứa file chưa commit của parent; xác minh snapshot trước khi giao. Model/provider phải được khám phá từ catalog runtime live và tuân [giới hạn cứng model subagent](SKILL_POLICY.md#giới-hạn-cứng-model-subagent): chọn Luna/Terra/Sol theo độ phức tạp, reasoning tối đa `high`, cấm Astra mọi trường hợp. Mỗi dispatch/resume phải chỉ định cấu hình hợp lệ và truyền giới hạn vào brief; skill yêu cầu model mạnh nhất hoặc escalation không được vượt trần này. Với delegation async, giữ `taskId` của từng lượt; chỉ đọc `task_status` khi cần quyết định hoặc bàn giao, không tạo polling loop hoặc coi việc không có status mới là hoàn tất.
 
 Review route và tip theo QUALITY_GATES. Nếu dùng T3, lưu từng task ID; review round mới dùng delegated task mới theo API/chỉ dẫn runtime, không dùng backing child thread như một round mới. Việc tiếp tục implementer dùng cơ chế đúng runtime; không áp một API native lên T3.
 

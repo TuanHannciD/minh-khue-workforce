@@ -9,6 +9,7 @@ async function files(root, dir, errors) {
     const path = `${dir}/${entry.name}`;
     if (entry.isSymbolicLink()) errors.push(`Unsafe symlink: ${path}`);
     else if (entry.isDirectory()) result.push(...await files(root, path, errors));
+    else if (dir.endsWith('/__pycache__') && /^[\w.-]+\.pyc$/.test(entry.name)) continue;
     else result.push(path);
   }
   return result;

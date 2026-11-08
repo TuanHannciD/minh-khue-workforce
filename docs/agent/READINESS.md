@@ -2,7 +2,15 @@
 
 Cập nhật 23/10/2026. Nguồn: [MKW-AGENT-002 validation](../tasks/MKW-AGENT-002/validation.md). Lịch sử tài liệu tại MKW-AGENT-001 giữ nguyên; không dùng kết quả SellerFlow làm bằng chứng Minh Khuê.
 
-## Ba trạng thái riêng
+## Sản phẩm — Task11 bàn giao local, 30/10/2026
+
+Các mục bootstrap002 bên dưới là checkpoint lịch sử Node22/SQLite, không thay trạng thái sản phẩm. Product dùng React/Vite + Nest/Express + PostgreSQL17.11/Prisma, Node24.22.1/pnpm12.15.0; Task1–9 independent Approved. Task10 R2 chấp nhận fix delta I1/I2/M1/M2, I3 Open scroll1000 p95 66,6/max333,3ms >33/200; final20/200 scoped pass, editor1000 121/input61,3ms đạt. **G3 chưa đạt**, native phones/SR/phone performance Not run; Task10 chưa complete/product chưa Done. Main giữ concrete design review frozen panes/windowing, không đổi budget.
+
+[Runbook](../operations/product-runbook.md) và [backup/restore](../operations/product-backup-restore.md) đã viết; fake local rehearsal Task11 trên3 UUID DB mới kiểm SQL/API ba tháng, reminder/tổng/mốc/revisions/relations và auth reset/revoke/idle/absolute, gồm corrupt/wrong-target/transaction failure. CLI chỉ thêm enrollment hẹp fake Task11, không production enrollment. Fixture source/restored đã rotate4 passwords/revoke sessions, HTTP/own PG đã release, DB/dump/evidence ignored giữ lại; chi tiết lệnh/evidence ở [validation](../tasks/MKW-PRODUCT-001/validation.md). Tự review của writer không independent PASS; main fresh exact-commit review Task11 rồi whole-branch review còn chờ.
+
+**G4 production Blocked/Not run**: hosting/domain/TLS/proxy/DB role/secret store/operator xác minh và handoff/retention/RPO/RTO/cutover chưa chọn; data-model G1 yêu cầu revoke restored sessions trước mở truy cập, công cụ revoke-only chưa có và không tự bắt buộc reset password sau restore. Task9 M1 license provenance buffers0.1.1/M2 sáu deprecated do main route dependency/license review trước distribution, không legal clearance/đổi pin. Incident22 originals unavailable: giữ manifest/current copies/evidence. Không push/merge/deploy/scheduler/hệ thống thật.
+
+## Ba trạng thái riêng — bootstrap002 lịch sử
 
 - **Tài liệu:** rule/authority/routing/permission/quality/browser/handoff đã viết, cập nhật theo bootstrap002.
 - **Cài đặt:** Git baseline/worktree, 15 Superpowers và 2 UI project-local, Node/npm lockfile, lint/integration/Playwright và pilot ghi chú độc lập đã có.
@@ -31,3 +39,7 @@ Cập nhật 23/10/2026. Nguồn: [MKW-AGENT-002 validation](../tasks/MKW-AGENT-
 Gate cuối002 (tip đã review, check, tích hợp local) theo `completion-receipt.json` được chỉ dẫn tại validation; chỉ coi Done khi receipt xác nhận đủ. Sau bootstrap, làm rõ actor, danh tính, ca/giờ, quyền xem/sửa và dữ liệu chấm công; rồi duyệt kiến trúc FE/BE/API có thể phục vụ Android. Chưa dùng pilot áp đặt lựa chọn sản phẩm.
 
 Playwright MCP chưa cài vì T3 Browser + Playwright Test đã có hai vai trò cần thiết. Figma/Context7/GitHub/DB MCP chỉ bổ sung khi task cần và có quyền. Sau nâng skill/dependency/tool/harness, kiểm lại gate bị ảnh hưởng. Hash khớp không chứng minh mọi script an toàn; screenshot không thay assertion; checkpoint resume không thay recovery toàn phiên.
+
+### Phone branch disposition — 2026-11-06
+
+Người dùng đã **CANCELLED** nhánh phone ngày 06/11/2026. Không retry; native phone, phoneperf và trusted touch vẫn **NOT RUN**, không waiver.

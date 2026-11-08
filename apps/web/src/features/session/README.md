@@ -1,0 +1,15 @@
+# Phiên web — Task3
+
+`api/session.ts` dùng DTO sinh từ Nest; `model/session-runtime.ts` sở hữu identity, cache transition và expiry check qua DB/API. `model/session-context.tsx` lắp React subscription; `ui/login-page.tsx` giữ username, password chỉ trong input chưa controlled, xóa khi kết thúc submit, không log/persist credential. App providers sở hữu QueryClient và public `clearSessionCache(): void`.
+
+Shared `SessionBoundary` là epoch trong memory: chuyển phiên hủy read đang chờ, chặn polling và ghi khi chưa xác thực; response epoch cũ không trả dữ liệu. Mutation tương lai phải giữ `expectedEpoch` của ý định đã được tạo trong phiên, không tự lấy epoch mới để replay. Server vẫn kiểm session và transaction fence độc lập. Query không retry401, mutation không retry; session login không retry tự động.
+
+Login/logout là auth transition độc quyền: refresh/focus/timer không gửi khi transition đang chạy, login chồng bị từ chối và logout chồng trả false. Logout đóng boundary/cache và dừng timer ngay, hiển thị loading; completion đóng lại boundary/cache để snapshot cũ không mở phiên. Logout lỗi chuyển unavailable, giữ draft trong memory; nút Thử lại phải đọc server mới (200 phục hồi với epoch mới,401 hết phiên), không tự phục hồi từ response cũ hoặc retry revoke.
+
+GET xác nhận cùng phiên active chỉ cập nhật metadata/deadline, giữ epoch, Query/mutation cache, draft intent và protected request đang chờ. Continuity dùng userId + expiresAt tuyệt đối bất biến trong DTO G1, không dùng idleExpiresAt đang trượt; login/reauth luôn transition kể cả cùng DTO. DTO không có session ID nên không phân biệt được hai cookie cùng user và cùng absolute timestamp; không tự đổi contract hoặc rebase lease để che giới hạn này. Đổi user/absolute expiry hoặc phục hồi sau expiry/unavailable vẫn invalidate.
+
+Deadline client chỉ gợi ý lúc hỏi DB: timer tương lai giới hạn1giây–2giờ; khi deadline đã qua theo đồng hồ client nhưng server vẫn200 thì đợi1phút, tránh refresh0 liên tục. Không sửa/gia hạn expiresAt, không coi clock client là bằng chứng hết phiên;401 vẫn đóng quyền và dừng timer. `session-lifecycle.test.ts` kiểm deferred/focus/cache/draft/transport; `session-clock.test.ts` kiểm ahead3giờ và clock jump tiến/lùi.
+
+`registerSensitiveState` là seam cho draft Task7, hiện chỉ test sử dụng. Expiry xóa snapshot Query/mutation cache và dừng transport, giữ draft trong memory cùng owner; login cùng User không tự submit. Nếu User khác và dirty, app yêu cầu bỏ draft trước khi tiếp tục. Logout dirty gửi0 request đến khi xác nhận bỏ; sau logout thành công xóa draft/cache. Không hứa khôi phục sau reload hoặc đóng tab. Chưa có draft nhân sự/chấm công thật trong Task3.
+
+Các test runtime dùng clock kiểm soát và deferred response; component dùng Testing Library cho form lỗi. Browser sandbox dùng build thật cùng CSP, API và PostgreSQL mới; viewport375px không là bằng chứng thiết bị thật. Native form controls kế thừa tokens C; bộ primitives shadcn/Radix đầy đủ thuộc Task6, chưa tạo trước consumer đó.

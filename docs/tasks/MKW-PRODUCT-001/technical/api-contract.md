@@ -1,0 +1,459 @@
+# Contract API v1 — thiết kế cho G1
+
+**Route hiện hành02/11/2026:** [mục8](#8-đọc-trang-server--thiết-kế-đã-duyệt01112026) bổ sung read trang theo bản viết người dùng “Tôi chốt bản thiết kế này”. Thiết kế sản phẩm Accepted; API mới chưa triển khai/Verified, SQL order/search còn gated bởi actual reviewed capability/DB-policy PASS theo accepted delta02/11; old JS parity FAIL giữ lịch sử. GET full MonthDto/export và writes/reconcile/G1 giữ tương thích; không thay partial DTO vào MonthDto. Các checkpoint Task1/5/9 dưới đây giữ lịch sử lớp đã chạy.
+
+Task9 ngày29/10/2026 triển khai GET export với session guard/query strict, no-store, attachment ASCII theo section5. Nguồn duy nhất `readMonth` → đóng read transaction → workbook Buffer → stream; build lỗi trả JSON500 `EXPORT_FAILED` trước attachment, DB/read lỗi503. Nest controller sở hữu content xlsx200/binary và JSON error; pipeline sinh lại OpenAPI/web types, không hand-edit hoặc DTO binary giả. Snapshot/Auth/SQL/browser download và Microsoft Excel desktop16.0.20527.20088 sửa/recalc hai bảng có evidence tại validation; main independent exact-SHA review Pending, không nâng whole-product gates. Các checkpoint cũ bên dưới giữ lịch sử.
+
+Cập nhật Task5, 29/10/2026: contract tháng/changes/reconcile đã có runtime HTTP và PostgreSQL sandbox, Nest DTO→OpenAPI3.0.3→web types; bốn fixture write đầy đủ và fixture tháng56 ô được đối chiếu thực. Export và UI attendance/recovery chưa triển khai. Chi tiết lớp kiểm/evidence ở [validation](../validation.md); review độc lập Task5 chờ main trên SHA cuối. Đoạn Proposed bên dưới là checkpoint Task1, không mô tả readiness hiện tại.
+
+Ngày28/10/2026. **Proposed for G1 review**, thuộc Task1 của [plan đã duyệt](implementation-plan.md); chưa endpoint/DTO/OpenAPI/code sản phẩm nào tồn tại. Nghiệp vụ theo [design đã duyệt](../design.md), nguyên tắc theo [API_CONTRACTS](../../../architecture/API_CONTRACTS.md). Các tên/giá trị kỹ thuật dưới đây là đề xuất cụ thể để review, không bổ sung nghiệp vụ.
+
+## 1. Quy ước chung
+
+- Base `/api/v1`; JSON UTF-8, thuộc tính camelCase, reject unknown properties tại mọi object, không implicit convert chuỗi số thành number. Chỉ JSON finite numbers bội0.5 được nhận ở wire; dấu phẩy/chấm là input UI trước serialization.
+- ID UUID; revision opaque string, client chỉ lưu/gửi lại, không tăng/giải mã/so thứ tự. Revision `0` dành cho ô chưa từng lưu; một ô đã clear không trở về0. Các ví dụ dùng UUID giả cố định.
+- Ngày lịch `YYYY-MM-DD` hợp lệ Gregorian, không timestamp/timezone; tháng `YYYY-MM`, năm0001–9999 do định dạng kỹ thuật. Timestamp kỹ thuật ISO8601 UTC có `Z`; thứ tính từ ngày lịch, không từ timezone trình duyệt. Không có lịch nghỉ tự điền.
+- Lỗi `{error:{code,message,details?},requestId}`; message tiếng Việt an toàn, không echo secret/SQL/stack. `requestId` dùng chẩn đoán, không là idempotency key. Thành công trả resource/DTO trực tiếp; nội dung tháng có tổng từ server.
+- GET không mutation nghiệp vụ, auth theo [auth-session](auth-session.md). Unsafe methods yêu cầu Origin chính xác được phép và JSON; browser fetch `credentials: include`. Không gửi mật khẩu/session trong URL; mọi response dữ liệu cá nhân `Cache-Control: no-store`.
+- Body JSON giới hạn kỹ thuật16MiB sau giải nén; vượt trả413 `PAYLOAD_TOO_LARGE` trước mutation. Đây không là trần số ô chọn hoặc nhân sự; UI giữ draft và không tự chia batch thành nhiều lần lưu. Pagination read đã duyệt tại mục8; không tự thêm virtualization hoặc đổi write contract.
+
+## 2. Kiểu dữ liệu công khai
+
+Tất cả kiểu dưới là thiết kế DTO API; lúc triển khai Nest DTO/Swagger là nguồn code, `contracts/openapi.json` được sinh từ API, web sinh `shared/api/generated/schema.d.ts`. Không duy trì thêm DTO web viết tay cạnh tranh.
+
+```ts
+type AttendanceKind = 'work' | 'overtime';
+type CellValueDto = null | { type: 'number'; value: number } | { type: 'absence' };
+type CellKeyDto = { employeeId: string; date: string; kind: AttendanceKind };
+type CellSnapshotDto = CellKeyDto & {
+  value: CellValueDto; reminder: boolean; revision: string;
+  state: 'editable' | 'before-start' | 'after-end';
+};
+type EmployeeDto = {
+  id: string; name: string; startDate: string; endDate: string | null; revision: string;
+};
+type SessionIdentity = { userId: string; username: string };
+type SessionDto = { user: SessionIdentity; expiresAt: string; idleExpiresAt: string };
+type MonthDto = {
+  month: string; fetchedAt: string; employees: EmployeeDto[];
+  cells: CellSnapshotDto[];
+  totals: { work: KindTotalsDto; overtime: KindTotalsDto };
+};
+type KindTotalsDto = {
+  byEmployee: { employeeId: string; value: number }[];
+  byDate: { date: string; value: number }[]; grandTotal: number;
+};
+```
+
+`state` là trạng thái hiển thị suy từ mốc, không trạng thái duyệt/lưu mới. `before-start` hiển thị N, `after-end` hiển thị —, đều value=null/reminder=false theo invariant DB. Trong thời gian làm việc value=null hiển thị trống, absence hiển thị F chỉ ở work; overtime không nhận absence/zero. Công number0 được normalize thành absence; overtime number phải >0, không tăng ca chọn null. Server trả số dạng JSON chính xác bội0.5, không chuỗi thập phân. N/—/F không serialize thành số0. Tổng value là số, phép tính thực bằng nửa đơn vị nguyên trên server.
+
+Month trả cả Công/Tăng ca cho mỗi người/ngày trong tháng, kể cả ô chưa có record, theo thứ tự employees name dùng collation hiển thị tiếng Việt rồi ID để ổn định; không gộp tên trùng. cells sắp employee/date/kind. UI sản phẩm chuyển sang search server mục8; full DTO vẫn dành GET/export/consumer fullmonth, không cắt rồi cast thành MonthDto. Ngày/người không có số cho tổng0; bảng vẫn giữ ô trống là trống. Khoảng nhân sự phải giao tháng; danh sách không có ai thì employees/cells rỗng và totals grandTotal=0, byEmployee rỗng, byDate đủ ngày với0.
+
+## 3. Endpoint và ví dụ
+
+| Method/path | Input | Thành công | Lỗi chính |
+| --- | --- | --- | --- |
+| POST `/auth/login` | `{username,password}` | 200 SessionDto + cookie | 400 input,401 invalid credentials,403 origin,429 throttled |
+| GET `/auth/session` | Cookie | 200 SessionDto | 401 expired/revoked/missing |
+| POST `/auth/logout` | `{}` + Cookie | 204, clear cookie, revoke session | 403 origin; cookie cũ/mất vẫn204 |
+| POST `/employees` | `{name,startDate,endDate?}` | 201 EmployeeDto, mặc định endDate=null | 400 shape,422 dates/name |
+| PATCH `/employees/:id` | `{expectedRevision,name?,startDate?,endDate?}` | 200 EmployeeDto | 404 ID,409 stale,422 excluded cells/date |
+| GET `/attendance/month?month=2026-10` | Tháng | 200 MonthDto | 400 malformed,401 |
+| POST `/attendance/search` | AttendancePageQueryDto, chỉ đọc | 200 AttendancePageDto | 400 shape/query,401,403,413/415,503 |
+| POST `/attendance/reconcile` | ReconcileRequestDto, chỉ đọc theo ID/key | 200 ReconcileSnapshotDto | 400 shape/duplicate/empty,401,403 origin,413/415 |
+| POST `/attendance/changes` | WriteAttendanceDto dưới đây | 200 WriteResultDto | 400 shape/duplicate,409 conflict,422 value/no targets |
+| GET `/attendance/export?month=2026-10` | Tháng | 200 xlsx stream | 400/401,500 export error |
+
+Mọi route nhân sự/chấm công/export cần phiên hợp lệ, hai tài khoản cùng quyền. Không public signup, delete employee, admin/reset HTTP route hoặc employee self check-in. PATCH tên không đổi ID, optional field thiếu nghĩa giữ cũ; endDate=null mới bỏ mốc kết thúc. Không hỗ trợ delete giá trị nhân sự bằng null; name/startDate=null không hợp lệ. PATCH phải có ít nhất một field name/startDate/endDate ngoài expectedRevision, nếu thiếu trả400 `EMPTY_PATCH`. Name trim ngoài, không rỗng, tối đa200 Unicode code points là giới hạn input kỹ thuật để render/export an toàn, không unique. startDate bắt buộc, endDate>=startDate nếu có. Login username tối đa64 ký tự, password input tối đa1024 bytes để chặn abuse, không tự trim password.
+
+Ví dụ POST login fixture (không phải credential thật):
+
+```json
+{"username":"fixture-operator","password":"<fixture-only-secret>"}
+```
+
+Response200 mẫu:
+
+```json
+{"user":{"userId":"00000000-0000-4000-8000-000000000001","username":"fixture-operator"},"expiresAt":"2026-10-28T20:00:00.000Z","idleExpiresAt":"2026-10-28T10:00:00.000Z"}
+```
+
+POST employee request/response ví dụ:
+
+```json
+{"name":"Nhân sự thử 01","startDate":"2026-10-15","endDate":null}
+```
+
+```json
+{"id":"00000000-0000-4000-8000-000000000101","name":"Nhân sự thử 01","startDate":"2026-10-15","endDate":null,"revision":"4cb38a76-560e-4511-aea2-479d48cb9490"}
+```
+
+PATCH `/employees/00000000-0000-4000-8000-000000000101` request và response200:
+
+```json
+{"expectedRevision":"4cb38a76-560e-4511-aea2-479d48cb9490","endDate":"2026-10-20"}
+```
+
+```json
+{"id":"00000000-0000-4000-8000-000000000101","name":"Nhân sự thử 01","startDate":"2026-10-15","endDate":"2026-10-20","revision":"00000000-0000-4000-8000-000000000201"}
+```
+
+Thay mốc kiểm tất cả tháng; nếu ô ngoài mốc mới có số/F/nhắc thì422 `EMPLOYMENT_DATA_OUTSIDE_INTERVAL`, details `{cells: CellKeyDto[]}` chỉ rõ vị trí, không đổi tên/mốc/data của cả request. Các ô F/reminder-only không bị bỏ qua. Stale employee revision trả409 `EMPLOYEE_CONFLICT` với details `{current: EmployeeDto}` trước khi áp patch. Mỗi PATCH hợp lệ được chấp nhận đều cấp Employee revision mới, kể cả các field gửi bằng giá trị hiện tại sau normalize; đây là fence của ý định ghi, không phải số lần thay nội dung. Lỗi không đổi revision.
+
+GET `/auth/session` không có body, response200 dùng đầy đủ SessionDto như ví dụ login. POST `/auth/logout` gửi JSON bên dưới, response204 không có body:
+
+```json
+{}
+```
+
+### Đọc đối chiếu theo định danh, không theo membership tháng
+
+POST `/attendance/reconcile` là use case **chỉ đọc**, dùng body để gửi tập ID/key rõ ràng, không đưa dữ liệu đối chiếu vào URL. Không tạo intent, không đổi revision, không fence hoặc hủy write đang chạy. Cùng auth/no-store/Origin/JSON/body limit như route dữ liệu; không log body/response nhân sự. Auth trước lookup, anonymous/expired/revoked trả401 không kèm kết quả từng ID. Hai tài khoản hiện cùng quyền toàn công ty; endpoint không mở quyền ngoài phạm vi này.
+
+```ts
+type ReconcileRequestDto = { employeeIds: string[]; cells: CellKeyDto[] };
+type ReconcileSnapshotDto = {
+  fetchedAt: string; employees: EmployeeDto[]; cells: CellSnapshotDto[];
+  missingEmployeeIds: string[];
+};
+```
+
+Cả hai array bắt buộc; ít nhất một phần tử trên toàn request. UUID/date/kind phải hợp lệ, unknown field/null/duplicate ID hoặc key trả400, không tự sửa input. Union employeeIds và employeeId của cells xác định chính xác tập nhân sự cần đọc; một ID được nêu ở cả hai array là hợp lệ. Không cần month, không yêu cầu giao tháng hoặc cùng kind; không mở rộng thành quét lịch sử. Response employees và missingEmployeeIds sắp theo ID, cells theo employee/date/kind, mỗi key yêu cầu của nhân sự tồn tại đúng một snapshot, không trả thêm ô/tổng/thông tin account.
+
+Đọc Employee và cells trong cùng read-only REPEATABLE READ snapshot. Trả mốc/revision hiện tại của mọi nhân sự tồn tại trong union, kể cả không còn ở tháng đang xem; state suy từ mốc hiện tại. Ô vắng record trả value=null/reminder=false/revision="0"; tombstone trả revision đang lưu, kể cả khi state=N/—. Không làm trống revision vì ô đã ra ngoài mốc. Không dùng absence của nhân sự trong GET tháng để suy ra deleted.
+
+ID không tồn tại được liệt kê trong missingEmployeeIds, không bịa EmployeeDto/revision hoặc cell revision0 cho người đó; các key của người đó không có trong cells. Response200 vẫn đầy đủ phần có thể đọc, client phải đánh dấu thiếu và giữ draft của ID thiếu, không chuyển sang người khác. Bản đầu không có delete/hard-delete nhân sự; nếu ID chưa từng có hoặc bị xóa ngoài contract thì cùng biểu diễn missing, không khẳng định lịch sử xóa hoặc tự tái tạo. DB lỗi trả5xx chung, không coi như missing. Lỗi shape/auth/origin từ chối toàn request, không trả dữ liệu một phần. Việc đọc được trạng thái mới không tự đưa người trở lại bảng tháng hoặc cho phép ghi N/—.
+
+Ví dụ sau PATCH dời ngày bắt đầu sang01/11 và response mất: target20/10 vắng, source19/10 đã được phiên khác clear nội dung/nhắc thành tombstone trước khi đổi mốc, đều N. ID102 chưa tồn tại. Request:
+
+```json
+{"employeeIds":["00000000-0000-4000-8000-000000000101","00000000-0000-4000-8000-000000000102"],"cells":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"work"},{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-19","kind":"work"}]}
+```
+
+```json
+{"fetchedAt":"2026-10-28T08:10:00.000Z","employees":[{"id":"00000000-0000-4000-8000-000000000101","name":"Nhân sự thử 01","startDate":"2026-11-01","endDate":null,"revision":"00000000-0000-4000-8000-000000000202"}],"cells":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-19","kind":"work","value":null,"reminder":false,"revision":"00000000-0000-4000-8000-000000000203","state":"before-start"},{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"work","value":null,"reminder":false,"revision":"0","state":"before-start"}],"missingEmployeeIds":["00000000-0000-4000-8000-000000000102"]}
+```
+
+## 4. Một ô, reminder riêng, batch và fill
+
+Chỉ một use case ghi: một ô là targets có một phần tử; batch có tập ô chọn rõ ràng, không hình chữ nhật bao ngoài. `expectedEmployees` chứa đúng các nhân sự khác nhau thuộc targets và source nếu có, mỗi entry employeeId/expectedRevision. Đối chiếu cả ô trống lẫn ngày làm việc; không chỉ kiểm ô có record.
+
+```ts
+type CellExpectationDto = CellKeyDto & { expectedRevision: string };
+type WriteAttendanceDto = {
+  month: string;
+  expectedEmployees: { employeeId: string; expectedRevision: string }[];
+  targets: CellExpectationDto[];
+  operation:
+    | { type: 'set-value'; value: CellValueDto; mode: 'fill-empty' | 'replace' }
+    | { type: 'set-reminder'; reminder: boolean }
+    | { type: 'patch-cell'; patch: { value?: CellValueDto; reminder?: boolean } };
+  source?: CellExpectationDto;
+};
+type TargetPreviewDto = { selected: number; eligible: number; skipped: number; changed: number };
+type WriteResultDto = { state: 'saved'; cells: CellSnapshotDto[];
+  employees: EmployeeDto[]; counts: TargetPreviewDto; savedAt: string };
+```
+
+- Thiếu required field không thành default ghi. value=null nghĩa xóa nội dung, không xóa reminder; type set-reminder chỉ đổi reminder, không mang value/mode/source. UI bản đầu chỉ set-reminder một ô; API từ chối reminder targets nhiều hơn1 để không tự thêm thao tác nhắc hàng loạt chưa thiết kế.
+- `patch-cell` chỉ đúng một target, không mode/source; patch có ít nhất một trong value/reminder, unknown field hoặc patch rỗng/null trả400. Field thiếu giữ nguyên field đó; value=null xóa nội dung; reminder=false tắt nhắc, reminder=null trả400. Normalize/validate value theo kind như set-value (work0→F, overtime0/F không hợp lệ). Hai field gửi cùng nhau dùng **một** cell expectedRevision và cùng employee CAS/transaction; một lỗi validation/conflict thì cả value/reminder/revision không đổi. Editor đổi cả giá trị và màu trước một lần Lưu gửi một patch-cell, không tách hai request hoặc tự lưu toggle. Chỉ đổi màu có thể dùng set-reminder hoặc patch chỉ reminder; Hủy không gửi write. Runtime và OpenAPI phải enforce một target/patch minProperties=1/oneOf discriminator, không chỉ dựa optional TypeScript.
+- Batch UI mặc định fill-empty; wire bắt mode rõ, server không đoán. Trống là value=null dù reminder=true, F/số không trống. replace thay nội dung nhưng vẫn kiểm revision, không ghi đè người khác bằng force flag.
+- Client dedupe target; server trả400 `DUPLICATE_TARGET` nếu trùng để bắt lỗi client, không ghi lặp. Tất cả targets/source phải cùng month và cùng kind, employee tồn tại. Trái phạm vi trả422 `INVALID_TARGET_SCOPE` trước ghi. source chỉ hợp lệ với set-value, không nằm trong targets, hiện editable và có số/F; value gửi phải khớp snapshot source sau normalize. Không copy reminder hoặc tạo dãy. Source thay đổi revision trả409 ngay cả khi nội dung tình cờ bằng cũ.
+- Trong transaction: kiểm employee revision của toàn bộ tập, đối chiếu revision mọi ô editable được chọn (kể cả ô có sẵn sẽ không được fill-empty), và source; bất kỳ stale nào trả409, không tự co/giãn tập ghi. Sau đó loại N/— khỏi eligible và báo skipped; fill-empty loại nội dung không rỗng. Không có eligible trả422 `NO_ELIGIBLE_TARGETS`, không ghi.
+- selected=targets.length, skipped chỉ ô N/—, eligible sau skip/mode, changed chỉ ô có value/reminder thật sự thay sau normalize, không tính revision. Source không tính target. **Mỗi eligible target của write được chấp nhận đều nhận UUID revision mới**, kể cả no-op changed=0; clear/reminder=false trên ô vắng tạo empty tombstone revision khác0. Một patch đổi cả hai field chỉ cấp một revision. CAS chạy trước xét no-op, không chấp nhận stale vì giá trị tình cờ bằng nhau. Server trả snapshots mọi target và employee revision hiện tại; attendance write không đổi Employee revision vì Employee chỉ được đọc/khóa. Query month invalidate để lấy tổng, chỉ báo saved sau response. Tổng cũ trong lúc refetch phải có trạng thái đang cập nhật, không gọi đã đồng bộ.
+- Đích fill-empty đã có số/F, đích N/— và source chỉ đọc: không đổi nội dung, nhắc hoặc revision, không được gọi là đã fence. Đích không rỗng được fill-empty loại không nằm trong eligible và cũng không cộng vào skipped (skipped chỉ N/—); có thể suy số loại do mode bằng selected-skipped-eligible. eligible=0 trả422 `NO_ELIGIBLE_TARGETS`, không cấp bất kỳ revision nào; không dùng request bị từ chối để xác nhận đã giữ giá trị. Lỗi/rollback ở bất kỳ đích nào giữ cả revision của những đích còn lại.
+
+Ví dụ một ô công0 thànhF, giữ reminder:
+
+```json
+{"month":"2026-10","expectedEmployees":[{"employeeId":"00000000-0000-4000-8000-000000000101","expectedRevision":"4cb38a76-560e-4511-aea2-479d48cb9490"}],"targets":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"work","expectedRevision":"0"}],"operation":{"type":"set-value","value":{"type":"number","value":0},"mode":"replace"}}
+```
+
+Response200 (employee vẫn mốc15/10–không kết thúc của ví dụ POST; các fixture mỗi mục độc lập):
+
+```json
+{"state":"saved","cells":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"work","value":{"type":"absence"},"reminder":false,"revision":"00000000-0000-4000-8000-000000000301","state":"editable"}],"employees":[{"id":"00000000-0000-4000-8000-000000000101","name":"Nhân sự thử 01","startDate":"2026-10-15","endDate":null,"revision":"4cb38a76-560e-4511-aea2-479d48cb9490"}],"counts":{"selected":1,"eligible":1,"skipped":0,"changed":1},"savedAt":"2026-10-28T08:00:00.000Z"}
+```
+
+Ví dụ editor tiếp từ response trên: đổi F→1,5 và bật nhắc trong một lần Lưu, request/response đầy đủ:
+
+```json
+{"month":"2026-10","expectedEmployees":[{"employeeId":"00000000-0000-4000-8000-000000000101","expectedRevision":"4cb38a76-560e-4511-aea2-479d48cb9490"}],"targets":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"work","expectedRevision":"00000000-0000-4000-8000-000000000301"}],"operation":{"type":"patch-cell","patch":{"value":{"type":"number","value":1.5},"reminder":true}}}
+```
+
+```json
+{"state":"saved","cells":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"work","value":{"type":"number","value":1.5},"reminder":true,"revision":"00000000-0000-4000-8000-000000000302","state":"editable"}],"employees":[{"id":"00000000-0000-4000-8000-000000000101","name":"Nhân sự thử 01","startDate":"2026-10-15","endDate":null,"revision":"4cb38a76-560e-4511-aea2-479d48cb9490"}],"counts":{"selected":1,"eligible":1,"skipped":0,"changed":1},"savedAt":"2026-10-28T08:01:00.000Z"}
+```
+
+Ví dụ recovery giữ ô overtime đang vắng/không nhắc: người dùng đã đối chiếu và chọn giữ reminder=false, request set-reminder vẫn được gửi; response changed=0 nhưng tạo tombstone revision307, không giữ0:
+
+```json
+{"month":"2026-10","expectedEmployees":[{"employeeId":"00000000-0000-4000-8000-000000000101","expectedRevision":"4cb38a76-560e-4511-aea2-479d48cb9490"}],"targets":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"overtime","expectedRevision":"0"}],"operation":{"type":"set-reminder","reminder":false}}
+```
+
+```json
+{"state":"saved","cells":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"overtime","value":null,"reminder":false,"revision":"00000000-0000-4000-8000-000000000307","state":"editable"}],"employees":[{"id":"00000000-0000-4000-8000-000000000101","name":"Nhân sự thử 01","startDate":"2026-10-15","endDate":null,"revision":"4cb38a76-560e-4511-aea2-479d48cb9490"}],"counts":{"selected":1,"eligible":1,"skipped":0,"changed":0},"savedAt":"2026-10-28T08:01:30.000Z"}
+```
+
+Batch/fill giữ operation set-value chỉ ghi nội dung. Trước Áp dụng UI hiển thị số ô và mode; replace có dữ liệu hiển thị xác nhận “Ghi đè nội dung của … ô”, không thêm undo sau lưu. Hủy xác nhận giữ draft. Ví dụ fill số3,5: nguồn19/10 ở revision303 có reminder=false; đích20/10 trống có reminder=true/revision304, đích22/10 có F/revision305, đích14/10=N/revision0. Chỉ20/10 eligible, nhắc đích giữ true; nguồn và hai đích bị loại không đổi revision. Request/response:
+
+```json
+{"month":"2026-10","expectedEmployees":[{"employeeId":"00000000-0000-4000-8000-000000000101","expectedRevision":"4cb38a76-560e-4511-aea2-479d48cb9490"}],"targets":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-14","kind":"work","expectedRevision":"0"},{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"work","expectedRevision":"00000000-0000-4000-8000-000000000304"},{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-22","kind":"work","expectedRevision":"00000000-0000-4000-8000-000000000305"}],"operation":{"type":"set-value","value":{"type":"number","value":3.5},"mode":"fill-empty"},"source":{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-19","kind":"work","expectedRevision":"00000000-0000-4000-8000-000000000303"}}
+```
+
+```json
+{"state":"saved","cells":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-14","kind":"work","value":null,"reminder":false,"revision":"0","state":"before-start"},{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"work","value":{"type":"number","value":3.5},"reminder":true,"revision":"00000000-0000-4000-8000-000000000306","state":"editable"},{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-22","kind":"work","value":{"type":"absence"},"reminder":false,"revision":"00000000-0000-4000-8000-000000000305","state":"editable"}],"employees":[{"id":"00000000-0000-4000-8000-000000000101","name":"Nhân sự thử 01","startDate":"2026-10-15","endDate":null,"revision":"4cb38a76-560e-4511-aea2-479d48cb9490"}],"counts":{"selected":3,"eligible":1,"skipped":1,"changed":1},"savedAt":"2026-10-28T08:02:00.000Z"}
+```
+
+Batch chọn rời không kéo dùng cùng shape, bỏ hẳn source; không gửi source=null. Response không chứa ô nguồn vì source chỉ đọc; reconcile đọc lại source khi cần. WriteResult cells sắp employee/date/kind, employees sắp ID và chứa union nhân sự đích/nguồn.
+
+Conflict response409:
+
+```json
+{"error":{"code":"ATTENDANCE_CONFLICT","message":"Dữ liệu đã thay đổi. Hãy kiểm tra trước khi lưu lại.","details":{"cells":[{"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-10-20","kind":"work","value":{"type":"number","value":1.5},"reminder":true,"revision":"aef81b89-a688-4cca-9ceb-2d52dc9bdd85","state":"editable"}],"employees":[],"sourceChanged":false}},"requestId":"fixture-request-01"}
+```
+
+Nếu employee revision đổi, details.employees có EmployeeDto mới và cells gồm target/source cần đối chiếu; toàn bộ batch vẫn rollback. UI giữ raw/value/màu/mode/selection/source và baseline cũ, hiển thị dữ liệu mới cạnh draft. Chỉ sau quyết định rõ của người dùng mới tạo intent mới với baseline mới; không force-write/auto retry hoặc tự merge draft. Lỗi validation422 có details `{fields:[{path,code,message}]}`, lỗi network/status5xx không bị chuyển thành saved.
+
+## 5. Snapshot, export và timeout
+
+GET tháng và export đọc snapshot nhất quán của nhân sự/cả hai loại/tổng theo [data-model](data-model.md); dữ liệu đang draft không được gửi vào export. Export200 Content-Type=`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, attachment filename ASCII `minh-khue-2026-10.xlsx` và filename* UTF-8 nếu cần. Lỗi trước stream trả JSON; stream đứt không báo tải thành công. Một sheet Công trên/Tăng ca dưới, text/số/trống đúng kiểu; công thức SUM và cached values, fullCalcOnLoad. Header ngày/năm xuất text để tránh Excel date serial làm lệch các năm không hỗ trợ.
+
+Mutation timeout/connection lost là **chưa biết kết quả**, kể cả abort từ client không hứa DB rollback. Không tự retry mutation POST/PATCH, không dùng requestId làm idempotency. Khóa submit của intent cũ; đọc lại tháng để cập nhật bảng và dùng reconcile với mọi employee ID/target/source của intent để đối chiếu, không phụ thuộc nhân sự còn giao tháng. Nếu request cũ còn chạy, mọi read có thể thấy trước commit: GET/reconcile/abort/đóng editor/bỏ draft không là fence và không chứng minh request cũ đã kết thúc. Giữ trạng thái chưa xác định; cho người dùng xem lại snapshot, không tự đổi baseline draft hoặc báo saved vì giá trị trùng.
+
+Sau đối chiếu, người dùng có thể chủ ý gửi **intent mới** theo revisions vừa xem, kể cả chọn giữ giá trị hiện tại: dùng replace hoặc patch-cell với field muốn giữ được gửi tường minh; employee PATCH gửi field muốn giữ. Không bỏ request này vì client thấy no-op. Trên resource cả A cũ và B mới cùng kiểm CAS/ghi: nếu A commit sau snapshot đối chiếu nhưng trước khi B lấy lock, B conflict; nếu B được chấp nhận trước, revision mới của B khiến A stale và rollback toàn bộ. B thành công chỉ xác nhận ý định mới trên các đích eligible đã nhận revision mới; không xác nhận tác giả/kết quả A, không ngăn write tương lai dùng baseline mới.
+
+Fence trên cell áp cho cả value/reminder; fence Employee chỉ được tạo bởi Employee PATCH, attendance write không ngăn PATCH nhân sự cũ nếu Employee revision chưa đổi. Đích fill-empty đã có nội dung, N/— và source không được fence chỉ vì cùng xuất hiện trong request; eligible=0 cũng không fence. Nếu người dùng muốn giữ giá trị một đích editable bị fill-empty loại, phải đối chiếu rồi chọn replace/patch tường minh, không tự đổi mode hoặc tập đích. Không ghi nguồn để giả hủy fill; stale một eligible target hoặc employee mà A phụ thuộc đã đủ làm A rollback, nhưng không được hứa hủy mọi request khác liên quan source/đích bị skip. Nếu tất cả đích bị loại hoặc người dùng chỉ bỏ draft thì vẫn không có bằng chứng hủy A; tiếp tục cho tải/đối chiếu và hiển thị chưa xác định. Khi mốc đổi, không mở ghi N/— để tạo fence.
+
+POST tạo nhân sự bị mất response trước khi có ID không có CAS để fence/reconcile theo ID; tên trùng được phép nên không suy thành công từ tên hoặc tự gửi lại. Giữ kết quả chưa xác định, tải lại danh sách để người dùng đối chiếu; chỉ đọc theo ID khi đã xác định được ID. Không hứa exactly-once hoặc thêm idempotency/create-recovery protocol trong bản này.
+
+Poll đọc15.000ms khi màn hình active, refocus/reconnect đọc lại, không timer từng ô; không hứa tab bị hạn chế vẫn15s. Query read network/5xx retry tối đa2 lần (1s/3s),4xx không retry; riêng POST reconcile cũng là read nên áp cùng policy, mọi mutation write retry=0. Hiện fetchedAt của snapshot và lỗi cập nhật, không báo đồng bộ giả. Draft baseline độc lập query snapshot; logout xóa cache/draft của phiên với cảnh báo trước logout khi dirty, hết phiên giữ draft tạm trong bộ nhớ cho cùng user đăng nhập lại; nếu user khác thì hủy draft/cảnh báo, không gửi sang account khác. Không persist vào URL/localStorage/IndexedDB.
+
+## 6. Gate kiểm contract
+
+Task2 tạo drift pipeline; task3–9 cập nhật DTO/snapshot/types cùng commit. Test runtime malformed/unknown/null/NaN/scope/permission/revision được ánh xạ tại [verification-matrix](verification-matrix.md). OpenAPI oneOf phải mô tả đúng discriminator và runtime validate cùng quy tắc, Nest decorators không tự đảm bảo; compile type không thay test HTTP/PostgreSQL.
+
+## 7. Fixture MonthDto đầy đủ để kiểm contract
+
+GET `/attendance/month?month=2026-02` không có body. Response200 dưới đây là toàn bộ tháng28 ngày, một nhân sự giao tháng, đủ56 ô và28 tổng ngày cho mỗi loại; không phải projection cắt ngắn. Ngày01=N, ngày02 công F/tăng ca trống, ngày03 có1,5 công (nhắc xanh) và2 giờ; ngày04–28=—. Tổng công1,5 và tăng ca2, trống/F/N/— không cộng số. Fixture độc lập với các ví dụ tháng10. Cells theo employee/date/kind (kind theo tên wire: overtime trước work).
+
+```json
+{
+  "month": "2026-02",
+  "fetchedAt": "2026-10-28T08:03:00.000Z",
+  "employees": [
+    {
+      "id": "00000000-0000-4000-8000-000000000101",
+      "name": "Nhân sự thử 01",
+      "startDate": "2026-02-02",
+      "endDate": "2026-02-03",
+      "revision": "00000000-0000-4000-8000-000000000400"
+    }
+  ],
+  "cells": [
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-01","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"before-start"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-01","kind":"work","value":null,"reminder":false,"revision":"0","state":"before-start"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-02","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"editable"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-02","kind":"work","value":{"type":"absence"},"reminder":false,"revision":"00000000-0000-4000-8000-000000000401","state":"editable"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-03","kind":"overtime","value":{"type":"number","value":2},"reminder":false,"revision":"00000000-0000-4000-8000-000000000402","state":"editable"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-03","kind":"work","value":{"type":"number","value":1.5},"reminder":true,"revision":"00000000-0000-4000-8000-000000000403","state":"editable"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-04","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-04","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-05","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-05","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-06","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-06","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-07","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-07","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-08","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-08","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-09","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-09","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-10","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-10","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-11","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-11","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-12","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-12","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-13","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-13","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-14","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-14","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-15","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-15","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-16","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-16","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-17","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-17","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-18","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-18","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-19","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-19","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-20","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-20","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-21","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-21","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-22","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-22","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-23","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-23","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-24","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-24","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-25","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-25","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-26","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-26","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-27","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-27","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-28","kind":"overtime","value":null,"reminder":false,"revision":"0","state":"after-end"},
+    {"employeeId":"00000000-0000-4000-8000-000000000101","date":"2026-02-28","kind":"work","value":null,"reminder":false,"revision":"0","state":"after-end"}
+  ],
+  "totals": {
+    "work": {
+      "byEmployee": [
+        {
+          "employeeId": "00000000-0000-4000-8000-000000000101",
+          "value": 1.5
+        }
+      ],
+      "byDate": [
+        {"date":"2026-02-01","value":0},
+        {"date":"2026-02-02","value":0},
+        {"date":"2026-02-03","value":1.5},
+        {"date":"2026-02-04","value":0},
+        {"date":"2026-02-05","value":0},
+        {"date":"2026-02-06","value":0},
+        {"date":"2026-02-07","value":0},
+        {"date":"2026-02-08","value":0},
+        {"date":"2026-02-09","value":0},
+        {"date":"2026-02-10","value":0},
+        {"date":"2026-02-11","value":0},
+        {"date":"2026-02-12","value":0},
+        {"date":"2026-02-13","value":0},
+        {"date":"2026-02-14","value":0},
+        {"date":"2026-02-15","value":0},
+        {"date":"2026-02-16","value":0},
+        {"date":"2026-02-17","value":0},
+        {"date":"2026-02-18","value":0},
+        {"date":"2026-02-19","value":0},
+        {"date":"2026-02-20","value":0},
+        {"date":"2026-02-21","value":0},
+        {"date":"2026-02-22","value":0},
+        {"date":"2026-02-23","value":0},
+        {"date":"2026-02-24","value":0},
+        {"date":"2026-02-25","value":0},
+        {"date":"2026-02-26","value":0},
+        {"date":"2026-02-27","value":0},
+        {"date":"2026-02-28","value":0}
+      ],
+      "grandTotal": 1.5
+    },
+    "overtime": {
+      "byEmployee": [
+        {
+          "employeeId": "00000000-0000-4000-8000-000000000101",
+          "value": 2
+        }
+      ],
+      "byDate": [
+        {"date":"2026-02-01","value":0},
+        {"date":"2026-02-02","value":0},
+        {"date":"2026-02-03","value":2},
+        {"date":"2026-02-04","value":0},
+        {"date":"2026-02-05","value":0},
+        {"date":"2026-02-06","value":0},
+        {"date":"2026-02-07","value":0},
+        {"date":"2026-02-08","value":0},
+        {"date":"2026-02-09","value":0},
+        {"date":"2026-02-10","value":0},
+        {"date":"2026-02-11","value":0},
+        {"date":"2026-02-12","value":0},
+        {"date":"2026-02-13","value":0},
+        {"date":"2026-02-14","value":0},
+        {"date":"2026-02-15","value":0},
+        {"date":"2026-02-16","value":0},
+        {"date":"2026-02-17","value":0},
+        {"date":"2026-02-18","value":0},
+        {"date":"2026-02-19","value":0},
+        {"date":"2026-02-20","value":0},
+        {"date":"2026-02-21","value":0},
+        {"date":"2026-02-22","value":0},
+        {"date":"2026-02-23","value":0},
+        {"date":"2026-02-24","value":0},
+        {"date":"2026-02-25","value":0},
+        {"date":"2026-02-26","value":0},
+        {"date":"2026-02-27","value":0},
+        {"date":"2026-02-28","value":0}
+      ],
+      "grandTotal": 2
+    }
+  }
+}
+```
+
+## 8. Đọc trang server — thiết kế đã duyệt01/11/2026
+
+Nguồn wire cho delta server của [design15](../design.md#15-phân-trang-server-và-tìm-toàn-tháng--accepted01112026); Task3 đã triển khai route/page snapshot và author verification tại [validation](../validation.md#task3--sql-page-snapshot-02112026), chờ main independent review; full/export order Task4 và snapshot races Task8 còn riêng. Mục7 giữ fixture full MonthDto lịch sử không sửa. `POST /api/v1/attendance/search` là read dùng SessionGuard, auth trước lookup/count; Origin/JSON/16MiB/no-store/errors như reconcile,200 thành công,400 malformed,401/403/413/415 theo policy,503 DB/invariant. Không gọi authorizeMutation, tạo revision/fence hoặc ghi nghiệp vụ; auth idle policy giữ nguyên. q chỉ trong body/memory query key, không URL/history/log body/telemetry/localStorage.
+
+```ts
+type AttendancePageQueryDto = { month: string; q?: string; page?: number; pageSize?: 25 | 50 };
+type AttendancePageDto = {
+  month: string; fetchedAt: string;
+  pagination: { requestedPage: number; page: number; pageSize: 25 | 50;
+    totalResults: number; monthEmployeeCount: number; totalPages: number; from: number; to: number };
+  employees: EmployeeDto[]; cells: CellSnapshotDto[];
+  employeeTotals: { work: { employeeId: string; value: number }[];
+    overtime: { employeeId: string; value: number }[] };
+  monthTotals: { work: { byDate: { date: string; value: number }[]; grandTotal: number };
+    overtime: { byDate: { date: string; value: number }[]; grandTotal: number } };
+};
+```
+
+month bắt buộc theo Gregorian0001–9999 hiện có. Omission q/page/pageSize mặc định `""`/1/25; web luôn gửi đủ4. q string trim ECMAScript whitespace, tối đa200 Unicode code points sau trim, không cắt; page JSON finite integer1…2147483647, pageSize chỉ25/50. Null/sai kiểu/unknown field/chuỗi số bị từ chối, không convert. DTO request optional wire khác internal parsed input required. Nest DTO/Swagger là code owner, sinh OpenAPI/web aliases bằng generator, không sửa generated hoặc dựng wire types web riêng.
+
+Membership startDate≤cuối tháng và endDate null hoặc ≥đầu tháng. q rỗng lấy toàn membership; search toàn membership trước count/page, không sort/filter lại trong web.
+
+### DB authority — Accepted02/11/2026
+
+[Người dùng “Chốt phương án1” và Continue02/11](../decisions.md#db-authority--accepted02112026) chấp nhận PG17.11/ICU67.1 làm authority duy nhất cho name/query lowercase và name order trên page/full read/Excel. q **trim ECMAScript** tại boundary trước bind, giữ200 codepoints sau trim; DB lower tên và trimmed q theo ICU `vi`. Sau lower, literal `strpos` dùng `COLLATE "C"`; ID text giữ raw trimmed q case-sensitive. `%`, `_`, backslash là ký tự thật. Không normalization/unaccent/fuzzy hoặc thêm hạn chế alphabet/tên. Fullmonth/Excel không áp q/page màn hình, chỉ dùng chung order; web không resort bằng Intl.
+
+Policy **PINNED bounded** sau independent R1 tại `321d488f041e6d5386adea9f86ca8749ef896144`: `mkw_read_vi_equivalent`, provider ICU i/locale vi/deterministic=false, collversion=actualVersion153.14.37; actual PG17.11/loaded ICU67.1. Name order `ORDER BY "name" COLLATE "mkw_read_vi_equivalent" ASC, "id" ASC`; name/query DB lower rồi C literal strpos, q ECMAScript trim và ID raw case-sensitive. Canonical101/102/duplicate108/109 compare0/ID ASC; canonical search vẫn literal. Pin hữu hạn28/15; future runtime drift vẫn phải fail-stop, không fallback.
+
+**Expected-policy differences chấp nhận:** lower ID126 vẫnU+1C89, ID127 vẫnU+1C8A; lower query hoaU+1C89 giữU+1C89; query hoa trả`[126]`, thường trả`[127]`; cuối full order`[126,127]`. Old JS lower cả haiU+1C8A, queries`[127,126]`, order`[127,126]` vẫn là diagnostic immutable, không rewrite expected hoặc artifact để PASS. Các26 relative IDs/13 query lists/canonical+duplicate ties còn lại giữ nguyên; new fixture pin toàn28 lower/15 query lower+IDs/full28 order độc lập trước SQL theo [Task1 continuation](server-pagination-implementation-plan.md#task-1-continuation-capabilitydb-policy-có-oracle-độc-lập-trước-sql-phụ-thuộc). Không đòi DB bằng Intl/JS lower và không cho mọi mismatch tự trở thành accepted difference.
+
+**Gate hiện hành02/11:** Policy `pg17.11-icu67.1-vi-db-authority-v1` **PINNED** và Task1 continuation **COMPLETE đúng bounded capability** sau independent R1 READY TO PIN/0C/0I/0M tại reviewed TIP `321d488f041e6d5386adea9f86ca8749ef896144`. Review report `.superpowers/sdd/server-pagination-implementation-plan/task-1-db-policy-review-r1.md`, taskId tại [validation](../validation.md#task1-db-policy-pinclosure--02112026). Task3 đã đủ prerequisite Task1/2 và là next implementation; Task4 vẫn chờ3 reviewed PASS, Task8 chờ3/4/7 (7 đã complete), Task9 chờ8 và các gate riêng. Không claim Task3/4/8/9 complete. Old JS FAIL4/FAIL5/PASS26/13 hashes và artifacts giữ nguyên. Startup wrapper exit−1 và launch-script fix vẫn **Not verified**. Live HTTP/auth/Prisma/session/ports, product SQL/page/fullmonth/Excel, browser/performance/native/SR/reader/final whole-branch gates giữ riêng; không nâng thành PASS từ capability hữu hạn.
+
+### Task1 — prerequisite FAIL sau R1, chưa pin candidate
+
+**Checkpoint lịch sử01/11: JS parity Failed, không đủ điều kiện pin hoặc hoàn tất Task1 lúc đó.** Gate mới02/11 ở mục DB authority phía trên có kết quả riêng, không thay observed FAIL và old expectations tại đây. Focused SQL confirmation R1 trên đúng Task10 PG17.11/ICU67.1 và Node24.22.1/ICU78.3 dùng fixed JS oracle28 tên/15 truy vấn: candidate `mkw_read_vi_equivalent` **FAIL4** (order, lowercase, hai literal-search), deterministic candidate **FAIL5** (thêm canonical-equivalence; order là một mismatch cho toàn list). Provider/locale/version giữ nguyên. 26 tên/13 truy vấn và thứ tự tương đối cũ được bảo toàn; chỉ thêm ID126=`U+1C89`, ID127=`U+1C8A` và hai query, expected cố định từ JS trước SQL.
+
+JS lower cả hai thành U+1C8A, mỗi query khớp `[ID127, ID126]`. SQL lower U+1C89 vẫn U+1C89, lower U+1C8A vẫn U+1C8A; query hoa chỉ trả ID126, query thường chỉ trả ID127. SQL order cuối list là `[ID126, ID127]`, JS là `[ID127, ID126]`. Input này hợp lệ theo contract tên hiện hành; đổi `deterministic` không bổ sung Unicode case/collation tables. `COLLATE "C"` sau lower không bù được sai khác. Vì vậy policy SQL bên dưới không đáp ứng semantics JS đã duyệt tại thời điểm01/11; delta02/11 chấp nhận khác biệt cụ thể này nhưng không biến kết quả cũ thành PASS.
+
+Immutable artifact mới `server-pagination/parity-8063a9d5-8fcd-4608-b770-d5c1859151fb/collation-parity.json` (SHA256 `a1de4139120a2e612e11f6141d7b4f2ce81b8c402a4816c3b346da9e1b987175`) giữ đầy đủ actual order/lower code points/query expected+actual IDs/exact expressions/mismatches. Provenance và full output tại [validation R1](../validation.md#task1-fix-r1--sql-xác-nhận-fail-01112026). PASS26/13 lịch sử bên dưới và artifact cũ không bị sửa. SQL Tasks3/4/8/9 tiếp tục gated; Tasks2/5/6/7 độc lập có thể tiếp tục theo main.
+
+**Các lựa chọn lịch sử01/11 trước quyết định02/11; không phải next action hiện hành:**
+
+- Capability delta ưu tiên để giữ semantics: một PG/ICU build có case/collation data tương thích Node ICU78.3/Unicode17 và Intl `vi` đã pin; kiểm lại toàn fixed oracle28/15, canonical ties và ID tie trước pin. Chỉ nhận biết U+1C89 chưa đủ, vì cả order cũng lệch và cùng version chưa tự chứng minh parity. Cần quyền tương lai cho provision/đổi runtime, kiểm migration/collation version/reindex phù hợp và fresh independent review; không cài/nâng trong lượt này. Tradeoff: thêm vận hành/version coupling nhưng tránh đổi nghĩa search/order đã duyệt.
+- Contract delta thay thế nếu giữ PG hiện có: định nghĩa rõ lower/order theo PG17.11/ICU67.1 `vi`, literal substring sau lower, ID gốc; chấp nhận query U+1C8A chỉ khớp ID127, query U+1C89 chỉ ID126 và order126 trước127. Đây là thay đổi observable Unicode case/search/order, cần người dùng duyệt riêng và đồng bộ web/full read/export/tests sau quyết định; không sửa expected JS hiện tại để coi như đã đạt. Tradeoff: giữ runtime hiện có nhưng bỏ parity với semantics JS đã duyệt.
+
+Stored search key do Node tính có thể giải phần lower, nhưng không giải order đã đo; cần schema/backfill/write/version/concurrency design và phê duyệt riêng trước khi xét là giải pháp đầy đủ. Không bespoke mapping, đổi alphabet/normalization, fallback ASCII hoặc full list về app để sort/slice trong task này. Independent review có thể đánh giá bằng chứng FAIL; chỉ reviewed PASS của giải pháp được phép mới mở dependent SQL.
+
+### Task1 — lịch sử PASS26/13 trước R1
+
+Sandbox Task10 PG17.11/ICU67.1, Node24.22.1/ICU78.3: fixture cố định26 tên/13 truy vấn trong [employee-read-fixtures](../../../../apps/api/test/employee-read-fixtures.mjs) được pin từ JS trước SQL. [Parity test](../../../../apps/api/test/employee-read-parity.integration.test.mjs) kiểm toàn ordered IDs, lowercase từng tên, literal search và canonical tie. Candidate `mkw_read_vi_equivalent`, provider `icu`, locale `vi`, `deterministic=false`, collversion/actualVersion `153.14.37`: **PASS,0 mismatch**. Candidate deterministic giữ riêng **FAIL,2 mismatches**: binary tie đặt decomposed ID102 trước precomposed101, khác Intl comparator0/ID101 trước102. Không đổi fixed expected hoặc normalize tên để che khác biệt.
+
+Policy kỹ thuật đã thử trước R1 (hiện FAIL với fixture mở rộng): `ORDER BY "name" COLLATE "mkw_read_vi_equivalent" ASC, "id" ASC`; trim ECMAScript ở boundary trước bind `$1`; tên/query lowercase qua `lower(... COLLATE "mkw_read_vi_equivalent")`, rồi gắn `COLLATE "C"` cho **literal** `strpos`, nhánh ID giữ text gốc case-sensitive. Expression đầy đủ:
+
+```sql
+strpos(lower("name" COLLATE "mkw_read_vi_equivalent") COLLATE "C",
+       lower($1::text COLLATE "mkw_read_vi_equivalent") COLLATE "C") > 0
+OR strpos("id"::text COLLATE "C", $1::text COLLATE "C") > 0
+```
+
+`C` chỉ sở hữu literal substring sau locale lower, không thay Vietnamese order/lower bằng ASCII. Nondeterministic ở đây bỏ binary tie cho canonical-equivalent names, không đổi substring thành normalized/accent-insensitive. Candidate này chưa được pin và R1 đã xác nhận FAIL ở trên; chưa migration/product SQL. Evidence immutable retained `server-pagination/parity-ef12623b-2593-4b37-b19c-13279590d954/collation-parity.json` dưới ignored `.agent-runs/MKW-PRODUCT-001/`, kèm exact expressions/identity/runtime/fixture hash; lệnh và cleanup tại [validation](../validation.md#task1-server-pagination--capabilityparity-và-scoped-owner-01112026). Đổi PG/ICU/Node/collation version phải chạy lại gate; fixture hữu hạn không chứng minh mọi Unicode. Không chọn fallback từ input. HTTP lifecycle mới chỉ mock-tested, live rotation/port closure Not run.
+
+Một READ ONLY REPEATABLE READ transaction trả fetchedAt/count/page/cells/row totals/month totals nhất quán; kiểm corruption value/F/reminder ngoài employment interval trong toàn tháng kể cả offpage/out-of-membership phải503 an toàn. Count và SQL LIMIT/OFFSET dùng cùng membership/predicate/order; không full list/snapshot về app rồi sort/slice. Cells đủ page IDs × mọi ngày ×2 kinds, employee/date/kind order, giữ tombstone/N/—/revision0 như G1. employeeTotals chỉ page IDs, mỗi số cả tháng; monthTotals toàn membership không phụ thuộc q/page, đủ ngày0, halfUnits nguyên/safe conversion, chỉ numeric cộng. Count/global aggregate/invariant DB vẫn có thể tốn theo toàn tháng; bounded payload không chứng minh bounded DB cost.
+
+totalPages=ceil(totalResults/pageSize). Có kết quả: page=min(requestedPage,totalPages), from=(page−1)×pageSize+1, to=min(page×pageSize,totalResults). Không kết quả: page1/totalPages0/from0/to0, employees/cells/cả hai employeeTotals rỗng; monthTotals vẫn toàn tháng. requestedPage giữ input gốc.976 người/page40/size25 →40 trang/from976/to976;975 →39 trang/page39/from951/to975/requestedPage40. monthEmployeeCount không lọc, totalResults có lọc; không echo q hoặc thêm mọi IDs. Mỗi request fresh, không collection lock/version xuyên trang, fetchedAt không CAS token.
+
+Full MonthDto/GET/export giữ shape và nghiệp vụ, order theo accepted DB authority02/11; UI editing dùng DTO page, không fullmonth background subscription. Export nhận month và đọc full snapshot thời điểm riêng, đóng transaction trước workbook, không hứa cùng fetchedAt với page. Write/reconcile shapes, CAS/no-op/tombstone/atomic/fence/unknown rules mục4–5 không đổi; query invalidate page tháng sau write, user/epoch namespace sau employee change, chỉ active refetch. Kiểm contract/parser/auth/HTTP/PG/races/drift/consumer ở plan Tasks1–4/8, Task3 page HTTP/SQL đã author verified7/7, policy6/6 trên migration collation được pin theo Task1; main review còn pending. Task4 full/export order và Task8 races/browser **Not run** trong Task3; không suy scoped page proof thành complete toàn feature.

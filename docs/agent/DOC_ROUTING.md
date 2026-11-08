@@ -7,12 +7,15 @@ Mặc định: [AGENTS](../../AGENTS.md) → [AUTHORITY_MAP](AUTHORITY_MAP.md) �
 | Nhận/tiếp tục/bàn giao task | [EXECUTION_RULES](EXECUTION_RULES.md), [HANDOFF](../templates/HANDOFF.md) khi chuyển phiên |
 | Phạm vi, quyền, cài đặt, remote | [PERMISSIONS](PERMISSIONS.md) |
 | Chọn/cài/cập nhật skill | [SKILL_POLICY](SKILL_POLICY.md), [SKILL_USAGE_MATRIX](../../SKILL_USAGE_MATRIX.md), [READINESS](READINESS.md) |
-| Dùng MCP/plugin/tool/model | [TOOL_CAPABILITIES](TOOL_CAPABILITIES.md), quyền liên quan và schema runtime |
-| Viết/sửa source hoặc tooling | Plan đã duyệt, [QUALITY_GATES](QUALITY_GATES.md), tài liệu module/contract khi có |
-| UI/UX hoặc thao tác browser | [BROWSER_TESTING](BROWSER_TESTING.md), nhóm UI trong skill matrix, thiết kế hiện hành khi có |
+| Dùng MCP/plugin/tool/model | [TOOL_CAPABILITIES](TOOL_CAPABILITIES.md), [giới hạn cứng model subagent](SKILL_POLICY.md#giới-hạn-cứng-model-subagent), quyền liên quan và schema runtime |
+| Viết/sửa source hoặc tooling | Plan đã duyệt, [QUALITY_GATES](QUALITY_GATES.md); với sản phẩm đọc [ARCHITECTURE](../architecture/ARCHITECTURE.md), [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md) và module/contract liên quan |
+| UI/UX hoặc thao tác browser | [UI_SYSTEM](../architecture/UI_SYSTEM.md), [BROWSER_TESTING](BROWSER_TESTING.md), nhóm UI trong skill matrix, thiết kế hiện hành khi có |
 | Lỗi | Evidence hiện có, skill debugging khi đã cài, quality gate liên quan; mở rộng source/log theo giả thuyết |
-| DB/API | Yêu cầu đã duyệt và nguồn contract/schema khi có; chưa có thì làm rõ, không suy từ báo cáo khảo sát |
+| State/cache/bản nháp | [CODE_CONVENTIONS](../architecture/CODE_CONVENTIONS.md), [ADR-002](../architecture/decisions/ADR-002-state-management.md); luồng chi tiết tại [architecture proposal](../tasks/MKW-PRODUCT-001/technical/architecture-proposal.md), stack phương án A theo [ADR-003](../architecture/decisions/ADR-003-product-stack.md) đã duyệt; chi tiết còn mở vẫn để review |
+| Đọc/sửa source, chia file hoặc refactor module | [SOURCE_NAVIGATION](../architecture/SOURCE_NAVIGATION.md), module README/file map nếu có; đọc source/dependency/consumer/test theo tác động, không nạp toàn repo hoặc chỉ đọc TOC |
+| DB/API | Yêu cầu đã duyệt, [API_CONTRACTS](../architecture/API_CONTRACTS.md), [ARCHITECTURE](../architecture/ARCHITECTURE.md) và contract/schema cụ thể khi có; chưa có thì làm rõ, không suy từ báo cáo khảo sát |
 | Chỉ sửa tài liệu | Nguồn sở hữu cần sửa, quyền/phạm vi và check tài liệu trong QUALITY_GATES |
+| Kế hoạch triển khai sản phẩm001 | [Design mục15 server/page-local đã duyệt01/11](../tasks/MKW-PRODUCT-001/design.md) → [server pagination plan Approved01/11](../tasks/MKW-PRODUCT-001/technical/server-pagination-implementation-plan.md) + [DB-authority decision Accepted02/11](../tasks/MKW-PRODUCT-001/decisions.md) → independent amendment review trước code → Task1 actual fixed DB-policy PASS + review →3/4/8/9; không lặp user choice/plan approval. [Plan cũ](../tasks/MKW-PRODUCT-001/technical/implementation-plan.md) là lịch sử các task/gate, không resume cho delta mới; giữ ADR/UI/G1 business và prerequisite capability/DB-policy consistency, immutable old JS FAIL, không suy design approval thành code/trial |
 | Hỏi mức sẵn sàng hoặc chuẩn bị pilot | [READINESS](READINESS.md), validation đúng checkpoint |
 
 Mở báo cáo SellerFlow chỉ khi cần rationale/provenance. Gặp thiếu tài liệu ảnh hưởng tính đúng phải ghi thiếu và xử lý tại nguồn; không tạo placeholder rồi coi như đã có quyết định.
