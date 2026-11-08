@@ -33,7 +33,7 @@ Sinh ảnh là khả năng bổ sung theo task tài sản bitmap, không là bư
 
 | Nhu cầu | Skill | Khi dùng |
 | --- | --- | --- |
-| Kiểm tra/diagnose VPS, Docker, MKW deploy, GitHub Actions release hoặc Cloudflare origin mà không thay đổi production | `mkw-server-debugger` ([SKILL.md](.agents/skills/mkw-server-debugger/SKILL.md)) | Khi cần health/read-only checks, phân loại lỗi kết nối, kiểm tra `/home/docker`, `/home/mkw`, gateway `3200`, container/volume metadata hoặc release evidence |
+| Kiểm tra/diagnose VPS, Docker, MKW deploy, GitHub Actions release hoặc Cloudflare origin mà không thay đổi production | `mkw-server-debugger` ([SKILL.md](.agents/skills/mkw-server-debugger/SKILL.md)) | Khi cần health/read-only checks, phân loại lỗi kết nối, kiểm tra `/home/docker`, `/home/deploy/mkw`, gateway `3200`, container/volume metadata hoặc release evidence |
 
 Skill này giữ ranh giới read-only, không dùng `sudo`, không đọc secret và không tự deploy/restart/migrate/backup/restore. Khi cần mutation, phải chuyển sang runbook và quyền riêng.
 

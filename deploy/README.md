@@ -34,7 +34,7 @@ before running a workflow; do not put passwords or tokens in the repository:
 MKW_SSH_HOST=113.184.16.191
 MKW_SSH_PORT=1122
 MKW_SSH_HOST_FINGERPRINT=<verified SHA256 fingerprint>
-MKW_DEPLOY_PATH=/home/mkw
+MKW_DEPLOY_PATH=/home/deploy/mkw
 MKW_PROJECT_NAME=mkw
 MKW_GATEWAY_PORT=3200
 MKW_COMPOSE_SOURCE=deploy/compose.production.yml
@@ -49,10 +49,10 @@ Run modes in this order:
 
 1. `dry-run` checks Docker, Compose, `/home` capacity, port ownership and
    deployment identity. It creates nothing.
-2. `bootstrap` creates `/home/mkw` and generates `shared/db.env` and
+2. `bootstrap` creates `/home/deploy/mkw` and generates `shared/db.env` and
    `shared/api.env` using the server CSPRNG when both are absent. Existing
    files are preserved. They are mode `0600` and values are never printed.
-3. An approved backup job must create `/home/mkw/shared/backup.ready` only
+3. An approved backup job must create `/home/deploy/mkw/shared/backup.ready` only
    after a real backup and integrity check. The release gate refuses to run
    without this marker; bootstrap does not fabricate it.
 4. `release` uploads the Compose file and immutable manifest, validates the

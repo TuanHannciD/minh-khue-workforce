@@ -16,7 +16,7 @@ done
 
 [[ -n "$mode" ]] || { echo "usage: deploy-entrypoint.sh --dry-run|--bootstrap|--release" >&2; exit 64; }
 
-: "${MKW_DEPLOY_PATH:=/home/mkw}"
+: "${MKW_DEPLOY_PATH:=/home/deploy/mkw}"
 : "${MKW_PROJECT_NAME:=mkw}"
 : "${MKW_GATEWAY_PORT:=3200}"
 
