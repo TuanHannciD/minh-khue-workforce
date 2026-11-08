@@ -1,6 +1,6 @@
 # Chọn skill theo công việc
 
-15 Superpowers và 2 bộ UI dưới đây đã cài project-local tại `.agents/skills/`. Nguồn/pin/override ở [SKILL_POLICY](docs/agent/SKILL_POLICY.md); mức kiểm chứng tại [READINESS](docs/agent/READINESS.md). Chỉ load phần cần cho task. Khi runtime chưa tự liệt kê, đọc trực tiếp `.agents/skills/<tên>/SKILL.md`; việc đọc file không chứng minh auto-discovery.
+15 Superpowers, 2 bộ UI và skill vận hành MKW dưới đây đã cài project-local tại `.agents/skills/`. Nguồn/pin/override ở [SKILL_POLICY](docs/agent/SKILL_POLICY.md); mức kiểm chứng tại [READINESS](docs/agent/READINESS.md). Chỉ load phần cần cho task. Khi runtime chưa tự liệt kê, đọc trực tiếp `.agents/skills/<tên>/SKILL.md`; việc đọc file không chứng minh auto-discovery.
 
 ## Superpowers — 15 skill
 
@@ -28,6 +28,14 @@
 - `ui-ux-pro-max`: tra cứu một nhu cầu cụ thể về UX, typography, palette, component/stack. Kết quả là tham khảo, không thay brief hay rule.
 
 Sinh ảnh là khả năng bổ sung theo task tài sản bitmap, không là bước bắt buộc của UI. Skill UI không chứng minh có browser; thao tác thật theo [BROWSER_TESTING](docs/agent/BROWSER_TESTING.md).
+
+## Vận hành server Minh Khuê
+
+| Nhu cầu | Skill | Khi dùng |
+| --- | --- | --- |
+| Kiểm tra/diagnose VPS, Docker, MKW deploy, GitHub Actions release hoặc Cloudflare origin mà không thay đổi production | `mkw-server-debugger` ([SKILL.md](.agents/skills/mkw-server-debugger/SKILL.md)) | Khi cần health/read-only checks, phân loại lỗi kết nối, kiểm tra `/home/docker`, `/home/mkw`, gateway `3200`, container/volume metadata hoặc release evidence |
+
+Skill này giữ ranh giới read-only, không dùng `sudo`, không đọc secret và không tự deploy/restart/migrate/backup/restore. Khi cần mutation, phải chuyển sang runbook và quyền riêng.
 
 ## Specialist Minh Khuê — thiết kế vai trò, chưa tạo SKILL.md
 
