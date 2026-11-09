@@ -13,6 +13,7 @@ import { createBackupReady } from '../../scripts/product/operations/create-backu
 import { verifyRestore } from '../../scripts/product/operations/verify-restore.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
+const BACKUP_SCHEMA = JSON.parse(await readFile(join(ROOT, 'deploy/backup-ready.schema.json'), 'utf8'));
 const SHA = 'a'.repeat(40);
 const API = 'ghcr.io/minh-khue/api@sha256:' + '1'.repeat(64);
 const WEB = 'ghcr.io/minh-khue/web@sha256:' + '2'.repeat(64);
@@ -104,6 +105,17 @@ test('rejects initial empty evidence with unknown fields or invalid timestamp', 
   const result = validateBackupReady(initial);
   assert.equal(result.ok, false);
   assert.match(result.errors.join('\n'), /emptyEvidence/i);
+});
+
+test('backup schema declares kind-specific conditional invariants', () => {
+  assert.ok(Array.isArray(BACKUP_SCHEMA.allOf));
+  const backupRule = BACKUP_SCHEMA.allOf.find((rule) => rule.if?.properties?.kind?.const === 'BACKUP');
+  const initialRule = BACKUP_SCHEMA.allOf.find((rule) => rule.if?.properties?.kind?.const === 'INITIAL_EMPTY_DEPLOYMENT');
+  assert.deepEqual(backupRule.then.required.sort(), ['databaseIdentity', 'dumpSha256', 'size']);
+  assert.equal(backupRule.then.properties.restoreVerified.const, true);
+  assert.deepEqual(initialRule.then.required.sort(), ['databaseVerifiedEmpty', 'emptyEvidence']);
+  assert.equal(initialRule.then.properties.restoreVerified.const, false);
+  assert.deepEqual(initialRule.then.not.anyOf.map((entry) => entry.required[0]).sort(), ['dumpSha256', 'size']);
 });
 
 test('verifies exact release SHA and image digests in rendered compose', () => {
