@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -8,10 +9,15 @@ test("CI has the reviewed Task1 policy pin metadata", async () => {
     "utf8",
   );
   const metadata = JSON.parse(raw);
+  const fixture = await readFile(metadata.fixture);
   assert.equal(
     metadata.reviewedTip,
     "321d488f041e6d5386adea9f86ca8749ef896144",
   );
   assert.equal(metadata.status, "COMPLETE");
   assert.equal(metadata.decision, "READY TO PIN");
+  assert.equal(
+    createHash("sha256").update(fixture).digest("hex"),
+    metadata.fixtureSha256,
+  );
 });

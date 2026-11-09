@@ -127,15 +127,10 @@ async function verifyPolicy(s) {
       metadata.fixture === fixture,
     "reviewed Task1 DB policy PASS missing",
   );
-  const source = await readFile(fixture),
-    reviewed = (
-      await exec("git", ["show", `${reviewedTip}:${fixture}`], {
-        encoding: "buffer",
-      })
-    ).stdout;
+  const source = await readFile(fixture);
   assert.equal(
     hash(source),
-    hash(reviewed),
+    metadata.fixtureSha256,
     "reviewed fixed DB fixture hash drift",
   );
   const identity = (

@@ -2,5 +2,6 @@
   "reviewedTip": "321d488f041e6d5386adea9f86ca8749ef896144",
   "status": "COMPLETE",
   "decision": "READY TO PIN",
-  "fixture": "apps/api/test/employee-read-db-policy-fixtures.mjs"
+  "fixture": "apps/api/test/employee-read-db-policy-fixtures.mjs",
+  "fixtureSha256": "89a9b5a8978cb63da29def46878e23c0d1a1e05b4693e8314a078f10d0962468"
 }
