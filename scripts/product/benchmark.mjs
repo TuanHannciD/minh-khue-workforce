@@ -116,13 +116,15 @@ async function verifyPolicy(s) {
   const reviewedTip = "321d488f041e6d5386adea9f86ca8749ef896144",
     fixture = "apps/api/test/employee-read-db-policy-fixtures.mjs";
   const pin = await readFile(
-    ".superpowers/sdd/server-pagination-implementation-plan/task-1-db-policy-pin-report.md",
+    "scripts/product/fixtures/task-1-db-policy-pin.json",
     "utf8",
   );
+  const metadata = JSON.parse(pin);
   assert(
-    pin.includes(reviewedTip) &&
-      pin.includes("READY TO PIN") &&
-      pin.includes("COMPLETE"),
+    metadata.reviewedTip === reviewedTip &&
+      metadata.decision === "READY TO PIN" &&
+      metadata.status === "COMPLETE" &&
+      metadata.fixture === fixture,
     "reviewed Task1 DB policy PASS missing",
   );
   const source = await readFile(fixture),

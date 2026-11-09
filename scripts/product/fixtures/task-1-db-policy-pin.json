@@ -1,0 +1,6 @@
+{
+  "reviewedTip": "321d488f041e6d5386adea9f86ca8749ef896144",
+  "status": "COMPLETE",
+  "decision": "READY TO PIN",
+  "fixture": "apps/api/test/employee-read-db-policy-fixtures.mjs"
+}
