@@ -17,6 +17,14 @@ on:
         description: Build-release workflow run that owns the artifact
         required: true
         type: string
+      backup_run_id:
+        description: Backup workflow run containing backup-ready metadata
+        required: true
+        type: string
+      backup_artifact_name:
+        description: Exact backup artifact name
+        required: true
+        type: string
 
 concurrency:
   group: mkw-production
@@ -46,6 +54,15 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ inputs.release_run_id }}
 
+      - name: Download backup-ready metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.backup_artifact_name }}
+          path: backup-ready
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.backup_run_id }}
+
       - name: Validate artifact and release manifest
         shell: bash
         env:
@@ -57,7 +74,9 @@ jobs:
           test -f release-artifact/release-manifest.json
           test -f release-artifact/release-manifest.sha256
           (cd release-artifact && sha256sum --check release-manifest.sha256)
-          node scripts/product/release/validate-manifest.mjs release-artifact/release-manifest.json`r`n          # deploy-entrypoint.sh runs the approved forward db:deploy migration and health smoke before traffic
+          node scripts/product/release/validate-manifest.mjs release-artifact/release-manifest.json
+          test -s backup-ready/backup-ready.json
+          node scripts/product/release/validate-backup-ready.mjs backup-ready/backup-ready.json
           node --input-type=module - "$RELEASE_SHA" release-artifact/release-manifest.json <<'NODE'
           import { readFile } from 'node:fs/promises';
           const [expected, path] = process.argv.slice(2);
@@ -93,10 +112,10 @@ jobs:
           printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
           remote_dir="${MKW_DEPLOY_PATH}/releases/${RELEASE_SHA}"
-          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact deploy/compose.production.yml scripts/product/deploy-entrypoint.sh
+          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json deploy/compose.production.yml scripts/product/deploy-entrypoint.sh
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir'"
           scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-release.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && rm -f '$remote_dir/release.tgz'"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && install -m 640 '$remote_dir/backup-ready/backup-ready.json' '$MKW_DEPLOY_PATH/shared/backup-ready.json' && rm -rf '$remote_dir/backup-ready' '$remote_dir/release.tgz'"
           printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q bash -s -- --%q --manifest %q --compose %q --backup-ready %q' \
             "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$MODE" \
             "$remote_dir/release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"

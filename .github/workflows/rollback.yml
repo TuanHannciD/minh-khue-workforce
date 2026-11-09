@@ -86,3 +86,22 @@ jobs:
             "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" \
             "$remote_dir/old-release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env" < scripts/product/deploy-entrypoint.sh
+
+      - name: Emit rollback receipt and signal
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cat > rollback-receipt.json <<JSON
+          {"rollback":true,"oldReleaseSha":"${{ inputs.old_release_sha }}","reason":"${{ inputs.reason }}","result":"${{ job.status }}","signal":"rollback-requested"}
+          JSON
+          test -s rollback-receipt.json
+          echo "rollback-signal=rollback-requested" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload rollback receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkw-rollback-receipt-${{ inputs.old_release_sha }}
+          path: rollback-receipt.json
+          if-no-files-found: error

@@ -48,7 +48,7 @@ jobs:
           printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" \
-            "set -Eeuo pipefail; test -s '$MKW_DEPLOY_PATH/receipts'; receipt=\$(ls -1t '$MKW_DEPLOY_PATH/receipts'/*.json | head -n1); grep -q '\"releaseSha\":\"$RELEASE_SHA\"' \"\$receipt\"; grep -Eq 'sha256:[0-9a-f]{64}' \"\$receipt\"; docker compose -p '$MKW_PROJECT_NAME' ps; docker compose -p '$MKW_PROJECT_NAME' run --rm api pnpm db:deploy; curl --fail --silent --show-error --max-time 10 'http://127.0.0.1:$MKW_GATEWAY_PORT/'; curl --fail --silent --show-error --max-time 10 'http://127.0.0.1:$MKW_GATEWAY_PORT/api/health'"
+            "set -Eeuo pipefail; test -s '$MKW_DEPLOY_PATH/receipts'; receipt=\$(ls -1t '$MKW_DEPLOY_PATH/receipts'/*.json | head -n1); grep -q '\"releaseSha\":\"$RELEASE_SHA\"' \"\$receipt\"; grep -Eq 'sha256:[0-9a-f]{64}' \"\$receipt\"; docker compose -p '$MKW_PROJECT_NAME' ps; curl --fail --silent --show-error --max-time 10 'http://127.0.0.1:$MKW_GATEWAY_PORT/'; curl --fail --silent --show-error --max-time 10 'http://127.0.0.1:$MKW_GATEWAY_PORT/api/health'"
 
       - name: Record verification receipt and rollback path
         if: always()
@@ -56,7 +56,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           cat > verification-receipt.json <<JSON
-          {"releaseSha":"${{ inputs.release_sha }}","gateway":"smoke","schema":"migration-forward-check","imageDigests":"receipt-checked","startup":"docker-compose-ps-checked","rollback":".github/workflows/rollback.yml","result":"${{ job.status }}"}
+          {"releaseSha":"${{ inputs.release_sha }}","gateway":"smoke","schema":"receipt-checked","imageDigests":"receipt-checked","startup":"docker-compose-ps-checked","rollback":".github/workflows/rollback.yml","result":"${{ job.status }}"}
           JSON
           test -s verification-receipt.json
           echo "Verification result: ${{ job.status }}; rollback workflow: .github/workflows/rollback.yml"

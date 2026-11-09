@@ -80,7 +80,7 @@ jobs:
             node - "$BACKUP_DIR/backup-ready.json" "$backup_id" "$now" "$retention" "$digest" "$size" "$database_host" "$database_name" "$RELEASE_SHA" <<'NODE'
           const { writeFile } = await import('node:fs/promises');
           const [, out, backupId, createdAt, retentionUntil, dumpSha256, size, host, name, releaseSha] = process.argv;
-          await writeFile(out, JSON.stringify({ schemaVersion:'1', kind:'BACKUP', backupId, releaseSha, createdAt, dumpSha256, size:Number(size), restoreVerified:true, retentionUntil, storageLocation:'github-actions-artifact:mkw-backup', databaseIdentity:{ host, name, engine:'postgresql' } }, null, 2)+'\n');
+          await writeFile(out, JSON.stringify({ schemaVersion:'1', kind:'BACKUP', backupId, releaseSha, createdAt, dumpSha256, size:Number(size), restoreVerified:false, retentionUntil, storageLocation:'github-actions-artifact:mkw-backup', databaseIdentity:{ host, name, engine:'postgresql' } }, null, 2)+'\n');
           NODE
           else
             node - "$BACKUP_DIR/backup-ready.json" "$backup_id" "$now" "$retention" "$RELEASE_SHA" <<'NODE'
