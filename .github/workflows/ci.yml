@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: mkw-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up pnpm
+        shell: bash
+        run: corepack enable
+      - name: Install dependencies
+        shell: bash
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm run product:lint
+      - name: Format check
+        run: pnpm run product:format:check
+      - name: Typecheck
+        run: pnpm run product:typecheck
+      - name: Unit and integration tests
+        run: pnpm run product:test
+      - name: Contract check
+        run: pnpm run product:contract:check
+      - name: Build
+        run: pnpm run product:build
+      - name: Product boundaries
+        run: pnpm run product:boundaries
+      - name: Product aggregate check
+        run: pnpm run product:check

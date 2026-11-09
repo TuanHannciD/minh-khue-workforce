@@ -1,0 +1,161 @@
+name: Build immutable release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types:
+      - completed
+    branches: [main]
+
+concurrency:
+  group: mkw-release-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout immutable CI commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Validate source SHA
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'workflow_run head_sha must be a full 40-character lowercase SHA' >&2
+            exit 64
+          }
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Normalize image namespace
+        id: image
+        shell: bash
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push API image
+        id: api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.api
+          push: true
+          tags: ghcr.io/${{ steps.image.outputs.owner }}/mkw-api:${{ github.event.workflow_run.head_sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          provenance: true
+          sbom: true
+
+      - name: Build and push web image
+        id: web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.web
+          push: true
+          tags: ghcr.io/${{ steps.image.outputs.owner }}/mkw-web:${{ github.event.workflow_run.head_sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          provenance: true
+          sbom: true
+
+      - name: Read pinned PostgreSQL image
+        id: postgres
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          postgres_image="$(awk -F= '$1 == "MKW_POSTGRES_IMAGE" { value=$2; count++ } END { if (count == 1) print value }' deploy/postgres-image.env)"
+          [[ "$postgres_image" =~ ^postgres@sha256:[0-9a-f]{64}$ ]] || {
+            echo 'deploy/postgres-image.env must contain exactly one immutable PostgreSQL image' >&2
+            exit 78
+          }
+          echo "image=$postgres_image" >> "$GITHUB_OUTPUT"
+
+      - name: Write release metadata
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+          POSTGRES_IMAGE: ${{ steps.postgres.outputs.image }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$API_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$WEB_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$POSTGRES_IMAGE" =~ ^postgres@sha256:[0-9a-f]{64}$ ]]
+          printf '%s\n' "{
+            \"sourceSha\": \"$SOURCE_SHA\",
+            \"apiDigest\": \"$API_DIGEST\",
+            \"webDigest\": \"$WEB_DIGEST\",
+            \"postgresImage\": \"$POSTGRES_IMAGE\",
+            \"generatedBy\": \"docker/build-push-action\"
+          }" > build-metadata.json
+          printf '%s\n' "{\"image\":\"ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mkw-api@${API_DIGEST}\",\"type\":\"sbom\"}" > sbom.json
+          printf '%s\n' "{\"image\":\"ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mkw-api@${API_DIGEST}\",\"type\":\"provenance\"}" > provenance.json
+          node --input-type=module <<'NODE'
+          import { readFile, stat, writeFile } from 'node:fs/promises';
+          import { createHash } from 'node:crypto';
+          const metadata = JSON.parse(await readFile('build-metadata.json', 'utf8'));
+          const artifact = async (path) => {
+            const bytes = await readFile(path);
+            return { sha256: createHash('sha256').update(bytes).digest('hex'), size: bytes.length };
+          };
+          const manifest = {
+            schemaVersion: '1',
+            releaseSha: metadata.sourceSha,
+            sourceRepository: process.env.GITHUB_REPOSITORY,
+            createdAt: new Date().toISOString(),
+            apiImage: `ghcr.io/${process.env.GITHUB_REPOSITORY_OWNER.toLowerCase()}/mkw-api@${metadata.apiDigest}`,
+            webImage: `ghcr.io/${process.env.GITHUB_REPOSITORY_OWNER.toLowerCase()}/mkw-web@${metadata.webDigest}`,
+            postgresImage: metadata.postgresImage,
+            artifacts: { sbom: await artifact('sbom.json'), provenance: await artifact('provenance.json') },
+          };
+          await writeFile('release-manifest.json', `${JSON.stringify(manifest, null, 2)}\n`);
+          NODE
+          node scripts/product/release/validate-manifest.mjs release-manifest.json
+          sha256sum release-manifest.json > release-manifest.sha256
+          sha256sum release-manifest.json sbom.json provenance.json > release-checksums.sha256
+
+      - name: Upload immutable release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkw-release-${{ github.event.workflow_run.head_sha }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            release-manifest.json
+            release-manifest.sha256
+            release-checksums.sha256
+            sbom.json
+            provenance.json
+            build-metadata.json
+
+
+
