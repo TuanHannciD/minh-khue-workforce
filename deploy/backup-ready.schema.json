@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://minh-khue.invalid/schemas/backup-ready.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "backupId", "releaseSha", "createdAt", "restoreVerified", "retentionUntil", "storageLocation"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "kind": { "enum": ["BACKUP", "INITIAL_EMPTY_DEPLOYMENT"] },
+    "backupId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$" },
+    "releaseSha": { "type": "string", "pattern": "^[a-fA-F0-9]{40}([a-fA-F0-9]{24})?$" },
+    "createdAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$" },
+    "dumpSha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+    "size": { "type": "integer", "minimum": 1 },
+    "restoreVerified": { "type": "boolean" },
+    "retentionUntil": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$" },
+    "storageLocation": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "databaseIdentity": {
+      "type": "object", "additionalProperties": false, "required": ["host", "name", "engine"],
+      "properties": { "host": { "type": "string", "minLength": 1 }, "name": { "type": "string", "minLength": 1 }, "engine": { "const": "postgresql" } }
+    },
+    "databaseVerifiedEmpty": { "type": "boolean" },
+    "emptyEvidence": {
+      "type": "object", "additionalProperties": false, "required": ["targetIdentity", "databaseIdentity", "checkedAt"],
+      "properties": { "targetIdentity": { "type": "string", "minLength": 1 }, "databaseIdentity": { "type": "string", "minLength": 1 }, "checkedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$" } }
+    }
+  }
+}

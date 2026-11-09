@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://minh-khue.invalid/schemas/release-manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "releaseSha", "sourceRepository", "createdAt", "apiImage", "webImage", "postgresImage", "artifacts"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "releaseSha": { "type": "string", "pattern": "^[a-fA-F0-9]{40}([a-fA-F0-9]{24})?$" },
+    "sourceRepository": { "type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$" },
+    "createdAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$" },
+    "apiImage": { "type": "string", "pattern": "^[^@\\s]+@sha256:[a-fA-F0-9]{64}$" },
+    "webImage": { "type": "string", "pattern": "^[^@\\s]+@sha256:[a-fA-F0-9]{64}$" },
+    "postgresImage": { "type": "string", "pattern": "^postgres(?:[^@\\s]*)@sha256:[a-fA-F0-9]{64}$" },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sbom", "provenance"],
+      "properties": {
+        "sbom": { "$ref": "#/$defs/artifact" },
+        "provenance": { "$ref": "#/$defs/artifact" }
+      }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "size"],
+      "properties": {
+        "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+        "size": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
