@@ -10,7 +10,11 @@ on:
         options: [dry-run, bootstrap, release]
         default: dry-run
       release_sha:
-        description: Full commit SHA to deploy
+        description: Full commit SHA whose immutable release artifact is deployed
+        required: true
+        type: string
+      release_run_id:
+        description: Build-release workflow run that owns the artifact
         required: true
         type: string
 
@@ -20,41 +24,58 @@ concurrency:
 
 permissions:
   contents: read
-  packages: read
+  actions: read
 
 jobs:
   deploy:
     environment: production
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 1
 
-      - name: Validate immutable release input
+      - name: Download immutable release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mkw-release-${{ inputs.release_sha }}
+          path: release-artifact
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.release_run_id }}
+
+      - name: Validate artifact and release manifest
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
         run: |
           set -Eeuo pipefail
-          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'release_sha must be a full 40-char SHA'; exit 64; }
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'release_sha must be a full 40-char lowercase SHA'; exit 64; }
           test -s scripts/product/deploy-entrypoint.sh
+          test -f release-artifact/release-manifest.json
+          test -f release-artifact/release-manifest.sha256
+          (cd release-artifact && sha256sum --check release-manifest.sha256)
+          node scripts/product/release/validate-manifest.mjs release-artifact/release-manifest.json`r`n          # deploy-entrypoint.sh runs the approved forward db:deploy migration and health smoke before traffic
+          node --input-type=module - "$RELEASE_SHA" release-artifact/release-manifest.json <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const [expected, path] = process.argv.slice(2);
+          const manifest = JSON.parse(await readFile(path, 'utf8'));
+          if (manifest.releaseSha !== expected) throw new Error('manifest releaseSha does not match release_sha');
+          NODE
 
-      - name: Run remote deploy entrypoint
+      - name: Run remote deploy entrypoint with verified artifact
         shell: bash
         env:
           MODE: ${{ inputs.mode }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
           MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
           MKW_SSH_PORT: ${{ vars.MKW_SSH_PORT }}
           MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
           MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
           MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
           MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
-          MKW_COMPOSE_SOURCE: ${{ vars.MKW_COMPOSE_SOURCE }}
-          MKW_MANIFEST_SOURCE: ${{ vars.MKW_MANIFEST_SOURCE }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -Eeuo pipefail
           : "${MKW_SSH_HOST:?Set production variable MKW_SSH_HOST}"
@@ -66,74 +87,19 @@ jobs:
           install -m 700 -d "$HOME/.ssh"
           ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
           test -s "$RUNNER_TEMP/mkw_known_hosts"
-          # ssh-keyscan writes known_hosts records (host, key type, base64 key),
-          # while ssh-keygen -lf expects public-key records (key type, base64 key).
-          awk 'NF >= 3 && $2 ~ /^(ssh-|ecdsa-|rsa-)/ {print $2, $3}' \
-            "$RUNNER_TEMP/mkw_known_hosts" > "$RUNNER_TEMP/mkw_public_keys"
-          test -s "$RUNNER_TEMP/mkw_public_keys"
-          : > "$RUNNER_TEMP/mkw_fingerprints"
-          while read -r key_type key_data; do
-            printf '%s %s\n' "$key_type" "$key_data" |
-              ssh-keygen -lf - -E sha256 | awk '{print $2}' >> "$RUNNER_TEMP/mkw_fingerprints"
-          done < "$RUNNER_TEMP/mkw_public_keys"
-          grep -Fx -- "$MKW_SSH_HOST_FINGERPRINT" "$RUNNER_TEMP/mkw_fingerprints"
+          ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" -E sha256 | grep -F -- "$MKW_SSH_HOST_FINGERPRINT"
           install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
           test -n "${{ secrets.MKW_SSH_PRIVATE_KEY }}"
           printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
-          remote_dir="${MKW_DEPLOY_PATH}/releases/${{ inputs.release_sha }}"
-          if [[ "$MODE" == release ]]; then
-            : "${MKW_COMPOSE_SOURCE:=deploy/compose.production.yml}"
-            : "${MKW_MANIFEST_SOURCE:=deploy/release.manifest}"
-            case "$MKW_COMPOSE_SOURCE" in
-              /*|*..*|*\\*) echo 'MKW_COMPOSE_SOURCE must be a repository-relative POSIX path' >&2; exit 78 ;;
-            esac
-            case "$MKW_MANIFEST_SOURCE" in
-              /*|*..*|*\\*) echo 'MKW_MANIFEST_SOURCE must be a repository-relative POSIX path' >&2; exit 78 ;;
-            esac
-            test -f "$MKW_COMPOSE_SOURCE"
-            # Resolve immutable image digests from the already-published SHA tag.
-            # The manifest is generated in the runner and never committed with a
-            # fake digest. A missing/private image fails closed before SSH upload.
-            : "${GH_TOKEN:?GITHUB_TOKEN is required to resolve GHCR images}"
-            trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-            printf '%s\n' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin >/dev/null
-            image_owner="${GITHUB_REPOSITORY_OWNER,,}"
-            resolve_digest() {
-              local ref="$1" digest
-              digest="$(docker buildx imagetools inspect "$ref" 2>/dev/null | awk '/^Digest:[[:space:]]+sha256:/ {print $2; exit}')"
-              [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-                echo "could not resolve immutable digest for $ref" >&2
-                exit 78
-              }
-              printf '%s' "$digest"
-            }
-            api_ref="ghcr.io/${image_owner}/mkw-api:${{ inputs.release_sha }}"
-            web_ref="ghcr.io/${image_owner}/mkw-web:${{ inputs.release_sha }}"
-            api_digest="$(resolve_digest "$api_ref")"
-            web_digest="$(resolve_digest "$web_ref")"
-            postgres_image="$(awk -F= '$1 == "MKW_POSTGRES_IMAGE" { value=$2; count++ } END { if (count == 1) print value }' deploy/postgres-image.env)"
-            [[ "$postgres_image" =~ ^postgres@sha256:[0-9a-f]{64}$ ]] || {
-              echo 'deploy/postgres-image.env must contain one immutable PostgreSQL image' >&2
-              exit 78
-            }
-            mkdir -p "$(dirname "$MKW_MANIFEST_SOURCE")"
-            {
-              printf 'MKW_RELEASE_SHA=%s\n' '${{ inputs.release_sha }}'
-              printf 'MKW_API_IMAGE=ghcr.io/%s/mkw-api@%s\n' "$image_owner" "$api_digest"
-              printf 'MKW_WEB_IMAGE=ghcr.io/%s/mkw-web@%s\n' "$image_owner" "$web_digest"
-              printf 'MKW_POSTGRES_IMAGE=%s\n' "$postgres_image"
-            } > "$MKW_MANIFEST_SOURCE"
-            chmod 0644 "$MKW_MANIFEST_SOURCE"
-            tar -czf "$RUNNER_TEMP/mkw-release.tgz" "$MKW_COMPOSE_SOURCE" "$MKW_MANIFEST_SOURCE"
-            ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir'"
-            scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-release.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
-            ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && rm -f '$remote_dir/release.tgz'"
-            printf -v REMOTE_ENV 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q bash -s -- --release --manifest %q --compose %q' \
-              "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$remote_dir/$MKW_MANIFEST_SOURCE" "$remote_dir/$MKW_COMPOSE_SOURCE"
-          else
-            printf -v REMOTE_ENV 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q bash -s -- --%q' \
-              "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$MODE"
-          fi
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "deploy@$MKW_SSH_HOST" "$REMOTE_ENV" < scripts/product/deploy-entrypoint.sh
+          remote_dir="${MKW_DEPLOY_PATH}/releases/${RELEASE_SHA}"
+          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact deploy/compose.production.yml scripts/product/deploy-entrypoint.sh
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir'"
+          scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-release.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && rm -f '$remote_dir/release.tgz'"
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q bash -s -- --%q --manifest %q --compose %q --backup-ready %q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$MODE" \
+            "$remote_dir/release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env" < scripts/product/deploy-entrypoint.sh
+
+

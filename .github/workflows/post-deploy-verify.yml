@@ -1,0 +1,70 @@
+name: MKW post-deploy verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Release SHA to verify
+        required: true
+        type: string
+      rollback_on_failure:
+        description: Link the rollback run when verification fails
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 1
+
+      - name: Verify gateway, schema, receipt, and image digests
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
+          MKW_SSH_PORT: ${{ vars.MKW_SSH_PORT }}
+          MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
+          MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
+          MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
+          MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 64
+          install -m 700 -d "$HOME/.ssh"
+          ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
+          ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" -E sha256 | grep -F -- "$MKW_SSH_HOST_FINGERPRINT"
+          install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
+          printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
+          chmod 600 "$RUNNER_TEMP/mkw_key"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" \
+            "set -Eeuo pipefail; test -s '$MKW_DEPLOY_PATH/receipts'; receipt=\$(ls -1t '$MKW_DEPLOY_PATH/receipts'/*.json | head -n1); grep -q '\"releaseSha\":\"$RELEASE_SHA\"' \"\$receipt\"; grep -Eq 'sha256:[0-9a-f]{64}' \"\$receipt\"; docker compose -p '$MKW_PROJECT_NAME' ps; docker compose -p '$MKW_PROJECT_NAME' run --rm api pnpm db:deploy; curl --fail --silent --show-error --max-time 10 'http://127.0.0.1:$MKW_GATEWAY_PORT/'; curl --fail --silent --show-error --max-time 10 'http://127.0.0.1:$MKW_GATEWAY_PORT/api/health'"
+
+      - name: Record verification receipt and rollback path
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cat > verification-receipt.json <<JSON
+          {"releaseSha":"${{ inputs.release_sha }}","gateway":"smoke","schema":"migration-forward-check","imageDigests":"receipt-checked","startup":"docker-compose-ps-checked","rollback":".github/workflows/rollback.yml","result":"${{ job.status }}"}
+          JSON
+          test -s verification-receipt.json
+          echo "Verification result: ${{ job.status }}; rollback workflow: .github/workflows/rollback.yml"
+
+      - name: Upload verification receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkw-post-deploy-receipt-${{ inputs.release_sha }}
+          path: verification-receipt.json
+          if-no-files-found: error

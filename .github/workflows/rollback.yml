@@ -1,0 +1,88 @@
+name: MKW protected rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      old_release_sha:
+        description: Previously verified release SHA
+        required: true
+        type: string
+      old_release_run_id:
+        description: Build-release run containing the old immutable artifact
+        required: true
+        type: string
+      reason:
+        description: Incident or approval reference
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  rollback:
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.old_release_sha }}
+          fetch-depth: 1
+
+      - name: Download and verify old manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: mkw-release-${{ inputs.old_release_sha }}
+          path: old-release-artifact
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.old_release_run_id }}
+
+      - name: Verify old manifest and backup-ready gate
+        shell: bash
+        env:
+          OLD_RELEASE_SHA: ${{ inputs.old_release_sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$OLD_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 64
+          test -f old-release-artifact/release-manifest.json
+          test -f old-release-artifact/release-manifest.sha256
+          (cd old-release-artifact && sha256sum --check release-manifest.sha256)
+          node scripts/product/release/validate-manifest.mjs old-release-artifact/release-manifest.json
+          node --input-type=module - "$OLD_RELEASE_SHA" old-release-artifact/release-manifest.json <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const [expected, path] = process.argv.slice(2);
+          const manifest = JSON.parse(await readFile(path, 'utf8'));
+          if (manifest.releaseSha !== expected) throw new Error('old manifest releaseSha mismatch');
+          NODE
+          echo "Old manifest verified for rollback reason: ${{ inputs.reason }}"
+
+      - name: Redeploy exact old digests through deploy-entrypoint.sh
+        shell: bash
+        env:
+          OLD_RELEASE_SHA: ${{ inputs.old_release_sha }}
+          MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
+          MKW_SSH_PORT: ${{ vars.MKW_SSH_PORT }}
+          MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
+          MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
+          MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
+          MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
+        run: |
+          set -Eeuo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
+          ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" -E sha256 | grep -F -- "$MKW_SSH_HOST_FINGERPRINT"
+          install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
+          printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
+          chmod 600 "$RUNNER_TEMP/mkw_key"
+          remote_dir="${MKW_DEPLOY_PATH}/releases/${OLD_RELEASE_SHA}"
+          tar -czf "$RUNNER_TEMP/mkw-rollback.tgz" old-release-artifact deploy/compose.production.yml scripts/product/deploy-entrypoint.sh
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir' && test -s '$MKW_DEPLOY_PATH/shared/backup-ready.json'"
+          scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-rollback.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && rm -f '$remote_dir/release.tgz'"
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q bash -s -- --release --manifest %q --compose %q --backup-ready %q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" \
+            "$remote_dir/old-release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env" < scripts/product/deploy-entrypoint.sh

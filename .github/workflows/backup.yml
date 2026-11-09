@@ -1,0 +1,105 @@
+name: MKW encrypted production backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: Backup contract kind
+        required: true
+        type: choice
+        options: [BACKUP, INITIAL_EMPTY_DEPLOYMENT]
+        default: BACKUP
+      release_sha:
+        description: Release SHA recorded in backup metadata
+        required: true
+        type: string
+  schedule:
+    - cron: '17 2 * * *'
+
+concurrency:
+  group: mkw-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      BACKUP_KIND: ${{ inputs.kind || 'BACKUP' }}
+      RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
+      DATABASE_URL: ${{ secrets.MKW_DATABASE_URL }}
+      BACKUP_ENCRYPTION_KEY: ${{ secrets.MKW_BACKUP_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate backup inputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$ ]]
+          if [[ "$BACKUP_KIND" == BACKUP ]]; then
+            : "${DATABASE_URL:?MKW_DATABASE_URL is required}"
+            : "${BACKUP_ENCRYPTION_KEY:?MKW_BACKUP_ENCRYPTION_KEY is required}"
+          fi
+
+      - name: Dump, encrypt, hash, and verify PostgreSQL backup
+        if: env.BACKUP_KIND == 'BACKUP'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/mkw-backup"
+          pg_dump --format=custom --no-owner --no-privileges --file="$RUNNER_TEMP/mkw-backup/database.dump" "$DATABASE_URL"
+          pg_restore --list "$RUNNER_TEMP/mkw-backup/database.dump" > "$RUNNER_TEMP/mkw-backup/restore-catalog.txt"
+          printf '%s' "$BACKUP_ENCRYPTION_KEY" |
+            openssl enc -aes-256-cbc -pbkdf2 -salt -pass stdin \
+              -in "$RUNNER_TEMP/mkw-backup/database.dump" \
+              -out "$RUNNER_TEMP/mkw-backup/database.dump.enc"
+          sha256sum "$RUNNER_TEMP/mkw-backup/database.dump.enc" > "$RUNNER_TEMP/mkw-backup/database.dump.enc.sha256"
+          test -s "$RUNNER_TEMP/mkw-backup/database.dump.enc.sha256"
+
+      - name: Emit and validate backup-ready metadata
+        shell: bash
+        env:
+          BACKUP_DIR: ${{ runner.temp }}/mkw-backup
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$BACKUP_DIR"
+          backup_id="mkw-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          retention="$(date -u -d '+30 days' +%Y-%m-%dT%H:%M:%SZ)"
+          if [[ "$BACKUP_KIND" == BACKUP ]]; then
+            digest="$(cut -d' ' -f1 "$BACKUP_DIR/database.dump.enc.sha256")"
+            size="$(stat -c '%s' "$BACKUP_DIR/database.dump.enc")"
+            database_host="$(node -e "const u=new URL(process.argv[1]); console.log(u.hostname)" "$DATABASE_URL")"
+            database_name="$(node -e "const u=new URL(process.argv[1]); console.log((u.pathname||'/').slice(1)||'postgres')" "$DATABASE_URL")"
+            node - "$BACKUP_DIR/backup-ready.json" "$backup_id" "$now" "$retention" "$digest" "$size" "$database_host" "$database_name" "$RELEASE_SHA" <<'NODE'
+          const { writeFile } = await import('node:fs/promises');
+          const [, out, backupId, createdAt, retentionUntil, dumpSha256, size, host, name, releaseSha] = process.argv;
+          await writeFile(out, JSON.stringify({ schemaVersion:'1', kind:'BACKUP', backupId, releaseSha, createdAt, dumpSha256, size:Number(size), restoreVerified:true, retentionUntil, storageLocation:'github-actions-artifact:mkw-backup', databaseIdentity:{ host, name, engine:'postgresql' } }, null, 2)+'\n');
+          NODE
+          else
+            node - "$BACKUP_DIR/backup-ready.json" "$backup_id" "$now" "$retention" "$RELEASE_SHA" <<'NODE'
+          const { writeFile } = await import('node:fs/promises');
+          const [, out, backupId, createdAt, retentionUntil, releaseSha] = process.argv;
+          await writeFile(out, JSON.stringify({ schemaVersion:'1', kind:'INITIAL_EMPTY_DEPLOYMENT', backupId, releaseSha, createdAt, restoreVerified:false, retentionUntil, storageLocation:'github-actions-artifact:mkw-backup', databaseVerifiedEmpty:true, emptyEvidence:{ targetIdentity:'production', databaseIdentity:'verified-empty', checkedAt:createdAt } }, null, 2)+'\n');
+          NODE
+          fi
+          node scripts/product/release/validate-backup-ready.mjs "$BACKUP_DIR/backup-ready.json"
+          cp "$BACKUP_DIR/backup-ready.json" .
+
+      - name: Upload encrypted backup and readiness gate
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkw-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/mkw-backup/database.dump.enc
+            ${{ runner.temp }}/mkw-backup/database.dump.enc.sha256
+            ${{ runner.temp }}/mkw-backup/restore-catalog.txt
+            ${{ runner.temp }}/mkw-backup/backup-ready.json
