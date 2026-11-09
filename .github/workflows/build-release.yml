@@ -98,6 +98,23 @@ jobs:
           }
           echo "image=$postgres_image" >> "$GITHUB_OUTPUT"
 
+      - name: Export registry attestations for immutable digests
+        shell: bash
+        env:
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+          OWNER: ${{ steps.image.outputs.owner }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$API_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$WEB_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          docker buildx imagetools inspect "ghcr.io/${OWNER}/mkw-api@${API_DIGEST}" --raw > api-attestations.json
+          docker buildx imagetools inspect "ghcr.io/${OWNER}/mkw-web@${WEB_DIGEST}" --raw > web-attestations.json
+          test -s api-attestations.json
+          test -s web-attestations.json
+          grep -Eiq 'in-toto|cyclonedx|spdx|provenance|sbom' api-attestations.json
+          grep -Eiq 'in-toto|cyclonedx|spdx|provenance|sbom' web-attestations.json
+
       - name: Write release metadata
         shell: bash
         env:
@@ -117,8 +134,6 @@ jobs:
             \"postgresImage\": \"$POSTGRES_IMAGE\",
             \"generatedBy\": \"docker/build-push-action\"
           }" > build-metadata.json
-          printf '%s\n' "{\"image\":\"ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mkw-api@${API_DIGEST}\",\"type\":\"sbom\"}" > sbom.json
-          printf '%s\n' "{\"image\":\"ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mkw-api@${API_DIGEST}\",\"type\":\"provenance\"}" > provenance.json
           node --input-type=module <<'NODE'
           import { readFile, stat, writeFile } from 'node:fs/promises';
           import { createHash } from 'node:crypto';
@@ -135,13 +150,13 @@ jobs:
             apiImage: `ghcr.io/${process.env.GITHUB_REPOSITORY_OWNER.toLowerCase()}/mkw-api@${metadata.apiDigest}`,
             webImage: `ghcr.io/${process.env.GITHUB_REPOSITORY_OWNER.toLowerCase()}/mkw-web@${metadata.webDigest}`,
             postgresImage: metadata.postgresImage,
-            artifacts: { sbom: await artifact('sbom.json'), provenance: await artifact('provenance.json') },
+            artifacts: { sbom: await artifact('api-attestations.json'), provenance: await artifact('web-attestations.json') },
           };
           await writeFile('release-manifest.json', `${JSON.stringify(manifest, null, 2)}\n`);
           NODE
           node scripts/product/release/validate-manifest.mjs release-manifest.json
           sha256sum release-manifest.json > release-manifest.sha256
-          sha256sum release-manifest.json sbom.json provenance.json > release-checksums.sha256
+          sha256sum release-manifest.json api-attestations.json web-attestations.json > release-checksums.sha256
 
       - name: Upload immutable release artifact
         uses: actions/upload-artifact@v4
@@ -153,8 +168,8 @@ jobs:
             release-manifest.json
             release-manifest.sha256
             release-checksums.sha256
-            sbom.json
-            provenance.json
+            api-attestations.json
+            web-attestations.json
             build-metadata.json
 
 
