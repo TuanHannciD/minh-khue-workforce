@@ -42,7 +42,20 @@ fi
 if [[ "$mode" == release ]]; then
   [[ -n "$manifest" && -f "$manifest" ]] || { echo "release manifest is required" >&2; exit 78; }
   [[ -n "$compose" && -f "$compose" ]] || { echo "compose file is required" >&2; exit 78; }
-  grep -Eq '@sha256:[0-9a-f]{64}' "$manifest" || { echo "manifest must pin image digests" >&2; exit 78; }
+  read_manifest_value() {
+    awk -F= -v key="$1" '$1 == key { value=substr($0, index($0, "=") + 1); count++; last=value } END { if (count == 1) print last }' "$manifest"
+  }
+  MKW_API_IMAGE="$(read_manifest_value MKW_API_IMAGE)"
+  MKW_WEB_IMAGE="$(read_manifest_value MKW_WEB_IMAGE)"
+  MKW_POSTGRES_IMAGE="$(read_manifest_value MKW_POSTGRES_IMAGE)"
+  for image_name in MKW_API_IMAGE MKW_WEB_IMAGE MKW_POSTGRES_IMAGE; do
+    image_value="${!image_name}"
+    [[ "$image_value" =~ ^[A-Za-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]] || {
+      echo "manifest must contain one immutable $image_name reference" >&2
+      exit 78
+    }
+    export "$image_name=$image_value"
+  done
 fi
 
 install -d -m 0750 "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/releases" "$MKW_DEPLOY_PATH/current" \
@@ -109,7 +122,14 @@ for i in {1..30}; do
   [[ -z "$unhealthy" ]] && break
   sleep 2
 done
+[[ -z "$unhealthy" ]] || { echo "service health did not become ready" >&2; exit 78; }
 docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" ps
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${MKW_GATEWAY_PORT}/" >/dev/null
-printf '{"project":"%s","manifest":"%s","gateway":"127.0.0.1:%s","status":"ok","utc":"%s"}\n' "$MKW_PROJECT_NAME" "$manifest" "$MKW_GATEWAY_PORT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MKW_DEPLOY_PATH/receipts/$(date -u +%Y%m%dT%H%M%SZ).json"
+curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${MKW_GATEWAY_PORT}/api/health" >/dev/null
+release_sha="${GITHUB_SHA:-unknown}"
+receipt_tmp="$(mktemp "$MKW_DEPLOY_PATH/receipts/.receipt.XXXXXX")"
+printf '{"project":"%s","release_sha":"%s","manifest":"%s","gateway":"127.0.0.1:%s","status":"ok","utc":"%s"}\n' \
+  "$MKW_PROJECT_NAME" "$release_sha" "$manifest" "$MKW_GATEWAY_PORT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$receipt_tmp"
+chmod 640 "$receipt_tmp"
+mv -n "$receipt_tmp" "$MKW_DEPLOY_PATH/receipts/$(date -u +%Y%m%dT%H%M%SZ).json"
 echo "RELEASE_APPLY_OK project=$MKW_PROJECT_NAME"

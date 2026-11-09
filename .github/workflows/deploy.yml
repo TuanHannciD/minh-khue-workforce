@@ -20,6 +20,7 @@ concurrency:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   deploy:
@@ -53,6 +54,7 @@ jobs:
           MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
           MKW_COMPOSE_SOURCE: ${{ vars.MKW_COMPOSE_SOURCE }}
           MKW_MANIFEST_SOURCE: ${{ vars.MKW_MANIFEST_SOURCE }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -Eeuo pipefail
           : "${MKW_SSH_HOST:?Set production variable MKW_SSH_HOST}"
@@ -83,8 +85,43 @@ jobs:
           if [[ "$MODE" == release ]]; then
             : "${MKW_COMPOSE_SOURCE:=deploy/compose.production.yml}"
             : "${MKW_MANIFEST_SOURCE:=deploy/release.manifest}"
+            case "$MKW_COMPOSE_SOURCE" in
+              /*|*..*|*\\*) echo 'MKW_COMPOSE_SOURCE must be a repository-relative POSIX path' >&2; exit 78 ;;
+            esac
+            case "$MKW_MANIFEST_SOURCE" in
+              /*|*..*|*\\*) echo 'MKW_MANIFEST_SOURCE must be a repository-relative POSIX path' >&2; exit 78 ;;
+            esac
             test -f "$MKW_COMPOSE_SOURCE"
-            test -f "$MKW_MANIFEST_SOURCE"
+            # Resolve immutable image digests from the already-published SHA tag.
+            # The manifest is generated in the runner and never committed with a
+            # fake digest. A missing/private image fails closed before SSH upload.
+            : "${GH_TOKEN:?GITHUB_TOKEN is required to resolve GHCR images}"
+            trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+            printf '%s\n' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin >/dev/null
+            image_owner="${GITHUB_REPOSITORY_OWNER,,}"
+            resolve_digest() {
+              local ref="$1" digest
+              digest="$(docker buildx imagetools inspect "$ref" 2>/dev/null | awk '/^Digest:[[:space:]]+sha256:/ {print $2; exit}')"
+              [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+                echo "could not resolve immutable digest for $ref" >&2
+                exit 78
+              }
+              printf '%s' "$digest"
+            }
+            api_ref="ghcr.io/${image_owner}/mkw-api:${{ inputs.release_sha }}"
+            web_ref="ghcr.io/${image_owner}/mkw-web:${{ inputs.release_sha }}"
+            postgres_ref='postgres:17-alpine'
+            api_digest="$(resolve_digest "$api_ref")"
+            web_digest="$(resolve_digest "$web_ref")"
+            postgres_digest="$(resolve_digest "$postgres_ref")"
+            mkdir -p "$(dirname "$MKW_MANIFEST_SOURCE")"
+            {
+              printf 'MKW_RELEASE_SHA=%s\n' '${{ inputs.release_sha }}'
+              printf 'MKW_API_IMAGE=ghcr.io/%s/mkw-api@%s\n' "$image_owner" "$api_digest"
+              printf 'MKW_WEB_IMAGE=ghcr.io/%s/mkw-web@%s\n' "$image_owner" "$web_digest"
+              printf 'MKW_POSTGRES_IMAGE=postgres@%s\n' "$postgres_digest"
+            } > "$MKW_MANIFEST_SOURCE"
+            chmod 0644 "$MKW_MANIFEST_SOURCE"
             tar -czf "$RUNNER_TEMP/mkw-release.tgz" "$MKW_COMPOSE_SOURCE" "$MKW_MANIFEST_SOURCE"
             ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir'"
             scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-release.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"

@@ -2,7 +2,7 @@ name: mkw
 
 services:
   db:
-    image: postgres:17-alpine
+    image: ${MKW_POSTGRES_IMAGE:?MKW_POSTGRES_IMAGE is required}
     restart: unless-stopped
     env_file: ./shared/db.env
     volumes:

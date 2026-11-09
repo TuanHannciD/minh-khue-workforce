@@ -59,8 +59,9 @@ Run modes in this order:
    digest, reconciles the `mkw` project, waits for health and performs a
    gateway smoke check. It writes a JSON receipt under `receipts/`.
 
-The manifest must contain the exact GHCR image references selected by CI, for
-example `ghcr.io/example/mkw-api@sha256:<64 hex digits>` and the matching web
-image. Never replace these with `latest`. Cloudflare can later point a domain
+The manifest must contain exactly one immutable reference for each image used
+by Compose: `MKW_API_IMAGE`, `MKW_WEB_IMAGE`, and `MKW_POSTGRES_IMAGE`, each in
+the form `registry/name@sha256:<64 hex digits>`. Never replace these with
+`latest`. Cloudflare can later point a domain
 to the existing tunnel origin `http://127.0.0.1:3200`; no application secret
 or Compose change is needed for that DNS attachment.
