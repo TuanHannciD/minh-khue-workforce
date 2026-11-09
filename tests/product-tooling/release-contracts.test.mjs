@@ -71,6 +71,14 @@ test('rejects backup manifests with invalid kind-specific invariants or secret-l
   assert.match(secret.errors.join('\n'), /storageLocation|secret/i);
 });
 
+test('rejects backup identity fields that violate the strict nested contract', () => {
+  const result = validateBackupReady(backup({
+    databaseIdentity: { host: '', name: '', engine: 'postgresql', extra: true },
+  }));
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /databaseIdentity/i);
+});
+
 test('accepts initial empty deployment only with identity and empty evidence', () => {
   const initial = backup({
     kind: 'INITIAL_EMPTY_DEPLOYMENT',
@@ -82,6 +90,20 @@ test('accepts initial empty deployment only with identity and empty evidence', (
   delete initial.size;
   const result = validateBackupReady(initial);
   assert.equal(result.ok, true, result.errors.join('; '));
+});
+
+test('rejects initial empty evidence with unknown fields or invalid timestamp', () => {
+  const initial = backup({
+    kind: 'INITIAL_EMPTY_DEPLOYMENT',
+    restoreVerified: false,
+    databaseVerifiedEmpty: true,
+    emptyEvidence: { targetIdentity: '', databaseIdentity: '', checkedAt: '2026-99-99T99:99:99Z', extra: true },
+  });
+  delete initial.dumpSha256;
+  delete initial.size;
+  const result = validateBackupReady(initial);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /emptyEvidence/i);
 });
 
 test('verifies exact release SHA and image digests in rendered compose', () => {

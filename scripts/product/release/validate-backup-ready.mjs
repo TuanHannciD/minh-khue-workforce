@@ -23,15 +23,29 @@ export function validateBackupReady(value) {
     if (value.restoreVerified !== true) errors.push('restoreVerified must be true for BACKUP');
     if (typeof value.dumpSha256 !== 'string' || !/^[a-f0-9]{64}$/i.test(value.dumpSha256)) errors.push('dumpSha256 is required and must be a SHA-256 digest');
     if (!Number.isInteger(value.size) || value.size < 1) errors.push('size is required and must be positive');
-    if (!value.databaseIdentity || typeof value.databaseIdentity !== 'object') errors.push('databaseIdentity is required for BACKUP');
+    if (!value.databaseIdentity || typeof value.databaseIdentity !== 'object' || Array.isArray(value.databaseIdentity)) errors.push('databaseIdentity is required for BACKUP');
   } else {
     if (value.restoreVerified !== false) errors.push('restoreVerified must be false for INITIAL_EMPTY_DEPLOYMENT');
     if (value.databaseVerifiedEmpty !== true) errors.push('databaseVerifiedEmpty must be true for INITIAL_EMPTY_DEPLOYMENT');
     const evidence = value.emptyEvidence;
-    if (!evidence || typeof evidence !== 'object' || typeof evidence.targetIdentity !== 'string' || typeof evidence.databaseIdentity !== 'string' || typeof evidence.checkedAt !== 'string' || !UTC.test(evidence.checkedAt)) errors.push('emptyEvidence target/database identity and UTC checkedAt are required');
+    if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) errors.push('emptyEvidence target/database identity and UTC checkedAt are required');
+    else {
+      for (const key of Object.keys(evidence)) if (!['targetIdentity', 'databaseIdentity', 'checkedAt'].includes(key)) errors.push(`emptyEvidence.${key} is unknown`);
+      if (typeof evidence.targetIdentity !== 'string' || evidence.targetIdentity.length === 0) errors.push('emptyEvidence.targetIdentity is required');
+      if (typeof evidence.databaseIdentity !== 'string' || evidence.databaseIdentity.length === 0) errors.push('emptyEvidence.databaseIdentity is required');
+      if (typeof evidence.checkedAt !== 'string' || !UTC.test(evidence.checkedAt) || Number.isNaN(Date.parse(evidence.checkedAt))) errors.push('emptyEvidence.checkedAt must be a UTC timestamp');
+    }
     if ('dumpSha256' in value || 'size' in value) errors.push('INITIAL_EMPTY_DEPLOYMENT cannot contain dump metadata');
   }
-  if (value.databaseIdentity && (typeof value.databaseIdentity !== 'object' || typeof value.databaseIdentity.host !== 'string' || typeof value.databaseIdentity.name !== 'string' || value.databaseIdentity.engine !== 'postgresql')) errors.push('databaseIdentity is invalid');
+  if (value.databaseIdentity) {
+    if (typeof value.databaseIdentity !== 'object' || Array.isArray(value.databaseIdentity)) errors.push('databaseIdentity is invalid');
+    else {
+      for (const key of Object.keys(value.databaseIdentity)) if (!['host', 'name', 'engine'].includes(key)) errors.push(`databaseIdentity.${key} is unknown`);
+      if (typeof value.databaseIdentity.host !== 'string' || value.databaseIdentity.host.length === 0) errors.push('databaseIdentity.host is required');
+      if (typeof value.databaseIdentity.name !== 'string' || value.databaseIdentity.name.length === 0) errors.push('databaseIdentity.name is required');
+      if (value.databaseIdentity.engine !== 'postgresql') errors.push('databaseIdentity.engine must be postgresql');
+    }
+  }
   return { ok: errors.length === 0, errors };
 }
 
