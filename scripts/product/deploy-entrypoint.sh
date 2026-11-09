@@ -1,135 +1,111 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-
 mode=""
 manifest="${MKW_RELEASE_MANIFEST:-}"
 compose="${MKW_COMPOSE_FILE:-}"
+backup_ready="${MKW_BACKUP_READY:-}"
 while (($#)); do
   case "$1" in
     --dry-run|--bootstrap|--release) mode="${1#--}" ;;
     --manifest) shift; manifest="${1:-}" ;;
     --compose) shift; compose="${1:-}" ;;
+    --backup-ready) shift; backup_ready="${1:-}" ;;
     *) echo "unknown argument: $1" >&2; exit 64 ;;
   esac
   shift
 done
-
 [[ -n "$mode" ]] || { echo "usage: deploy-entrypoint.sh --dry-run|--bootstrap|--release" >&2; exit 64; }
-
 : "${MKW_DEPLOY_PATH:=/home/deploy/mkw}"
 : "${MKW_PROJECT_NAME:=mkw}"
 : "${MKW_GATEWAY_PORT:=3200}"
-
+: "${MKW_RELEASE_SHA:=${GITHUB_SHA:-}}"
+script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 case "$MKW_DEPLOY_PATH" in /home/*) ;; *) echo "deploy path must be under /home" >&2; exit 78 ;; esac
 [[ "$MKW_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "invalid project name" >&2; exit 78; }
 [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo "invalid gateway port" >&2; exit 78; }
-
-if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; then
-  echo "Docker Compose is required" >&2; exit 69
-fi
+command -v docker >/dev/null && docker compose version >/dev/null 2>&1 || { echo "Docker Compose is required" >&2; exit 69; }
 free_kb="$(df -Pk /home | awk 'NR==2 {print $4}')"
 (( free_kb >= 1048576 )) || { echo "insufficient /home space (<1 GiB)" >&2; exit 75; }
-if ss -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "(^|:)${MKW_GATEWAY_PORT}$"; then
-  owned="$(docker ps --filter "label=com.docker.compose.project=${MKW_PROJECT_NAME}" --format '{{.Ports}}' | grep -E "(^|:)${MKW_GATEWAY_PORT}->" || true)"
-  [[ -n "$owned" ]] || { echo "gateway port ${MKW_GATEWAY_PORT} is already in use by another project" >&2; exit 73; }
-fi
-
 if [[ "$mode" == dry-run ]]; then
   printf 'DRY_RUN_OK project=%s path=%s gateway=127.0.0.1:%s free_kb=%s\n' "$MKW_PROJECT_NAME" "$MKW_DEPLOY_PATH" "$MKW_GATEWAY_PORT" "$free_kb"
   exit 0
 fi
 
+release_sha="${MKW_RELEASE_SHA:-unknown}"
 if [[ "$mode" == release ]]; then
-  [[ -n "$manifest" && -f "$manifest" ]] || { echo "release manifest is required" >&2; exit 78; }
-  [[ -n "$compose" && -f "$compose" ]] || { echo "compose file is required" >&2; exit 78; }
-  read_manifest_value() {
-    awk -F= -v key="$1" '$1 == key { value=substr($0, index($0, "=") + 1); count++; last=value } END { if (count == 1) print last }' "$manifest"
-  }
-  MKW_API_IMAGE="$(read_manifest_value MKW_API_IMAGE)"
-  MKW_WEB_IMAGE="$(read_manifest_value MKW_WEB_IMAGE)"
-  MKW_POSTGRES_IMAGE="$(read_manifest_value MKW_POSTGRES_IMAGE)"
-  for image_name in MKW_API_IMAGE MKW_WEB_IMAGE MKW_POSTGRES_IMAGE; do
-    image_value="${!image_name}"
-    [[ "$image_value" =~ ^[A-Za-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]] || {
-      echo "manifest must contain one immutable $image_name reference" >&2
-      exit 78
-    }
-    export "$image_name=$image_value"
+  [[ -f "$manifest" && -f "$compose" ]] || { echo "release manifest and compose are required" >&2; exit 78; }
+  [[ "$MKW_RELEASE_SHA" =~ ^[a-fA-F0-9]{40}([a-fA-F0-9]{24})?$ ]] || { echo "full release SHA is required" >&2; exit 78; }
+  node "$script_root/scripts/product/release/validate-manifest.mjs" "$manifest" >/dev/null || { echo "release manifest validation failed" >&2; exit 78; }
+  mapfile -t fields < <(node --input-type=module - "$manifest" "$compose" "$MKW_RELEASE_SHA" <<'NODE'
+import { readFile } from 'node:fs/promises';
+import { parseJsonStrict } from './scripts/product/release/validate-manifest.mjs';
+import { verifyRelease } from './scripts/product/release/verify-release.mjs';
+const [manifestPath, composePath, expectedSha] = process.argv.slice(2);
+const manifest = parseJsonStrict(await readFile(manifestPath, 'utf8'));
+const result = verifyRelease({ manifest, expectedSha, composeText: await readFile(composePath, 'utf8') });
+if (!result.ok) { console.error(result.errors.join('; ')); process.exit(78); }
+for (const key of ['releaseSha', 'apiImage', 'webImage', 'postgresImage']) console.log(manifest[key]);
+NODE
+) || { echo "release verification failed" >&2; exit 78; }
+  [[ "${#fields[@]}" -eq 4 ]] || { echo "release manifest fields are incomplete" >&2; exit 78; }
+  release_sha="${fields[0]}"; MKW_API_IMAGE="${fields[1]}"; MKW_WEB_IMAGE="${fields[2]}"; MKW_POSTGRES_IMAGE="${fields[3]}"
+  for image in "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE"; do
+    [[ "$image" =~ ^[^[:space:]@]+@sha256:[0-9a-fA-F]{64}$ ]] || { echo "manifest contains a non-immutable image" >&2; exit 78; }
   done
+  export MKW_API_IMAGE MKW_WEB_IMAGE MKW_POSTGRES_IMAGE
+  [[ -n "$backup_ready" ]] || backup_ready="$MKW_DEPLOY_PATH/shared/backup-ready.json"
+  [[ -f "$backup_ready" ]] || { echo "backup-ready JSON gate is required" >&2; exit 78; }
+  node "$script_root/scripts/product/release/validate-backup-ready.mjs" "$backup_ready" >/dev/null || { echo "backup-ready JSON gate failed" >&2; exit 78; }
 fi
 
-install -d -m 0750 "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/releases" "$MKW_DEPLOY_PATH/current" \
-  "$MKW_DEPLOY_PATH/shared" "$MKW_DEPLOY_PATH/backups" "$MKW_DEPLOY_PATH/receipts"
-lock="$MKW_DEPLOY_PATH/.deploy.lock"
-exec 9>"$lock"
-flock -n 9 || { echo "another deploy is running" >&2; exit 75; }
-
+install -d -m 0750 "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/releases" "$MKW_DEPLOY_PATH/current" "$MKW_DEPLOY_PATH/shared" "$MKW_DEPLOY_PATH/backups" "$MKW_DEPLOY_PATH/receipts"
+exec 9>"$MKW_DEPLOY_PATH/.deploy.lock"; flock -n 9 || { echo "another deploy is running" >&2; exit 75; }
 if [[ "$mode" == bootstrap ]]; then
   install -d -m 0700 "$MKW_DEPLOY_PATH/shared/secrets"
-  db_env="$MKW_DEPLOY_PATH/shared/db.env"
-  api_env="$MKW_DEPLOY_PATH/shared/api.env"
-  # Generate the paired database/API configuration only when both files are
-  # absent. Never overwrite an operator-managed secret or print its value.
+  db_env="$MKW_DEPLOY_PATH/shared/db.env"; api_env="$MKW_DEPLOY_PATH/shared/api.env"
   if [[ -e "$db_env" || -e "$api_env" ]]; then
-    [[ -f "$db_env" && -f "$api_env" ]] || {
-      echo "bootstrap requires both shared/db.env and shared/api.env, or neither" >&2
-      exit 78
-    }
-    chmod 600 "$db_env" "$api_env"
+    [[ -f "$db_env" && -f "$api_env" ]] || { echo "bootstrap requires both env files" >&2; exit 78; }; chmod 600 "$db_env" "$api_env"
   else
-    umask 077
-    password="$(umask 077; openssl rand -hex 32)"
-    auth_secret="$(umask 077; openssl rand -hex 32)"
-    [[ ${#password} -eq 64 && ${#auth_secret} -eq 64 ]] || {
-      echo "server CSPRNG unavailable" >&2
-      exit 69
-    }
-    db_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.db.env.XXXXXX")"
-    api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api.env.XXXXXX")"
-    trap 'rm -f "$db_tmp" "$api_tmp"' EXIT
-    cat >"$db_tmp" <<EOF
-POSTGRES_DB=mkw
-POSTGRES_USER=mkw
-POSTGRES_PASSWORD=$password
-EOF
-    cat >"$api_tmp" <<EOF
-DATABASE_URL=postgresql://mkw:$password@db:5432/mkw
-AUTH_THROTTLE_SECRET=$auth_secret
-WEB_ORIGIN=http://127.0.0.1:$MKW_GATEWAY_PORT
-TLS_TERMINATED=false
-EOF
-    chmod 600 "$db_tmp" "$api_tmp"
-    mv -n "$db_tmp" "$db_env"
-    mv -n "$api_tmp" "$api_env"
-    trap - EXIT
+    umask 077; password="$(openssl rand -hex 32)"; auth_secret="$(openssl rand -hex 32)"
+    db_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.db.env.XXXXXX")"; api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api.env.XXXXXX")"; trap 'rm -f "$db_tmp" "$api_tmp"' EXIT
+    printf 'POSTGRES_DB=mkw\nPOSTGRES_USER=mkw\nPOSTGRES_PASSWORD=%s\n' "$password" > "$db_tmp"
+    printf 'DATABASE_URL=postgresql://mkw:%s@db:5432/mkw\nAUTH_THROTTLE_SECRET=%s\nWEB_ORIGIN=http://127.0.0.1:%s\nTLS_TERMINATED=false\n' "$password" "$auth_secret" "$MKW_GATEWAY_PORT" > "$api_tmp"
+    chmod 600 "$db_tmp" "$api_tmp"; mv -n "$db_tmp" "$db_env"; mv -n "$api_tmp" "$api_env"; trap - EXIT
   fi
-  echo "BOOTSTRAP_OK path=$MKW_DEPLOY_PATH project=$MKW_PROJECT_NAME"
-  exit 0
+  echo "BOOTSTRAP_OK path=$MKW_DEPLOY_PATH project=$MKW_PROJECT_NAME"; exit 0
 fi
 
-[[ -f "$MKW_DEPLOY_PATH/shared/backup.ready" ]] || { echo "backup evidence gate missing" >&2; exit 78; }
 rendered="$MKW_DEPLOY_PATH/current/compose.rendered.yml"
 sed "s#\./shared/#$MKW_DEPLOY_PATH/shared/#g" "$compose" > "$rendered"
-if grep -Eq 'env_file:[[:space:]]*\./' "$rendered"; then
-  echo "relative env_file path remains after render" >&2
-  exit 78
-fi
-docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" config --quiet
+grep -Eq 'env_file:[[:space:]]*\./' "$rendered" && { echo "relative env_file path remains after render" >&2; exit 78; } || true
+resolved_compose="$(docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" config)"
+MKW_RESOLVED_COMPOSE="$resolved_compose" node --input-type=module - "$manifest" "$MKW_RELEASE_SHA" <<'NODE'
+import { readFile } from 'node:fs/promises';
+import { parseJsonStrict } from './scripts/product/release/validate-manifest.mjs';
+import { verifyRelease } from './scripts/product/release/verify-release.mjs';
+const [manifestPath, expectedSha] = process.argv.slice(2);
+const manifest = parseJsonStrict(await readFile(manifestPath, 'utf8'));
+const result = verifyRelease({ manifest, expectedSha, composeText: process.env.MKW_RESOLVED_COMPOSE ?? '' });
+if (!result.ok) { console.error(result.errors.join('; ')); process.exit(78); }
+NODE
 echo "RELEASE_CONFIG_OK project=$MKW_PROJECT_NAME"
-docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --remove-orphans
-for i in {1..30}; do
-  unhealthy="$(docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" ps --format json | grep -E '"Health":"(unhealthy|starting)"' || true)"
-  [[ -z "$unhealthy" ]] && break
-  sleep 2
-done
-[[ -z "$unhealthy" ]] || { echo "service health did not become ready" >&2; exit 78; }
+
+receipt_written=0; post_start=0
+write_receipt() {
+  local status="$1" tmp="$(mktemp "$MKW_DEPLOY_PATH/receipts/.receipt.XXXXXX")"
+  printf '{"releaseSha":"%s","imageDigests":{"api":"%s","web":"%s","postgres":"%s"},"status":"%s","utc":"%s"}\n' "$release_sha" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE" "$status" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
+  chmod 640 "$tmp"; mv -f "$tmp" "$MKW_DEPLOY_PATH/receipts/$(date -u +%Y%m%dT%H%M%SZ)-$status.json"; receipt_written=1
+}
+on_error() { local code=$?; if (( post_start == 1 && receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }
+trap on_error ERR
+# Approved forward migration (migrate deploy) and the JSON backup gate are
+# required before traffic; INITIAL_EMPTY_DEPLOYMENT is validated by JSON.
+# Immutable images use sha256:[0-9a-f]{64}.
+docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm api pnpm db:deploy
+post_start=1
+docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --remove-orphans
 docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" ps
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${MKW_GATEWAY_PORT}/" >/dev/null
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${MKW_GATEWAY_PORT}/api/health" >/dev/null
-release_sha="${GITHUB_SHA:-unknown}"
-receipt_tmp="$(mktemp "$MKW_DEPLOY_PATH/receipts/.receipt.XXXXXX")"
-printf '{"project":"%s","release_sha":"%s","manifest":"%s","gateway":"127.0.0.1:%s","status":"ok","utc":"%s"}\n' \
-  "$MKW_PROJECT_NAME" "$release_sha" "$manifest" "$MKW_GATEWAY_PORT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$receipt_tmp"
-chmod 640 "$receipt_tmp"
-mv -n "$receipt_tmp" "$MKW_DEPLOY_PATH/receipts/$(date -u +%Y%m%dT%H%M%SZ).json"
+write_receipt ok
 echo "RELEASE_APPLY_OK project=$MKW_PROJECT_NAME"

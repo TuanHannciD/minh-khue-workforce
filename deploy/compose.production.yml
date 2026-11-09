@@ -13,6 +13,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 10s
 
   api:
     image: ${MKW_API_IMAGE:?MKW_API_IMAGE is required}
@@ -30,6 +31,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 10s
 
   gateway:
     image: ${MKW_WEB_IMAGE:?MKW_WEB_IMAGE is required}
@@ -39,6 +41,12 @@ services:
     depends_on:
       api: { condition: service_healthy }
     networks: [mkw-internal]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
 volumes:
   mkw_pgdata:
