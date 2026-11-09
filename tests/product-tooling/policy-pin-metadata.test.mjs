@@ -8,7 +8,10 @@ test("CI has the reviewed Task1 policy pin metadata", async () => {
     "utf8",
   );
   const metadata = JSON.parse(raw);
-  assert.equal(metadata.reviewedTip, "321d488f041e6d5386adea9f86ca8749ef896144");
+  assert.equal(
+    metadata.reviewedTip,
+    "321d488f041e6d5386adea9f86ca8749ef896144",
+  );
   assert.equal(metadata.status, "COMPLETE");
   assert.equal(metadata.decision, "READY TO PIN");
 });
