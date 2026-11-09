@@ -59,9 +59,12 @@ Run modes in this order:
    digest, reconciles the `mkw` project, waits for health and performs a
    gateway smoke check. It writes a JSON receipt under `receipts/`.
 
-The manifest must contain exactly one immutable reference for each image used
-by Compose: `MKW_API_IMAGE`, `MKW_WEB_IMAGE`, and `MKW_POSTGRES_IMAGE`, each in
-the form `registry/name@sha256:<64 hex digits>`. Never replace these with
-`latest`. Cloudflare can later point a domain
+The approved PostgreSQL image is pinned in `deploy/postgres-image.env`; build
+and release workflows reuse that exact digest and do not resolve a mutable
+`postgres:17-alpine` tag during CI. The manifest must contain exactly one
+immutable reference for each image used by Compose: `MKW_API_IMAGE`,
+`MKW_WEB_IMAGE`, and `MKW_POSTGRES_IMAGE`, each in the form
+`registry/name@sha256:<64 hex digits>`. Never replace these with `latest`.
+Cloudflare can later point a domain
 to the existing tunnel origin `http://127.0.0.1:3200`; no application secret
 or Compose change is needed for that DNS attachment.

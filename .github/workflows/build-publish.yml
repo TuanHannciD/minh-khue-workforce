@@ -113,12 +113,12 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          postgres_digest="$(docker buildx imagetools inspect postgres:17-alpine |
-            awk '/^Digest:/ {print $2; exit}')"
-          [[ "$postgres_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
-            echo 'Could not resolve an immutable postgres:17-alpine digest' >&2
+          postgres_image="$(awk -F= '$1 == "MKW_POSTGRES_IMAGE" { value=$2; count++ } END { if (count == 1) print value }' deploy/postgres-image.env)"
+          [[ "$postgres_image" =~ ^postgres@sha256:[0-9a-f]{64}$ ]] || {
+            echo 'deploy/postgres-image.env must contain one immutable PostgreSQL image' >&2
             exit 78
           }
+          postgres_digest="${postgres_image#postgres@}"
           echo "digest=$postgres_digest" >> "$GITHUB_OUTPUT"
 
       - name: Write immutable release manifest

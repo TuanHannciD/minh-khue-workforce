@@ -110,16 +110,19 @@ jobs:
             }
             api_ref="ghcr.io/${image_owner}/mkw-api:${{ inputs.release_sha }}"
             web_ref="ghcr.io/${image_owner}/mkw-web:${{ inputs.release_sha }}"
-            postgres_ref='postgres:17-alpine'
             api_digest="$(resolve_digest "$api_ref")"
             web_digest="$(resolve_digest "$web_ref")"
-            postgres_digest="$(resolve_digest "$postgres_ref")"
+            postgres_image="$(awk -F= '$1 == "MKW_POSTGRES_IMAGE" { value=$2; count++ } END { if (count == 1) print value }' deploy/postgres-image.env)"
+            [[ "$postgres_image" =~ ^postgres@sha256:[0-9a-f]{64}$ ]] || {
+              echo 'deploy/postgres-image.env must contain one immutable PostgreSQL image' >&2
+              exit 78
+            }
             mkdir -p "$(dirname "$MKW_MANIFEST_SOURCE")"
             {
               printf 'MKW_RELEASE_SHA=%s\n' '${{ inputs.release_sha }}'
               printf 'MKW_API_IMAGE=ghcr.io/%s/mkw-api@%s\n' "$image_owner" "$api_digest"
               printf 'MKW_WEB_IMAGE=ghcr.io/%s/mkw-web@%s\n' "$image_owner" "$web_digest"
-              printf 'MKW_POSTGRES_IMAGE=postgres@%s\n' "$postgres_digest"
+              printf 'MKW_POSTGRES_IMAGE=%s\n' "$postgres_image"
             } > "$MKW_MANIFEST_SOURCE"
             chmod 0644 "$MKW_MANIFEST_SOURCE"
             tar -czf "$RUNNER_TEMP/mkw-release.tgz" "$MKW_COMPOSE_SOURCE" "$MKW_MANIFEST_SOURCE"
