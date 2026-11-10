@@ -4,7 +4,12 @@ import test from "node:test";
 
 const read = (path) => readFile(path, "utf8");
 const exists = async (path) => {
-  try { await access(path); return true; } catch { return false; }
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 test("CI runs product checks for PRs and pushes with read-only permissions", async () => {
@@ -12,7 +17,10 @@ test("CI runs product checks for PRs and pushes with read-only permissions", asy
   assert.match(ci, /pull_request:/);
   assert.match(ci, /push:/);
   assert.match(ci, /permissions:\s*\n\s+contents:\s*read/);
-  assert.doesNotMatch(ci, /packages:\s*write|docker\/login-action|docker\/build-push-action|deploy/i);
+  assert.doesNotMatch(
+    ci,
+    /packages:\s*write|docker\/login-action|docker\/build-push-action|deploy/i,
+  );
   for (const command of [
     "pnpm run product:lint",
     "pnpm run product:format:check",
@@ -21,7 +29,12 @@ test("CI runs product checks for PRs and pushes with read-only permissions", asy
     "pnpm run product:contract:check",
     "pnpm run product:build",
     "pnpm run product:check",
-  ]) assert.match(ci, new RegExp(command.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")), command);
+  ])
+    assert.match(
+      ci,
+      new RegExp(command.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")),
+      command,
+    );
 });
 
 test("release workflow is gated by successful CI on main and checks the full head SHA", async () => {
@@ -29,9 +42,18 @@ test("release workflow is gated by successful CI on main and checks the full hea
   assert.match(release, /workflow_run:/);
   assert.match(release, /workflows:[\s\S]*CI/);
   assert.match(release, /types:\s*\n\s*-\s*completed/);
-  assert.match(release, /github\.event\.workflow_run\.conclusion\s*==\s*'success'/);
-  assert.match(release, /github\.event\.workflow_run\.head_branch\s*==\s*'main'/);
-  assert.match(release, /ref:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\}\}/);
+  assert.match(
+    release,
+    /github\.event\.workflow_run\.conclusion\s*==\s*'success'/,
+  );
+  assert.match(
+    release,
+    /github\.event\.workflow_run\.head_branch\s*==\s*'main'/,
+  );
+  assert.match(
+    release,
+    /ref:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\}\}/,
+  );
   assert.match(release, /fetch-depth:\s*0/);
   assert.match(release, /head_sha/);
 });
@@ -58,7 +80,10 @@ test("release reads one pinned postgres digest and never resolves tags at runtim
   assert.match(release, /deploy\/postgres-image\.env/);
   assert.match(release, /postgres@sha256:\[0-9a-f\]\{64\}/i);
   assert.match(release, /count\+\+/);
-  assert.doesNotMatch(release, /docker\s+pull|resolve_digest|docker\s+manifest/i);
+  assert.doesNotMatch(
+    release,
+    /docker\s+pull|resolve_digest|docker\s+manifest/i,
+  );
   assert.match(release, /imagetools\s+inspect[\s\S]+@\$\{API_DIGEST\}/);
 });
 
@@ -69,7 +94,10 @@ test("release writes a validated manifest, checksums, and SHA-named artifact", a
   assert.match(release, /sha256sum/);
   assert.match(release, /release-manifest\.sha256/);
   assert.match(release, /actions\/upload-artifact@/);
-  assert.match(release, /mkw-release-\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\}\}/);
+  assert.match(
+    release,
+    /mkw-release-\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\}\}/,
+  );
   assert.match(release, /retention-days:/);
 });
 
