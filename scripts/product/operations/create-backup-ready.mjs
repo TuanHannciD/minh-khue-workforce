@@ -10,7 +10,13 @@ export async function createBackupReady(input) {
   if (outputPath) {
     const temporaryPath = join(dirname(outputPath), `.${randomUUID()}.tmp`);
     try { await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx', mode: 0o600 }); await rename(temporaryPath, outputPath); }
-    finally { try { await import('node:fs/promises').then(({ unlink }) => unlink(temporaryPath)); } catch {} }
+    finally {
+      try {
+        await import('node:fs/promises').then(({ unlink }) => unlink(temporaryPath));
+      } catch {
+        // Best-effort cleanup must not hide the original write/rename result.
+      }
+    }
   }
   return value;
 }
