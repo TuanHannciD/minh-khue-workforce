@@ -122,7 +122,7 @@ jobs:
             exit 0
           fi
           remote_dir="${MKW_DEPLOY_PATH}/releases/${RELEASE_SHA}"
-          sha256sum backup-ready/backup-ready.json > backup-ready/backup-ready.json.sha256
+          (cd backup-ready && sha256sum backup-ready.json > backup-ready.json.sha256)
           (cd backup-ready && sha256sum --check backup-ready.json.sha256)
           tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 deploy/compose.production.yml scripts/product/deploy-entrypoint.sh
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir'"
