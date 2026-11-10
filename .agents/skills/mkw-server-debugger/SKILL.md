@@ -9,7 +9,7 @@ Skill này dùng cho kiểm tra bounded đối với VPS chạy Minh Khuê Workf
 
 ## Định danh môi trường
 
-- Host đã được người dùng xác nhận: `113.184.16.191`
+- Host đã được người dùng xác nhận: `14.235.116.126`
 - User: `deploy`
 - SSH port: `1122`
 - Docker data-root sau PA1: `/home/docker`
@@ -34,7 +34,7 @@ Không đọc, in hoặc lưu nội dung private key. Key path/credential phải
 Mẫu PowerShell bounded read-only:
 
 ```powershell
-$mkwHost = '113.184.16.191'
+$mkwHost = '14.235.116.126'
 $mkwUser = 'deploy'
 $mkwPort = '1122'
 $mkwKey = '<runtime-provided-key-path>'
