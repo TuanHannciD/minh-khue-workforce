@@ -33,12 +33,12 @@ jobs:
         run: pnpm run product:format:check
       - name: Typecheck
         run: pnpm run product:typecheck
+      - name: Build
+        run: pnpm run product:build
       - name: Unit and integration tests
         run: pnpm run product:test
       - name: Contract check
         run: pnpm run product:contract:check
-      - name: Build
-        run: pnpm run product:build
       - name: Product boundaries
         run: pnpm run product:boundaries
       - name: Product aggregate check
