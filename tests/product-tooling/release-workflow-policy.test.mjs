@@ -17,6 +17,14 @@ test('backup workflow is scheduled/manual, encrypted, identity-aware, and emits 
   assert.match(workflow, /INITIAL_EMPTY_DEPLOYMENT/);
   assert.match(workflow, /upload-artifact/);
   assert.match(workflow, /validate-backup-ready/);
+  assert.match(workflow, /pg_restore\s+--dbname=.*restore_database_url/);
+  assert.match(workflow, /CREATE DATABASE/);
+  assert.match(workflow, /information_schema\.tables/);
+  assert.match(workflow, /pg_constraint|foreign key/i);
+  assert.match(workflow, /source-counts|restored-counts/);
+  assert.match(workflow, /current_database\(\)/);
+  assert.match(workflow, /inet_server_addr|target_identity/i);
+  assert.match(workflow, /pg_class.*relkind|business.*table/i);
 });
 
 test('deploy consumes only the SHA-named build artifact and never resolves GHCR tags', async () => {
@@ -26,6 +34,8 @@ test('deploy consumes only the SHA-named build artifact and never resolves GHCR 
   assert.match(workflow, /mkw-release-\$\{\{\s*inputs\.release_sha\s*\}\}/);
   assert.match(workflow, /release-manifest\.sha256/);
   assert.match(workflow, /backup-ready/);
+  assert.match(workflow, /backup-ready\.json\.sha256/);
+  assert.match(workflow, /sha256sum\s+--check.*backup-ready|backup-ready.*sha256sum\s+--check/s);
   assert.match(workflow, /ssh-keyscan/);
   assert.match(workflow, /db:deploy|migrate/i);
   assert.match(workflow, /health|smoke/i);
@@ -42,6 +52,13 @@ test('post-deploy verification records receipt, digests, schema, gateway, and st
   assert.match(workflow, /gateway|smoke|health/i);
   assert.match(workflow, /startup|error/i);
   assert.match(workflow, /rollback/i);
+  assert.match(workflow, /release_run_id/);
+  assert.match(workflow, /docker inspect/);
+  assert.match(workflow, /RepoDigests|repoDigests/);
+  assert.match(workflow, /migrate\s+status|information_schema/i);
+  assert.match(workflow, /docker compose.*logs|startup.*error/i);
+  assert.match(workflow, /failure\(\).*rollback_on_failure|rollback_on_failure.*failure\(\)/s);
+  assert.match(workflow, /rollback-signal\.json|rollback-requested/);
 });
 
 test('rollback is protected/manual, verifies old manifest and backup, and redeploys exact digests without down migration', async () => {
@@ -53,5 +70,8 @@ test('rollback is protected/manual, verifies old manifest and backup, and redepl
   assert.match(workflow, /backup-ready/);
   assert.match(workflow, /sha256/);
   assert.match(workflow, /deploy-entrypoint\.sh/);
+  assert.match(workflow, /rollback-receipt\.json/);
+  assert.match(workflow, /upload-artifact/);
+  assert.match(workflow, /steps\.[A-Za-z0-9_-]+\.outcome|job\.status/);
   assert.doesNotMatch(workflow, /db:rollback|migrate\s+down|down\s+migration/i);
 });

@@ -112,10 +112,12 @@ jobs:
           printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
           remote_dir="${MKW_DEPLOY_PATH}/releases/${RELEASE_SHA}"
-          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json deploy/compose.production.yml scripts/product/deploy-entrypoint.sh
+          sha256sum backup-ready/backup-ready.json > backup-ready/backup-ready.json.sha256
+          (cd backup-ready && sha256sum --check backup-ready.json.sha256)
+          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 deploy/compose.production.yml scripts/product/deploy-entrypoint.sh
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir'"
           scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-release.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && install -m 640 '$remote_dir/backup-ready/backup-ready.json' '$MKW_DEPLOY_PATH/shared/backup-ready.json' && rm -rf '$remote_dir/backup-ready' '$remote_dir/release.tgz'"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && (cd '$remote_dir/backup-ready' && sha256sum --check backup-ready.json.sha256) && install -m 640 '$remote_dir/backup-ready/backup-ready.json' '$MKW_DEPLOY_PATH/shared/backup-ready.json' && rm -rf '$remote_dir/backup-ready' '$remote_dir/release.tgz'"
           printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q bash -s -- --%q --manifest %q --compose %q --backup-ready %q' \
             "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$MODE" \
             "$remote_dir/release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
