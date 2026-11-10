@@ -171,6 +171,3 @@ jobs:
             api-attestations.json
             web-attestations.json
             build-metadata.json
-
-
-

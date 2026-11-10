@@ -121,6 +121,5 @@ jobs:
           printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q bash -s -- --%q --manifest %q --compose %q --backup-ready %q' \
             "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$MODE" \
             "$remote_dir/release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
-          # deploy-entrypoint.sh enforces the forward migration gate (pnpm db:deploy / migrate deploy) before compose up and traffic smoke checks.\n          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env" < scripts/product/deploy-entrypoint.sh
-
-
+          # deploy-entrypoint.sh enforces the forward migration gate (pnpm db:deploy / migrate deploy) before compose up and traffic smoke checks.
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env" < scripts/product/deploy-entrypoint.sh

@@ -76,6 +76,3 @@ test("release writes a validated manifest, checksums, and SHA-named artifact", a
 test("mutable build-publish release workflow is retired", async () => {
   assert.equal(await exists(".github/workflows/build-publish.yml"), false);
 });
-
-
-

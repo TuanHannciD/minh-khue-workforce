@@ -58,4 +58,3 @@ test('runbook documents JSON gate and does not instruct empty marker', () => {
   assert.match(readme, /INITIAL_EMPTY_DEPLOYMENT/);
   assert.doesNotMatch(readme, /backup\.ready/);
 });
-
