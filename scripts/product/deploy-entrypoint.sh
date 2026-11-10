@@ -19,7 +19,7 @@ done
 : "${MKW_PROJECT_NAME:=mkw}"
 : "${MKW_GATEWAY_PORT:=3200}"
 : "${MKW_RELEASE_SHA:=${GITHUB_SHA:-}}"
-: "${MKW_WEB_ORIGIN:=https://minhkhuelocal.servertun.pp.ua}"
+: "${MKW_WEB_ORIGIN:=https://minhkhue.servertun.pp.ua}"
 [[ "$MKW_WEB_ORIGIN" =~ ^https://[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?(:[0-9]+)?$ ]] || { echo "exact HTTPS web origin is required" >&2; exit 78; }
 script_source="${BASH_SOURCE[0]:-}"
 if [[ -n "$script_source" && "$script_source" != bash && "$script_source" != /dev/stdin ]]; then
