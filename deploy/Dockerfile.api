@@ -6,7 +6,8 @@ COPY apps/api/package.json apps/api/package.json
 RUN pnpm install --frozen-lockfile
 COPY apps/api apps/api
 RUN pnpm --filter @mkw/api build
-RUN pnpm --filter @mkw/api deploy --prod /out
+RUN pnpm --filter @mkw/api deploy /out
+RUN test -f /out/dist/main.js && test -f /out/node_modules/prisma/build/index.js && test -d /out/prisma/migrations
 
 FROM node:24.22.1-bookworm-slim AS runtime
 ENV NODE_ENV=production

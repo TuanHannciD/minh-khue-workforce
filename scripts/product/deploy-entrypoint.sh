@@ -19,7 +19,25 @@ done
 : "${MKW_PROJECT_NAME:=mkw}"
 : "${MKW_GATEWAY_PORT:=3200}"
 : "${MKW_RELEASE_SHA:=${GITHUB_SHA:-}}"
-script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+: "${MKW_WEB_ORIGIN:=https://minhkhuelocal.servertun.pp.ua}"
+[[ "$MKW_WEB_ORIGIN" =~ ^https://[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?(:[0-9]+)?$ ]] || { echo "exact HTTPS web origin is required" >&2; exit 78; }
+script_source="${BASH_SOURCE[0]:-}"
+if [[ -n "$script_source" && "$script_source" != bash && "$script_source" != /dev/stdin ]]; then
+  script_root="$(cd "$(dirname "$script_source")/../.." && pwd)"
+else
+  script_root="${MKW_SCRIPT_ROOT:-$PWD}"
+fi
+run_node() {
+  if [[ "${MKW_VALIDATOR_RUNTIME:-auto}" != container ]] && command -v node >/dev/null 2>&1; then
+    node "$@"
+  else
+    [[ -n "${MKW_API_IMAGE:-}" ]] || { echo "Node runtime or MKW_API_IMAGE is required" >&2; exit 69; }
+    docker run --rm -i --user "$(id -u):$(id -g)" -e MKW_RESOLVED_COMPOSE \
+      -v "$script_root:$script_root:ro" \
+      -v "$MKW_DEPLOY_PATH/shared:$MKW_DEPLOY_PATH/shared:ro" \
+      --workdir "$script_root" --entrypoint node "$MKW_API_IMAGE" "$@"
+  fi
+}
 case "$MKW_DEPLOY_PATH" in /home/*) ;; *) echo "deploy path must be under /home" >&2; exit 78 ;; esac
 [[ "$MKW_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "invalid project name" >&2; exit 78; }
 [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo "invalid gateway port" >&2; exit 78; }
@@ -33,16 +51,21 @@ fi
 
 release_sha="${MKW_RELEASE_SHA:-unknown}"
 if [[ "$mode" == release ]]; then
+  cd "$script_root"
   [[ -f "$manifest" && -f "$compose" ]] || { echo "release manifest and compose are required" >&2; exit 78; }
   [[ "$MKW_RELEASE_SHA" =~ ^[a-fA-F0-9]{40}([a-fA-F0-9]{24})?$ ]] || { echo "full release SHA is required" >&2; exit 78; }
-  node "$script_root/scripts/product/release/validate-manifest.mjs" "$manifest" >/dev/null || { echo "release manifest validation failed" >&2; exit 78; }
-  mapfile -t fields < <(node --input-type=module - "$manifest" "$compose" "$MKW_RELEASE_SHA" <<'NODE'
+  [[ "${MKW_API_IMAGE:-}" =~ ^[^[:space:]@]+@sha256:[0-9a-fA-F]{64}$ ]] || { echo "validated API image digest is required" >&2; exit 78; }
+  run_node "$script_root/scripts/product/release/validate-manifest.mjs" "$manifest" >/dev/null || { echo "release manifest validation failed" >&2; exit 78; }
+  mapfile -t fields < <(run_node --input-type=module - "$manifest" "$compose" "$MKW_RELEASE_SHA" <<'NODE'
 import { readFile } from 'node:fs/promises';
 import { parseJsonStrict } from './scripts/product/release/validate-manifest.mjs';
 import { verifyRelease } from './scripts/product/release/verify-release.mjs';
 const [manifestPath, composePath, expectedSha] = process.argv.slice(2);
 const manifest = parseJsonStrict(await readFile(manifestPath, 'utf8'));
-const result = verifyRelease({ manifest, expectedSha, composeText: await readFile(composePath, 'utf8') });
+const template = await readFile(composePath, 'utf8');
+const images = { MKW_API_IMAGE: manifest.apiImage, MKW_WEB_IMAGE: manifest.webImage, MKW_POSTGRES_IMAGE: manifest.postgresImage };
+const composeText = template.replace(/\$\{(MKW_API_IMAGE|MKW_WEB_IMAGE|MKW_POSTGRES_IMAGE)(?::\?[^}]*)?\}/g, (_, key) => images[key]);
+const result = verifyRelease({ manifest, expectedSha, composeText });
 if (!result.ok) { console.error(result.errors.join('; ')); process.exit(78); }
 for (const key of ['releaseSha', 'apiImage', 'webImage', 'postgresImage']) console.log(manifest[key]);
 NODE
@@ -55,7 +78,7 @@ NODE
   export MKW_API_IMAGE MKW_WEB_IMAGE MKW_POSTGRES_IMAGE
   [[ -n "$backup_ready" ]] || backup_ready="$MKW_DEPLOY_PATH/shared/backup-ready.json"
   [[ -f "$backup_ready" ]] || { echo "backup-ready JSON gate is required" >&2; exit 78; }
-  node "$script_root/scripts/product/release/validate-backup-ready.mjs" "$backup_ready" >/dev/null || { echo "backup-ready JSON gate failed" >&2; exit 78; }
+  run_node "$script_root/scripts/product/release/validate-backup-ready.mjs" "$backup_ready" >/dev/null || { echo "backup-ready JSON gate failed" >&2; exit 78; }
 fi
 
 install -d -m 0750 "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/releases" "$MKW_DEPLOY_PATH/current" "$MKW_DEPLOY_PATH/shared" "$MKW_DEPLOY_PATH/backups" "$MKW_DEPLOY_PATH/receipts"
@@ -69,17 +92,26 @@ if [[ "$mode" == bootstrap ]]; then
     umask 077; password="$(openssl rand -hex 32)"; auth_secret="$(openssl rand -hex 32)"
     db_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.db.env.XXXXXX")"; api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api.env.XXXXXX")"; trap 'rm -f "$db_tmp" "$api_tmp"' EXIT
     printf 'POSTGRES_DB=mkw\nPOSTGRES_USER=mkw\nPOSTGRES_PASSWORD=%s\n' "$password" > "$db_tmp"
-    printf 'DATABASE_URL=postgresql://mkw:%s@db:5432/mkw\nAUTH_THROTTLE_SECRET=%s\nWEB_ORIGIN=http://127.0.0.1:%s\nTLS_TERMINATED=false\n' "$password" "$auth_secret" "$MKW_GATEWAY_PORT" > "$api_tmp"
+    printf 'DATABASE_URL=postgresql://mkw:%s@db:5432/mkw\nAUTH_THROTTLE_SECRET=%s\nWEB_ORIGIN=%s\nTLS_TERMINATED=true\n' "$password" "$auth_secret" "$MKW_WEB_ORIGIN" > "$api_tmp"
     chmod 600 "$db_tmp" "$api_tmp"; mv -n "$db_tmp" "$db_env"; mv -n "$api_tmp" "$api_env"; trap - EXIT
   fi
   echo "BOOTSTRAP_OK path=$MKW_DEPLOY_PATH project=$MKW_PROJECT_NAME"; exit 0
 fi
 
+# Update only public origin/TLS settings; retain existing database/auth secrets.
+api_env="$MKW_DEPLOY_PATH/shared/api.env"
+[[ -f "$api_env" ]] || { echo "bootstrap API env is required" >&2; exit 78; }
+api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api-origin.XXXXXX")"
+trap 'rm -f "$api_tmp"' EXIT
+awk '!/^WEB_ORIGIN=/ && !/^TLS_TERMINATED=/' "$api_env" > "$api_tmp"
+printf 'WEB_ORIGIN=%s\nTLS_TERMINATED=true\n' "$MKW_WEB_ORIGIN" >> "$api_tmp"
+chmod 600 "$api_tmp"; mv -f "$api_tmp" "$api_env"; trap - EXIT
+
 rendered="$MKW_DEPLOY_PATH/current/compose.rendered.yml"
 sed "s#\./shared/#$MKW_DEPLOY_PATH/shared/#g" "$compose" > "$rendered"
 grep -Eq 'env_file:[[:space:]]*\./' "$rendered" && { echo "relative env_file path remains after render" >&2; exit 78; } || true
 resolved_compose="$(docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" config)"
-MKW_RESOLVED_COMPOSE="$resolved_compose" node --input-type=module - "$manifest" "$MKW_RELEASE_SHA" <<'NODE'
+MKW_RESOLVED_COMPOSE="$resolved_compose" run_node --input-type=module - "$manifest" "$MKW_RELEASE_SHA" <<'NODE'
 import { readFile } from 'node:fs/promises';
 import { parseJsonStrict } from './scripts/product/release/validate-manifest.mjs';
 import { verifyRelease } from './scripts/product/release/verify-release.mjs';
@@ -101,7 +133,8 @@ trap on_error ERR
 # Approved forward migration (migrate deploy) and the JSON backup gate are
 # required before traffic; INITIAL_EMPTY_DEPLOYMENT is validated by JSON.
 # Immutable images use sha256:[0-9a-f]{64}.
-docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm api pnpm db:deploy
+docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait db
+docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
 post_start=1
 docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --remove-orphans
 docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" ps

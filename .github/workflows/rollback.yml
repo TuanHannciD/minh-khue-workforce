@@ -78,14 +78,15 @@ jobs:
           printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
           remote_dir="${MKW_DEPLOY_PATH}/releases/${OLD_RELEASE_SHA}"
-          tar -czf "$RUNNER_TEMP/mkw-rollback.tgz" old-release-artifact deploy/compose.production.yml scripts/product/deploy-entrypoint.sh
+          tar -czf "$RUNNER_TEMP/mkw-rollback.tgz" old-release-artifact deploy/compose.production.yml scripts/product/deploy-entrypoint.sh scripts/product/release
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir' && test -s '$MKW_DEPLOY_PATH/shared/backup-ready.json'"
           scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-rollback.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && rm -f '$remote_dir/release.tgz'"
-          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q bash -s -- --release --manifest %q --compose %q --backup-ready %q' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" \
-            "$remote_dir/old-release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env" < scripts/product/deploy-entrypoint.sh
+          api_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('old-release-artifact/release-manifest.json','utf8')).apiImage)")"
+          [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash '$remote_dir/scripts/product/deploy-entrypoint.sh' --release --manifest '$remote_dir/old-release-artifact/release-manifest.json' --compose '$remote_dir/deploy/compose.production.yml' --backup-ready '$MKW_DEPLOY_PATH/shared/backup-ready.json'"
 
       - name: Emit rollback receipt and signal
         if: always()

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "#app/bootstrap.js";
 import { createDocument } from "../dist/openapi.js";
+import "./main-listener.test.mjs";
 
 test("compiled ESM Nest/Express serves typed health with configured CORS and closes", async () => {
   const app = await createApp("http://127.0.0.1:5173");

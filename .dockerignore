@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/.pnpm-store
+**/*.tsbuildinfo
+.git
+.agent-runs
+.worktrees
+.superpowers
+test-results
+playwright-report
+coverage
+**/.env
+**/.env.*
+!**/.env.example
+deploy/shared

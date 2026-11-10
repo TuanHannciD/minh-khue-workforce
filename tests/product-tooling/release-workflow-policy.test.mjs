@@ -57,6 +57,12 @@ test("deploy consumes only the SHA-named build artifact and never resolves GHCR 
     workflow,
     /sha256sum\s+--check.*backup-ready|backup-ready.*sha256sum\s+--check/s,
   );
+  assert.match(workflow, /scripts\/product\/release/);
+  assert.match(
+    workflow,
+    /bash '\$remote_dir\/scripts\/product\/deploy-entrypoint\.sh'/,
+  );
+  assert.doesNotMatch(workflow, /remote_env '.*bash -s/);
   assert.match(workflow, /ssh-keyscan/);
   assert.match(workflow, /db:deploy|migrate/i);
   assert.match(workflow, /health|smoke/i);
@@ -77,10 +83,15 @@ test("post-deploy verification records receipt, digests, schema, gateway, and st
   assert.match(workflow, /startup|error/i);
   assert.match(workflow, /rollback/i);
   assert.match(workflow, /release_run_id/);
-  assert.match(workflow, /docker inspect/);
-  assert.match(workflow, /RepoDigests|repoDigests/);
-  assert.match(workflow, /migrate\s+status|information_schema/i);
-  assert.match(workflow, /docker compose.*logs|startup.*error/i);
+  assert.match(workflow, /scripts\/product\/post-deploy-verify\.sh/);
+  const verifier = await readFile(
+    "scripts/product/post-deploy-verify.sh",
+    "utf8",
+  );
+  assert.match(verifier, /docker inspect/);
+  assert.match(verifier, /docker image inspect/);
+  assert.match(verifier, /migrate\s+status|information_schema/i);
+  assert.match(verifier, /State\.Health\.Status/);
   assert.match(
     workflow,
     /failure\(\).*rollback_on_failure|rollback_on_failure.*failure\(\)/s,

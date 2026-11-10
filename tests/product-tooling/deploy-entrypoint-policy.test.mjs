@@ -22,6 +22,13 @@ test("entrypoint validates JSON manifest and backup-ready before rendering", () 
   assert.match(entrypoint, /INITIAL_EMPTY_DEPLOYMENT/);
 });
 
+test("entrypoint is runnable from a remote release directory without host Node", () => {
+  assert.match(entrypoint, /BASH_SOURCE\[0\]:-/);
+  assert.match(entrypoint, /run_node\(\)/);
+  assert.match(entrypoint, /docker run --rm -i/);
+  assert.match(entrypoint, /MKW_API_IMAGE/);
+});
+
 test("entrypoint has no registry lookup and requires exact immutable digests", () => {
   assert.doesNotMatch(
     entrypoint,
@@ -34,7 +41,7 @@ test("entrypoint has no registry lookup and requires exact immutable digests", (
 
 test("forward migration gate is before compose up and traffic smoke checks follow health", () => {
   const migration = entrypoint.indexOf("migrate deploy");
-  const up = entrypoint.indexOf(" up -d");
+  const up = entrypoint.indexOf(" up -d --wait --remove-orphans");
   assert.ok(migration >= 0, "approved forward migration command is required");
   assert.ok(up > migration, "migration must run before compose up");
   assert.match(entrypoint, /--wait|service_healthy|Health/);

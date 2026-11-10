@@ -192,6 +192,10 @@ jobs:
           sha256sum release-manifest.json > release-manifest.sha256
           sha256sum release-manifest.json api-attestations.json web-attestations.json > release-checksums.sha256
 
+      - name: Rehearse release on an isolated runner before publishing artifact
+        shell: bash
+        run: bash scripts/product/release-rehearsal.sh
+
       - name: Upload immutable release artifact
         uses: actions/upload-artifact@v4
         with:

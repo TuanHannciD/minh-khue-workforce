@@ -17,5 +17,5 @@ const app = await createApp(process.env.WEB_ORIGIN, {
   production: process.env.NODE_ENV === "production",
   tlsTerminated: process.env.TLS_TERMINATED === "true",
 });
-await app.listen(port, "127.0.0.1");
+await app.listen(port, process.env.HOST ?? "127.0.0.1");
 console.log(`MKW bootstrap API listening at ${await app.getUrl()}`);

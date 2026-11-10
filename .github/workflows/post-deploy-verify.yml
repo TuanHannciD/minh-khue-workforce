@@ -41,7 +41,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ inputs.release_run_id }}
 
-      - name: Verify running digests, schema, gateway, and startup errors
+      - name: Verify running digests, schema, gateway, and startup health
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
@@ -73,21 +73,7 @@ jobs:
           install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
           printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"; chmod 600 "$RUNNER_TEMP/mkw_key"
           remote_env="EXPECTED_API_IMAGE=$(printf '%q' "$EXPECTED_API_IMAGE") EXPECTED_WEB_IMAGE=$(printf '%q' "$EXPECTED_WEB_IMAGE") EXPECTED_POSTGRES_IMAGE=$(printf '%q' "$EXPECTED_POSTGRES_IMAGE") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") RELEASE_SHA=$(printf '%q' "$RELEASE_SHA")"
-          remote_script='set -Eeuo pipefail
-          test -s "$MKW_DEPLOY_PATH/receipts"
-          receipt="$(ls -1t "$MKW_DEPLOY_PATH"/receipts/*.json | head -n1)"
-          grep -q '"releaseSha":"$RELEASE_SHA"' "$receipt"
-          api_id="$(docker compose -p "$MKW_PROJECT_NAME" ps -q api)"; web_id="$(docker compose -p "$MKW_PROJECT_NAME" ps -q gateway)"; db_id="$(docker compose -p "$MKW_PROJECT_NAME" ps -q db)"
-          [[ -n "$api_id" && -n "$web_id" && -n "$db_id" ]]
-          api_digest="$(docker inspect "$api_id" --format "{{index .RepoDigests 0}}")"; web_digest="$(docker inspect "$web_id" --format "{{index .RepoDigests 0}}")"; db_digest="$(docker inspect "$db_id" --format "{{index .RepoDigests 0}}")"
-          [[ "$api_digest" == "$EXPECTED_API_IMAGE" && "$web_digest" == "$EXPECTED_WEB_IMAGE" && "$db_digest" == "$EXPECTED_POSTGRES_IMAGE" ]]
-          docker compose -p "$MKW_PROJECT_NAME" exec -T api pnpm prisma migrate status
-          docker compose -p "$MKW_PROJECT_NAME" ps --format json | tee "$MKW_DEPLOY_PATH/receipts/startup-ps.json"
-          docker compose -p "$MKW_PROJECT_NAME" logs --no-color --tail=200 api gateway db | tee "$MKW_DEPLOY_PATH/receipts/startup.log"
-          ! grep -Eiq "(fatal|panic|crashloop|startup error)" "$MKW_DEPLOY_PATH/receipts/startup.log"
-          curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/" >/dev/null
-          curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/api/health" >/dev/null'
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash -s" <<< "$remote_script"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < scripts/product/post-deploy-verify.sh
 
       - name: Record verification receipt
         if: always()
@@ -95,7 +81,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           cat > verification-receipt.json <<JSON
-          {"releaseSha":"${{ inputs.release_sha }}","gateway":"smoke","schema":"prisma-migrate-status","imageDigests":"exact-manifest-repo-digests","startup":"compose-logs-and-health-checked","rollback":".github/workflows/rollback.yml","rollbackOnFailure":${{ inputs.rollback_on_failure }},"result":"${{ job.status }}"}
+          {"releaseSha":"${{ inputs.release_sha }}","gateway":"smoke","schema":"prisma-migrate-status","imageDigests":"exact-manifest-image-ids-and-digests","startup":"compose-running-and-health-checked","rollback":".github/workflows/rollback.yml","rollbackOnFailure":${{ inputs.rollback_on_failure }},"result":"${{ job.status }}"}
           JSON
           cat > rollback-signal.json <<JSON
           {"signal":"none","releaseSha":"${{ inputs.release_sha }}","workflow":".github/workflows/rollback.yml","reason":"verification passed","runId":"${{ github.run_id }}"}
