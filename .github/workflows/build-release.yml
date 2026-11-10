@@ -108,12 +108,46 @@ jobs:
           set -Eeuo pipefail
           [[ "$API_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "$WEB_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-          docker buildx imagetools inspect "ghcr.io/${OWNER}/mkw-api@${API_DIGEST}" --raw > api-attestations.json
-          docker buildx imagetools inspect "ghcr.io/${OWNER}/mkw-web@${WEB_DIGEST}" --raw > web-attestations.json
-          test -s api-attestations.json
-          test -s web-attestations.json
-          grep -Eiq 'in-toto|cyclonedx|spdx|provenance|sbom' api-attestations.json
-          grep -Eiq 'in-toto|cyclonedx|spdx|provenance|sbom' web-attestations.json
+          inspect_with_retry() {
+            local image="$1" output="$2" label="$3" attempt=1 temporary="${2}.tmp" error_file="${2}.error"
+            while (( attempt <= 8 )); do
+              rm -f "$temporary" "$error_file"
+              if docker buildx imagetools inspect "$image" --raw >"$temporary" 2>"$error_file" &&
+                test -s "$temporary" && jq -e type "$temporary" >/dev/null 2>&1; then
+                mv "$temporary" "$output"
+                return 0
+              fi
+              echo "registry attestation read for ${label} was not ready (attempt ${attempt}/8); retrying" >&2
+              sleep $(( attempt * 2 ))
+              attempt=$((attempt + 1))
+            done
+            echo "unable to read registry manifest for ${label} after 8 attempts" >&2
+            sed -E 's/(token|password|secret|authorization)[^[:space:]]*/[REDACTED]/Ig' "$error_file" >&2 || true
+            return 1
+          }
+          attestations_present() {
+            jq -e '
+              [.. | objects |
+                (.annotations["vnd.docker.reference.type"]? // "") as $reference |
+                (.artifactType? // "") as $artifact |
+                (.mediaType? // "") as $media |
+                select(
+                  ($reference == "attestation-manifest") or
+                  (($artifact + " " + $media) | test("in-toto|cyclonedx|spdx"; "i"))
+                )
+              ] | length > 0
+            ' "$1" >/dev/null
+          }
+          inspect_with_retry "ghcr.io/${OWNER}/mkw-api@${API_DIGEST}" api-attestations.json api
+          inspect_with_retry "ghcr.io/${OWNER}/mkw-web@${WEB_DIGEST}" web-attestations.json web
+          attestations_present api-attestations.json || {
+            echo 'API image manifest has no SBOM/provenance attestation descriptor' >&2
+            exit 1
+          }
+          attestations_present web-attestations.json || {
+            echo 'Web image manifest has no SBOM/provenance attestation descriptor' >&2
+            exit 1
+          }
 
       - name: Write release metadata
         shell: bash
