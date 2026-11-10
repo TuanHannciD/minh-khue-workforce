@@ -32,6 +32,7 @@ test("backup workflow is scheduled/manual, encrypted, identity-aware, and emits 
   assert.match(workflow, /TARGET_HOST|databaseIdentity/);
   assert.match(workflow, /Upload initial-empty readiness gate/);
   assert.match(workflow, /if: env\.BACKUP_KIND == 'INITIAL_EMPTY_DEPLOYMENT'/);
+  assert.match(workflow, /BACKUP_OUTPUT=.*backup-ready\.json/);
 });
 
 test("initial-empty backup does not require a production database URL", async () => {

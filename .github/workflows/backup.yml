@@ -140,24 +140,18 @@ jobs:
             size="$(stat -c '%s' "$BACKUP_DIR/database.dump.enc")"
             database_host="$(node -e "const u=new URL(process.argv[1]); console.log(u.hostname)" "$DATABASE_URL")"
             database_name="$(node -e "const u=new URL(process.argv[1]); console.log((u.pathname||'/').slice(1)||'postgres')" "$DATABASE_URL")"
-          node - "$BACKUP_DIR/backup-ready.json" "$backup_id" "$now" "$retention" "$digest" "$size" "$database_host" "$database_name" "$RELEASE_SHA" <<'NODE'
+          BACKUP_OUTPUT="$BACKUP_DIR/backup-ready.json" BACKUP_ID="$backup_id" CREATED_AT="$now" RETENTION_UNTIL="$retention" DUMP_SHA256="$digest" DUMP_SIZE="$size" DATABASE_HOST="$database_host" DATABASE_NAME="$database_name" RELEASE_SHA="$RELEASE_SHA" node --input-type=module - <<'NODE'
           const { writeFile } = await import('node:fs/promises');
-          const [, out, backupId, createdAt, retentionUntil, dumpSha256, size, host, name, releaseSha] = process.argv;
-          await writeFile(out, JSON.stringify({ schemaVersion:'1', kind:'BACKUP', backupId, releaseSha, createdAt, dumpSha256, size:Number(size), restoreVerified:true, retentionUntil, storageLocation:'github-actions-artifact:mkw-backup', databaseIdentity:{ host, name, engine:'postgresql' } }, null, 2)+'\n');
+          await writeFile(process.env.BACKUP_OUTPUT, JSON.stringify({ schemaVersion:'1', kind:'BACKUP', backupId:process.env.BACKUP_ID, releaseSha:process.env.RELEASE_SHA, createdAt:process.env.CREATED_AT, dumpSha256:process.env.DUMP_SHA256, size:Number(process.env.DUMP_SIZE), restoreVerified:true, retentionUntil:process.env.RETENTION_UNTIL, storageLocation:'github-actions-artifact:mkw-backup', databaseIdentity:{ host:process.env.DATABASE_HOST, name:process.env.DATABASE_NAME, engine:'postgresql' } }, null, 2)+'\n');
           NODE
           else
             : "${MKW_SSH_HOST:?MKW_SSH_HOST is required for INITIAL_EMPTY_DEPLOYMENT}"
             : "${MKW_DEPLOY_PATH:?MKW_DEPLOY_PATH is required for INITIAL_EMPTY_DEPLOYMENT}"
             : "${MKW_PROJECT_NAME:?MKW_PROJECT_NAME is required for INITIAL_EMPTY_DEPLOYMENT}"
             export TARGET_DATABASE='mkw' TARGET_HOST="$MKW_SSH_HOST" TARGET_PATH="$MKW_DEPLOY_PATH" TARGET_PROJECT="$MKW_PROJECT_NAME"
-            node - "$BACKUP_DIR/backup-ready.json" "$backup_id" "$now" "$retention" "$RELEASE_SHA" <<'NODE'
+            BACKUP_OUTPUT="$BACKUP_DIR/backup-ready.json" BACKUP_ID="$backup_id" CREATED_AT="$now" RETENTION_UNTIL="$retention" RELEASE_SHA="$RELEASE_SHA" node --input-type=module - <<'NODE'
           const { writeFile } = await import('node:fs/promises');
-          const [, out, backupId, createdAt, retentionUntil, releaseSha] = process.argv;
-          const targetDatabase = process.env.TARGET_DATABASE;
-          const targetHost = process.env.TARGET_HOST;
-          const targetPath = process.env.TARGET_PATH;
-          const targetProject = process.env.TARGET_PROJECT;
-          await writeFile(out, JSON.stringify({ schemaVersion:'1', kind:'INITIAL_EMPTY_DEPLOYMENT', backupId, releaseSha, createdAt, restoreVerified:false, retentionUntil, storageLocation:'github-actions-artifact:mkw-backup', databaseVerifiedEmpty:true, emptyEvidence:{ targetIdentity:`${targetHost}/${targetPath}/${targetProject}`, databaseIdentity:targetDatabase, checkedAt:createdAt } }, null, 2)+'\n');
+          await writeFile(process.env.BACKUP_OUTPUT, JSON.stringify({ schemaVersion:'1', kind:'INITIAL_EMPTY_DEPLOYMENT', backupId:process.env.BACKUP_ID, releaseSha:process.env.RELEASE_SHA, createdAt:process.env.CREATED_AT, restoreVerified:false, retentionUntil:process.env.RETENTION_UNTIL, storageLocation:'github-actions-artifact:mkw-backup', databaseVerifiedEmpty:true, emptyEvidence:{ targetIdentity:`${process.env.TARGET_HOST}/${process.env.TARGET_PATH}/${process.env.TARGET_PROJECT}`, databaseIdentity:process.env.TARGET_DATABASE, checkedAt:process.env.CREATED_AT } }, null, 2)+'\n');
           NODE
           fi
           node scripts/product/release/validate-backup-ready.mjs "$BACKUP_DIR/backup-ready.json"
