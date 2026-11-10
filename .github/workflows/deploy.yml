@@ -46,6 +46,7 @@ jobs:
           fetch-depth: 1
 
       - name: Download immutable release artifact
+        if: inputs.mode == 'release'
         uses: actions/download-artifact@v4
         with:
           name: mkw-release-${{ inputs.release_sha }}
@@ -55,6 +56,7 @@ jobs:
           run-id: ${{ inputs.release_run_id }}
 
       - name: Download backup-ready metadata
+        if: inputs.mode == 'release'
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.backup_artifact_name }}
@@ -64,6 +66,7 @@ jobs:
           run-id: ${{ inputs.backup_run_id }}
 
       - name: Validate artifact and release manifest
+        if: inputs.mode == 'release'
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
@@ -111,6 +114,13 @@ jobs:
           test -n "${{ secrets.MKW_SSH_PRIVATE_KEY }}"
           printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
+          if [[ "$MODE" != release ]]; then
+            ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              "deploy@$MKW_SSH_HOST" \
+              "MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") bash -s -- --$(printf '%q' "$MODE")" \
+              < scripts/product/deploy-entrypoint.sh
+            exit 0
+          fi
           remote_dir="${MKW_DEPLOY_PATH}/releases/${RELEASE_SHA}"
           sha256sum backup-ready/backup-ready.json > backup-ready/backup-ready.json.sha256
           (cd backup-ready && sha256sum --check backup-ready.json.sha256)

@@ -29,9 +29,18 @@ test("backup workflow is scheduled/manual, encrypted, identity-aware, and emits 
   assert.match(workflow, /information_schema\.tables/);
   assert.match(workflow, /pg_constraint|foreign key/i);
   assert.match(workflow, /source-counts|restored-counts/);
-  assert.match(workflow, /current_database\(\)/);
-  assert.match(workflow, /inet_server_addr|target_identity/i);
-  assert.match(workflow, /pg_class.*relkind|business.*table/i);
+  assert.match(workflow, /TARGET_HOST|databaseIdentity/);
+  assert.match(workflow, /Upload initial-empty readiness gate/);
+  assert.match(workflow, /if: env\.BACKUP_KIND == 'INITIAL_EMPTY_DEPLOYMENT'/);
+});
+
+test("initial-empty backup does not require a production database URL", async () => {
+  const workflow = await read("backup.yml");
+  assert.match(workflow, /if \[\[ "\$BACKUP_KIND" == BACKUP \]\]/);
+  assert.match(workflow, /MKW_DATABASE_URL is required/);
+  assert.match(workflow, /INITIAL_EMPTY_DEPLOYMENT/);
+  assert.match(workflow, /MKW_DATABASE_URL is required for BACKUP/);
+  assert.match(workflow, /TARGET_DATABASE='mkw'/);
 });
 
 test("deploy consumes only the SHA-named build artifact and never resolves GHCR tags", async () => {
@@ -41,6 +50,7 @@ test("deploy consumes only the SHA-named build artifact and never resolves GHCR 
   assert.match(workflow, /mkw-release-\$\{\{\s*inputs\.release_sha\s*\}\}/);
   assert.match(workflow, /release-manifest\.sha256/);
   assert.match(workflow, /backup-ready/);
+  assert.match(workflow, /if: inputs\.mode == 'release'/);
   assert.match(workflow, /backup-ready\.json\.sha256/);
   assert.match(
     workflow,
