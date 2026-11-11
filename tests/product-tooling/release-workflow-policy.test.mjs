@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 
 const read = (name) => readFile(`.github/workflows/${name}`, "utf8");
+const readScript = (name) => readFile(`scripts/product/${name}`, "utf8");
 const exists = async (name) => {
   try {
     await access(`.github/workflows/${name}`);
@@ -14,21 +15,23 @@ const exists = async (name) => {
 
 test("backup workflow is scheduled/manual, encrypted, identity-aware, and emits validated metadata", async () => {
   const workflow = await read("backup.yml");
+  const source = await readScript("backup-source.sh");
+  const runner = await readScript("backup-runner.sh");
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /schedule:/);
-  assert.match(workflow, /pg_dump/);
-  assert.match(workflow, /openssl\s+enc|age\s+/i);
+  assert.match(source, /pg_dump/);
+  assert.match(runner, /openssl\s+enc|age\s+/i);
   assert.match(workflow, /sha256sum/);
   assert.match(workflow, /databaseIdentity/);
   assert.match(workflow, /restoreVerified/);
   assert.match(workflow, /INITIAL_EMPTY_DEPLOYMENT/);
   assert.match(workflow, /upload-artifact/);
   assert.match(workflow, /validate-backup-ready/);
-  assert.match(workflow, /pg_restore\s+--dbname=.*restore_database_url/);
-  assert.match(workflow, /CREATE DATABASE/);
-  assert.match(workflow, /information_schema\.tables/);
-  assert.match(workflow, /pg_constraint|foreign key/i);
-  assert.match(workflow, /source-counts|restored-counts/);
+  assert.match(runner, /pg_restore/);
+  assert.match(runner, /createdb/);
+  assert.match(runner, /information_schema\.tables/);
+  assert.match(runner, /pg_constraint|foreign key/i);
+  assert.match(runner, /source-counts|restored-counts/);
   assert.match(workflow, /TARGET_HOST|databaseIdentity/);
   assert.match(workflow, /Upload initial-empty readiness gate/);
   assert.match(workflow, /if: env\.BACKUP_KIND == 'INITIAL_EMPTY_DEPLOYMENT'/);
@@ -38,10 +41,25 @@ test("backup workflow is scheduled/manual, encrypted, identity-aware, and emits 
 test("initial-empty backup does not require a production database URL", async () => {
   const workflow = await read("backup.yml");
   assert.match(workflow, /if \[\[ "\$BACKUP_KIND" == BACKUP \]\]/);
-  assert.match(workflow, /MKW_DATABASE_URL is required/);
+  assert.doesNotMatch(workflow, /MKW_DATABASE_URL/);
   assert.match(workflow, /INITIAL_EMPTY_DEPLOYMENT/);
-  assert.match(workflow, /MKW_DATABASE_URL is required for BACKUP/);
   assert.match(workflow, /TARGET_DATABASE='mkw'/);
+});
+
+test("production backup reads the database inside the VPS over pinned SSH", async () => {
+  const workflow = await read("backup.yml");
+  const source = await readScript("backup-source.sh");
+  const runner = await readScript("backup-runner.sh");
+  assert.match(workflow, /MKW_SSH_PRIVATE_KEY/);
+  assert.match(workflow, /ssh-keyscan/);
+  assert.match(source, /docker exec[^\n]*pg_dump/);
+  assert.doesNotMatch(workflow, /MKW_DATABASE_URL is required for BACKUP/);
+  assert.doesNotMatch(
+    workflow,
+    /DATABASE_URL:\s*\$\{\{\s*secrets\.MKW_DATABASE_URL/,
+  );
+  assert.match(runner, /pg_restore/);
+  assert.match(runner, /docker run/);
 });
 
 test("deploy consumes only the SHA-named build artifact and never resolves GHCR tags", async () => {

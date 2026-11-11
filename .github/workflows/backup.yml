@@ -31,7 +31,6 @@ jobs:
     env:
       BACKUP_KIND: ${{ inputs.kind || 'BACKUP' }}
       RELEASE_SHA: ${{ inputs.release_sha || github.sha }}
-      DATABASE_URL: ${{ secrets.MKW_DATABASE_URL }}
       BACKUP_ENCRYPTION_KEY: ${{ secrets.MKW_BACKUP_ENCRYPTION_KEY }}
       MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
       MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
@@ -43,16 +42,21 @@ jobs:
 
       - name: Validate backup inputs
         shell: bash
+        env:
+          MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
         run: |
           set -Eeuo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$ ]]
           command -v node >/dev/null
           if [[ "$BACKUP_KIND" == BACKUP ]]; then
-            : "${DATABASE_URL:?MKW_DATABASE_URL is required for BACKUP}"
+            : "${MKW_SSH_HOST:?MKW_SSH_HOST is required for BACKUP}"
+            : "${MKW_SSH_PORT:?MKW_SSH_PORT is required for BACKUP}"
+            : "${MKW_SSH_HOST_FINGERPRINT:?MKW_SSH_HOST_FINGERPRINT is required for BACKUP}"
+            : "${MKW_SSH_PRIVATE_KEY:?MKW_SSH_PRIVATE_KEY is required for BACKUP}"
             : "${BACKUP_ENCRYPTION_KEY:?MKW_BACKUP_ENCRYPTION_KEY is required}"
-            command -v psql >/dev/null
-            command -v pg_dump >/dev/null
-            command -v pg_restore >/dev/null
+            command -v ssh >/dev/null
+            command -v ssh-keyscan >/dev/null
+            command -v docker >/dev/null
             command -v openssl >/dev/null
             command -v sha256sum >/dev/null
           elif [[ "$BACKUP_KIND" != INITIAL_EMPTY_DEPLOYMENT ]]; then
@@ -63,45 +67,34 @@ jobs:
       - name: Dump, encrypt, hash, and verify PostgreSQL backup
         if: env.BACKUP_KIND == 'BACKUP'
         shell: bash
+        env:
+          MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
         run: |
           set -Eeuo pipefail
           umask 077
-          mkdir -p "$RUNNER_TEMP/mkw-backup"
-          pg_dump --format=custom --no-owner --no-privileges --file="$RUNNER_TEMP/mkw-backup/database.dump" "$DATABASE_URL"
-
-          # A catalog listing is not a restore test. Restore into a fresh database
-          # on the same PostgreSQL server and query the resulting schema, migration
-          # ledger, and row counts before this run can emit backup-ready metadata.
-          restore_db="mkw_restore_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_$(openssl rand -hex 8)"
-          [[ "$restore_db" =~ ^[a-zA-Z_][a-zA-Z0-9_]{0,62}$ ]]
-          cleanup_restore() {
-            psql "$DATABASE_URL" --no-password -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"$restore_db\"" >/dev/null 2>&1 || true
-          }
-          trap cleanup_restore EXIT
-          psql "$DATABASE_URL" --no-password -v ON_ERROR_STOP=1 -Atqc "SELECT format('CREATE DATABASE %I', '$restore_db')" | psql "$DATABASE_URL" --no-password -v ON_ERROR_STOP=1 >/dev/null
-          restore_database_url="$(node -e 'const u=new URL(process.argv[1]); u.pathname="/"+process.argv[2]; process.stdout.write(u.toString())' "$DATABASE_URL" "$restore_db")"
-          pg_restore --dbname="$restore_database_url" --no-password --single-transaction --exit-on-error --no-owner --no-privileges "$RUNNER_TEMP/mkw-backup/database.dump"
-
-          expected_migration="$(find apps/api/prisma/migrations -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort | tail -n 1)"
-          [[ -n "$expected_migration" ]]
-          psql "$restore_database_url" --no-password -v ON_ERROR_STOP=1 -Atqc \
-            "SELECT CASE WHEN count(*) = 6 THEN 'ok' ELSE 'bad' END FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('User','Session','AuthThrottle','Employee','AttendanceCell','_prisma_migrations')" | grep -qx ok
-          psql "$restore_database_url" --no-password -v ON_ERROR_STOP=1 -Atqc \
-            "SELECT CASE WHEN (SELECT migration_name FROM \"_prisma_migrations\" ORDER BY finished_at DESC NULLS LAST, started_at DESC LIMIT 1) = '$expected_migration' THEN 'ok' ELSE 'bad' END" | grep -qx ok
-          psql "$restore_database_url" --no-password -v ON_ERROR_STOP=1 -Atqc \
-            "SELECT CASE WHEN count(*) = 2 THEN 'ok' ELSE 'bad' END FROM pg_constraint c JOIN pg_class t ON t.oid = c.conrelid JOIN pg_namespace n ON n.oid = t.relnamespace WHERE c.contype = 'f' AND n.nspname = 'public'" | grep -qx ok
-          psql "$DATABASE_URL" --no-password -v ON_ERROR_STOP=1 -Atqc \
-            "SELECT 'User', count(*) FROM \"User\" UNION ALL SELECT 'Session', count(*) FROM \"Session\" UNION ALL SELECT 'AuthThrottle', count(*) FROM \"AuthThrottle\" UNION ALL SELECT 'Employee', count(*) FROM \"Employee\" UNION ALL SELECT 'AttendanceCell', count(*) FROM \"AttendanceCell\" ORDER BY 1" > "$RUNNER_TEMP/mkw-backup/source-counts.txt"
-          psql "$restore_database_url" --no-password -v ON_ERROR_STOP=1 -Atqc \
-            "SELECT 'User', count(*) FROM \"User\" UNION ALL SELECT 'Session', count(*) FROM \"Session\" UNION ALL SELECT 'AuthThrottle', count(*) FROM \"AuthThrottle\" UNION ALL SELECT 'Employee', count(*) FROM \"Employee\" UNION ALL SELECT 'AttendanceCell', count(*) FROM \"AttendanceCell\" ORDER BY 1" > "$RUNNER_TEMP/mkw-backup/restored-counts.txt"
-          cmp -s "$RUNNER_TEMP/mkw-backup/source-counts.txt" "$RUNNER_TEMP/mkw-backup/restored-counts.txt"
-
-          printf '%s' "$BACKUP_ENCRYPTION_KEY" |
-            openssl enc -aes-256-cbc -pbkdf2 -salt -pass stdin \
-              -in "$RUNNER_TEMP/mkw-backup/database.dump" \
-              -out "$RUNNER_TEMP/mkw-backup/database.dump.enc"
-          sha256sum "$RUNNER_TEMP/mkw-backup/database.dump.enc" > "$RUNNER_TEMP/mkw-backup/database.dump.enc.sha256"
-          test -s "$RUNNER_TEMP/mkw-backup/database.dump.enc.sha256"
+          install -m 700 -d "$HOME/.ssh"
+          trap 'rm -f "$RUNNER_TEMP/mkw_key" "$RUNNER_TEMP/mkw_candidate"' EXIT
+          ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
+          : > "$RUNNER_TEMP/mkw_pinned_hosts"
+          while IFS= read -r line; do
+            printf '%s\n' "$line" > "$RUNNER_TEMP/mkw_candidate"
+            if [[ "$(ssh-keygen -lf "$RUNNER_TEMP/mkw_candidate" -E sha256 | awk '{print $2}')" == "$MKW_SSH_HOST_FINGERPRINT" ]]; then
+              printf '%s\n' "$line" >> "$RUNNER_TEMP/mkw_pinned_hosts"
+            fi
+          done < "$RUNNER_TEMP/mkw_known_hosts"
+          test -s "$RUNNER_TEMP/mkw_pinned_hosts"
+          printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"
+          chmod 600 "$RUNNER_TEMP/mkw_key"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" \
+            'MKW_DEPLOY_PATH=/home/deploy/mkw MKW_PROJECT_NAME=mkw bash -s' \
+            < scripts/product/backup-source.sh | \
+            BACKUP_DIR="$RUNNER_TEMP/mkw-backup" \
+            BACKUP_ENCRYPTION_KEY="$BACKUP_ENCRYPTION_KEY" \
+            GITHUB_RUN_ID="$GITHUB_RUN_ID" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            bash scripts/product/backup-runner.sh
 
       - name: Verify initial target is empty
         if: env.BACKUP_KIND == 'INITIAL_EMPTY_DEPLOYMENT'
@@ -138,8 +131,8 @@ jobs:
           if [[ "$BACKUP_KIND" == BACKUP ]]; then
             digest="$(cut -d' ' -f1 "$BACKUP_DIR/database.dump.enc.sha256")"
             size="$(stat -c '%s' "$BACKUP_DIR/database.dump.enc")"
-            database_host="$(node -e "const u=new URL(process.argv[1]); console.log(u.hostname)" "$DATABASE_URL")"
-            database_name="$(node -e "const u=new URL(process.argv[1]); console.log((u.pathname||'/').slice(1)||'postgres')" "$DATABASE_URL")"
+            database_host="$MKW_SSH_HOST"
+            database_name="mkw"
           BACKUP_OUTPUT="$BACKUP_DIR/backup-ready.json" BACKUP_ID="$backup_id" CREATED_AT="$now" RETENTION_UNTIL="$retention" DUMP_SHA256="$digest" DUMP_SIZE="$size" DATABASE_HOST="$database_host" DATABASE_NAME="$database_name" RELEASE_SHA="$RELEASE_SHA" node --input-type=module - <<'NODE'
           const { writeFile } = await import('node:fs/promises');
           await writeFile(process.env.BACKUP_OUTPUT, JSON.stringify({ schemaVersion:'1', kind:'BACKUP', backupId:process.env.BACKUP_ID, releaseSha:process.env.RELEASE_SHA, createdAt:process.env.CREATED_AT, dumpSha256:process.env.DUMP_SHA256, size:Number(process.env.DUMP_SIZE), restoreVerified:true, retentionUntil:process.env.RETENTION_UNTIL, storageLocation:'github-actions-artifact:mkw-backup', databaseIdentity:{ host:process.env.DATABASE_HOST, name:process.env.DATABASE_NAME, engine:'postgresql' } }, null, 2)+'\n');
