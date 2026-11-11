@@ -18,8 +18,10 @@ trap cleanup EXIT
 # Keep the exporting read-only transaction alive while pg_dump imports its snapshot.
 coproc SOURCE { docker exec -i "$container" psql -X -qAt -v ON_ERROR_STOP=1 -U mkw -d mkw; }
 source_pid=$SOURCE_PID
-exec {source_in}>&"${SOURCE[1]}" {source_out}<&"${SOURCE[0]}"
-exec {SOURCE[1]}>&- {SOURCE[0]}<&-
+source_write_fd=${SOURCE[1]}
+source_read_fd=${SOURCE[0]}
+exec {source_in}>&"$source_write_fd" {source_out}<&"$source_read_fd"
+exec {source_write_fd}>&- {source_read_fd}<&-
 printf '%s\n' 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;' 'SELECT pg_export_snapshot();' >&"$source_in"
 IFS= read -r snapshot <&"$source_out"
 [[ "$snapshot" =~ ^[0-9A-Fa-f]+-[0-9A-Fa-f]+-[0-9]+$ ]] || exit 78
