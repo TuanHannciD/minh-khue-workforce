@@ -81,6 +81,12 @@ export function createGithubApi({
         ]),
       );
     },
+    async runJobs(id, attempt) {
+      const result = await call([
+        `/repos/${repository}/actions/runs/${id}/attempts/${attempt}/jobs?per_page=100`,
+      ]);
+      return result.flatMap((page) => page.jobs ?? []);
+    },
     async jsonFromArtifact(id, entry) {
       const dir = await mkdtemp(join(tmpdir(), "mkw-coordinator-"));
       try {

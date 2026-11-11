@@ -31,6 +31,13 @@ const ownership = () => ({
   artifactDigest: d(9),
   controlSha: old,
 });
+const currentOwnership = () => ({
+  runId: "81",
+  runAttempt: "2",
+  artifactId: "82",
+  artifactDigest: d(8),
+  controlSha: sha,
+});
 const attestation = { mode: "required", status: "verified" };
 export function fixture() {
   const previousState = {
@@ -47,22 +54,50 @@ export function fixture() {
   const state = {
     schemaVersion: 2,
     status: "deploying",
-    operationId: "new-op",
+    operationId: `81-2-${sha}`,
     releaseSha: sha,
     manifest: manifest(sha),
-    ownership: ownership(),
+    ownership: currentOwnership(),
+    attestation,
     previousState,
     applicationAttempted: true,
     applicationStartedAt: "2026-11-12T02:00:00Z",
     dataOperations: "migration-only",
+    dataOperationEvidence: {
+      kind: "migration-only",
+      source: "independent-data-operation-audit",
+      scope: "release-and-application-startup",
+      unverifiedSideEffects: false,
+      apiImage: manifest(sha).apiImage,
+      webImage: manifest(sha).webImage,
+      status: "verified",
+      operationId: `81-2-${sha}`,
+      releaseSha: sha,
+    },
     migrationOutcome: "succeeded",
     before: snapshot(),
     after: snapshot(),
     preReleaseBackupId: "backup-before",
   };
+  previousState.runtimeVerification = {
+    status: "verified",
+    operationId: previousState.operationId,
+    releaseSha: old,
+    verifiedAt: previousState.verifiedAt,
+    apiImage: previousState.manifest.apiImage,
+    webImage: previousState.manifest.webImage,
+    postgresImage: previousState.manifest.postgresImage,
+  };
   return {
     state,
-    expectedOperationId: "new-op",
+    expectedOwnership: structuredClone(state.ownership),
+    expectedControlSha: sha,
+    currentReleaseProof: {
+      ownership: structuredClone(state.ownership),
+      manifest: structuredClone(state.manifest),
+      dataOperationEvidence: structuredClone(state.dataOperationEvidence),
+    },
+    expectedOperationId: `81-2-${sha}`,
     expectedSha: sha,
     repository: "owner/repo",
     runtime: {

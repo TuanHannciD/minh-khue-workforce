@@ -12,6 +12,18 @@ on:
       operation_id:
         required: true
         type: string
+      current_run_id:
+        required: true
+        type: string
+      current_run_attempt:
+        required: true
+        type: string
+      current_artifact_id:
+        required: true
+        type: string
+      current_artifact_digest:
+        required: true
+        type: string
     secrets:
       MKW_SSH_PRIVATE_KEY:
         required: true
@@ -40,6 +52,7 @@ jobs:
       api_image: ${{ steps.plan.outputs.failedApiImage }}
       web_image: ${{ steps.plan.outputs.failedWebImage }}
       postgres_image: ${{ steps.plan.outputs.postgresImage }}
+      current_release_proof: ${{ steps.plan.outputs.currentReleaseProof }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -59,6 +72,12 @@ jobs:
           CURRENT_STATE_PATH: ${{ runner.temp }}/current-state.json
           MKW_OPERATION_ID: ${{ inputs.operation_id }}
           RELEASE_SHA: ${{ inputs.release_sha }}
+          CONTROL_SHA: ${{ inputs.control_sha }}
+          CURRENT_RUN_ID: ${{ inputs.current_run_id }}
+          CURRENT_RUN_ATTEMPT: ${{ inputs.current_run_attempt }}
+          CURRENT_ARTIFACT_ID: ${{ inputs.current_artifact_id }}
+          CURRENT_ARTIFACT_DIGEST: ${{ inputs.current_artifact_digest }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: node scripts/product/release/prepare-auto-rollback.mjs
 
@@ -122,6 +141,7 @@ jobs:
           BACKUP_ARTIFACT_NAME: ${{ needs.fresh-backup.outputs.backup_artifact_name }}
           BACKUP_ARTIFACT_DIGEST: ${{ needs.fresh-backup.outputs.backup_artifact_digest }}
           GH_TOKEN: ${{ github.token }}
+          CURRENT_RELEASE_PROOF: ${{ needs.plan.outputs.current_release_proof }}
         run: |
           set -Eeuo pipefail
           node scripts/product/release/validate-auto-backup.mjs
@@ -131,6 +151,7 @@ jobs:
           mkdir recovery-input
           cp old-release/release-manifest.json recovery-input/release-manifest.json
           cp current-backup/backup-ready.json recovery-input/backup-ready.json
+          printf '%s\n' "$CURRENT_RELEASE_PROOF" > recovery-input/current-release-proof.json
       - name: Verify previous manifest attestation under current policy
         if: needs.plan.outputs.action == 'eligible' && needs.fresh-backup.result == 'success'
         id: attestation

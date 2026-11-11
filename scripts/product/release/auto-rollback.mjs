@@ -57,11 +57,64 @@ export function validAttestation(a) {
   );
 }
 
+export function validDataOperationEvidence(e, state) {
+  return (
+    e?.kind === "migration-only" &&
+    e?.source === "independent-data-operation-audit" &&
+    e?.status === "verified" &&
+    e?.scope === "release-and-application-startup" &&
+    e?.operationId === state?.operationId &&
+    e?.releaseSha === state?.releaseSha &&
+    e?.apiImage === state?.manifest?.apiImage &&
+    e?.webImage === state?.manifest?.webImage &&
+    e?.unverifiedSideEffects === false &&
+    Object.keys(e).every((key) =>
+      [
+        "kind",
+        "source",
+        "status",
+        "scope",
+        "operationId",
+        "releaseSha",
+        "apiImage",
+        "webImage",
+        "unverifiedSideEffects",
+      ].includes(key),
+    )
+  );
+}
+
+export function validVerifiedState(state) {
+  const v = state?.runtimeVerification;
+  return (
+    state?.schemaVersion === 2 &&
+    state?.status === "verified" &&
+    operation.test(state.operationId ?? "") &&
+    sha.test(state.releaseSha ?? "") &&
+    Number.isFinite(Date.parse(state.verifiedAt ?? "")) &&
+    validateManifest(state.manifest).ok &&
+    state.manifest.releaseSha === state.releaseSha &&
+    validOwnership(state.ownership) &&
+    validAttestation(state.attestation) &&
+    validSnapshot(state.database) &&
+    state.database.postgresImage === state.manifest.postgresImage &&
+    v?.status === "verified" &&
+    v?.operationId === state.operationId &&
+    v?.releaseSha === state.releaseSha &&
+    v?.verifiedAt === state.verifiedAt &&
+    ["apiImage", "webImage", "postgresImage"].every(
+      (key) => v[key] === state.manifest[key],
+    )
+  );
+}
+
 /** A precheck excludes backup/runtime, which are freshly acquired only after eligibility. */
 export function rollbackPrecheck({
   state,
   expectedOperationId,
   expectedSha,
+  expectedControlSha = expectedSha,
+  expectedOwnership,
   repository,
 } = {}) {
   if (
@@ -77,7 +130,8 @@ export function rollbackPrecheck({
     return incident("failed-operation-mismatch-or-application-not-applied");
   if (
     !Number.isFinite(Date.parse(state.applicationStartedAt ?? "")) ||
-    state.dataOperations !== "migration-only"
+    state.dataOperations !== "migration-only" ||
+    !validDataOperationEvidence(state.dataOperationEvidence, state)
   )
     return incident("unknown-data-operations");
   if (state.rollbackAttempted === true)
@@ -94,14 +148,19 @@ export function rollbackPrecheck({
     !validateManifest(previous.manifest).ok ||
     previous.manifest.releaseSha !== previous.releaseSha ||
     previous.manifest.sourceRepository !== repository ||
-    !validSnapshot(previous.database)
+    !validSnapshot(previous.database) ||
+    !validVerifiedState(previous)
   )
     return incident("missing-or-incomplete-last-known-good");
   if (
     !validateManifest(state.manifest).ok ||
     state.manifest.releaseSha !== expectedSha ||
     state.manifest.sourceRepository !== repository ||
-    !validOwnership(state.ownership)
+    !validOwnership(state.ownership) ||
+    !validAttestation(state.attestation) ||
+    !validOwnership(expectedOwnership) ||
+    !same(state.ownership, expectedOwnership) ||
+    state.ownership.controlSha !== expectedControlSha
   )
     return incident("current-manifest-ownership-invalid");
   if (
@@ -122,12 +181,27 @@ export function decideAutomaticRollback(input = {}) {
     backup,
     backupPolicy,
     trustedManifest,
+    currentReleaseProof,
     artifactsVerified,
     attestation,
     now,
   } = input;
   const pre = rollbackPrecheck(input);
   if (pre.action !== "eligible") return pre;
+  if (
+    !currentReleaseProof ||
+    !same(currentReleaseProof.ownership, state.ownership) ||
+    !same(currentReleaseProof.manifest, state.manifest) ||
+    !validDataOperationEvidence(
+      currentReleaseProof.dataOperationEvidence,
+      state,
+    ) ||
+    !same(
+      currentReleaseProof.dataOperationEvidence,
+      state.dataOperationEvidence,
+    )
+  )
+    return incident("current-canonical-release-evidence-unverified");
   if (
     artifactsVerified !== true ||
     !same(trustedManifest, state.previousState.manifest) ||

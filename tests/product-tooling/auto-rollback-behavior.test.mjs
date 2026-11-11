@@ -14,12 +14,14 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fixture } from "./fixtures/auto-rollback.mjs";
+import { rollbackApi } from "./fixtures/rollback-api.mjs";
 import {
   beginOperation,
   promoteOperation,
 } from "../../scripts/product/release/operation-state.mjs";
 import { prepareAutomaticRollback } from "../../scripts/product/release/prepare-auto-rollback.mjs";
 import { validateRecoveryBackupArtifact } from "../../scripts/product/release/validate-auto-backup.mjs";
+import { decideOrchestrationOutcome } from "../../scripts/product/release/orchestration-policy.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const bash =
@@ -37,7 +39,7 @@ test("only verified full operation state seeds last-known-good and drops nested 
   const pending = beginOperation({
     manifest: f.state.manifest,
     previousState: f.state.previousState,
-    operationId: "new-op",
+    operationId: f.expectedOperationId,
     ownership: f.state.ownership,
     attestation: f.attestation,
     backup: f.backup,
@@ -46,7 +48,7 @@ test("only verified full operation state seeds last-known-good and drops nested 
   assert.equal(pending.migrationOutcome, "unknown");
   assert.equal(pending.previousState.operationId, "old-op");
   const verified = promoteOperation(f.state, {
-    operationId: "new-op",
+    operationId: f.expectedOperationId,
     releaseSha: f.expectedSha,
     database: f.state.after,
     verifiedAt: f.now,
@@ -64,34 +66,10 @@ test("only verified full operation state seeds last-known-good and drops nested 
     /mismatch/,
   );
 });
-function artifactApi(f, change = {}) {
-  const o = f.state.previousState.ownership,
-    m = f.state.previousState.manifest;
-  return {
-    artifact: async () => ({
-      id: o.artifactId,
-      name: "mkw-release-" + m.releaseSha,
-      digest: o.artifactDigest,
-      expired: false,
-      workflow_run: { id: o.runId },
-      ...change.artifact,
-    }),
-    run: async () => ({
-      id: o.runId,
-      run_attempt: o.runAttempt,
-      path: ".github/workflows/build-release.yml",
-      event: "workflow_run",
-      head_branch: "main",
-      status: "completed",
-      conclusion: "success",
-      ...change.run,
-    }),
-    jsonFromArtifact: async (_, entry) =>
-      entry === "release-manifest.json"
-        ? { ...m, ...change.manifest }
-        : { sourceSha: m.releaseSha },
-  };
+function artifactApi(_, change = {}) {
+  return rollbackApi(change);
 }
+
 test("previous build resolution requires retained exact artifact/run/attempt/archive digest", async () => {
   const f = fixture();
   assert.equal(
@@ -161,7 +139,7 @@ test("missing SSH receipt records unknown attempt count and never claims recover
       env: {
         ...process.env,
         RUNNER_TEMP: dir,
-        MKW_OPERATION_ID: "new-op",
+        MKW_OPERATION_ID: fixture().expectedOperationId,
         RELEASE_SHA: "a".repeat(40),
         GITHUB_OUTPUT: join(dir, "outputs"),
         GITHUB_STEP_SUMMARY: join(dir, "summary"),
@@ -200,6 +178,19 @@ async function remoteFixture(t, mode) {
   if (mode === "changed") f.state.after.schemaFingerprint = hash("changed");
   if (mode === "unknown") f.state.after = { known: false };
   if (mode === "migration-failed") f.state.migrationOutcome = "started";
+  if (mode === "unknown-data") f.state.dataOperations = "unknown";
+  if (mode === "side-effect-data")
+    f.state.dataOperationEvidence.unverifiedSideEffects = true;
+  if (mode === "missing-data-evidence") delete f.state.dataOperationEvidence;
+  if (mode.startsWith("ownership-")) {
+    const field = mode.slice("ownership-".length);
+    f.state.ownership[field] =
+      field === "controlSha"
+        ? "d".repeat(40)
+        : field === "artifactDigest"
+          ? hash("forged")
+          : "999";
+  }
   if (mode === "missing-previous") f.state.previousState = null;
   if (mode === "interleaved") f.state.operationId = "other-op";
   await writeFile(
@@ -215,6 +206,10 @@ async function remoteFixture(t, mode) {
       join(dir, "recovery-input/backup-ready.json"),
       JSON.stringify(f.backup),
     );
+  await writeFile(
+    join(dir, "recovery-input/current-release-proof.json"),
+    JSON.stringify(f.currentReleaseProof),
+  );
   await writeFile(join(dir, "current/compose.rendered.yml"), "services: {}\n");
   const docker = '#!/usr/bin/env bash\nexec "$REAL_NODE" "$FAKE_DOCKER" "$@"\n';
   for (const [name, code] of [
@@ -257,7 +252,7 @@ async function remoteFixture(t, mode) {
     MKW_DEPLOY_PATH: posix(dir),
     MKW_PROJECT_NAME: "fixture",
     MKW_GATEWAY_PORT: "3200",
-    MKW_OPERATION_ID: "new-op",
+    MKW_OPERATION_ID: fixture().expectedOperationId,
     MKW_RELEASE_SHA: f.expectedSha,
     MKW_SOURCE_REPOSITORY: "owner/repo",
     MKW_API_IMAGE: f.state.manifest.apiImage,
@@ -297,6 +292,14 @@ for (const mode of [
   "changed",
   "unknown",
   "migration-failed",
+  "unknown-data",
+  "side-effect-data",
+  "missing-data-evidence",
+  "ownership-runId",
+  "ownership-runAttempt",
+  "ownership-artifactId",
+  "ownership-artifactDigest",
+  "ownership-controlSha",
   "missing-previous",
   "interleaved",
   "pg-mismatch",
@@ -327,6 +330,16 @@ for (const mode of [
       mode === "healthy" ? "recovered-by-app-rollback" : "incident-required",
     );
     assert.equal(receipt.pipelineStatus, "failed");
+    if (mode === "healthy") {
+      const state = JSON.parse(
+        await readFile(join(dir, "shared/current-state.json"), "utf8"),
+      );
+      assert.equal(
+        decideOrchestrationOutcome({ requestedSha: state.releaseSha, state })
+          .status,
+        "already-deployed",
+      );
+    }
     const log = await readFile(join(dir, "docker.log"), "utf8");
     assert.doesNotMatch(
       log,

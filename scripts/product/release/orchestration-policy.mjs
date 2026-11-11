@@ -1,4 +1,5 @@
 import { validateBackupReady } from "./validate-backup-ready.mjs";
+import { validVerifiedState } from "./auto-rollback.mjs";
 
 export const MAX_BACKUP_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -20,11 +21,7 @@ export function decideOrchestrationOutcome({
   if (currentSha && currentSha !== requestedSha)
     return { status: "superseded", reason: "newer main SHA is current" };
   if (state != null) {
-    if (
-      state.status !== "verified" ||
-      !/^[a-f0-9]{40}$/.test(state.releaseSha ?? "") ||
-      !/^[A-Za-z0-9._-]{1,160}$/.test(state.operationId ?? "")
-    )
+    if (!validVerifiedState(state))
       throw new Error("incident-required: current mutation state is uncertain");
     verifiedSha = state.releaseSha;
   }

@@ -143,6 +143,10 @@ jobs:
       control_sha: ${{ github.sha }}
       release_sha: ${{ github.sha }}
       operation_id: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+      current_run_id: ${{ needs.build.outputs.release_run_id }}
+      current_run_attempt: ${{ needs.build.outputs.release_run_attempt }}
+      current_artifact_id: ${{ needs.build.outputs.release_artifact_id }}
+      current_artifact_digest: ${{ needs.build.outputs.release_artifact_digest }}
     secrets:
       MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
       MKW_BACKUP_ENCRYPTION_KEY: ${{ secrets.MKW_BACKUP_ENCRYPTION_KEY }}

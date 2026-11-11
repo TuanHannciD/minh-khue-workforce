@@ -20,7 +20,7 @@ done < "$RUNNER_TEMP/mkw-recovery-scan"
 test -s "$pins"
 ssh_options=(-i "$key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o "UserKnownHostsFile=$pins")
 remote_dir="$MKW_DEPLOY_PATH/releases/recovery-$MKW_OPERATION_ID"
-(cd recovery-input && sha256sum release-manifest.json backup-ready.json > recovery-input.sha256)
+(cd recovery-input && sha256sum release-manifest.json backup-ready.json current-release-proof.json > recovery-input.sha256)
 tar -czf "$RUNNER_TEMP/mkw-recovery.tgz" recovery-input deploy/compose.production.yml scripts/product/release
 printf -v command_text 'mkdir -p -- %q' "$remote_dir"
 ssh "${ssh_options[@]}" "deploy@$MKW_SSH_HOST" "$command_text"

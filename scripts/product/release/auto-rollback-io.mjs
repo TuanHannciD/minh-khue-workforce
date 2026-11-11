@@ -26,11 +26,17 @@ if (command === "check") {
   const runtime = await read(`${dir}/runtime.json`);
   const backup = await read(`${dir}/backup-ready.json`).catch(() => null);
   const trustedManifest = await read(`${dir}/release-manifest.json`);
+  const currentReleaseProof = await read(
+    `${dir}/current-release-proof.json`,
+  ).catch(() => null);
   const decision = decideAutomaticRollback({
     state,
     runtime,
     backup,
     trustedManifest,
+    currentReleaseProof,
+    expectedOwnership: currentReleaseProof?.ownership,
+    expectedControlSha: currentReleaseProof?.ownership?.controlSha,
     artifactsVerified: true,
     expectedOperationId,
     expectedSha,
@@ -77,6 +83,12 @@ if (command === "check") {
       operationId: `${opId}.rollback`,
       verifiedAt: now,
       database,
+      runtimeVerification: {
+        ...(state.previousState.runtimeVerification ?? {}),
+        status: "verified",
+        operationId: `${opId}.rollback`,
+        verifiedAt: now,
+      },
       recovery: "recovered-by-app-rollback",
     }),
   );

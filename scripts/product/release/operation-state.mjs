@@ -1,10 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { parseJsonStrict } from "./validate-manifest.mjs";
+import { parseJsonStrict, validateManifest } from "./validate-manifest.mjs";
 import {
   validOwnership,
   validAttestation,
   validSnapshot,
+  validVerifiedState,
 } from "./auto-rollback.mjs";
 
 const read = async (path) => parseJsonStrict(await readFile(path, "utf8"));
@@ -37,7 +38,9 @@ export function beginOperation({
     preReleaseBackupId: backup.backupId,
     applicationAttempted: false,
     migrationOutcome: "unknown",
-    dataOperations: "migration-only",
+    // A release must earn a producer-backed data-operation receipt after the
+    // forward migration step. Never infer safety from a missing input.
+    dataOperations: "unknown",
   };
 }
 export function promoteOperation(
@@ -51,21 +54,34 @@ export function promoteOperation(
     !["deploying", "verified"].includes(state.status)
   )
     throw new Error("incident-required: verification operation mismatch");
-  // Legacy/manual releases retain the Task3 journal, but cannot seed auto recovery.
   if (
     state.schemaVersion !== 2 ||
     !validOwnership(state.ownership) ||
     !validAttestation(state.attestation) ||
-    !validSnapshot(database)
+    !validateManifest(state.manifest).ok ||
+    state.manifest.releaseSha !== releaseSha ||
+    !validSnapshot(database) ||
+    database.postgresImage !== state.manifest.postgresImage ||
+    !Number.isFinite(Date.parse(verifiedAt ?? ""))
   )
-    return {
+    throw new Error("incident-required: verification evidence is incomplete");
+  const result = {
+    ...state,
+    status: "verified",
+    database,
+    verifiedAt,
+    runtimeVerification: {
       status: "verified",
       operationId,
       releaseSha,
       verifiedAt,
-      database,
-    };
-  const result = { ...state, status: "verified", database, verifiedAt };
+      apiImage: state.manifest.apiImage,
+      webImage: state.manifest.webImage,
+      postgresImage: state.manifest.postgresImage,
+    },
+  };
+  if (!validVerifiedState(result))
+    throw new Error("incident-required: runtime verification evidence invalid");
   delete result.previousState;
   delete result.rollbackAttempted;
   return result;
