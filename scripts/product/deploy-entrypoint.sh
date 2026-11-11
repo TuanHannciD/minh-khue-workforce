@@ -22,6 +22,9 @@ done
 : "${MKW_GATEWAY_PORT:=3200}"
 : "${MKW_RELEASE_SHA:=${GITHUB_SHA:-}}"
 : "${MKW_WEB_ORIGIN:=https://minhkhue.servertun.pp.ua}"
+: "${MKW_ATTESTATION_MODE:=not-configured}"
+: "${MKW_ATTESTATION_STATUS:=not-applicable}"
+: "${MKW_OPERATION_KIND:=release}"
 [[ "$MKW_WEB_ORIGIN" =~ ^https://[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?(:[0-9]+)?$ ]] || { echo "exact HTTPS web origin is required" >&2; exit 78; }
 script_source="${BASH_SOURCE[0]:-}"
 if [[ -n "$script_source" && "$script_source" != bash && "$script_source" != /dev/stdin ]]; then
@@ -43,6 +46,22 @@ run_node() {
 [[ "$MKW_DEPLOY_PATH" =~ ^/home/[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ ]] || { echo "invalid deploy path" >&2; exit 78; }
 [[ "$MKW_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "invalid project name" >&2; exit 78; }
 [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo "invalid gateway port" >&2; exit 78; }
+case "$MKW_ATTESTATION_MODE" in
+  not-configured|off|best-effort|required) ;;
+  *) echo "invalid attestation verification mode" >&2; exit 78 ;;
+esac
+case "$MKW_ATTESTATION_STATUS" in
+  not-applicable|not-configured|not-verified|verified) ;;
+  *) echo "invalid attestation verification status" >&2; exit 78 ;;
+esac
+case "$MKW_OPERATION_KIND" in
+  release|application-rollback) ;;
+  *) echo "invalid operation kind" >&2; exit 78 ;;
+esac
+if [[ "$mode" == release && "$MKW_ATTESTATION_MODE" == required && "$MKW_ATTESTATION_STATUS" != verified ]]; then
+  echo "required attestation verification was not completed" >&2
+  exit 78
+fi
 command -v docker >/dev/null && docker compose version >/dev/null 2>&1 || { echo "Docker Compose is required" >&2; exit 69; }
 free_kb="$(df -Pk /home | awk 'NR==2 {print $4}')"
 (( free_kb >= 1048576 )) || { echo "insufficient /home space (<1 GiB)" >&2; exit 75; }
@@ -132,7 +151,7 @@ echo "RELEASE_CONFIG_OK project=$MKW_PROJECT_NAME"
 receipt_written=0; post_start=0
 write_receipt() {
   local status="$1" tmp="$(mktemp "$MKW_DEPLOY_PATH/receipts/.receipt.XXXXXX")"
-  printf '{"releaseSha":"%s","imageDigests":{"api":"%s","web":"%s","postgres":"%s"},"status":"%s","utc":"%s"}\n' "$release_sha" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE" "$status" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
+  printf '{"operation":"%s","releaseSha":"%s","imageDigests":{"api":"%s","web":"%s","postgres":"%s"},"attestationVerification":"%s","rollbackScope":"application-only","databaseRecovery":false,"status":"%s","utc":"%s"}\n' "$MKW_OPERATION_KIND" "$release_sha" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE" "$MKW_ATTESTATION_STATUS" "$status" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
   chmod 640 "$tmp"; mv -f "$tmp" "$MKW_DEPLOY_PATH/receipts/$(date -u +%Y%m%dT%H%M%SZ)-$status.json"; receipt_written=1
 }
 on_error() { local code=$?; if (( post_start == 1 && receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }

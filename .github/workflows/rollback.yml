@@ -12,13 +12,18 @@ on:
         required: true
         type: string
       reason:
-        description: Incident or approval reference
+        description: Incident/approval reference confirming old application compatibility with current database schema; no database restore
         required: true
         type: string
+
+concurrency:
+  group: mkw-production
+  cancel-in-progress: false
 
 permissions:
   contents: read
   actions: read
+  attestations: read
 
 jobs:
   rollback:
@@ -26,13 +31,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ inputs.old_release_sha }}
           fetch-depth: 1
 
       - name: Download and verify old manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: mkw-release-${{ inputs.old_release_sha }}
           path: old-release-artifact
@@ -41,12 +46,22 @@ jobs:
           run-id: ${{ inputs.old_release_run_id }}
 
       - name: Verify old manifest and backup-ready gate
+        id: attestations
         shell: bash
         env:
           OLD_RELEASE_SHA: ${{ inputs.old_release_sha }}
+          ROLLBACK_REASON: ${{ inputs.reason }}
+          ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -Eeuo pipefail
           [[ "$OLD_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 64
+          [[ -n "$ROLLBACK_REASON" && "${#ROLLBACK_REASON}" -le 512 ]] || { echo 'rollback reason must be 1-512 characters' >&2; exit 64; }
+          node --input-type=module <<'NODE'
+          if (/[\u0000-\u001f\u007f]/u.test(process.env.ROLLBACK_REASON)) {
+            throw new Error('rollback reason contains a control character');
+          }
+          NODE
           test -f old-release-artifact/release-manifest.json
           test -f old-release-artifact/release-manifest.sha256
           (cd old-release-artifact && sha256sum --check release-manifest.sha256)
@@ -57,7 +72,25 @@ jobs:
           const manifest = JSON.parse(await readFile(path, 'utf8'));
           if (manifest.releaseSha !== expected) throw new Error('old manifest releaseSha mismatch');
           NODE
-          echo "Old manifest verified for rollback reason: ${{ inputs.reason }}"
+          mode="${ATTESTATION_MODE:-not-configured}"
+          case "$mode" in
+            not-configured|off|best-effort|required) ;;
+            *) echo 'MKW_ATTESTATION_MODE must be one of not-configured, off, best-effort, required' >&2; exit 78 ;;
+          esac
+          attestation_status="not-configured"
+          if [[ "$mode" == best-effort || "$mode" == required ]]; then
+            attestation_status="not-verified"
+            if command -v gh >/dev/null 2>&1 && gh attestation verify old-release-artifact/release-manifest.json --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/build-release.yml" >/dev/null 2>&1; then
+              attestation_status="verified"
+            fi
+          fi
+          echo "status=$attestation_status" >> "$GITHUB_OUTPUT"
+          echo "attestation_status=$attestation_status" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$mode" == required && "$attestation_status" != verified ]]; then
+            echo 'required attestation verification did not complete for the old release manifest' >&2
+            exit 78
+          fi
+          echo 'Old manifest and rollback reason verified'
 
       - name: Redeploy exact old digests through deploy-entrypoint.sh
         shell: bash
@@ -69,6 +102,8 @@ jobs:
           MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
           MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
           MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
+          MKW_ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
+          MKW_ATTESTATION_STATUS: ${{ steps.attestations.outputs.status || 'not-applicable' }}
         run: |
           set -Eeuo pipefail
           install -m 700 -d "$HOME/.ssh"
@@ -84,25 +119,47 @@ jobs:
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && rm -f '$remote_dir/release.tgz'"
           api_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('old-release-artifact/release-manifest.json','utf8')).apiImage)")"
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image"
-          printf -v remote_env '%s MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_NOW=%q' "$remote_env" 86400 "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_OPERATION_KIND=application-rollback' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash '$remote_dir/scripts/product/deploy-entrypoint.sh' --release --manifest '$remote_dir/old-release-artifact/release-manifest.json' --compose '$remote_dir/deploy/compose.production.yml' --backup-ready '$MKW_DEPLOY_PATH/shared/backup-ready.json'"
 
       - name: Emit rollback receipt and signal
         if: always()
         shell: bash
+        env:
+          OLD_RELEASE_SHA: ${{ inputs.old_release_sha }}
+          ROLLBACK_REASON: ${{ inputs.reason }}
+          ROLLBACK_RESULT: ${{ job.status }}
+          ATTESTATION_STATUS: ${{ steps.attestations.outputs.status || 'not-configured' }}
         run: |
           set -Eeuo pipefail
-          cat > rollback-receipt.json <<JSON
-          {"rollback":true,"oldReleaseSha":"${{ inputs.old_release_sha }}","reason":"${{ inputs.reason }}","result":"${{ job.status }}","signal":"rollback-requested"}
-          JSON
+          [[ -n "$ROLLBACK_REASON" && "${#ROLLBACK_REASON}" -le 512 ]] || { echo 'rollback reason must be 1-512 characters' >&2; exit 64; }
+          [[ "$ROLLBACK_REASON" != *$'\n'* && "$ROLLBACK_REASON" != *$'\r'* ]] || { echo 'rollback reason contains a control character' >&2; exit 64; }
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          const reason = process.env.ROLLBACK_REASON ?? '';
+          if (!reason || reason.length > 512 || /[\u0000-\u001f\u007f]/u.test(reason)) {
+            throw new Error('rollback reason contains an invalid control character');
+          }
+          const receipt = {
+            rollback: true,
+            scope: 'application-only',
+            databaseRecovery: false,
+            databaseCompatibility: 'operator-approved-current-schema',
+            attestationVerification: process.env.ATTESTATION_STATUS || 'not-verified',
+            oldReleaseSha: process.env.OLD_RELEASE_SHA,
+            reason,
+            result: process.env.ROLLBACK_RESULT,
+            signal: 'rollback-requested',
+          };
+          await writeFile('rollback-receipt.json', `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
+          NODE
           test -s rollback-receipt.json
           echo "rollback-signal=rollback-requested" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload rollback receipt
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mkw-rollback-receipt-${{ inputs.old_release_sha }}
           path: rollback-receipt.json

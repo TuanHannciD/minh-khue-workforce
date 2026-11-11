@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout immutable CI commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
@@ -44,10 +44,10 @@ jobs:
           }
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -60,7 +60,7 @@ jobs:
 
       - name: Build and push API image
         id: api
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: .
           file: deploy/Dockerfile.api
@@ -74,7 +74,7 @@ jobs:
 
       - name: Build and push web image
         id: web
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: .
           file: deploy/Dockerfile.web
@@ -196,8 +196,16 @@ jobs:
         shell: bash
         run: bash scripts/product/release-rehearsal.sh
 
+      - name: Attest release manifest provenance
+        if: vars.MKW_ATTESTATION_MODE == 'best-effort' || vars.MKW_ATTESTATION_MODE == 'required'
+        continue-on-error: ${{ vars.MKW_ATTESTATION_MODE == 'best-effort' }}
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
+        with:
+          subject-path: release-manifest.json
+          show-summary: false
+
       - name: Upload immutable release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mkw-release-${{ github.event.workflow_run.head_sha }}
           if-no-files-found: error

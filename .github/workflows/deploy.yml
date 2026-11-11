@@ -52,6 +52,7 @@ concurrency:
 permissions:
   contents: read
   actions: read
+  attestations: read
 
 jobs:
   deploy:
@@ -60,14 +61,14 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout trusted current policy
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: main
           path: policy
           persist-credentials: false
 
       - name: Checkout release source as data
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ inputs.release_sha }}
           path: release-source
@@ -76,7 +77,7 @@ jobs:
 
       - name: Download immutable release artifact
         if: inputs.mode == 'release'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           merge-multiple: true
           artifact-ids: ${{ inputs.release_artifact_id }}
@@ -87,7 +88,7 @@ jobs:
 
       - name: Download backup-ready metadata
         if: inputs.mode == 'release'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           merge-multiple: true
           artifact-ids: ${{ inputs.backup_artifact_id }}
@@ -127,6 +128,43 @@ jobs:
           if (manifest.releaseSha !== expected) throw new Error('manifest releaseSha does not match release_sha');
           NODE
 
+      - name: Verify release attestations when configured
+        id: attestations
+        if: inputs.mode == 'release'
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          mode="${ATTESTATION_MODE:-not-configured}"
+          case "$mode" in
+            not-configured|off|best-effort|required) ;;
+            *) echo 'MKW_ATTESTATION_MODE must be one of not-configured, off, best-effort, required' >&2; exit 78 ;;
+          esac
+          status="not-configured"
+          if [[ "$mode" == off ]]; then
+            status="not-configured"
+          elif [[ "$mode" == best-effort || "$mode" == required ]]; then
+            status="not-verified"
+            if command -v gh >/dev/null 2>&1; then
+              # The build attests the manifest, which binds both application image
+              # digests and the pinned PostgreSQL image. Verify that exact file.
+              # Suppress CLI output: failure is represented by the receipt state,
+              # never by an untrusted command transcript.
+              if gh attestation verify release-artifact/release-manifest.json --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/build-release.yml" >/dev/null 2>&1; then
+                status="verified"
+              fi
+            fi
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "attestation_status=$status" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$mode" == required && "$status" != verified ]]; then
+            echo 'required attestation verification did not complete for the release manifest' >&2
+            exit 78
+          fi
+
       - name: Run remote deploy entrypoint with verified artifact
         shell: bash
         env:
@@ -138,6 +176,8 @@ jobs:
           MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
           MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
           MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
+          MKW_ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
+          MKW_ATTESTATION_STATUS: ${{ steps.attestations.outputs.status || 'not-applicable' }}
         run: |
           set -Eeuo pipefail
           : "${MKW_SSH_HOST:?Set production variable MKW_SSH_HOST}"
@@ -170,7 +210,7 @@ jobs:
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && (cd '$remote_dir/backup-ready' && sha256sum --check backup-ready.json.sha256) && install -m 640 '$remote_dir/backup-ready/backup-ready.json' '$MKW_DEPLOY_PATH/shared/backup-ready.json' && rm -rf '$remote_dir/backup-ready' '$remote_dir/release.tgz'"
           api_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('release-artifact/release-manifest.json','utf8')).apiImage)")"
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$api_image"
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$api_image" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS"
           # deploy-entrypoint.sh enforces the forward migration gate (pnpm db:deploy / migrate deploy) before compose up and traffic smoke checks.
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash '$remote_dir/release-source/scripts/product/deploy-entrypoint.sh' --release --manifest '$remote_dir/release-artifact/release-manifest.json' --compose '$remote_dir/release-source/deploy/compose.production.yml' --backup-ready '$MKW_DEPLOY_PATH/shared/backup-ready.json'"
