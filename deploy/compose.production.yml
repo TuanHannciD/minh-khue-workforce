@@ -2,7 +2,9 @@ name: mkw
 
 services:
   db:
-    image: ${MKW_POSTGRES_IMAGE:?MKW_POSTGRES_IMAGE is required}
+    # The entrypoint validates every value as name@sha256:<64 hex> before this
+    # file reaches Compose. Compose never receives a tag or performs lookup.
+    image: ${MKW_POSTGRES_IMAGE:?MKW_POSTGRES_IMAGE immutable digest is required}
     restart: unless-stopped
     env_file: ./shared/db.env
     volumes:
@@ -16,7 +18,8 @@ services:
       start_period: 10s
 
   api:
-    image: ${MKW_API_IMAGE:?MKW_API_IMAGE is required}
+    image: ${MKW_API_IMAGE:?MKW_API_IMAGE immutable digest is required}
+    pull_policy: never
     restart: unless-stopped
     env_file: ./shared/api.env
     environment:
@@ -40,7 +43,8 @@ services:
       start_period: 10s
 
   gateway:
-    image: ${MKW_WEB_IMAGE:?MKW_WEB_IMAGE is required}
+    image: ${MKW_WEB_IMAGE:?MKW_WEB_IMAGE immutable digest is required}
+    pull_policy: never
     restart: unless-stopped
     ports:
       - "127.0.0.1:${MKW_GATEWAY_PORT:-3200}:8080"

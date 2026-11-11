@@ -6,6 +6,12 @@ It does not share networks, volumes, ports, or containers with other projects.
 Compose consumes only the release manifest's immutable `@sha256:<64 hex>` image
 references. The release entrypoint validates the complete manifest and backup
 contract before rendering Compose; it never resolves a digest from a registry.
+Before any database migration or Compose mutation it pulls API/Web by those exact
+digests and checks the local `RepoDigest`. A public GHCR package uses anonymous
+pull. A private package requires a VPS-only mode-600 token file and a dedicated
+read-only `packages:read` credential (`MKW_REGISTRY_PULL_USERNAME` and
+`MKW_REGISTRY_PULL_TOKEN_FILE`); the build's package-write token is never sent to
+the VPS, artifact, receipt, or command line.
 
 ## Release gates
 
@@ -19,8 +25,10 @@ An empty backup marker is never accepted.
 The entrypoint renders absolute secret env-file paths, runs `docker compose config`,
 then runs the approved forward migration (`pnpm db:deploy`) before `compose up`.
 It waits for DB/API/gateway health and smokes `/` and `/api/health`. A successful
-or failed post-start attempt writes an atomic secret-free receipt containing
-`releaseSha`, `imageDigests`, `status`, and UTC `utc`.
+or failed attempt writes an atomic secret-free receipt containing `releaseSha`,
+`imageDigests`, registry auth/pull status, mutation state, `status`, and UTC
+`utc`. A denied pull or local digest mismatch records a failed pre-mutation
+receipt and exits before migration.
 
 ## Server setup
 

@@ -29,10 +29,11 @@ test("entrypoint is runnable from a remote release directory without host Node",
   assert.match(entrypoint, /MKW_API_IMAGE/);
 });
 
-test("entrypoint has no registry lookup and requires exact immutable digests", () => {
-  assert.doesNotMatch(
+test("entrypoint delegates registry auth/pull and requires exact immutable digests", () => {
+  assert.match(entrypoint, /release\/pull-exact-images\.sh/);
+  assert.match(
     entrypoint,
-    /docker\s+(pull|inspect).*digest|docker\s+manifest|crane\s+digest|skopeo\s+inspect/,
+    /registry pull\/identity gate failed before migration/,
   );
   assert.match(entrypoint, /sha256:\[0-9a-f\]\{64\}/i);
   assert.match(entrypoint, /releaseSha/);
@@ -63,6 +64,7 @@ test("production compose uses only digest variables and health checks DB API and
   assert.match(compose, /image:\s*\$\{MKW_POSTGRES_IMAGE/);
   assert.match(compose, /image:\s*\$\{MKW_API_IMAGE/);
   assert.match(compose, /image:\s*\$\{MKW_WEB_IMAGE/);
+  assert.match(compose, /pull_policy:\s*never/);
   assert.doesNotMatch(compose, /image:\s*[^$\s].*:/);
   assert.match(compose, /db:[\s\S]*healthcheck:/);
   assert.match(compose, /api:[\s\S]*healthcheck:/);

@@ -131,10 +131,9 @@ test("actual always receipt/signal/summary blocks preserve hostile inputs after 
 });
 
 test("entrypoint apply blocks reject DB mismatch before mutations and apply only old API/web on matching DB", async () => {
-  const entrypoint = await readFile(
-    join(root, "scripts/product/deploy-entrypoint.sh"),
-    "utf8",
-  );
+  const entrypoint = (
+    await readFile(join(root, "scripts/product/deploy-entrypoint.sh"), "utf8")
+  ).replaceAll("\r\n", "\n");
   // Linux /home, bootstrap and flock prerequisites are outside this fixture.
   // Execute the exact remaining apply path, including guard, render and receipt.
   const marker = "# Hold the deployment lock";
@@ -145,7 +144,24 @@ test("entrypoint apply blocks reject DB mismatch before mutations and apply only
       'if [[ "$mode" == release ]]; then validate_backup_gate; fi',
     ),
   );
-  const apply = gate + "\n" + entrypoint.slice(entrypoint.indexOf(marker));
+  const receipt = entrypoint.slice(
+    entrypoint.indexOf('registry_auth_status="not-run"'),
+    entrypoint.indexOf('if [[ "$mode" == bootstrap ]]; then'),
+  );
+  const registry = entrypoint.slice(
+    entrypoint.indexOf(
+      'if [[ "$mode" == release ]]; then\n  if [[ -z "$MKW_REGISTRY_VISIBILITY"',
+    ),
+    entrypoint.indexOf(marker),
+  );
+  const apply =
+    gate +
+    "\n" +
+    receipt +
+    "\n" +
+    registry +
+    "\n" +
+    entrypoint.slice(entrypoint.indexOf(marker));
   const sha = "a".repeat(40);
   const images = {
     api: `ghcr.io/example/api@sha256:${"1".repeat(64)}`,
@@ -158,6 +174,8 @@ test("entrypoint apply blocks reject DB mismatch before mutations and apply only
     [false, false],
     [false, true],
     ["target-after-lock", false],
+    ["registry-denied", false],
+    ["registry-mismatch", false],
   ]) {
     const cwd = await mkdtemp(join(tmpdir(), "mkw-apply-"));
     for (const dir of ["bin", "shared", "current", "receipts"])
@@ -197,6 +215,14 @@ test("entrypoint apply blocks reject DB mismatch before mutations and apply only
       join(cwd, "bin/docker"),
       `#!/usr/bin/env bash
 set -Eeuo pipefail
+if [[ "$1" == pull ]]; then
+  if [[ "$PULL_POLICY" == registry-denied ]]; then exit 77; fi
+  exit 0
+fi
+if [[ "$1 $2" == 'image inspect' ]]; then
+  if [[ "$PULL_POLICY" == registry-mismatch ]]; then echo unknown@sha256:bad; else printf '%s\\n' "$5"; fi
+  exit 0
+fi
 if [[ "$1" == ps ]]; then echo db-current; exit 0; fi
 if [[ "$1" == inspect ]]; then printf 'true %s\\n' "$CURRENT_POSTGRES"; exit 0; fi
 [[ "$1" == compose ]] || exit 99
@@ -217,7 +243,7 @@ esac
         ? 'node --input-type=module -e \'import fs from "node:fs"; const p=process.env.backup_ready; const b=JSON.parse(fs.readFileSync(p,"utf8")); b.databaseIdentity.host="other-host"; fs.writeFileSync(p,JSON.stringify(b));\''
         : "";
     const result = run(
-      `date() { ${clock}; }\ncd "$script_root"\nrun_node() { node "$@"; }\ncurl() { :; }\n${gate}\nvalidate_backup_gate\n${changedTarget}\n${apply}`,
+      `date() { ${clock}; }\nmode=release\ncd "$script_root"\nrun_node() { node "$@"; }\ncurl() { :; }\n${gate}\nvalidate_backup_gate\n${changedTarget}\n${apply}`,
       cwd,
       {
         PATH: `${join(cwd, "bin")}${process.platform === "win32" ? ";" : ":"}${process.env.PATH}`,
@@ -237,6 +263,11 @@ esac
         MKW_POSTGRES_IMAGE: images.postgres,
         MKW_OPERATION_KIND: "application-rollback",
         MKW_ATTESTATION_STATUS: "verified",
+        MKW_REGISTRY_HOST: "ghcr.io",
+        MKW_REGISTRY_VISIBILITY: "public",
+        MKW_REGISTRY_PULL_USERNAME: "",
+        MKW_REGISTRY_PULL_TOKEN_FILE: "/missing/unused-token",
+        PULL_POLICY: String(mismatch),
         MKW_WEB_ORIGIN: "https://example.test",
         manifest: posix(join(cwd, "manifest.json")),
         compose: posix(join(cwd, "compose.yml")),
@@ -251,17 +282,23 @@ esac
     );
     assert.equal(
       result.status,
-      mismatch || elapsed ? 78 : 0,
+      String(mismatch).startsWith("registry-")
+        ? 77
+        : mismatch || elapsed
+          ? 78
+          : 0,
       result.stdout + result.stderr,
     );
     if (mismatch || elapsed) {
       assert.match(
         result.stderr,
-        mismatch === true
-          ? /PostgreSQL runtime digest mismatch/
-          : mismatch === "target-after-lock"
-            ? /host.*expected target/
-            : /maximum age/,
+        String(mismatch).startsWith("registry-")
+          ? /registry pull\/identity gate failed before migration/
+          : mismatch === true
+            ? /PostgreSQL runtime digest mismatch/
+            : mismatch === "target-after-lock"
+              ? /host.*expected target/
+              : /maximum age/,
       );
       for (const file of ["mutations", "current/compose.rendered.yml"])
         assert.equal(await readFile(join(cwd, file)).catch(() => null), null);

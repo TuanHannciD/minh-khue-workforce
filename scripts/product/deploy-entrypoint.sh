@@ -28,6 +28,13 @@ done
 : "${MKW_ATTESTATION_MODE:=not-configured}"
 : "${MKW_ATTESTATION_STATUS:=not-applicable}"
 : "${MKW_OPERATION_KIND:=release}"
+: "${MKW_REGISTRY_HOST:=ghcr.io}"
+: "${MKW_REGISTRY_VISIBILITY:=}"
+: "${MKW_REGISTRY_PULL_USERNAME:=}"
+: "${MKW_REGISTRY_PULL_TOKEN_FILE:=$MKW_DEPLOY_PATH/shared/secrets/ghcr-pull-token}"
+export MKW_REGISTRY_HOST MKW_REGISTRY_VISIBILITY MKW_REGISTRY_PULL_USERNAME MKW_REGISTRY_PULL_TOKEN_FILE
+[[ "$MKW_REGISTRY_HOST" == ghcr.io ]] || { echo "only GHCR application images are supported" >&2; exit 78; }
+case "$MKW_REGISTRY_VISIBILITY" in ''|public|private) ;; *) echo "invalid registry visibility policy" >&2; exit 78 ;; esac
 [[ "$MKW_WEB_ORIGIN" =~ ^https://[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?(:[0-9]+)?$ ]] || { echo "exact HTTPS web origin is required" >&2; exit 78; }
 script_source="${BASH_SOURCE[0]:-}"
 if [[ -n "$script_source" && "$script_source" != bash && "$script_source" != /dev/stdin ]]; then
@@ -40,7 +47,11 @@ run_node() {
     node "$@"
   else
     [[ -n "${MKW_API_IMAGE:-}" ]] || { echo "Node runtime or MKW_API_IMAGE is required" >&2; exit 69; }
-    docker run --rm -i --user "$(id -u):$(id -g)" -e MKW_RESOLVED_COMPOSE \
+    if [[ "${validator_image_ready:-false}" != true ]]; then
+      bash "$script_root/scripts/product/release/pull-exact-images.sh" "$MKW_API_IMAGE" || { echo "validator image registry gate failed" >&2; exit 77; }
+      validator_image_ready=true
+    fi
+    docker run --rm -i --pull=never --user "$(id -u):$(id -g)" -e MKW_RESOLVED_COMPOSE \
       -v "$script_root:$script_root:ro" \
       -v "$MKW_DEPLOY_PATH/shared:$MKW_DEPLOY_PATH/shared:ro" \
       --workdir "$script_root" --entrypoint node "$MKW_API_IMAGE" "$@"
@@ -95,6 +106,7 @@ for (const key of ['releaseSha', 'apiImage', 'webImage', 'postgresImage']) conso
 NODE
 ) || { echo "release verification failed" >&2; exit 78; }
   [[ "${#fields[@]}" -eq 4 ]] || { echo "release manifest fields are incomplete" >&2; exit 78; }
+  [[ "$MKW_API_IMAGE" == "${fields[1]}" ]] || { echo "validator API image does not match manifest" >&2; exit 78; }
   release_sha="${fields[0]}"; MKW_API_IMAGE="${fields[1]}"; MKW_WEB_IMAGE="${fields[2]}"; MKW_POSTGRES_IMAGE="${fields[3]}"
   for image in "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE"; do
     [[ "$image" =~ ^[^[:space:]@]+@sha256:[0-9a-fA-F]{64}$ ]] || { echo "manifest contains a non-immutable image" >&2; exit 78; }
@@ -125,6 +137,14 @@ if [[ "$mode" == release ]]; then validate_backup_gate; fi
 
 install -d -m 0750 "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/releases" "$MKW_DEPLOY_PATH/current" "$MKW_DEPLOY_PATH/shared" "$MKW_DEPLOY_PATH/backups" "$MKW_DEPLOY_PATH/receipts"
 exec 9>"$MKW_DEPLOY_PATH/.deploy.lock"; flock -n 9 || { echo "another deploy is running" >&2; exit 75; }
+registry_auth_status="not-run"; registry_pull_status="not-run"; mutation_started="false"
+receipt_written=0
+write_receipt() {
+  local status="$1" tmp="$(mktemp "$MKW_DEPLOY_PATH/receipts/.receipt.XXXXXX")"
+  printf '{"operation":"%s","releaseSha":"%s","imageDigests":{"api":"%s","web":"%s","postgres":"%s"},"registry":{"host":"%s","auth":"%s","pull":"%s"},"mutationStarted":%s,"attestationVerification":"%s","rollbackScope":"application-only","databaseRecovery":false,"status":"%s","utc":"%s"}\n' \
+    "$MKW_OPERATION_KIND" "$release_sha" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE" "$MKW_REGISTRY_HOST" "$registry_auth_status" "$registry_pull_status" "$mutation_started" "$MKW_ATTESTATION_STATUS" "$status" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
+  chmod 640 "$tmp"; mv -f "$tmp" "$MKW_DEPLOY_PATH/receipts/$(date -u +%Y%m%dT%H%M%SZ)-$status.json"; receipt_written=1
+}
 if [[ "$mode" == bootstrap ]]; then
   install -d -m 0700 "$MKW_DEPLOY_PATH/shared/secrets"
   db_env="$MKW_DEPLOY_PATH/shared/db.env"; api_env="$MKW_DEPLOY_PATH/shared/api.env"
@@ -138,6 +158,21 @@ if [[ "$mode" == bootstrap ]]; then
     chmod 600 "$db_tmp" "$api_tmp"; mv -n "$db_tmp" "$db_env"; mv -n "$api_tmp" "$api_env"; trap - EXIT
   fi
   echo "BOOTSTRAP_OK path=$MKW_DEPLOY_PATH project=$MKW_PROJECT_NAME"; exit 0
+fi
+
+if [[ "$mode" == release ]]; then
+  if [[ -z "$MKW_REGISTRY_VISIBILITY" ]]; then
+    if [[ -f "$MKW_DEPLOY_PATH/shared/secrets/ghcr-pull-username" ]]; then MKW_REGISTRY_VISIBILITY=private; else MKW_REGISTRY_VISIBILITY=public; fi
+  fi
+  registry_auth_status="$MKW_REGISTRY_VISIBILITY"
+  if ! MKW_REGISTRY_HOST="$MKW_REGISTRY_HOST" MKW_REGISTRY_VISIBILITY="$MKW_REGISTRY_VISIBILITY" MKW_REGISTRY_PULL_USERNAME="$MKW_REGISTRY_PULL_USERNAME" MKW_REGISTRY_PULL_TOKEN_FILE="$MKW_REGISTRY_PULL_TOKEN_FILE" \
+    bash "$script_root/scripts/product/release/pull-exact-images.sh"; then
+    registry_pull_status="failed"
+    write_receipt registry-pull-failed || true
+    echo "registry pull/identity gate failed before migration or Compose mutation" >&2
+    exit 77
+  fi
+  registry_pull_status="verified"
 fi
 
 # Hold the deployment lock while checking the current DB, before rendering or
@@ -174,23 +209,17 @@ if (!result.ok) { console.error(result.errors.join('; ')); process.exit(78); }
 NODE
 echo "RELEASE_CONFIG_OK project=$MKW_PROJECT_NAME"
 
-receipt_written=0; post_start=0
-write_receipt() {
-  local status="$1" tmp="$(mktemp "$MKW_DEPLOY_PATH/receipts/.receipt.XXXXXX")"
-  printf '{"operation":"%s","releaseSha":"%s","imageDigests":{"api":"%s","web":"%s","postgres":"%s"},"attestationVerification":"%s","rollbackScope":"application-only","databaseRecovery":false,"status":"%s","utc":"%s"}\n' "$MKW_OPERATION_KIND" "$release_sha" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE" "$MKW_ATTESTATION_STATUS" "$status" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
-  chmod 640 "$tmp"; mv -f "$tmp" "$MKW_DEPLOY_PATH/receipts/$(date -u +%Y%m%dT%H%M%SZ)-$status.json"; receipt_written=1
-}
-on_error() { local code=$?; if (( post_start == 1 && receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }
+on_error() { local code=$?; if (( receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }
 trap on_error ERR
 validate_backup_gate
 # Approved forward migration (migrate deploy) and the JSON backup gate are
 # required before traffic; INITIAL_EMPTY_DEPLOYMENT is validated by JSON.
 # Immutable images use sha256:[0-9a-f]{64}.
+mutation_started=true
 if [[ "$MKW_OPERATION_KIND" != application-rollback ]]; then
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait db
 fi
 docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
-post_start=1
 if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --no-deps api gateway
 else
