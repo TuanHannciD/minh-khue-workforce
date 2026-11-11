@@ -17,7 +17,7 @@
     "storageLocation": { "type": "string", "minLength": 1, "maxLength": 1024 },
     "databaseIdentity": {
       "type": "object", "additionalProperties": false, "required": ["host", "name", "engine"],
-      "properties": { "host": { "type": "string", "minLength": 1 }, "name": { "type": "string", "minLength": 1 }, "engine": { "const": "postgresql" } }
+      "properties": { "host": { "type": "string", "minLength": 1 }, "name": { "type": "string", "minLength": 1 }, "engine": { "const": "postgresql" }, "targetIdentity": { "type": "string", "minLength": 1 } }
     },
     "databaseVerifiedEmpty": { "type": "boolean" },
     "emptyEvidence": {

@@ -131,6 +131,22 @@ jobs:
     secrets:
       MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
 
+  recovery:
+    needs: [build, deploy, verify]
+    if: ${{ always() && (needs.deploy.result == 'failure' || needs.verify.result == 'failure') }}
+    uses: ./.github/workflows/automatic-rollback.yml
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
+    with:
+      control_sha: ${{ github.sha }}
+      release_sha: ${{ github.sha }}
+      operation_id: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+    secrets:
+      MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+      MKW_BACKUP_ENCRYPTION_KEY: ${{ secrets.MKW_BACKUP_ENCRYPTION_KEY }}
+
   release-status:
     if: ${{ always() }}
     needs: [preflight, quality, build, backup, deploy, verify]

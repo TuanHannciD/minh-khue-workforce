@@ -1,0 +1,188 @@
+name: MKW conditional application recovery
+
+on:
+  workflow_call:
+    inputs:
+      control_sha:
+        required: true
+        type: string
+      release_sha:
+        required: true
+        type: string
+      operation_id:
+        required: true
+        type: string
+    secrets:
+      MKW_SSH_PRIVATE_KEY:
+        required: true
+      MKW_BACKUP_ENCRYPTION_KEY:
+        required: true
+    outputs:
+      recovery_status:
+        description: Application recovery result; original pipeline remains failed
+        value: ${{ jobs.recover.outputs.recovery_status || 'incident-required' }}
+
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      artifact_id: ${{ steps.plan.outputs.artifactId }}
+      run_id: ${{ steps.plan.outputs.runId }}
+      release_sha: ${{ steps.plan.outputs.releaseSha }}
+      api_image: ${{ steps.plan.outputs.failedApiImage }}
+      web_image: ${{ steps.plan.outputs.failedWebImage }}
+      postgres_image: ${{ steps.plan.outputs.postgresImage }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.control_sha }}
+          persist-credentials: false
+      - name: Read failed transaction under target lock
+        env:
+          MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
+          MKW_SSH_PORT: ${{ vars.MKW_SSH_PORT }}
+          MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
+          MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
+          MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+        run: bash scripts/product/release/probe-current-state.sh
+      - name: Validate previous verified state and canonical artifact ownership
+        id: plan
+        env:
+          CURRENT_STATE_PATH: ${{ runner.temp }}/current-state.json
+          MKW_OPERATION_ID: ${{ inputs.operation_id }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/product/release/prepare-auto-rollback.mjs
+
+  fresh-backup:
+    needs: plan
+    if: needs.plan.outputs.action == 'eligible'
+    uses: ./.github/workflows/backup.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      control_sha: ${{ inputs.control_sha }}
+      coordinator_id: ${{ inputs.operation_id }}-rollback
+      purpose: app-rollback
+      kind: BACKUP
+      release_sha: ${{ inputs.release_sha }}
+    secrets:
+      MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+      MKW_BACKUP_ENCRYPTION_KEY: ${{ secrets.MKW_BACKUP_ENCRYPTION_KEY }}
+
+  recover:
+    needs: [plan, fresh-backup]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    outputs:
+      recovery_status: ${{ steps.receipt.outputs.recovery_status || 'incident-required' }}
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      MKW_OPERATION_ID: ${{ inputs.operation_id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.control_sha }}
+          persist-credentials: false
+      - name: Download exact previous verified release artifact
+        if: needs.plan.outputs.action == 'eligible' && needs.fresh-backup.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ needs.plan.outputs.artifact_id }}
+          run-id: ${{ needs.plan.outputs.run_id }}
+          path: old-release
+          merge-multiple: true
+          github-token: ${{ github.token }}
+      - name: Download fresh current-database snapshot
+        if: needs.plan.outputs.action == 'eligible' && needs.fresh-backup.result == 'success'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ needs.fresh-backup.outputs.backup_artifact_id }}
+          run-id: ${{ needs.fresh-backup.outputs.backup_run_id }}
+          path: current-backup
+          merge-multiple: true
+          github-token: ${{ github.token }}
+      - name: Verify fresh artifact ownership and ciphertext checksums
+        if: needs.plan.outputs.action == 'eligible' && needs.fresh-backup.result == 'success'
+        env:
+          BACKUP_RUN_ID: ${{ needs.fresh-backup.outputs.backup_run_id }}
+          BACKUP_RUN_ATTEMPT: ${{ needs.fresh-backup.outputs.backup_run_attempt }}
+          BACKUP_ARTIFACT_ID: ${{ needs.fresh-backup.outputs.backup_artifact_id }}
+          BACKUP_ARTIFACT_NAME: ${{ needs.fresh-backup.outputs.backup_artifact_name }}
+          BACKUP_ARTIFACT_DIGEST: ${{ needs.fresh-backup.outputs.backup_artifact_digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          node scripts/product/release/validate-auto-backup.mjs
+          (cd old-release && sha256sum --check release-manifest.sha256)
+          (cd current-backup && sha256sum --check database.dump.enc.sha256)
+          node scripts/product/release/validate-manifest.mjs old-release/release-manifest.json
+          mkdir recovery-input
+          cp old-release/release-manifest.json recovery-input/release-manifest.json
+          cp current-backup/backup-ready.json recovery-input/backup-ready.json
+      - name: Verify previous manifest attestation under current policy
+        if: needs.plan.outputs.action == 'eligible' && needs.fresh-backup.result == 'success'
+        id: attestation
+        env:
+          ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE || 'not-configured' }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          status=not-configured
+          case "$ATTESTATION_MODE" in
+            off|not-configured) ;;
+            best-effort|required)
+              status=not-verified
+              if gh attestation verify recovery-input/release-manifest.json --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/build-release.yml" >/dev/null 2>&1; then status=verified; fi
+              ;;
+            *) exit 78 ;;
+          esac
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          [[ "$ATTESTATION_MODE" != required || "$status" == verified ]]
+      - name: Attempt application-only rollback once and verify database invariants
+        if: needs.plan.outputs.action == 'eligible' && needs.fresh-backup.result == 'success'
+        env:
+          MKW_RELEASE_SHA: ${{ inputs.release_sha }}
+          MKW_SOURCE_REPOSITORY: ${{ github.repository }}
+          MKW_API_IMAGE: ${{ needs.plan.outputs.api_image }}
+          MKW_WEB_IMAGE: ${{ needs.plan.outputs.web_image }}
+          MKW_POSTGRES_IMAGE: ${{ needs.plan.outputs.postgres_image }}
+          MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
+          MKW_SSH_PORT: ${{ vars.MKW_SSH_PORT }}
+          MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
+          MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
+          MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
+          MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
+          MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+          MKW_BACKUP_EXPECTED_HOST: ${{ vars.MKW_SSH_HOST }}
+          MKW_BACKUP_EXPECTED_TARGET_IDENTITY: ${{ vars.MKW_SSH_HOST }}/${{ vars.MKW_DEPLOY_PATH }}/${{ vars.MKW_PROJECT_NAME }}
+          MKW_BACKUP_MAX_AGE_SECONDS: ${{ vars.MKW_BACKUP_MAX_AGE_SECONDS || '86400' }}
+          MKW_ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE || 'not-configured' }}
+          MKW_ATTESTATION_STATUS: ${{ steps.attestation.outputs.status }}
+          MKW_REGISTRY_HOST: ${{ vars.MKW_REGISTRY_HOST || 'ghcr.io' }}
+          MKW_REGISTRY_VISIBILITY: ${{ vars.MKW_REGISTRY_VISIBILITY || '' }}
+          MKW_REGISTRY_PULL_USERNAME: ${{ vars.MKW_REGISTRY_PULL_USERNAME || '' }}
+          MKW_REGISTRY_PULL_TOKEN_FILE: ${{ vars.MKW_REGISTRY_PULL_TOKEN_FILE || '' }}
+        run: bash scripts/product/release/transport-auto-rollback.sh
+      - name: Record recovery or incident without converting the failed release to success
+        id: receipt
+        if: always()
+        run: node scripts/product/release/finish-auto-rollback.mjs
+      - name: Upload application recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mkw-auto-rollback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: auto-rollback-evidence.json
+          if-no-files-found: error

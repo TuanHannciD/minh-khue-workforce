@@ -203,7 +203,7 @@ export function validateBackupReady(value, options = {}) {
       errors.push("databaseIdentity is invalid");
     else {
       for (const key of Object.keys(value.databaseIdentity))
-        if (!["host", "name", "engine"].includes(key))
+        if (!["host", "name", "engine", "targetIdentity"].includes(key))
           errors.push("databaseIdentity contains unknown fields");
       if (
         typeof value.databaseIdentity.host !== "string" ||
@@ -217,6 +217,12 @@ export function validateBackupReady(value, options = {}) {
         errors.push("databaseIdentity.name is required");
       if (value.databaseIdentity.engine !== "postgresql")
         errors.push("databaseIdentity.engine must be postgresql");
+      if (
+        "targetIdentity" in value.databaseIdentity &&
+        (typeof value.databaseIdentity.targetIdentity !== "string" ||
+          value.databaseIdentity.targetIdentity.length === 0)
+      )
+        errors.push("databaseIdentity.targetIdentity is invalid");
     }
   }
   if (

@@ -201,9 +201,9 @@ validate_backup_gate
 # Update only public origin/TLS settings; retain existing database/auth secrets.
 # Journal before the first config/migration mutation. Signals, timeouts, failed
 # SSH and failed verification leave this state uncertain until operator review.
-state_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.current-state.XXXXXX")"
-printf '{"status":"deploying","releaseSha":"%s","operationId":"%s"}\n' "$release_sha" "${MKW_OPERATION_ID:-unknown}" > "$state_tmp"
-chmod 640 "$state_tmp"; mv -f "$state_tmp" "$MKW_DEPLOY_PATH/shared/current-state.json"
+source "$script_root/scripts/product/release/operation-state.sh"
+write_state begin "$manifest" "$MKW_DEPLOY_PATH/shared/last-known-good.json" "$backup_ready" "$MKW_OPERATION_ID" \
+  "${MKW_RELEASE_RUN_ID:-}" "${MKW_RELEASE_RUN_ATTEMPT:-}" "${MKW_RELEASE_ARTIFACT_ID:-}" "${MKW_RELEASE_ARTIFACT_DIGEST:-}" "${MKW_CONTROL_SHA:-}" "${MKW_ATTESTATION_MODE:-not-configured}" "${MKW_ATTESTATION_STATUS:-not-verified}"
 api_env="$MKW_DEPLOY_PATH/shared/api.env"
 [[ -f "$api_env" ]] || { echo "bootstrap API env is required" >&2; exit 78; }
 api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api-origin.XXXXXX")"
@@ -227,7 +227,7 @@ if (!result.ok) { console.error(result.errors.join('; ')); process.exit(78); }
 NODE
 echo "RELEASE_CONFIG_OK project=$MKW_PROJECT_NAME"
 
-on_error() { local code=$?; if (( receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }
+on_error() { local code=$?; if [[ -n "${state_path:-}" && -s "$state_path" ]]; then write_state update "$state_path" failed || true; fi; if (( receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }
 trap on_error ERR
 validate_backup_gate
 # Approved forward migration (migrate deploy) and the JSON backup gate are
@@ -235,9 +235,15 @@ validate_backup_gate
 # Immutable images use sha256:[0-9a-f]{64}.
 mutation_started=true
 if [[ "$MKW_OPERATION_KIND" != application-rollback ]]; then
+  # Evidence before any DB start/replacement, not just before migration.
+  capture_database "$MKW_DEPLOY_PATH/shared/database-before.json"
+  write_state update "$state_path" before "$MKW_DEPLOY_PATH/shared/database-before.json"
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait db
+  docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
+  capture_database "$MKW_DEPLOY_PATH/shared/database-after.json"
+  write_state update "$state_path" after "$MKW_DEPLOY_PATH/shared/database-after.json"
 fi
-docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
+write_state update "$state_path" app unused "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --no-deps api gateway
 else

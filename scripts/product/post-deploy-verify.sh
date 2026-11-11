@@ -42,9 +42,25 @@ NODE
 compose exec -T api node node_modules/prisma/build/index.js migrate status
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/" >/dev/null
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/api/health" >/dev/null
-state_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.current-state.XXXXXX")"
-printf '{"status":"verified","releaseSha":"%s","operationId":"%s","verifiedAt":"%s"}\n' \
-  "$RELEASE_SHA" "$MKW_OPERATION_ID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state_tmp"
-chmod 640 "$state_tmp"
-mv -f "$state_tmp" "$MKW_DEPLOY_PATH/shared/current-state.json"
+if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
+  # Deploy transferred these control helpers with this exact immutable SHA.
+  script_root="$MKW_DEPLOY_PATH/releases/$RELEASE_SHA"
+  rendered="$compose_file"
+  run_node() {
+    docker run --rm -i --pull=never --user "$(id -u):$(id -g)" \
+      -v "$script_root:$script_root:ro" -v "$MKW_DEPLOY_PATH/shared:$MKW_DEPLOY_PATH/shared:ro" \
+      --entrypoint node "$EXPECTED_API_IMAGE" "$@"
+  }
+  source "$script_root/scripts/product/release/operation-state.sh"
+  capture_database "$MKW_DEPLOY_PATH/shared/database-verified.json"
+  write_state promote "$state_path" "$MKW_OPERATION_ID" "$RELEASE_SHA" "$MKW_DEPLOY_PATH/shared/database-verified.json" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  # Atomic copy; only a successful runtime verifier can promote last-known-good.
+  lkg_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.last-known-good.XXXXXX")"
+  cp -p "$state_path" "$lkg_tmp"; mv -f "$lkg_tmp" "$MKW_DEPLOY_PATH/shared/last-known-good.json"
+else
+  state_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.current-state.XXXXXX")"
+  printf '{"status":"verified","releaseSha":"%s","operationId":"%s","verifiedAt":"%s"}\n' \
+    "$RELEASE_SHA" "$MKW_OPERATION_ID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state_tmp"
+  chmod 640 "$state_tmp"; mv -f "$state_tmp" "$MKW_DEPLOY_PATH/shared/current-state.json"
+fi
 echo 'POST_DEPLOY_VERIFY_OK: receipt, image IDs/digests, schema, startup health and gateway smoke'

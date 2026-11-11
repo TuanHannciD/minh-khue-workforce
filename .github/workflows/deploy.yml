@@ -370,6 +370,11 @@ jobs:
           MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
           MKW_OPERATION_ID: ${{ inputs.operation_id || inputs.coordinator_id || github.run_id }}
           MKW_AUTOMATIC_RELEASE: ${{ inputs.control_sha != '' }}
+          MKW_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          MKW_RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt || '' }}
+          MKW_RELEASE_ARTIFACT_ID: ${{ inputs.release_artifact_id }}
+          MKW_RELEASE_ARTIFACT_DIGEST: ${{ inputs.release_artifact_digest || '' }}
+          MKW_CONTROL_SHA: ${{ inputs.control_sha || github.sha }}
         run: |
           set -Eeuo pipefail
           : "${MKW_SSH_HOST:?Set production variable MKW_SSH_HOST}"
@@ -424,8 +429,8 @@ jobs:
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
           MKW_OPERATION_ID="${MKW_OPERATION_ID:-$RELEASE_SHA}"
           MKW_AUTOMATIC_RELEASE="${MKW_AUTOMATIC_RELEASE:-false}"
-          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_OPERATION_ID=%q MKW_API_IMAGE=%q MKW_REGISTRY_HOST=%q MKW_REGISTRY_VISIBILITY=%q MKW_REGISTRY_PULL_USERNAME=%q MKW_REGISTRY_PULL_TOKEN_FILE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q MKW_BACKUP_EXPECTED_HOST=%q MKW_BACKUP_EXPECTED_DATABASE=%q MKW_BACKUP_EXPECTED_TARGET_IDENTITY=%q' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$MKW_OPERATION_ID" "$api_image" "${MKW_REGISTRY_HOST:-ghcr.io}" "${MKW_REGISTRY_VISIBILITY:-}" "${MKW_REGISTRY_PULL_USERNAME:-}" "${MKW_REGISTRY_PULL_TOKEN_FILE:-}" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND" "$MKW_BACKUP_EXPECTED_HOST" "$MKW_BACKUP_EXPECTED_DATABASE" "$MKW_BACKUP_EXPECTED_TARGET_IDENTITY"
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_OPERATION_ID=%q MKW_API_IMAGE=%q MKW_RELEASE_RUN_ID=%q MKW_RELEASE_RUN_ATTEMPT=%q MKW_RELEASE_ARTIFACT_ID=%q MKW_RELEASE_ARTIFACT_DIGEST=%q MKW_CONTROL_SHA=%q MKW_REGISTRY_HOST=%q MKW_REGISTRY_VISIBILITY=%q MKW_REGISTRY_PULL_USERNAME=%q MKW_REGISTRY_PULL_TOKEN_FILE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q MKW_BACKUP_EXPECTED_HOST=%q MKW_BACKUP_EXPECTED_DATABASE=%q MKW_BACKUP_EXPECTED_TARGET_IDENTITY=%q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$MKW_OPERATION_ID" "$api_image" "${MKW_RELEASE_RUN_ID:-}" "${MKW_RELEASE_RUN_ATTEMPT:-}" "${MKW_RELEASE_ARTIFACT_ID:-}" "${MKW_RELEASE_ARTIFACT_DIGEST:-}" "${MKW_CONTROL_SHA:-$RELEASE_SHA}" "${MKW_REGISTRY_HOST:-ghcr.io}" "${MKW_REGISTRY_VISIBILITY:-}" "${MKW_REGISTRY_PULL_USERNAME:-}" "${MKW_REGISTRY_PULL_TOKEN_FILE:-}" "${MKW_ATTESTATION_MODE:-not-configured}" "${MKW_ATTESTATION_STATUS:-not-verified}" "${MKW_BACKUP_MAX_AGE_SECONDS:-86400}" "${MKW_BACKUP_EXPECTED_KIND:-BACKUP}" "${MKW_BACKUP_EXPECTED_HOST:-}" "${MKW_BACKUP_EXPECTED_DATABASE:-mkw}" "${MKW_BACKUP_EXPECTED_TARGET_IDENTITY:-}"
           # deploy-entrypoint.sh enforces the forward migration gate (pnpm db:deploy / migrate deploy) before compose up and traffic smoke checks.
           printf -v remote_command '%s bash %q --release --manifest %q --compose %q --backup-ready %q' "$remote_env" "$remote_dir/scripts/product/deploy-entrypoint.sh" "$remote_dir/release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
           remote_command="MKW_AUTOMATIC_RELEASE=$(printf '%q' "$MKW_AUTOMATIC_RELEASE") $remote_command"
