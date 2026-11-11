@@ -4,7 +4,7 @@ set -Eeuo pipefail
 umask 077
 [[ "${MKW_DEPLOY_PATH:-}" == /home/deploy/mkw && "${MKW_PROJECT_NAME:-}" == mkw ]] || exit 64
 container=mkw-db-1
-[[ "$(docker inspect -f '{{.Config.Labels.com.docker.compose.project}}|{{.Config.Labels.com.docker.compose.service}}|{{.State.Running}}' "$container")" == 'mkw|db|true' ]] || exit 78
+[[ "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{.State.Running}}' "$container")" == 'mkw|db|true' ]] || exit 78
 [[ "$(docker inspect -f '{{range .Mounts}}{{if eq .Name "mkw_pgdata"}}{{.Destination}}{{end}}{{end}}' "$container")" == /var/lib/postgresql/data ]] || exit 78
 identity="$(docker exec "$container" psql -X -qAt -v ON_ERROR_STOP=1 -U mkw -d mkw -c "SELECT current_database() || '|' || current_user || '|' || current_setting('server_version_num')::int / 10000")"
 [[ "$identity" == 'mkw|mkw|17' ]] || exit 78
@@ -19,6 +19,7 @@ trap cleanup EXIT
 coproc SOURCE { docker exec -i "$container" psql -X -qAt -v ON_ERROR_STOP=1 -U mkw -d mkw; }
 source_pid=$SOURCE_PID
 exec {source_in}>&"${SOURCE[1]}" {source_out}<&"${SOURCE[0]}"
+exec {SOURCE[1]}>&- {SOURCE[0]}<&-
 printf '%s\n' 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;' 'SELECT pg_export_snapshot();' >&"$source_in"
 IFS= read -r snapshot <&"$source_out"
 [[ "$snapshot" =~ ^[0-9A-Fa-f]+-[0-9A-Fa-f]+-[0-9]+$ ]] || exit 78

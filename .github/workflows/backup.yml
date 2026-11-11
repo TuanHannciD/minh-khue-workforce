@@ -48,6 +48,9 @@ jobs:
           set -Eeuo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$ ]]
           command -v node >/dev/null
+          [[ "$MKW_SSH_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$MKW_SSH_PORT" =~ ^[0-9]+$ ]]
+          [[ "$MKW_DEPLOY_PATH" == /home/deploy/mkw && "$MKW_PROJECT_NAME" == mkw ]]
           if [[ "$BACKUP_KIND" == BACKUP ]]; then
             : "${MKW_SSH_HOST:?MKW_SSH_HOST is required for BACKUP}"
             : "${MKW_SSH_PORT:?MKW_SSH_PORT is required for BACKUP}"
@@ -111,11 +114,19 @@ jobs:
           : "${MKW_SSH_PRIVATE_KEY:?MKW_SSH_PRIVATE_KEY is required}"
           install -m 700 -d "$HOME/.ssh"
           ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
-          ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" -E sha256 | grep -F -- "$MKW_SSH_HOST_FINGERPRINT"
-          install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
+          : > "$RUNNER_TEMP/mkw_pinned_hosts"
+          while IFS= read -r line; do
+            printf '%s\n' "$line" > "$RUNNER_TEMP/mkw_candidate"
+            if [[ "$(ssh-keygen -lf "$RUNNER_TEMP/mkw_candidate" -E sha256 | awk '{print $2}')" == "$MKW_SSH_HOST_FINGERPRINT" ]]; then
+              printf '%s\n' "$line" >> "$RUNNER_TEMP/mkw_pinned_hosts"
+            fi
+          done < "$RUNNER_TEMP/mkw_known_hosts"
+          test -s "$RUNNER_TEMP/mkw_pinned_hosts"
+          install -m 600 "$RUNNER_TEMP/mkw_pinned_hosts" "$HOME/.ssh/known_hosts"
           printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" \
+          [[ "$MKW_DEPLOY_PATH" == /home/deploy/mkw && "$MKW_PROJECT_NAME" == mkw ]]
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" "deploy@$MKW_SSH_HOST" \
             "test ! -e '$MKW_DEPLOY_PATH/shared/backup-ready.json' && test ! -f '$MKW_DEPLOY_PATH/current/compose.rendered.yml' && ! docker ps -a --format '{{.Label \"com.docker.compose.project\"}}' | grep -Fxq '$MKW_PROJECT_NAME' && ! docker volume inspect 'mkw_pgdata' >/dev/null 2>&1"
 
       - name: Emit and validate backup-ready metadata

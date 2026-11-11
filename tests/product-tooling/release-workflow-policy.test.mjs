@@ -59,7 +59,7 @@ test("production backup reads the database inside the VPS over pinned SSH", asyn
     /DATABASE_URL:\s*\$\{\{\s*secrets\.MKW_DATABASE_URL/,
   );
   assert.match(runner, /pg_restore/);
-  assert.match(runner, /docker run/);
+  assert.match(runner, /docker (run|create)/);
 });
 
 test("deploy consumes only the SHA-named build artifact and never resolves GHCR tags", async () => {
