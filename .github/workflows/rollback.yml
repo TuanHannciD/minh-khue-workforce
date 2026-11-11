@@ -170,6 +170,10 @@ jobs:
           MKW_BACKUP_EXPECTED_HOST: ${{ vars.MKW_SSH_HOST }}
           MKW_BACKUP_EXPECTED_DATABASE: mkw
           MKW_BACKUP_EXPECTED_TARGET_IDENTITY: ${{ vars.MKW_SSH_HOST }}/${{ vars.MKW_DEPLOY_PATH }}/${{ vars.MKW_PROJECT_NAME }}
+          MKW_REGISTRY_HOST: ${{ vars.MKW_REGISTRY_HOST || 'ghcr.io' }}
+          MKW_REGISTRY_VISIBILITY: ${{ vars.MKW_REGISTRY_VISIBILITY || '' }}
+          MKW_REGISTRY_PULL_USERNAME: ${{ vars.MKW_REGISTRY_PULL_USERNAME || '' }}
+          MKW_REGISTRY_PULL_TOKEN_FILE: ${{ vars.MKW_REGISTRY_PULL_TOKEN_FILE || '' }}
           MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
         run: |
           set -Eeuo pipefail
@@ -177,6 +181,7 @@ jobs:
           [[ "$MKW_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo 'invalid project name' >&2; exit 78; }
           [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo 'invalid gateway port' >&2; exit 78; }
           [[ "$OLD_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'invalid old release SHA' >&2; exit 64; }
+          MKW_REGISTRY_PULL_TOKEN_FILE="${MKW_REGISTRY_PULL_TOKEN_FILE:-$MKW_DEPLOY_PATH/shared/secrets/ghcr-pull-token}"
           install -m 700 -d "$HOME/.ssh"
           : "${MKW_SSH_HOST_FINGERPRINT:?Trusted SSH fingerprint is required}"
           ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
@@ -205,8 +210,8 @@ jobs:
           postgres_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('old-release-artifact/release-manifest.json','utf8')).postgresImage)")"
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
           [[ "$postgres_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_POSTGRES_IMAGE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_OPERATION_KIND=application-rollback MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q MKW_BACKUP_EXPECTED_HOST=%q MKW_BACKUP_EXPECTED_DATABASE=%q MKW_BACKUP_EXPECTED_TARGET_IDENTITY=%q' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image" "$postgres_image" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND" "$MKW_BACKUP_EXPECTED_HOST" "$MKW_BACKUP_EXPECTED_DATABASE" "$MKW_BACKUP_EXPECTED_TARGET_IDENTITY"
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_POSTGRES_IMAGE=%q MKW_REGISTRY_HOST=%q MKW_REGISTRY_VISIBILITY=%q MKW_REGISTRY_PULL_USERNAME=%q MKW_REGISTRY_PULL_TOKEN_FILE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_OPERATION_KIND=application-rollback MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q MKW_BACKUP_EXPECTED_HOST=%q MKW_BACKUP_EXPECTED_DATABASE=%q MKW_BACKUP_EXPECTED_TARGET_IDENTITY=%q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image" "$postgres_image" "${MKW_REGISTRY_HOST:-ghcr.io}" "${MKW_REGISTRY_VISIBILITY:-}" "${MKW_REGISTRY_PULL_USERNAME:-}" "${MKW_REGISTRY_PULL_TOKEN_FILE:-}" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND" "$MKW_BACKUP_EXPECTED_HOST" "$MKW_BACKUP_EXPECTED_DATABASE" "$MKW_BACKUP_EXPECTED_TARGET_IDENTITY"
           printf -v remote_command '%s bash %q --release --manifest %q --compose %q --backup-ready %q' "$remote_env" "$remote_dir/scripts/product/deploy-entrypoint.sh" "$remote_dir/old-release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
 

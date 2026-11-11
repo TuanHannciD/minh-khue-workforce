@@ -592,9 +592,10 @@ ssh() {
     mkdir() { :; }; tar() { :; }; rm() { :; }; cd() { :; }; sha256sum() { :; }
     test() { :; }
     bash() {
-      printf 'ROLLBACK_POLICY [%s] [%s] [%s] [%s]\\n' "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND" "$MKW_OPERATION_KIND" "\${MKW_BACKUP_NOW:-}"
+      printf 'ROLLBACK_POLICY [%s] [%s] [%s] [%s] [%s] [%s] [%s] [%s]\\n' "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND" "$MKW_OPERATION_KIND" "\${MKW_BACKUP_NOW:-}" "$MKW_REGISTRY_HOST" "$MKW_REGISTRY_VISIBILITY" "$MKW_REGISTRY_PULL_USERNAME" "$MKW_REGISTRY_PULL_TOKEN_FILE"
       printf 'ROLLBACK_ARGS'; printf ' [%s]' "$@"; echo
     }
+    unset MKW_REGISTRY_HOST MKW_REGISTRY_VISIBILITY MKW_REGISTRY_PULL_USERNAME MKW_REGISTRY_PULL_TOKEN_FILE
     eval "$command_text"
   )
 }
@@ -614,11 +615,16 @@ scp() { :; }
     MKW_BACKUP_EXPECTED_KIND: "BACKUP",
     MKW_ATTESTATION_MODE: "off",
     MKW_ATTESTATION_STATUS: "not-configured",
+    MKW_REGISTRY_HOST: "ghcr.io",
+    MKW_REGISTRY_VISIBILITY: "private",
+    MKW_REGISTRY_PULL_USERNAME: "mkw-pull",
+    MKW_REGISTRY_PULL_TOKEN_FILE:
+      "/home/deploy/mkw-test_1.2/shared/secrets/private-ghcr-token",
   });
   assert.equal(result.code, 0, result.stdout + result.stderr);
   assert.match(
     result.stdout,
-    /ROLLBACK_POLICY \[86400\] \[BACKUP\] \[application-rollback\] \[\]/,
+    /ROLLBACK_POLICY \[86400\] \[BACKUP\] \[application-rollback\] \[\] \[ghcr\.io\] \[private\] \[mkw-pull\] \[\/home\/deploy\/mkw-test_1\.2\/shared\/secrets\/private-ghcr-token\]/,
   );
   assert.ok(
     result.stdout.includes(

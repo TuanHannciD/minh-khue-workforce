@@ -54,7 +54,7 @@ function run(cwd, env, script) {
   });
 }
 
-async function fixture(t, { pull = 0 } = {}) {
+async function fixture(t, { pull = 0, requireAuth = false } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "mkw-registry-policy-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const bin = join(dir, "bin");
@@ -75,6 +75,7 @@ if [[ "$1 $2" == "login ghcr.io" ]]; then
   exit ${pull}
 fi
 if [[ "$1 $2" == "pull --quiet" ]]; then
+  if [[ "${requireAuth}" == true && ! -f "$AUTH_CONFIG_PATH" ]]; then exit 77; fi
   if [[ "$3" == "\${DENY_IMAGE:-}" ]]; then echo fixture-read-only-token >&2; exit 77; fi
   exit ${pull}
 fi
@@ -210,4 +211,59 @@ test("deploy handoff carries only registry policy and the helper, never a build 
   assert.doesNotMatch(WORKFLOW, /MKW_REGISTRY_PULL_TOKEN\s*:/);
   assert.doesNotMatch(WORKFLOW, /packages:\s*write/);
   assert.match(WORKFLOW, /release-manifest\.json/);
+});
+
+test("rollback remote environment authenticates private GHCR with a non-default VPS token path", async (t) => {
+  const f = await fixture(t, { requireAuth: true });
+  const rollback = (
+    await readFile(join(ROOT, ".github/workflows/rollback.yml"), "utf8")
+  ).replaceAll("\r\n", "\n");
+  const handoff = rollback.slice(
+    rollback.indexOf("          printf -v remote_env "),
+    rollback.indexOf("          printf -v remote_command '%s bash %q"),
+  );
+  assert.ok(handoff, "missing rollback remote environment builder");
+  const result = await run(
+    f.dir,
+    {
+      PATH: f.path,
+      DOCKER_LOG: f.log,
+      DOCKER_INSPECT: API,
+      WEB_EXPECTED: WEB,
+      MKW_WEB_IMAGE: WEB,
+      MKW_DEPLOY_PATH: "/home/deploy/mkw-fixture",
+      MKW_PROJECT_NAME: "mkw",
+      MKW_GATEWAY_PORT: "3200",
+      OLD_RELEASE_SHA: "a".repeat(40),
+      api_image: API,
+      postgres_image: "postgres@sha256:" + "3".repeat(64),
+      MKW_ATTESTATION_MODE: "required",
+      MKW_ATTESTATION_STATUS: "verified",
+      MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+      MKW_BACKUP_EXPECTED_KIND: "BACKUP",
+      MKW_BACKUP_EXPECTED_HOST: "fixture.invalid",
+      MKW_BACKUP_EXPECTED_DATABASE: "mkw",
+      MKW_BACKUP_EXPECTED_TARGET_IDENTITY: "fixture-target",
+      MKW_REGISTRY_HOST: "ghcr.io",
+      MKW_REGISTRY_VISIBILITY: "private",
+      MKW_REGISTRY_PULL_USERNAME: "mkw-pull",
+      MKW_REGISTRY_PULL_TOKEN_FILE: posix(f.token),
+      AUTH_CONFIG_PATH: posix(join(f.dir, "auth-path")),
+    },
+    `set -Eeuo pipefail\n${handoff}\nprintf '%s\\n' "$remote_env"\n(
+    unset MKW_REGISTRY_HOST MKW_REGISTRY_VISIBILITY MKW_REGISTRY_PULL_USERNAME MKW_REGISTRY_PULL_TOKEN_FILE
+    eval "$remote_env MKW_WEB_IMAGE='${WEB}' bash '${posix(HELPER)}'"
+  )`,
+  );
+  assert.equal(result.code, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /MKW_OPERATION_KIND=application-rollback/);
+  assert.match(result.stdout, /REGISTRY_PULL_OK images=2 auth=private/);
+  const log = await readFile(f.log, "utf8");
+  assert.match(log, /login ghcr\.io --username mkw-pull --password-stdin/);
+  assert.ok(log.indexOf("login ghcr.io") < log.indexOf(`pull --quiet ${API}`));
+  assert.ok(log.includes(`pull --quiet ${WEB}`));
+  assert.doesNotMatch(
+    result.stdout + result.stderr + log,
+    /fixture-read-only-token/,
+  );
 });
