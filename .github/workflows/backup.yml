@@ -1,8 +1,14 @@
 name: MKW encrypted production backup
 
+run-name: "mkw-backup-${{ inputs.coordinator_id || github.run_id }}"
+
 on:
   workflow_dispatch:
     inputs:
+      coordinator_id:
+        description: Unique coordinator dispatch correlation
+        required: false
+        type: string
       kind:
         description: Backup contract kind
         required: true

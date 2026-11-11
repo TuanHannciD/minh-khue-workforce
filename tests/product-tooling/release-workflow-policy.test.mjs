@@ -62,19 +62,15 @@ test("production backup reads the database inside the VPS over pinned SSH", asyn
   assert.match(runner, /docker (run|create)/);
 });
 
-test("deploy consumes only the SHA-named build artifact and never resolves GHCR tags", async () => {
+test("deploy consumes only the exact validated artifact IDs and never resolves GHCR tags", async () => {
   const workflow = await read("deploy.yml");
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /actions\/download-artifact@/);
-  assert.match(workflow, /mkw-release-\$\{\{\s*inputs\.release_sha\s*\}\}/);
+  assert.match(workflow, /artifact-ids: \$\{\{\s*inputs\.release_artifact_id\s*\}\}/);
   assert.match(workflow, /release-manifest\.sha256/);
   assert.match(workflow, /backup-ready/);
   assert.match(workflow, /if: inputs\.mode == 'release'/);
   assert.match(workflow, /backup-ready\.json\.sha256/);
-  assert.match(workflow, /backup_max_age_seconds/);
-  assert.match(workflow, /--expected-release-sha\s+"\$RELEASE_SHA"/);
-  assert.match(workflow, /--max-age-seconds\s+"\$BACKUP_MAX_AGE_SECONDS"/);
-  assert.match(workflow, /--now\s+"\$BACKUP_NOW"/);
   assert.match(
     workflow,
     /sha256sum\s+--check.*backup-ready|backup-ready.*sha256sum\s+--check/s,
@@ -82,7 +78,7 @@ test("deploy consumes only the SHA-named build artifact and never resolves GHCR 
   assert.match(workflow, /scripts\/product\/release/);
   assert.match(
     workflow,
-    /\$remote_dir\/scripts\/product\/deploy-entrypoint\.sh/,
+    /bash '\$remote_dir\/release-source\/scripts\/product\/deploy-entrypoint\.sh'/,
   );
   assert.doesNotMatch(workflow, /remote_env '.*bash -s/);
   assert.match(workflow, /ssh-keyscan/);

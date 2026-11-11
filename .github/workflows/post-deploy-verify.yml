@@ -1,14 +1,30 @@
 name: MKW post-deploy verification
 
+run-name: "mkw-post-deploy-verify-${{ inputs.coordinator_id || github.run_id }}"
+
 on:
   workflow_dispatch:
     inputs:
+      coordinator_id:
+        description: Unique coordinator dispatch correlation
+        required: false
+        type: string
+      mode:
+        description: Verify release runtime or preflight only for dry-run/bootstrap
+        required: true
+        type: choice
+        options: [dry-run, bootstrap, release]
+        default: release
       release_sha:
         description: Release SHA to verify
         required: true
         type: string
       release_run_id:
         description: Build-release workflow run containing the release manifest
+        required: true
+        type: string
+      release_artifact_id:
+        description: Exact release artifact id resolved by the coordinator
         required: true
         type: string
       rollback_on_failure:
@@ -31,17 +47,44 @@ jobs:
         with:
           ref: ${{ inputs.release_sha }}
           fetch-depth: 1
+          persist-credentials: false
+          path: release-source
+
+      - name: Checkout trusted current policy
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+          path: policy
 
       - name: Download and validate release manifest
         uses: actions/download-artifact@v4
         with:
-          name: mkw-release-${{ inputs.release_sha }}
+          merge-multiple: true
+          artifact-ids: ${{ inputs.release_artifact_id }}
           path: release-artifact
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           run-id: ${{ inputs.release_run_id }}
 
+      - name: Validate exact release linkage for every mode
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          set -Eeuo pipefail
+          (cd release-artifact && sha256sum --check release-manifest.sha256)
+          node policy/scripts/product/release/validate-manifest.mjs release-artifact/release-manifest.json
+          node --input-type=module - <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          import { parseJsonStrict } from './policy/scripts/product/release/validate-manifest.mjs';
+          const m = parseJsonStrict(await readFile('release-artifact/release-manifest.json', 'utf8'));
+          if (m.releaseSha !== process.env.RELEASE_SHA) throw new Error('manifest releaseSha mismatch');
+          NODE
+
       - name: Verify running digests, schema, gateway, and startup health
+        if: inputs.mode == 'release'
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
@@ -57,7 +100,7 @@ jobs:
           test -f release-artifact/release-manifest.json
           test -f release-artifact/release-manifest.sha256
           (cd release-artifact && sha256sum --check release-manifest.sha256)
-          node scripts/product/release/validate-manifest.mjs release-artifact/release-manifest.json
+          node policy/scripts/product/release/validate-manifest.mjs release-artifact/release-manifest.json
           mapfile -t manifest_images < <(node --input-type=module - <<'NODE'
           import { readFile } from 'node:fs/promises';
           const m = JSON.parse(await readFile('release-artifact/release-manifest.json', 'utf8'));
@@ -73,7 +116,7 @@ jobs:
           install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
           printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"; chmod 600 "$RUNNER_TEMP/mkw_key"
           remote_env="EXPECTED_API_IMAGE=$(printf '%q' "$EXPECTED_API_IMAGE") EXPECTED_WEB_IMAGE=$(printf '%q' "$EXPECTED_WEB_IMAGE") EXPECTED_POSTGRES_IMAGE=$(printf '%q' "$EXPECTED_POSTGRES_IMAGE") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") RELEASE_SHA=$(printf '%q' "$RELEASE_SHA")"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < scripts/product/post-deploy-verify.sh
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < release-source/scripts/product/post-deploy-verify.sh
 
       - name: Record verification receipt
         if: always()
@@ -81,7 +124,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           cat > verification-receipt.json <<JSON
-          {"releaseSha":"${{ inputs.release_sha }}","gateway":"smoke","schema":"prisma-migrate-status","imageDigests":"exact-manifest-image-ids-and-digests","startup":"compose-running-and-health-checked","rollback":".github/workflows/rollback.yml","rollbackOnFailure":${{ inputs.rollback_on_failure }},"result":"${{ job.status }}"}
+          {"mode":"${{ inputs.mode }}","runtimeVerification":"${{ inputs.mode == 'release' && 'attempted' || 'skipped-preflight-only' }}","releaseSha":"${{ inputs.release_sha }}","gateway":"smoke","schema":"prisma-migrate-status","imageDigests":"exact-manifest-image-ids-and-digests","startup":"compose-running-and-health-checked","rollback":".github/workflows/rollback.yml","rollbackOnFailure":${{ inputs.rollback_on_failure }},"result":"${{ job.status }}"}
           JSON
           cat > rollback-signal.json <<JSON
           {"signal":"none","releaseSha":"${{ inputs.release_sha }}","workflow":".github/workflows/rollback.yml","reason":"verification passed","runId":"${{ github.run_id }}"}

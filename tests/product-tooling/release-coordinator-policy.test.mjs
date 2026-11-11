@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
+import { validateBackupReadyFreshness } from "../../scripts/product/release/orchestration-policy.mjs";
+import { coordinateRelease } from "../../scripts/product/release/coordinator.mjs";
 
 const workflow = await readFile(
   ".github/workflows/release-pipeline.yml",
@@ -23,57 +25,385 @@ test("release coordinator accepts the bounded manual inputs", () => {
   );
 });
 
-test("resolution requires one successful exact-SHA build and backup match", () => {
-  assert.match(workflow, /head_sha=\$\{RELEASE_SHA\}/);
-  assert.match(workflow, /\.head_sha == \$sha/);
-  assert.match(workflow, /\.status == "completed"/);
-  assert.match(workflow, /\.conclusion == "success"/);
-  assert.match(workflow, /mkw-release-\$\{RELEASE_SHA\}/);
-  assert.match(workflow, /value\.releaseSha !== expectedSha/);
-  assert.match(workflow, /value\.kind !== expectedKind/);
-  assert.match(workflow, /No successful backup artifact matches/);
-  assert.match(workflow, /Multiple successful backup artifacts match/);
+test("trusted coordinator policy is checked out from main without persisted credentials", () => {
+  assert.match(workflow, /ref: main/);
+  assert.match(workflow, /persist-credentials: false/);
+  assert.doesNotMatch(workflow, /ref: \$\{\{ inputs.release_sha/);
+  assert.match(workflow, /node scripts\/product\/release\/run-coordinator.mjs/);
+  assert.match(workflow, /GH_TOKEN_VALUE: \$\{\{ github.token \}\}/);
 });
 
-test("resolved outputs are passed to deploy and verification handoff", () => {
-  for (const name of [
-    "release_run_id",
-    "backup_run_id",
-    "backup_artifact_name",
+const SHA = "a".repeat(40);
+const freshBackup = {
+  schemaVersion: "1",
+  kind: "BACKUP",
+  backupId: "backup-123",
+  releaseSha: SHA,
+  createdAt: "2026-11-11T10:00:00Z",
+  dumpSha256: "b".repeat(64),
+  size: 1,
+  restoreVerified: true,
+  retentionUntil: "2026-12-11T10:00:00Z",
+  storageLocation: "github-actions-artifact:mkw-backup",
+  databaseIdentity: { host: "prod", name: "mkw", engine: "postgresql" },
+};
+
+test("freshness policy rejects stale, future, and expired readiness for both kinds", () => {
+  const now = Date.parse("2026-11-11T12:00:00Z");
+  assert.equal(
+    validateBackupReadyFreshness(freshBackup, {
+      expectedSha: SHA,
+      expectedKind: "BACKUP",
+      now,
+      maxAgeMs: 24 * 3600e3,
+    }).ok,
+    true,
+  );
+  for (const patch of [
+    { createdAt: "2026-11-09T10:00:00Z" },
+    { createdAt: "2026-11-11T13:00:00Z" },
+    { retentionUntil: "2026-11-11T11:00:00Z" },
   ]) {
-    assert.match(workflow, new RegExp(`${name}:`));
-    assert.match(workflow, new RegExp(`--field \\\"${name}=`));
+    assert.equal(
+      validateBackupReadyFreshness(
+        { ...freshBackup, ...patch },
+        {
+          expectedSha: SHA,
+          expectedKind: "BACKUP",
+          now,
+          maxAgeMs: 24 * 3600e3,
+        },
+      ).ok,
+      false,
+    );
   }
-  assert.match(
-    workflow,
-    /release_artifact_name: \$\{\{ steps\.resolve\.outputs\.release_artifact_name \}\}/,
-  );
-  assert.match(workflow, /post-deploy-verify\.yml/);
-  assert.match(workflow, /workflow_dispatch does not return a child run id/);
 });
 
-test("coordinator keeps token handling out of shell interpolation", () => {
-  assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
-  assert.doesNotMatch(workflow, /\$\{\{\s*secrets\./);
-  assert.doesNotMatch(workflow, /:latest|docker\s+pull|imagetools\s+inspect/);
+const input = (kind = "BACKUP", mode = "release") => ({
+  sha: SHA,
+  mode,
+  kind,
+  correlationId: "coord-1",
+  repository: "org/repo",
+  maxAgeMs: 24 * 3600e3,
+});
+function fakeApi({
+  backupConclusion = "success",
+  stale = false,
+  kind = "BACKUP",
+  failedWorkflow,
+  manifestSha = SHA,
+  metadataSha = SHA,
+  ambiguousRelease = false,
+  ambiguousBackup = false,
+  changedAttempt = false,
+  staleEmpty = false,
+} = {}) {
+  const sha = SHA;
+  const build = {
+    head_sha: "b".repeat(40),
+    id: "10",
+    path: ".github/workflows/build-release.yml",
+    event: "workflow_run",
+    head_branch: "main",
+    status: "completed",
+    conclusion: "success",
+    run_attempt: 1,
+  };
+  const runs = new Map();
+  const dispatches = [];
+  const readiness = {
+    ...freshBackup,
+    ...(stale ? { createdAt: "2026-11-01T00:00:00Z" } : {}),
+  };
+  if (kind === "INITIAL_EMPTY_DEPLOYMENT") {
+    readiness.kind = kind;
+    readiness.restoreVerified = false;
+    readiness.databaseVerifiedEmpty = true;
+    readiness.emptyEvidence = {
+      targetIdentity: "vps/mkw",
+      databaseIdentity: "mkw",
+      checkedAt: staleEmpty ? "2026-11-01T00:00:00Z" : readiness.createdAt,
+    };
+    delete readiness.dumpSha256;
+    delete readiness.size;
+  }
+  return {
+    dispatches,
+    async listArtifacts() {
+      const artifact = {
+        id: "101",
+        name: `mkw-release-${sha}`,
+        expired: false,
+        workflow_run: { id: "10" },
+      };
+      return [
+        artifact,
+        ...(ambiguousRelease ? [{ ...artifact, id: "102" }] : []),
+        {
+          id: "999",
+          name: `mkw-release-${"b".repeat(40)}`,
+          workflow_run: { id: "11" },
+        },
+      ];
+    },
+    async run(id) {
+      if (id === "10") return build;
+      const run = runs.get(id);
+      return changedAttempt && id === "20" ? { ...run, run_attempt: 2 } : run;
+    },
+    async runArtifacts(id) {
+      const artifact = {
+        id: "201",
+        name: "mkw-backup-20-1",
+        expired: false,
+        workflow_run: { id },
+      };
+      return [
+        artifact,
+        { ...artifact, id: "200", name: "mkw-backup-20-0" },
+        ...(ambiguousBackup ? [{ ...artifact, id: "202" }] : []),
+      ];
+    },
+    async jsonFromArtifact(id, entry) {
+      if (["101", "102"].includes(id) && entry === "release-manifest.json")
+        return {
+          schemaVersion: "1",
+          releaseSha: manifestSha,
+          sourceRepository: "org/repo",
+          createdAt: "2026-11-11T10:00:00Z",
+          apiImage: `x@sha256:${"1".repeat(64)}`,
+          webImage: `x@sha256:${"2".repeat(64)}`,
+          postgresImage: `postgres@sha256:${"3".repeat(64)}`,
+          artifacts: {
+            sbom: { sha256: "a".repeat(64), size: 1 },
+            provenance: { sha256: "b".repeat(64), size: 1 },
+          },
+        };
+      if (["101", "102"].includes(id) && entry === "build-metadata.json")
+        return { sourceSha: metadataSha };
+      return readiness;
+    },
+    async runs(workflow) {
+      return [
+        {
+          id: "999",
+          workflow,
+          path: `.github/workflows/${workflow}`,
+          head_branch: "main",
+          event: "workflow_dispatch",
+          display_title: "unrelated-success",
+          status: "completed",
+          conclusion: "success",
+        },
+        ...[...runs.values()].filter((run) => run.workflow === workflow),
+      ];
+    },
+    async dispatch(workflow, ref, fields) {
+      dispatches.push({ workflow, ref, fields });
+      const id =
+        workflow === "backup.yml"
+          ? "20"
+          : workflow === "deploy.yml"
+            ? "30"
+            : "40";
+      runs.set(id, {
+        id,
+        workflow,
+        path: `.github/workflows/${workflow}`,
+        event: "workflow_dispatch",
+        head_branch: "main",
+        display_title: `mkw-${workflow.replace(".yml", "")}-${fields.coordinator_id}`,
+        status: "completed",
+        conclusion:
+          workflow === failedWorkflow
+            ? "failure"
+            : workflow === "backup.yml"
+              ? backupConclusion
+              : "success",
+        run_attempt: 1,
+      });
+    },
+    async pause() {},
+    now() {
+      return Date.parse("2026-11-11T12:00:00Z");
+    },
+  };
+}
+
+test("behaviorally dispatches backup before deploy and verify with exact IDs and canonical ref", async () => {
+  const api = fakeApi();
+  const result = await coordinateRelease(
+    {
+      sha: SHA,
+      mode: "release",
+      kind: "BACKUP",
+      correlationId: "coord-1",
+      repository: "org/repo",
+      maxAgeMs: 24 * 3600e3,
+    },
+    api,
+  );
+  assert.deepEqual(
+    api.dispatches.map((x) => x.workflow),
+    ["backup.yml", "deploy.yml", "post-deploy-verify.yml"],
+  );
+  assert.equal(api.dispatches[0].ref, "main");
+  assert.equal(api.dispatches[1].fields.release_artifact_id, "101");
+  assert.equal(api.dispatches[1].fields.backup_artifact_id, "201");
+  assert.equal(result.verify.runId, "40");
 });
 
-test("backup artifact name is bound to the successful current run attempt", () => {
-  assert.ok(workflow.includes(".run_attempt"));
-  assert.ok(
-    workflow.includes(
-      "mkw-backup-${artifact_run_id}-${successful_run[$artifact_run_id]}",
-    ),
-  );
+test("backup failure or stale readiness prevents deploy and verification dispatch", async () => {
+  for (const api of [
+    fakeApi({ backupConclusion: "failure" }),
+    fakeApi({ stale: true }),
+  ]) {
+    await assert.rejects(() =>
+      coordinateRelease(
+        {
+          sha: SHA,
+          mode: "release",
+          kind: "BACKUP",
+          correlationId: "coord-2",
+          repository: "org/repo",
+          maxAgeMs: 24 * 3600e3,
+        },
+        api,
+      ),
+    );
+    assert.deepEqual(
+      api.dispatches.map((x) => x.workflow),
+      ["backup.yml"],
+    );
+  }
 });
 
-test("unreadable backup candidates fail closed rather than hide ambiguity", () => {
-  assert.match(
-    workflow,
-    /Unable to read a candidate backup artifact' >&2\s+exit 1/,
+for (const kind of ["BACKUP", "INITIAL_EMPTY_DEPLOYMENT"]) {
+  test(`F1: dispatches fresh ${kind} without pre-existing backup then waits exact run`, async () => {
+    const api = fakeApi({ kind });
+    const result = await coordinateRelease(input(kind), api);
+    assert.equal(result.backup.runId, "20");
+    assert.equal(result.backup.attempt, "1");
+    assert.equal(api.dispatches[0].fields.kind, kind);
+    for (const call of api.dispatches) {
+      assert.equal(call.ref, "main");
+      assert.equal(call.fields.release_sha, SHA);
+    }
+  });
+}
+for (const [failedWorkflow, expectedCalls] of [
+  ["deploy.yml", 2],
+  ["post-deploy-verify.yml", 3],
+]) {
+  test(`F2: ${failedWorkflow} failure rejects coordinator despite unrelated successful run`, async () => {
+    const api = fakeApi({ failedWorkflow });
+    await assert.rejects(() => coordinateRelease(input(), api), /failed/);
+    assert.equal(api.dispatches.length, expectedCalls);
+  });
+}
+test("F3: stale empty evidence rejects before deployment even with fresh createdAt", async () => {
+  const api = fakeApi({ kind: "INITIAL_EMPTY_DEPLOYMENT", staleEmpty: true });
+  await assert.rejects(
+    () => coordinateRelease(input("INITIAL_EMPTY_DEPLOYMENT"), api),
+    /empty evidence/,
   );
-  assert.match(
-    workflow,
-    /Candidate backup artifact has invalid readiness metadata' >&2\s+exit 1/,
-  );
+  assert.equal(api.dispatches.length, 1);
+});
+test("F4: changed backup attempt and multiple exact artifacts reject before deploy", async () => {
+  for (const options of [{ changedAttempt: true }, { ambiguousBackup: true }]) {
+    const api = fakeApi(options);
+    await assert.rejects(
+      () => coordinateRelease(input(), api),
+      /identity changed|expected one match/,
+    );
+    assert.equal(api.dispatches.length, 1);
+  }
+});
+test("F6: manifest/source SHA mismatches and ambiguous release artifacts fail before backup", async () => {
+  for (const options of [
+    { manifestSha: "c".repeat(40) },
+    { metadataSha: "c".repeat(40) },
+    { ambiguousRelease: true },
+  ]) {
+    const api = fakeApi(options);
+    await assert.rejects(
+      () => coordinateRelease(input(), api),
+      /source SHA|source SHA linkage/,
+    );
+    assert.equal(api.dispatches.length, 0);
+  }
+});
+for (const mode of ["dry-run", "bootstrap"]) {
+  test(`verification is still awaited in ${mode}, with preflight mode explicit`, async () => {
+    const api = fakeApi();
+    await coordinateRelease(input("BACKUP", mode), api);
+    assert.equal(api.dispatches[2].fields.mode, mode);
+  });
+}
+test("consumer workflows preserve production approvals and download only exact IDs", async () => {
+  for (const workflow of ["deploy", "post-deploy-verify"]) {
+    const yaml = await readFile(`.github/workflows/${workflow}.yml`, "utf8");
+    assert.match(yaml, /environment: production/);
+    assert.match(yaml, /artifact-ids: \$\{\{ inputs.release_artifact_id \}\}/);
+    assert.doesNotMatch(yaml, /name: mkw-release-/);
+  }
+  const deploy = await readFile(".github/workflows/deploy.yml", "utf8");
+  assert.match(deploy, /artifact-ids: \$\{\{ inputs.backup_artifact_id \}\}/);
+  assert.match(deploy, /import.*validateBackupReadyFreshness.*policy\/scripts/);
+});
+
+test("F5: a historical permissive validator cannot participate in trusted resolution", async () => {
+  const api = fakeApi({ stale: true });
+  const original = api.jsonFromArtifact;
+  const reads = [];
+  api.jsonFromArtifact = async (id, entry) => {
+    reads.push(entry);
+    // A release archive may contain arbitrary old source; it must remain data.
+    if (entry.endsWith(".mjs"))
+      throw new Error("candidate code must not execute");
+    return original(id, entry);
+  };
+  await assert.rejects(() => coordinateRelease(input(), api), /older than/);
+  assert.deepEqual(reads, [
+    "release-manifest.json",
+    "build-metadata.json",
+    "backup-ready.json",
+  ]);
+  assert.equal(api.dispatches.length, 1);
+});
+
+test("waiting for a pending exact run gates later dispatches", async () => {
+  const api = fakeApi();
+  const original = api.run;
+  let polls = 0;
+  api.run = async (id) => {
+    const result = await original(id);
+    if (id === "30" && polls++ < 2) {
+      assert.equal(api.dispatches.length, 2);
+      return { ...result, status: "in_progress", conclusion: null };
+    }
+    return result;
+  };
+  await coordinateRelease(input(), api);
+  assert.equal(polls, 3);
+});
+
+test("unreadable or missing exact backup artifact cannot fall back to another run", async () => {
+  for (const broken of ["missing", "unreadable"]) {
+    const api = fakeApi();
+    if (broken === "missing") api.runArtifacts = async () => [];
+    else {
+      const original = api.jsonFromArtifact;
+      api.jsonFromArtifact = async (id, entry) => {
+        if (id === "201") throw new Error("unreadable artifact");
+        return original(id, entry);
+      };
+    }
+    await assert.rejects(
+      () => coordinateRelease(input(), api),
+      /expected one match|unreadable/,
+    );
+    assert.equal(api.dispatches.length, 1);
+  }
 });

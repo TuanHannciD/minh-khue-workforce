@@ -24,237 +24,28 @@ permissions:
   contents: read
   actions: write
 
-jobs:
-  resolve:
-    name: Resolve exact release artifacts
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    outputs:
-      release_sha: ${{ steps.resolve.outputs.release_sha }}
-      mode: ${{ steps.resolve.outputs.mode }}
-      backup_kind: ${{ steps.resolve.outputs.backup_kind }}
-      release_run_id: ${{ steps.resolve.outputs.release_run_id }}
-      release_artifact_name: ${{ steps.resolve.outputs.release_artifact_name }}
-      backup_run_id: ${{ steps.resolve.outputs.backup_run_id }}
-      backup_artifact_name: ${{ steps.resolve.outputs.backup_artifact_name }}
-    env:
-      # GH_TOKEN is supplied through the runner environment. It is never placed
-      # in a shell command, an artifact, or a workflow input.
-      GH_TOKEN: ${{ github.token }}
-      REPOSITORY: ${{ github.repository }}
-      RELEASE_SHA: ${{ inputs.release_sha }}
-      RELEASE_MODE: ${{ inputs.mode }}
-      BACKUP_KIND: ${{ inputs.backup_kind || 'BACKUP' }}
-    steps:
-      - name: Validate coordinator inputs
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
-            echo 'release_sha must be a full 40-character lowercase SHA' >&2
-            exit 64
-          }
-          [[ "$RELEASE_MODE" =~ ^(dry-run|bootstrap|release)$ ]] || {
-            echo 'mode must be dry-run, bootstrap, or release' >&2
-            exit 64
-          }
-          [[ "$BACKUP_KIND" =~ ^(BACKUP|INITIAL_EMPTY_DEPLOYMENT)$ ]] || {
-            echo 'backup_kind is unsupported' >&2
-            exit 64
-          }
+concurrency:
+  group: mkw-release-coordinator
+  cancel-in-progress: false
 
-      - name: Checkout requested release validators
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout trusted current orchestration policy
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_sha }}
+          ref: main
           fetch-depth: 1
-
-      - name: Resolve successful exact-SHA build and backup artifacts
-        id: resolve
+          persist-credentials: false
+      - name: Run exact release pipeline
         shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          api_json() {
-            gh api --paginate --slurp "$@"
-          }
-
-          # A build run is usable only when the API reports the exact SHA,
-          # completed status, and successful conclusion. Reruns are therefore
-          # rejected rather than silently choosing the newest result.
-          build_runs="$(api_json "/repos/${REPOSITORY}/actions/workflows/build-release.yml/runs?head_sha=${RELEASE_SHA}&status=completed&per_page=100")"
-          mapfile -t build_ids < <(
-            jq -r --arg sha "$RELEASE_SHA" '
-              [.[].workflow_runs[] |
-                select(.head_sha == $sha and .status == "completed" and .conclusion == "success") |
-                .id] | .[]
-            ' <<<"$build_runs"
-          )
-          if (( ${#build_ids[@]} == 0 )); then
-            echo 'No successful build workflow run exists for release_sha' >&2
-            exit 1
-          fi
-          if (( ${#build_ids[@]} != 1 )); then
-            echo 'Multiple successful build workflow runs exist for release_sha' >&2
-            exit 1
-          fi
-          release_run_id="${build_ids[0]}"
-          [[ "$release_run_id" =~ ^[0-9]+$ ]] || {
-            echo 'Build workflow run id was malformed' >&2
-            exit 1
-          }
-
-          release_artifact_name="mkw-release-${RELEASE_SHA}"
-          build_artifacts="$(api_json "/repos/${REPOSITORY}/actions/runs/${release_run_id}/artifacts?per_page=100")"
-          mapfile -t release_artifacts < <(
-            jq -r --arg name "$release_artifact_name" '
-              [.[].artifacts[] | select(.name == $name and .expired == false) | .id] | .[]
-            ' <<<"$build_artifacts"
-          )
-          if (( ${#release_artifacts[@]} == 0 )); then
-            echo 'No unexpired exact-SHA release artifact exists' >&2
-            exit 1
-          fi
-          if (( ${#release_artifacts[@]} != 1 )); then
-            echo 'Multiple exact-SHA release artifacts exist' >&2
-            exit 1
-          fi
-
-          # Backup artifact names intentionally contain run identifiers rather
-          # than a release SHA. The linked backup-ready.json is the authoritative
-          # linkage, so inspect each successful backup artifact and require one
-          # exact releaseSha/kind match. Encrypted dump bytes are never printed.
-          backup_runs="$(api_json "/repos/${REPOSITORY}/actions/workflows/backup.yml/runs?status=completed&per_page=100")"
-          backup_artifacts="$(api_json "/repos/${REPOSITORY}/actions/artifacts?per_page=100")"
-          mapfile -t backup_candidates < <(
-            jq -r '
-              .[].artifacts[] |
-              select(.expired == false and (.name | startswith("mkw-backup-"))) |
-              [.id, .name, (.workflow_run.id // "")] | @tsv
-            ' <<<"$backup_artifacts"
-          )
-
-          # Re-read the successful run ids without embedding API data in a
-          # command. This keeps all candidate values under shell validation.
-          declare -A successful_run=()
-          while IFS=$'\t' read -r run_id run_attempt; do
-            [[ "$run_id" =~ ^[0-9]+$ && "$run_attempt" =~ ^[0-9]+$ ]] || continue
-            successful_run["$run_id"]="$run_attempt"
-          done < <(
-            jq -r '[.[].workflow_runs[] | select(.status == "completed" and .conclusion == "success") | [.id, .run_attempt] | @tsv] | .[]' <<<"$backup_runs"
-          )
-
-          scratch="$(mktemp -d)"
-          trap 'rm -rf "$scratch"' EXIT
-          matches=()
-          while IFS=$'\t' read -r artifact_id artifact_name artifact_run_id; do
-            [[ "$artifact_id" =~ ^[0-9]+$ && "$artifact_run_id" =~ ^[0-9]+$ ]] || {
-              echo 'Backup artifact linkage was malformed' >&2
-              exit 1
-            }
-            if [[ "${successful_run[$artifact_run_id]+yes}" != yes ]]; then continue; fi
-            # A failed earlier attempt may have uploaded an artifact before a
-            # later successful rerun. Only that successful attempt is eligible.
-            if [[ "$artifact_name" != "mkw-backup-${artifact_run_id}-${successful_run[$artifact_run_id]}" ]]; then continue; fi
-            zip_path="$scratch/${artifact_id}.zip"
-            metadata_path="$scratch/${artifact_id}.json"
-            if ! gh api -H 'Accept: application/zip' \
-              "/repos/${REPOSITORY}/actions/artifacts/${artifact_id}/zip" >"$zip_path"; then
-              echo 'Unable to read a candidate backup artifact' >&2
-              exit 1
-            fi
-            mapfile -t metadata_entries < <(
-              unzip -Z1 "$zip_path" 2>/dev/null | awk '$0 ~ /(^|\/)backup-ready\.json$/ { print }'
-            )
-            if (( ${#metadata_entries[@]} != 1 )); then
-              echo 'Candidate backup artifact has invalid readiness metadata' >&2
-              exit 1
-            fi
-            if ! unzip -p "$zip_path" "${metadata_entries[0]}" >"$metadata_path" 2>/dev/null; then
-              echo 'Unable to extract candidate backup readiness metadata' >&2
-              exit 1
-            fi
-            if node --input-type=module -e '
-              import { readFile } from "node:fs/promises";
-              import { parseJsonStrict } from "./scripts/product/release/validate-manifest.mjs";
-              import { validateBackupReady } from "./scripts/product/release/validate-backup-ready.mjs";
-              const [path, expectedSha, expectedKind] = process.argv.slice(1);
-              const value = parseJsonStrict(await readFile(path, "utf8"));
-              const result = validateBackupReady(value);
-              if (!result.ok || value.releaseSha !== expectedSha || value.kind !== expectedKind) process.exit(1);
-            ' "$metadata_path" "$RELEASE_SHA" "$BACKUP_KIND"; then
-              matches+=("${artifact_id}"$'\t'"${artifact_name}"$'\t'"${artifact_run_id}")
-            fi
-          done <<<"$(printf '%s\n' "${backup_candidates[@]}")"
-
-          if (( ${#matches[@]} == 0 )); then
-            echo 'No successful backup artifact matches release_sha and backup_kind' >&2
-            exit 1
-          fi
-          if (( ${#matches[@]} != 1 )); then
-            echo 'Multiple successful backup artifacts match release_sha and backup_kind' >&2
-            exit 1
-          fi
-          IFS=$'\t' read -r _ backup_artifact_name backup_run_id <<<"${matches[0]}"
-          [[ "$backup_run_id" =~ ^[0-9]+$ && -n "$backup_artifact_name" ]] || {
-            echo 'Backup artifact linkage was malformed' >&2
-            exit 1
-          }
-
-          {
-            echo "release_sha=$RELEASE_SHA"
-            echo "mode=$RELEASE_MODE"
-            echo "backup_kind=$BACKUP_KIND"
-            echo "release_run_id=$release_run_id"
-            echo "release_artifact_name=$release_artifact_name"
-            echo "backup_run_id=$backup_run_id"
-            echo "backup_artifact_name=$backup_artifact_name"
-          } >>"$GITHUB_OUTPUT"
-
-  dispatch:
-    name: Dispatch existing deployment boundary
-    needs: resolve
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      GH_TOKEN: ${{ github.token }}
-      REPOSITORY: ${{ github.repository }}
-      RELEASE_SHA: ${{ needs.resolve.outputs.release_sha }}
-      RELEASE_MODE: ${{ needs.resolve.outputs.mode }}
-      RELEASE_RUN_ID: ${{ needs.resolve.outputs.release_run_id }}
-      RELEASE_ARTIFACT_NAME: ${{ needs.resolve.outputs.release_artifact_name }}
-      BACKUP_RUN_ID: ${{ needs.resolve.outputs.backup_run_id }}
-      BACKUP_ARTIFACT_NAME: ${{ needs.resolve.outputs.backup_artifact_name }}
-    steps:
-      - name: Dispatch deploy with resolved outputs
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          gh workflow run deploy.yml \
-            --repo "$REPOSITORY" \
-            --ref "$GITHUB_REF_NAME" \
-            --field "mode=$RELEASE_MODE" \
-            --field "release_sha=$RELEASE_SHA" \
-            --field "release_run_id=$RELEASE_RUN_ID" \
-            --field "backup_run_id=$BACKUP_RUN_ID" \
-            --field "backup_artifact_name=$BACKUP_ARTIFACT_NAME"
-
-      - name: Publish explicit verification handoff
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          # workflow_dispatch does not return a child run id and dispatching
-          # verification here would race deployment. Keep verify manual and
-          # provide the exact resolved inputs after the deploy run completes.
-          {
-            echo '### Release coordinator handoff'
-            echo
-            echo "Deploy dispatched for release SHA \`$RELEASE_SHA\` (build run \`$RELEASE_RUN_ID\`)."
-            echo
-            echo 'After the deploy run completes, dispatch post-deploy verification with:'
-            echo
-            echo '```bash'
-            printf 'gh workflow run post-deploy-verify.yml --repo %q --ref %q --field release_sha=%q --field release_run_id=%q --field rollback_on_failure=true\n' \
-              "$REPOSITORY" "$GITHUB_REF_NAME" "$RELEASE_SHA" "$RELEASE_RUN_ID"
-            echo '```'
-          } >>"$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN_VALUE: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_MODE: ${{ inputs.mode }}
+          BACKUP_KIND: ${{ inputs.backup_kind || 'BACKUP' }}
+          CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: node scripts/product/release/run-coordinator.mjs
