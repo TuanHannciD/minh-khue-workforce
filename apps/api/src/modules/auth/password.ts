@@ -10,11 +10,11 @@ export const passwordOptions = {
 
 export function validatePassword(password: string) {
   if (
-    Array.from(password).length < 12 ||
+    Array.from(password).length < 8 ||
     Buffer.byteLength(password, "utf8") > 1024
   )
     throw new Error(
-      "Password must have at least 12 characters and at most 1024 UTF-8 bytes",
+      "Password must have at least 8 characters and at most 1024 UTF-8 bytes",
     );
 }
 export async function hashPassword(password: string) {
