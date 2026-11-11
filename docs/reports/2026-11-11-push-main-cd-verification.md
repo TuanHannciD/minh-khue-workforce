@@ -6,7 +6,7 @@ Ngày thực hiện: 12/11/2026; tên file giữ ngày của spec/plan 11/11. Ng
 
 - Base: `d8dd9fbb2b4394d612a582991de9005f5f898e52`, có Tasks 1–4. Worktree T3 được cấp ban đầu ở `9f89930`, sạch; đã fast-forward **nhánh Task 5** tới base trước sửa, không thay parent.
 - Branch: `t3/push-main-cd-task5-docs`; cwd của mọi lệnh bên dưới: `C:/Users/Tuan/.t3/worktrees/minh-khue-workforce/t3-3cceb3b9`.
-- Implementation: `a323656b00ec6548f26cdc6c30e937591acffe57`; committed snapshot kiểm trước bản cập nhật evidence cuối: `c5955c1249eb1cfb44324cc4ba19e3d30fe6b292`. Commit cuối chỉ cập nhật tài liệu/evidence; full tip cuối có trong handoff và `git log` của nhánh.
+- Implementation/doc tip before this final report commit: `381bbcd`. Task 5 range is `d8dd9fb..381bbcd`; the final report commit is the next tip and is verified by `git rev-parse HEAD` in handoff. No source/workflow behavior is changed by this evidence-only commit.
 - Mục tiêu/acceptance: cập nhật năm nguồn vận hành/readiness, ghi checklist activation, daily flow không manual IDs, receipts, retry/incident/recovery, chạy checks tích hợp và giữ baseline failures. Risk chính là tài liệu làm operator hiểu nhầm rằng hệ thống đã kích hoạt hoặc có thể rollback dữ liệu tự động.
 - Writer: implementation sub-agent, `gpt-6.1-sol` reasoning `high`; không nested delegation. Review route: self-review tài liệu, parent tổ chức independent exact-tip/final integrated review. Chưa claim Reviewed/Activated/Released.
 - Resource task-owned: `.agent-runs/push-main-task5/`, dependencies trong worktree và output build ignored. Không acquire server/DB/port/Docker container nào; không production/SSH/VPS/DB thật, GitHub settings/secrets, push, merge parent hoặc PR.
