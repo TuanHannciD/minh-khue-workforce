@@ -3,6 +3,13 @@
 This directory is the image/Compose boundary for the independent `mkw` project.
 It does not share networks, volumes, ports, or containers with other projects.
 
+After one-time activation, normal operation is `merge local -> git push origin main`.
+The push-main workflow runs quality -> immutable GHCR -> backup -> deploy -> verify
+using the full push SHA and exact outputs; no manual SHA/run/artifact IDs are needed.
+Build and backup may run in parallel after quality; deploy requires both to succeed.
+Production concurrency does not cancel active mutation for a newer push.
+See the [activation checklist](../docs/operations/release-checklist.md).
+
 Compose consumes only the release manifest's immutable `@sha256:<64 hex>` image
 references. The release entrypoint validates the complete manifest and backup
 contract before rendering Compose; it never resolves a digest from a registry.
@@ -62,3 +69,18 @@ Target policy đến từ trusted production vars: host là `MKW_SSH_HOST`, data
 Workflow truyền policy vào remote; thiếu identity hoặc metadata khác target bị
 chặn ở runner và dưới deploy lock trước mutation. Không dùng dispatch input làm
 nguồn expected production target.
+
+## Auto rollback and activation limits
+
+Auto rollback fails closed: at most one API/Web `--no-deps api gateway` recovery,
+with last-known-good ownership/attestation, fresh current-DB backup and unchanged
+PostgreSQL/schema/migration proof. It never migrates from the old image, restores
+or changes the database. Unknown data operations/startup side effects require an
+incident. There is currently no independent data-operation receipt producer;
+deploy journals remain unknown, so live automatic recovery eligibility is blocked.
+
+The existing Docker rehearsal script is restricted to a fresh GitHub-hosted runner;
+never spoof `GITHUB_ACTIONS`/`RUNNER_ENVIRONMENT` locally. Local fixtures do not prove
+GitHub/GHCR/SSH/VPS activation. Both manual and automatic workflows currently use
+`production`; separating recovery approvals is an unresolved activation gate.
+See [Task 5 evidence](../docs/reports/2026-11-11-push-main-cd-verification.md).

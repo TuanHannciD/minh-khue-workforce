@@ -2,11 +2,13 @@
 
 Cập nhật 23/10/2026. Nguồn: [MKW-AGENT-002 validation](../tasks/MKW-AGENT-002/validation.md). Lịch sử tài liệu tại MKW-AGENT-001 giữ nguyên; không dùng kết quả SellerFlow làm bằng chứng Minh Khuê.
 
-## Hạ tầng CI/CD — Task4 ngày 11/11/2026
+## Hạ tầng CI/CD — push-main Task 5, ngày 12/11/2026
 
-Đã có controls release/coordinator/backup/attestation/rollback trong integrated source `47e1d7fd6486cec7169874fb85110d0418db4eed`; [release checklist](../operations/release-checklist.md), [release runbook](../operations/product-release-runbook.md) và [backup/restore](../operations/product-backup-restore.md) mô tả operator path. [Report Task4](../reports/2026-11-11-task4-release-checklist.md) sở hữu runtime, commands, kết quả local và baseline links; implemented không có nghĩa verified trên GitHub/production. Independent final code review do parent quản lý, không được thay bằng self-review docs.
+Controls Tasks 1–4 đã tích hợp tại `d8dd9fbb2b4394d612a582991de9005f5f898e52`: `merge local → git push origin main` mở quality → immutable GHCR → backup → deploy → verify, không cần manual SHA/run/artifact IDs. [Checklist kích hoạt](../operations/release-checklist.md), [release runbook](../operations/product-release-runbook.md), [rollback runbook](../operations/product-rollback-runbook.md) và [deploy boundary](../../deploy/README.md) mô tả operator path; [verification Task 5](../reports/2026-11-11-push-main-cd-verification.md) sở hữu commands, kết quả và giới hạn của snapshot local. [Task4 cũ](../reports/2026-11-11-task4-release-checklist.md) giữ evidence manual pipeline lịch sử.
 
-Không đóng toàn bộ G3/G4 sản phẩm: native phone/SR/phone performance, product acceptance/review còn mở theo hồ sơ riêng; GitHub CI/GHCR/attestation dịch vụ thật, environment approvals/variables/secrets, key custody/recovery, production migration/compatibility/restore/cutover và smoke sau release cần evidence đúng target. Task này không SSH/deploy production hoặc bật scheduler. Các checkpoint lịch sử bên dưới không bị xóa hay đổi thành pass.
+**Implemented local; chưa Activated/Released.** Task 5 là tài liệu/evidence, self-review không thay independent exact-tip/final integrated review do parent quản lý. GitHub settings/reviewers/secrets, GHCR pull/attestation, SSH/VPS/Docker/PostgreSQL và disposable rehearsal còn **Not run/Blocked** theo target/quyền. Workflow hiện dùng chung environment `production` cho automatic và manual recovery; tách approval policy cho recovery là gate activation còn mở, YAML không tự thiết lập việc này. Chưa có producer độc lập xác minh data operation/startup side effect: journal `unknown` làm auto rollback **incident-required**, không tự restore DB hoặc down-migrate.
+
+Không đóng G3/G4 sản phẩm: native phone/SR/performance, acceptance/review, key custody/recovery, migration/compatibility/restore/cutover và smoke production vẫn cần evidence đúng target. Không push/deploy/SSH production hoặc bật scheduler trong Task 5. Các checkpoint lịch sử dưới đây giữ nguyên.
 
 ## Sản phẩm — Task11 bàn giao local, 30/10/2026
 
@@ -24,21 +26,21 @@ Các mục bootstrap002 bên dưới là checkpoint lịch sử Node22/SQLite, k
 
 ## Ma trận khả năng
 
-| Năng lực | Cài đặt | Kiểm chứng và giới hạn |
-| --- | --- | --- |
-| Rule/routing/handoff | Tài liệu local | Agent ngữ cảnh mới đọc đúng file, check7/7; chưa kiểm toàn phiên crash recovery |
-| Superpowers | 15 skill v6.4.2 commit ghim, license/hash | Checker/pilot TDD/execution/verification; chưa thử cả15 workflow |
-| Skill discovery | `.agents/skills` | Explicit read đã dùng; auto-discovery harness chưa Verified |
-| UI skills | Impeccable + UI UX Pro Max snapshot local | Context/UX search/detector đã chạy; provenance local, không pristine upstream |
-| Specialist Minh Khuê | Vai trò định tuyến bằng docs | Chưa tạo package riêng; chưa có nghiệp vụ/schema để viết module specialist |
-| Git/worktree | Baseline12bb042; worktree base ff91255 | Native handoff vào agent-bootstrap; primary read-only đến tích hợp cuối |
-| Check runner | `npm run check` | Hash/docs/lint + 9 tests đạt sau fix review; chưa có type-check/build sản phẩm |
-| Sandbox UI/API/DB | Node22 + SQLite experimental, loopback/random port | Lưu bền qua restart; retry/concurrent/error/validation; chỉ dữ liệu giả |
-| Ownership | CLI owner record, evidence ngoài worktree | Stdin/file-stop dừng mềm, giữ evidence/server khác; run tương tác đầu phải terminate đúng process sau mất stdin, không claim full crash recovery |
-| T3 Browser | Runtime sẵn có, không cài thêm MCP | UI lưu → 503 → retry → reload; API/UI đúng2 ghi chú |
-| Playwright Test | Dependency/config/spec desktop/mobile | Verified2/2, real UI/API/SQLite, keyboard/error/retry/reload/XSS/overflow; viewport mô phỏng chưa là Android thật |
-| Delegation/review | T3 live catalog | Resume pilot đã chạy; immutable tip review ghi riêng tại validation |
-| Scheduler/remote/release/Android | Chưa cấu hình | Not run, ngoài scope002 |
+| Năng lực                         | Cài đặt                                            | Kiểm chứng và giới hạn                                                                                                                           |
+| -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Rule/routing/handoff             | Tài liệu local                                     | Agent ngữ cảnh mới đọc đúng file, check7/7; chưa kiểm toàn phiên crash recovery                                                                  |
+| Superpowers                      | 15 skill v6.4.2 commit ghim, license/hash          | Checker/pilot TDD/execution/verification; chưa thử cả15 workflow                                                                                 |
+| Skill discovery                  | `.agents/skills`                                   | Explicit read đã dùng; auto-discovery harness chưa Verified                                                                                      |
+| UI skills                        | Impeccable + UI UX Pro Max snapshot local          | Context/UX search/detector đã chạy; provenance local, không pristine upstream                                                                    |
+| Specialist Minh Khuê             | Vai trò định tuyến bằng docs                       | Chưa tạo package riêng; chưa có nghiệp vụ/schema để viết module specialist                                                                       |
+| Git/worktree                     | Baseline12bb042; worktree base ff91255             | Native handoff vào agent-bootstrap; primary read-only đến tích hợp cuối                                                                          |
+| Check runner                     | `npm run check`                                    | Hash/docs/lint + 9 tests đạt sau fix review; chưa có type-check/build sản phẩm                                                                   |
+| Sandbox UI/API/DB                | Node22 + SQLite experimental, loopback/random port | Lưu bền qua restart; retry/concurrent/error/validation; chỉ dữ liệu giả                                                                          |
+| Ownership                        | CLI owner record, evidence ngoài worktree          | Stdin/file-stop dừng mềm, giữ evidence/server khác; run tương tác đầu phải terminate đúng process sau mất stdin, không claim full crash recovery |
+| T3 Browser                       | Runtime sẵn có, không cài thêm MCP                 | UI lưu → 503 → retry → reload; API/UI đúng2 ghi chú                                                                                              |
+| Playwright Test                  | Dependency/config/spec desktop/mobile              | Verified2/2, real UI/API/SQLite, keyboard/error/retry/reload/XSS/overflow; viewport mô phỏng chưa là Android thật                                |
+| Delegation/review                | T3 live catalog                                    | Resume pilot đã chạy; immutable tip review ghi riêng tại validation                                                                              |
+| Scheduler/remote/release/Android | Chưa cấu hình                                      | Not run, ngoài scope002                                                                                                                          |
 
 ## Bước tiếp
 

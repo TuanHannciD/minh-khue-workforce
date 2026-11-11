@@ -1,6 +1,14 @@
 # Rollback runbook
 
-Rollback cần protected approval và manifest cũ cụ thể. Kiểm checksum/schema, backup-ready, target identity và image digests trước thao tác.
+Rollback thủ công cần protected approval và manifest cũ cụ thể. Daily release dùng merge local → push main, không nhập manual IDs. Kiểm checksum/schema, backup-ready, target identity và image digests trước thao tác.
+
+## Auto recovery sau deploy/verify failure
+
+Push-main gọi `automatic-rollback.yml` và chỉ thử app rollback **một lần** khi application đã mutate, current runtime đúng failed operation, previous verified LKG/canonical artifact/required attestation còn hợp lệ, fresh restore-verified BACKUP của DB hiện tại đúng target và PostgreSQL container/digest/schema/migration/data-operation proof đầy đủ. Chỉ pull/apply exact API/Web cũ bằng `--no-deps api gateway`, không chạy migration từ old image, không đổi DB container, restore DB hoặc down-migrate. Reverify health và DB invariants; result `recovered-by-app-rollback` vẫn giữ pipeline gốc Failed.
+
+Changed/failed/unknown migration, unknown data operation/startup side effect, missing producer receipt, thiếu previous state/backup/ownership/attestation, PG mismatch/interleave → **incident-required**. Repo hiện chưa có producer độc lập xác minh data operation: deploy journal giữ `unknown`, nên auto recovery thực tế từ journal này dừng trước fresh backup/transport. Không giả receipt verified hoặc suy schema hash chứng minh compatibility mọi nghiệp vụ.
+
+## Manual incident route
 
 1. Dừng release mới hoặc đưa traffic vào maintenance theo quyết định vận hành. Tạo và restore-verify một `BACKUP` mới của database hiện tại đúng target, giữ exact run/artifact ID theo route backup đã duyệt. Nhập `backup_run_id` và `backup_artifact_id` trong rollback; workflow tải metadata từ artifact đó, kiểm tra local (gồm identity host production và database `mkw`) và chuyển metadata kèm checksum tới `shared/backup-ready.json`. `releaseSha` trong metadata là provenance của snapshot, không bắt buộc trùng SHA ứng dụng cũ. Không tái dùng `INITIAL_EMPTY_DEPLOYMENT`. Workflow truyền max age 86400 giây; remote đọc lại clock, age, retention và exact expected host/database từ trusted vars dưới deploy lock trước mutation và trước migration. Metadata phải còn hạn tại cả hai thời điểm.
 2. Dispatch workflow rollback từ revision hiện hành đã được tin cậy trên `main`; nhập `old_release_sha`, `old_release_run_id`, `old_release_artifact_id` exact. Dispatch ref ngoài `refs/heads/main` bị từ chối; trusted resolver kiểm ID/ownership/non-expired artifact, successful canonical build-release producer, manifest repository/releaseSha và build-metadata sourceSha trước SSH. Workflow checkout `main` để dùng compose, entrypoint và validators hiện hành; không checkout control scripts từ `old_release_sha`. Giữ `controlSha` (actual checkout commit) trong runner receipt cùng manifest cũ.
@@ -11,4 +19,4 @@ Rollback cần protected approval và manifest cũ cụ thể. Kiểm checksum/s
 
 Release trước Task3 vẫn dùng control tooling hiện hành khi rollback theo workflow mới. Receipt lịch sử do entrypoint cũ tạo có thể thiếu operation/attestation/rollback fields; không suy diễn chúng đã verify. Chỉ dùng workflow hiện hành từ canonical `main` với branch restriction environment đã cấu hình; revision cũ không có guard mới không phải route rollback an toàn.
 
-Không tự rollback khi verification thất bại và không in secret vào log.
+Manual verifier chỉ phát signal; auto path phải đi đủ gate ở trên. Không retry rollback vô hạn hoặc in secret. Giữ correlation/run URL và current state trước retry; timeout/cancel không chứng minh remote stopped. Database restore/down migration vẫn là incident route có approval riêng theo [backup/restore](product-backup-restore.md), không capability của auto rollback.

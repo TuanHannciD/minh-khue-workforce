@@ -1,0 +1,58 @@
+# Verification push-main continuous deployment
+
+Ngày: 12/11/2026. Task 5 của kế hoạch `docs/superpowers/plans/2026-11-11-push-main-continuous-deployment.md`.
+
+## Phạm vi và trạng thái
+
+- Base được giao: `d8dd9fbb2b4394d612a582991de9005f5f898e52` (Tasks 1–4).
+- Worktree/branch: `t3-3cceb3b9` / `t3/push-main-cd-task5-docs`.
+- Tip sau commit Task 5: ghi SHA trong handoff sau khi commit.
+- Writer: implementation sub-agent; không nested delegation.
+- Phạm vi: activation docs, isolated rehearsal boundary, local verification evidence. Không push, merge parent, sửa GitHub settings/secrets, SSH/VPS/DB/production hoặc tạo PR.
+
+## Contract đã ghi
+
+Daily path là duy nhất: `merge local → git push origin main`. Push `main` chạy `quality → immutable GHCR → backup → deploy → verify`; source là full `github.sha`, artifact/run/attempt/digests được forward exact, không cần operator nhập manual SHA/run/artifact ID. VPS pull API/Web exact `@sha256:<64 hex>` và pinned PostgreSQL; backup target-bound, fresh, retention-valid và restore-verified trước mutation. Receipt cần giữ release manifest/checksum/SBOM/provenance/attestation status, backup-ready + encrypted dump checksum, deploy/server receipt và post-deploy verification/rollback signal.
+
+Auto rollback được ghi là fail-closed, một lần, application-only: chỉ API/Web `--no-deps`, giữ PostgreSQL container/digest, cần LKG/ownership/attestation/fresh current backup/schema-migration evidence. Database restore và down migration là incident route. Migration/data operation unknown, side effect không có producer receipt, missing/interleaved/mismatch evidence đều `incident-required`; pipeline gốc vẫn failed dù app recovery thành công.
+
+Manual coordinator/dry-run/bootstrap/rollback vẫn tồn tại cho preflight và incident, nhưng không nằm trên happy path. `scripts/product/release-rehearsal.sh` là fixture Docker disposable có guard GitHub-hosted runner sạch; không giả guard hoặc biến nó thành local production proof.
+
+## Activation checklist và daily evidence
+
+1. Kiểm environment `production`: SSH host/port/fingerprint, deploy path/project/gateway, private key và backup encryption key; kiểm branch permissions và actual reviewers.
+2. Kiểm GHCR visibility/pull. Private package dùng token VPS mode 600 với `read:packages`; build write token không xuống VPS. Đối chiếu `MKW_ATTESTATION_MODE` ở build/deploy scope; `required` phải verify signer workflow.
+3. Bootstrap server env files/Compose target qua route được duyệt; xác minh backup owner, key custody, restore route, retention/RPO/RTO và incident contact.
+4. Chạy disposable hosted-runner rehearsal nếu có target runner sạch. Receipt mong đợi là `RELEASE_REHEARSAL_OK`, server receipt secret-free, exact digests, health/smoke và backup/restore evidence. Nếu không có runner Docker capability, giữ **Blocked/Not run**.
+5. Sau activation, mỗi push xem summary theo `${run_id}-${run_attempt}` và lưu: `release_sha`, correlation, quality/build/backup/deploy/verify results; release artifact `mkw-release-<SHA>`; backup artifact `mkw-backup-<run_id>-<attempt>`; `receipts/`; `mkw-post-deploy-receipt-<SHA>`; recovery evidence nếu có.
+
+## Incident, retry, recovery
+
+Artifact/attestation/registry/fingerprint/backup mismatch dừng trước migration. Timeout/cancel giữ run URL/correlation; cancel không chứng minh stopped. Retry phải đọc current state dưới lock: verified SHA → `already-deployed`; newer push → `superseded`; unknown/mutated → incident. Không chọn latest hoặc retry migration/rollback vô hạn.
+
+Post-deploy verify failure có thể mở auto recovery một lần. Thiếu previous LKG, fresh current backup, exact artifact ownership/attestation, PG match, schema/migration/data-operation proof hoặc có interleaving → `incident-required`. Manual incident giữ traffic/maintenance, tạo `BACKUP` mới, rồi dùng rollback runbook. Nếu cần dữ liệu/schema recovery, restore vào DB mới, verify/revoke sessions và cutover sau approval; không down-migrate production.
+
+## Kiểm chứng local
+
+Cwd là worktree này. Runtime locked được provision trong task-owned ignored `.agent-runs/push-main-task5/`: Node `v24.22.1`, pnpm `12.15.0`; `pnpm install --frozen-lockfile` đạt, lockfile không đổi.
+
+| Check                                                                                                            | Kết quả thực tế                                                                                                                                          | Giới hạn                                                                                                        |
+| ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `npm run check`                                                                                                  | **Failed** ở `check:docs` với đúng 19 historical links dưới `.superpowers/sdd/tanstack-cache-ownership`; `check:skills` đạt. Không sửa baseline lịch sử. | Root tests được chạy riêng và đạt 10/10.                                                                        |
+| `npm test`                                                                                                       | **PASS 10/10**. `npm run lint` **PASS**.                                                                                                                 | Đây là root/pilot suite, không phải product suite.                                                              |
+| `pnpm run product:test:tooling`                                                                                  | **PASS 643/643**.                                                                                                                                        | Có log output test; không chứng minh live services.                                                             |
+| Focused release policy (`push-main-workflow`, orchestration, auto-rollback, deploy-entrypoint, release-workflow) | **PASS 57/57**.                                                                                                                                          | Fixture/policy only.                                                                                            |
+| `pnpm run product:lint`                                                                                          | **PASS**.                                                                                                                                                | —                                                                                                               |
+| `pnpm run product:format:check`                                                                                  | **Failed** baseline ở ba CSS: `attendance.css`, `export-button.css`, `tokens.css`; không thuộc Task 5.                                                   | Không sửa format-only baseline ngoài scope.                                                                     |
+| `pnpm run product:typecheck`                                                                                     | **PASS**.                                                                                                                                                | —                                                                                                               |
+| `pnpm run product:build`                                                                                         | **PASS**, Vite còn warning chunk >500 kB hiện hữu.                                                                                                       | —                                                                                                               |
+| `pnpm run product:boundaries`                                                                                    | **PASS**.                                                                                                                                                | —                                                                                                               |
+| `pnpm run product:contract:check`                                                                                | **PASS**.                                                                                                                                                | —                                                                                                               |
+| YAML/actionlint/Bash/diff                                                                                        | `actionlint` **PASS** trên tất cả `.github/workflows/*.yml`; `bash -n` **PASS** cho release/deploy scripts; `git diff --check` **PASS**.                 | YAML parse được bao phủ bởi actionlint; không có Docker release run.                                            |
+| Changed-doc Prettier/UTF-8                                                                                       | Prettier `--check` **PASS** trên 6 file Task 5; UTF-8 decode **PASS**; links mới trong 5 source docs resolve bằng resolver local.                        | `npm run check:docs` vẫn giữ 19 historical failures ở trên.                                                     |
+| Docker rehearsal                                                                                                 | **Not run / Blocked**.                                                                                                                                   | `scripts/product/release-rehearsal.sh` yêu cầu fresh GitHub-hosted runner; không spoof guard, không production. |
+| GitHub Actions/GHCR/attestation/SSH/VPS/PostgreSQL/migration/production smoke                                    | **Not run / Blocked**.                                                                                                                                   | Cần settings, secrets, target và quyền ngoài task.                                                              |
+
+## Bàn giao
+
+Tip được ghi sau commit Task 5. Parent cần independent exact-tip review và local fast-forward theo kế hoạch. Chỉ sau review mới gọi **Reviewed**; sau actual settings + hosted rehearsal mới gọi **Activated**; sau production deploy/verify receipt mới gọi **Released**. Không có PR, push, merge parent, SSH/VPS/DB hoặc GitHub settings mutation trong task này.

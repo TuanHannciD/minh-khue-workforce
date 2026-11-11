@@ -4,17 +4,21 @@ Phạm vi: quy trình tài liệu cho artifact đã kiểm chứng; không tự 
 
 Đường vận hành hiện hành: [checklist một SHA](release-checklist.md). [Evidence Task4](../reports/2026-11-11-task4-release-checklist.md) ghi verification local trên controls 47e1d7f; không thay readiness sản phẩm. Các giới hạn chưa được quyết định trong hồ sơ bàn giao cũ phải được operator xác minh lại bằng cấu hình/approval thực trước release.
 
-## Luồng phát hành
+## Daily release — merge local → push main
 
-1. CI từ push lên main chạy trên exact commit và tạo bằng chứng kiểm thử.
-2. Build release tạo manifest với full SHA và image digests; chỉ artifact này được bàn giao.
-3. Dispatch `release-pipeline.yml` từ `main` với full SHA, mode và backup kind. Coordinator chạy trusted controls từ `main`, yêu cầu production target vars (`MKW_SSH_HOST`, `MKW_DEPLOY_PATH`, `MKW_PROJECT_NAME`, database `mkw`), chọn đúng một non-expired artifact ID thuộc successful canonical `build-release.yml` và kiểm tra manifest/build-metadata source linkage rồi dispatch backup → deploy → verify theo exact run/attempt/artifact ID. Backup workflow tạo `BACKUP` đã restore-verified, hoặc `INITIAL_EMPTY_DEPLOYMENT` cho lần đầu; mọi metadata phải khớp host/database và target identity hiện hành.
-4. Người vận hành duyệt protected environment, kiểm tra target identity, checksum và SSH fingerprint.
-5. Chỉ mode `release` chạy migration forward, health/smoke rồi ghi receipt. `dry-run` deploy chỉ SSH preflight; `bootstrap` tạo thư mục/secret env, không apply release. Coordinator ở cả ba mode vẫn dispatch backup thật qua SSH, không phải offline test. Không lookup tag/digest động.
-   Trước migration, VPS pull exact API/Web `@sha256` references. Public GHCR pull anonymous; private GHCR dùng file token riêng mode 600 với credential chỉ `read:packages`. Không truyền build write token xuống VPS. Pull bị từ chối hoặc `RepoDigest` khác manifest dừng trước Compose/migration và ghi evidence trạng thái thất bại không chứa secret.
-6. Mode `release`: post-deploy verify đối chiếu receipt, SHA, digest, health và Prisma migration status. Hai mode còn lại chỉ kiểm artifact/SHA, receipt ghi `skipped-preflight-only`.
+Sau khi hoàn tất [checklist kích hoạt](release-checklist.md), operator merge local code đã review rồi `git push origin main`. Normal release không nhập SHA, run ID, artifact ID hoặc bấm approval thủ công. Nếu actual repo policy bắt buộc PR, dùng route merge GitHub tương ứng; CI kiểm exact SHA sau merge.
 
-Coordinator có ngân sách tổng nhỏ hơn job cha và ngân sách riêng cho discovery/conclusion từng child. Khi hết hạn, workflow không dispatch stage sau; nếu API hỗ trợ thì coordinator gửi cancel cho child, nếu không thì ghi run URL/correlation để operator kiểm tra trước retry. Hết hạn không phải là bằng chứng child đã dừng.
+`main-release.yml` nhận full push `github.sha`, preflight current-state rồi quality → immutable GHCR build/manifest → backup → deploy → verify. Build và backup có thể chạy song song sau quality; deploy cần cả hai đạt. Exact outputs gồm run/attempt/artifact IDs/archive digests, API/Web `@sha256:<64 hex>` và pinned PostgreSQL. Không chọn “latest”, không build trên VPS. Backup `BACKUP` phải target-bound, fresh, retained và restore-verified; VPS pull/check RepoDigest toàn bộ image trước forward migration/Compose mutation. Verify đối chiếu runtime image, schema/migration và health/smoke, rồi mới promote last-known-good.
+
+Concurrency giữ một production transaction, push mới không cancel mutation. Pending có thể bị superseded; không hứa phát hành mọi SHA trung gian. Stale source dừng trước mutation; rerun verified SHA là `already-deployed`, uncertain current-state là incident. Summary correlation `<run_id>-<attempt>` và operation `<run_id>-<attempt>-<SHA>` nối stage/receipts; recovery summary riêng, pipeline gốc vẫn Failed khi recovery thành công.
+
+## Route thủ công
+
+`release-pipeline.yml`/coordinator nhận full SHA, mode và backup kind cho dry-run/bootstrap/recovery được phép; không thuộc daily flow. Coordinator vẫn dùng exact canonical artifact IDs và dispatch backup thật qua SSH, kể cả dry-run/bootstrap. Dry-run chỉ preflight; bootstrap tạo env/thư mục, không apply app; `skipped-preflight-only` không phải runtime verification. Target mới dùng `INITIAL_EMPTY_DEPLOYMENT` có empty evidence qua route riêng, không tự fallback khi daily BACKUP thiếu.
+
+Giữ budget coordinator tổng 150 phút (job 180), backup/deploy 50 phút mỗi stage, verify 30, discovery tối đa 5 và API process timeout 30 giây. Timeout/cancel không chứng minh child stopped; giữ URL/correlation và kiểm current-state/mutation trước retry. Auto workflows dùng needs/stage timeouts, không API dispatch/poll. Không blind cancel migration hoặc retry vô hạn.
+
+Trước migration, public GHCR pull anonymous; private dùng VPS-only token mode 600, read-only `read:packages` qua registry vars/files trong checklist; build write token không xuống VPS. Pull denied/digest mismatch dừng trước migration. Environment hiện vẫn dùng chung `production` cho auto và manual; recovery approval environment riêng là gate activation chưa đạt. Không tự bỏ reviewer production để đạt happy path.
 
 ## Gate và bằng chứng
 
@@ -30,8 +34,12 @@ Giữ manifest, checksum, SBOM/provenance, backup-ready, deploy/post-deploy rece
 
 ## Rollback
 
+Auto rollback chỉ một lần sau application/verify failure và đủ LKG, exact ownership/attestation/artifacts, fresh current DB backup, unchanged PostgreSQL/schema/migration và producer-backed data-operation receipt. `--no-deps api gateway` giữ DB, không old-image migration/restore/down migration; recovery thành công vẫn giữ original pipeline Failed. Unknown/side-effect/missing data receipt là `incident-required`. Repo chưa có producer độc lập của receipt data operation/startup, journal hiện `unknown`; fixture healthy recovery không chứng minh live recovery sẵn sàng.
+
 Theo [rollback runbook](product-rollback-runbook.md): chọn manifest cũ đã biết, duyệt compatibility với schema hiện tại và tạo BACKUP mới của DB hiện tại trước redeploy exact API/Web digests. Snapshot SHA không phải old app SHA. Guard yêu cầu PostgreSQL runtime digest trùng old manifest và giữ DB container; không chạy down migration hoặc restore DB. Nếu schema không tương thích, restore sang DB mới, verify và chỉ cutover sau approval riêng.
 
 ## Giới hạn
 
 Controls hiện có GitHub artifact retention 30 ngày, freshness mặc định 24 giờ, path `/home/deploy/mkw`, project `mkw` và origin mặc định trong entrypoint; đó không phải bằng chứng cấu hình production đã được kiểm. Custody key/recovery, storage ACL, RPO/RTO, domain/TLS, credentials và approvals thực cần operator xác minh theo [checklist](release-checklist.md). G3/G4 sản phẩm còn theo [READINESS](../agent/READINESS.md); local CI/CD tests không đóng các gate đó.
+
+[Verification Task 5](../reports/2026-11-11-push-main-cd-verification.md) ghi local checks và limits. GitHub settings/GHCR/SSH/VPS/production/rehearsal external vẫn **Not run/Blocked**; chưa Activated/Released.
