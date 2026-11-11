@@ -2,6 +2,12 @@
 
 Cập nhật 23/10/2026. Nguồn: [MKW-AGENT-002 validation](../tasks/MKW-AGENT-002/validation.md). Lịch sử tài liệu tại MKW-AGENT-001 giữ nguyên; không dùng kết quả SellerFlow làm bằng chứng Minh Khuê.
 
+## Hạ tầng CI/CD — Task4 ngày 11/11/2026
+
+Đã có controls release/coordinator/backup/attestation/rollback trong integrated source `47e1d7fd6486cec7169874fb85110d0418db4eed`; [release checklist](../operations/release-checklist.md), [release runbook](../operations/product-release-runbook.md) và [backup/restore](../operations/product-backup-restore.md) mô tả operator path. [Report Task4](../reports/2026-11-11-task4-release-checklist.md) sở hữu runtime, commands, kết quả local và baseline links; implemented không có nghĩa verified trên GitHub/production. Independent final code review do parent quản lý, không được thay bằng self-review docs.
+
+Không đóng toàn bộ G3/G4 sản phẩm: native phone/SR/phone performance, product acceptance/review còn mở theo hồ sơ riêng; GitHub CI/GHCR/attestation dịch vụ thật, environment approvals/variables/secrets, key custody/recovery, production migration/compatibility/restore/cutover và smoke sau release cần evidence đúng target. Task này không SSH/deploy production hoặc bật scheduler. Các checkpoint lịch sử bên dưới không bị xóa hay đổi thành pass.
+
 ## Sản phẩm — Task11 bàn giao local, 30/10/2026
 
 Các mục bootstrap002 bên dưới là checkpoint lịch sử Node22/SQLite, không thay trạng thái sản phẩm. Product dùng React/Vite + Nest/Express + PostgreSQL17.11/Prisma, Node24.22.1/pnpm12.15.0; Task1–9 independent Approved. Task10 R2 chấp nhận fix delta I1/I2/M1/M2, I3 Open scroll1000 p95 66,6/max333,3ms >33/200; final20/200 scoped pass, editor1000 121/input61,3ms đạt. **G3 chưa đạt**, native phones/SR/phone performance Not run; Task10 chưa complete/product chưa Done. Main giữ concrete design review frozen panes/windowing, không đổi budget.

@@ -2,14 +2,16 @@
 
 Phạm vi: quy trình tài liệu cho artifact đã kiểm chứng; không tự cấp quyền production.
 
+Đường vận hành hiện hành: [checklist một SHA](release-checklist.md). [Evidence Task4](../reports/2026-11-11-task4-release-checklist.md) ghi verification local trên controls 47e1d7f; không thay readiness sản phẩm. Các giới hạn chưa được quyết định trong hồ sơ bàn giao cũ phải được operator xác minh lại bằng cấu hình/approval thực trước release.
+
 ## Luồng phát hành
 
-1. CI chạy trên commit và tạo bằng chứng kiểm thử.
+1. CI từ push lên main chạy trên exact commit và tạo bằng chứng kiểm thử.
 2. Build release tạo manifest với full SHA và image digests; chỉ artifact này được bàn giao.
-3. Backup workflow tạo `BACKUP` đã restore-verified, hoặc `INITIAL_EMPTY_DEPLOYMENT` cho lần đầu.
+3. Dispatch `release-pipeline.yml` từ `main` với full SHA, mode và backup kind. Coordinator chọn đúng một successful build artifact theo source SHA/manifest/repository rồi dispatch backup → deploy → verify theo exact run/attempt/artifact ID. Backup workflow tạo `BACKUP` đã restore-verified, hoặc `INITIAL_EMPTY_DEPLOYMENT` cho lần đầu.
 4. Người vận hành duyệt protected environment, kiểm tra target identity, checksum và SSH fingerprint.
-5. Deploy chạy migration forward, health/smoke rồi ghi receipt. Không lookup tag/digest động.
-6. Post-deploy verify đối chiếu receipt, SHA, digest, health và migration version.
+5. Chỉ mode `release` chạy migration forward, health/smoke rồi ghi receipt. `dry-run` deploy chỉ SSH preflight; `bootstrap` tạo thư mục/secret env, không apply release. Coordinator ở cả ba mode vẫn dispatch backup thật qua SSH, không phải offline test. Không lookup tag/digest động.
+6. Mode `release`: post-deploy verify đối chiếu receipt, SHA, digest, health và Prisma migration status. Hai mode còn lại chỉ kiểm artifact/SHA, receipt ghi `skipped-preflight-only`.
 
 ## Gate và bằng chứng
 
@@ -25,8 +27,8 @@ Giữ manifest, checksum, SBOM/provenance, backup-ready, deploy/post-deploy rece
 
 ## Rollback
 
-Chọn manifest cũ đã biết; kiểm compatibility và backup rồi redeploy exact digest. Không chạy down migration. Nếu schema không tương thích, restore sang DB mới, verify và chỉ cutover sau approval.
+Theo [rollback runbook](product-rollback-runbook.md): chọn manifest cũ đã biết, duyệt compatibility với schema hiện tại và tạo BACKUP mới của DB hiện tại trước redeploy exact API/Web digests. Snapshot SHA không phải old app SHA. Guard yêu cầu PostgreSQL runtime digest trùng old manifest và giữ DB container; không chạy down migration hoặc restore DB. Nếu schema không tương thích, restore sang DB mới, verify và chỉ cutover sau approval riêng.
 
 ## Giới hạn
 
-Hosting, storage, key management, retention, RPO/RTO, domain/TLS và production credentials chưa được chọn trong repository này.
+Controls hiện có GitHub artifact retention 30 ngày, freshness mặc định 24 giờ, path `/home/deploy/mkw`, project `mkw` và origin mặc định trong entrypoint; đó không phải bằng chứng cấu hình production đã được kiểm. Custody key/recovery, storage ACL, RPO/RTO, domain/TLS, credentials và approvals thực cần operator xác minh theo [checklist](release-checklist.md). G3/G4 sản phẩm còn theo [READINESS](../agent/READINESS.md); local CI/CD tests không đóng các gate đó.

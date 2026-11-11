@@ -2,6 +2,8 @@
 
 Ngày 30/10/2026. Phạm vi **local, dữ liệu giả**; chưa deploy, chưa G4 production ready. [Backup/restore](product-backup-restore.md) sở hữu quy trình khôi phục. [LOCAL_RUN](../agent/LOCAL_RUN.md) sở hữu portable runtime và sandbox các task; pilot ghi chú Node22/SQLite là bootstrap lịch sử, không là app chấm công PostgreSQL. [Validation](../tasks/MKW-PRODUCT-001/validation.md) phân biệt bằng chứng và giới hạn.
 
+Checkpoint CI/CD ngày 11/11/2026: [release checklist](release-checklist.md) và [release runbook](product-release-runbook.md) sở hữu đường coordinator một SHA, variables/secrets, backup, attestation và application-only rollback hiện hành. [Report Task4](../reports/2026-11-11-task4-release-checklist.md) ghi scope kiểm local trên controls 47e1d7f. Các bảng/giới hạn Task11 ngày 30/10 dưới đây giữ làm bằng chứng checkpoint; không dùng chúng thay cấu hình/approval thực mới, cũng không suy CI/CD local thành G3/G4 đạt. Những command/auth/runtime của checkpoint cũ phải đối chiếu source hiện tại trước vận hành.
+
 Task1–9 independent Approved. Task10 R2 tại `a0c05624afebe49996a8797b8c2df07263539e3b` chấp nhận fix delta I1/I2/M1/M2, không regression Important mới; **I3 Open**, scroll1000 p95 66,6/max333,3ms >33/200. Final20/200 scoped pass, editor1000 p95 121/input61,3ms đạt. G3 chưa đạt: native iPhone/Android, SR và phone performance Not run. Main giữ concrete design review frozen panes/windowing; Task11 không thay structure/engine/budgets. Local rehearsal không giải quyết gate này.
 
 ## Quyết định bắt buộc trước vận hành thật
