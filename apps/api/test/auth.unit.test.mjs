@@ -20,7 +20,6 @@ test("Argon2 native preserves Unicode and whitespace, randomized salts, and byte
   assert.equal(Buffer.byteLength(exact), 1024);
   assert.ok(await verifyPassword(await hashPassword(exact), exact));
   await assert.rejects(hashPassword("ế".repeat(342)), /1024/);
-  await assert.rejects(hashPassword("x".repeat(11)), /12/);
   if (process.env.MKW_AUTH_EVIDENCE)
     await writeFile(
       `${process.env.MKW_AUTH_EVIDENCE}/argon2-native.json`,
@@ -41,6 +40,16 @@ test("Argon2 native preserves Unicode and whitespace, randomized salts, and byte
         2,
       ),
     );
+});
+
+test("password hashing accepts eight Unicode code points and rejects shorter input", async () => {
+  for (const value of ["abcdefgh", "ế".repeat(8), "😀".repeat(8)]) {
+    const hash = await hashPassword(value);
+    assert.ok(await verifyPassword(hash, value));
+    assert.equal(await verifyPassword(hash, value + "x"), false);
+  }
+  for (const value of ["", "abcdefg", "ế".repeat(7), "😀".repeat(4)])
+    await assert.rejects(hashPassword(value), /at least 8/);
 });
 
 test("production fails closed without exact HTTPS and configured TLS termination", async () => {
