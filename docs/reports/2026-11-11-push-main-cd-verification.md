@@ -6,7 +6,7 @@ Ngày: 12/11/2026. Task 5 của kế hoạch `docs/superpowers/plans/2026-11-11-
 
 - Base được giao: `d8dd9fbb2b4394d612a582991de9005f5f898e52` (Tasks 1–4).
 - Worktree/branch: `t3-3cceb3b9` / `t3/push-main-cd-task5-docs`.
-- Implementation commit (Task 5): `a323656b00ec6548f26cdc6c30e937591acffe57`. Báo cáo này được cập nhật trong commit evidence kế tiếp.
+- Task 5 commit range/base → tip: `d8dd9fbb2b4394d612a582991de9005f5f898e52..1614bea4f4b8cd436a86a53329652ae5dc3c9ad9` (implementation `a323656b`, evidence tip `1614bea`).
 - Writer: implementation sub-agent; không nested delegation.
 - Phạm vi: activation docs, isolated rehearsal boundary, local verification evidence. Không push, merge parent, sửa GitHub settings/secrets, SSH/VPS/DB/production hoặc tạo PR.
 
