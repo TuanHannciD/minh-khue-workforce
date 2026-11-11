@@ -7,6 +7,9 @@
 *.tsx text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+apps/web/src/features/attendance/ui/attendance.css text eol=lf
+apps/web/src/features/attendance/ui/export-button.css text eol=lf
+apps/web/src/shared/styles/tokens.css text eol=lf
 apps/**/.env.example text eol=lf
 *.ps1 text eol=crlf
 .agents/skills/** -text
