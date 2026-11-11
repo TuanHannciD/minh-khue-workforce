@@ -20,6 +20,11 @@ const SHA = "a".repeat(40);
 const API = "ghcr.io/minh-khue/api@sha256:" + "1".repeat(64);
 const WEB = "ghcr.io/minh-khue/web@sha256:" + "2".repeat(64);
 const PG = "postgres@sha256:" + "3".repeat(64);
+const BACKUP_POLICY = {
+  expectedReleaseSha: SHA,
+  now: "2026-11-09T12:00:00Z",
+  maxAgeSeconds: 86400,
+};
 
 function manifest(overrides = {}) {
   return {
@@ -58,6 +63,22 @@ function backup(overrides = {}) {
     },
     ...overrides,
   };
+}
+
+function runBackupCli(args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      ["scripts/product/release/validate-backup-ready.mjs", ...args],
+      { cwd: ROOT },
+    );
+    let stderr = "";
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, stderr }));
+  });
 }
 
 test("accepts a complete immutable release manifest", () => {
@@ -104,6 +125,176 @@ test("rejects backup identity fields that violate the strict nested contract", (
   assert.match(result.errors.join("\n"), /databaseIdentity/i);
 });
 
+test("rejects backup metadata linked to a different release SHA", () => {
+  const result = validateBackupReady(backup({ releaseSha: "b".repeat(40) }), {
+    expectedReleaseSha: SHA,
+    now: "2026-11-09T12:00:00Z",
+    maxAgeSeconds: 86400,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /releaseSha.*expected/i);
+});
+
+test("rejects backup metadata with a future creation timestamp", () => {
+  const result = validateBackupReady(
+    backup({ createdAt: "2026-11-09T13:00:00Z" }),
+    {
+      expectedReleaseSha: SHA,
+      now: "2026-11-09T12:00:00Z",
+      maxAgeSeconds: 86400,
+    },
+  );
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /createdAt.*future/i);
+});
+
+test("rejects backup metadata whose retention has expired", () => {
+  const result = validateBackupReady(
+    backup({ retentionUntil: "2026-11-09T11:59:59Z" }),
+    {
+      expectedReleaseSha: SHA,
+      now: "2026-11-09T12:00:00Z",
+      maxAgeSeconds: 86400,
+    },
+  );
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /retentionUntil.*expired/i);
+});
+
+test("rejects backup metadata older than the configured freshness window", () => {
+  const result = validateBackupReady(backup(), {
+    expectedReleaseSha: SHA,
+    now: "2026-11-10T12:00:01Z",
+    maxAgeSeconds: 86400,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /createdAt.*maximum age/i);
+});
+
+test("backup freshness includes the exact age boundary but excludes expired retention", () => {
+  const policy = { ...BACKUP_POLICY, now: "2026-11-10T10:00:00Z" };
+  assert.equal(validateBackupReady(backup(), policy).ok, true);
+  const expired = validateBackupReady(
+    backup({ retentionUntil: "2026-11-10T10:00:00Z" }),
+    policy,
+  );
+  assert.equal(expired.ok, false);
+  assert.match(expired.errors.join("\n"), /retentionUntil.*expired/i);
+});
+
+test("rejects invalid freshness policy instead of bypassing time checks", () => {
+  for (const maxAgeSeconds of [
+    -1,
+    NaN,
+    Infinity,
+    1.5,
+    "86400",
+    9007199254740992,
+  ]) {
+    const result = validateBackupReady(backup(), {
+      ...BACKUP_POLICY,
+      maxAgeSeconds,
+    });
+    assert.equal(result.ok, false, String(maxAgeSeconds));
+    assert.match(result.errors.join("\n"), /maximum age/i);
+  }
+  for (const now of ["bad", "2026-11-09T12:00:00+00:00", undefined]) {
+    const result = validateBackupReady(backup(), { ...BACKUP_POLICY, now });
+    assert.equal(result.ok, false, String(now));
+    assert.match(result.errors.join("\n"), /validation time/i);
+  }
+  const invalidSha = validateBackupReady(backup(), {
+    ...BACKUP_POLICY,
+    expectedReleaseSha: "invalid-sha",
+  });
+  assert.equal(invalidSha.ok, false);
+  assert.match(invalidSha.errors.join("\n"), /expected release SHA/i);
+});
+
+test("rejects normalized calendar dates", () => {
+  for (const field of ["createdAt", "retentionUntil"]) {
+    const result = validateBackupReady(
+      backup({ [field]: "2026-02-30T10:00:00Z" }),
+      BACKUP_POLICY,
+    );
+    assert.equal(result.ok, false);
+    assert.match(
+      result.errors.join("\n"),
+      new RegExp(`${field}.*UTC timestamp`),
+    );
+  }
+});
+
+test("CLI enforces backup release linkage and the supplied freshness policy", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "mkw-backup-cli-"));
+  try {
+    const path = join(dir, "backup-ready.json");
+    const policy = [
+      "--expected-release-sha",
+      SHA,
+      "--max-age-seconds",
+      "86400",
+      "--now",
+      "2026-11-09T12:00:00Z",
+    ];
+    for (const [overrides, expectedCode] of [
+      [{}, 0],
+      [{ releaseSha: "b".repeat(40) }, 1],
+      [{ createdAt: "2026-11-09T13:00:00Z" }, 1],
+      [{ createdAt: "2026-11-08T10:00:00Z" }, 1],
+      [{ retentionUntil: "2026-11-09T12:00:00Z" }, 1],
+    ]) {
+      await writeFile(path, JSON.stringify(backup(overrides)));
+      const result = await runBackupCli([path, ...policy]);
+      assert.equal(result.code, expectedCode, result.stderr);
+    }
+    await writeFile(
+      path,
+      JSON.stringify(
+        backup({
+          createdAt: "2000-01-01T00:00:00Z",
+          retentionUntil: "2999-01-01T00:00:00Z",
+        }),
+      ),
+    );
+    assert.equal((await runBackupCli([path])).code, 0);
+    for (const args of [
+      ["--expected-release-sha"],
+      ["--max-age-seconds"],
+      ["--max-age-seconds", ""],
+      ["--max-age-seconds", "1e9"],
+      ["--max-age-seconds", "9007199254740992"],
+      ["--max-age-seconds", "86400", "--max-age-seconds", "99999999"],
+      ["--max-age-second", "86400"],
+    ]) {
+      const result = await runBackupCli([path, ...args]);
+      assert.notEqual(result.code, 0, JSON.stringify(args));
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("backup CLI errors do not echo malformed JSON or unknown secret-like fields", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "mkw-backup-errors-"));
+  try {
+    const path = join(dir, "backup-ready.json");
+    const marker = "fixture-sensitive-value";
+    for (const content of [
+      '{"broken":' + marker,
+      JSON.stringify(backup({ extraMetadata: marker })),
+      '{"' + marker + '":1,"' + marker + '":2}',
+    ]) {
+      await writeFile(path, content);
+      const result = await runBackupCli([path]);
+      assert.notEqual(result.code, 0);
+      assert.doesNotMatch(result.stderr, new RegExp(marker));
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("accepts initial empty deployment only with identity and empty evidence", () => {
   const initial = backup({
     kind: "INITIAL_EMPTY_DEPLOYMENT",
@@ -119,6 +310,49 @@ test("accepts initial empty deployment only with identity and empty evidence", (
   delete initial.size;
   const result = validateBackupReady(initial);
   assert.equal(result.ok, true, result.errors.join("; "));
+});
+
+test("accepts a fresh initial empty deployment with release and freshness checks", () => {
+  const initial = backup({
+    kind: "INITIAL_EMPTY_DEPLOYMENT",
+    restoreVerified: false,
+    databaseVerifiedEmpty: true,
+    emptyEvidence: {
+      targetIdentity: "prod-vps-1",
+      databaseIdentity: "mkw",
+      checkedAt: "2026-11-09T10:00:00Z",
+    },
+    createdAt: "2026-11-09T10:00:00Z",
+    retentionUntil: "2026-12-09T10:00:00Z",
+  });
+  delete initial.dumpSha256;
+  delete initial.size;
+  const result = validateBackupReady(initial, {
+    expectedReleaseSha: SHA,
+    now: "2026-11-09T12:00:00Z",
+    maxAgeSeconds: 86400,
+  });
+  assert.equal(result.ok, true, result.errors.join("; "));
+});
+
+test("initial-empty freshness covers the empty evidence timestamp", () => {
+  for (const checkedAt of ["2026-11-09T13:00:00Z", "2026-11-08T10:00:00Z"]) {
+    const initial = backup({
+      kind: "INITIAL_EMPTY_DEPLOYMENT",
+      restoreVerified: false,
+      databaseVerifiedEmpty: true,
+      emptyEvidence: {
+        targetIdentity: "prod-vps-1",
+        databaseIdentity: "mkw",
+        checkedAt,
+      },
+    });
+    delete initial.dumpSha256;
+    delete initial.size;
+    const result = validateBackupReady(initial, BACKUP_POLICY);
+    assert.equal(result.ok, false, checkedAt);
+    assert.match(result.errors.join("\n"), /emptyEvidence\.checkedAt/);
+  }
 });
 
 test("rejects initial empty evidence with unknown fields or invalid timestamp", () => {

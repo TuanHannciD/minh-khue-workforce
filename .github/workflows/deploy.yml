@@ -25,6 +25,11 @@ on:
         description: Exact backup artifact name
         required: true
         type: string
+      backup_max_age_seconds:
+        description: Maximum age of backup-ready metadata at deploy time
+        required: false
+        type: string
+        default: "86400"
 
 concurrency:
   group: mkw-production
@@ -70,16 +75,21 @@ jobs:
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
+          BACKUP_MAX_AGE_SECONDS: ${{ inputs.backup_max_age_seconds }}
         run: |
           set -Eeuo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'release_sha must be a full 40-char lowercase SHA'; exit 64; }
+          [[ "$BACKUP_MAX_AGE_SECONDS" =~ ^[0-9]+$ ]] || { echo 'backup_max_age_seconds must be a non-negative integer'; exit 64; }
           test -s scripts/product/deploy-entrypoint.sh
           test -f release-artifact/release-manifest.json
           test -f release-artifact/release-manifest.sha256
           (cd release-artifact && sha256sum --check release-manifest.sha256)
           node scripts/product/release/validate-manifest.mjs release-artifact/release-manifest.json
           test -s backup-ready/backup-ready.json
-          node scripts/product/release/validate-backup-ready.mjs backup-ready/backup-ready.json
+          node scripts/product/release/validate-backup-ready.mjs backup-ready/backup-ready.json \
+            --expected-release-sha "$RELEASE_SHA" \
+            --max-age-seconds "$BACKUP_MAX_AGE_SECONDS" \
+            --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           node --input-type=module - "$RELEASE_SHA" release-artifact/release-manifest.json <<'NODE'
           import { readFile } from 'node:fs/promises';
           const [expected, path] = process.argv.slice(2);

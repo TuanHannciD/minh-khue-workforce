@@ -71,6 +71,10 @@ test("deploy consumes only the SHA-named build artifact and never resolves GHCR 
   assert.match(workflow, /backup-ready/);
   assert.match(workflow, /if: inputs\.mode == 'release'/);
   assert.match(workflow, /backup-ready\.json\.sha256/);
+  assert.match(workflow, /backup_max_age_seconds/);
+  assert.match(workflow, /--expected-release-sha\s+"\$RELEASE_SHA"/);
+  assert.match(workflow, /--max-age-seconds\s+"\$BACKUP_MAX_AGE_SECONDS"/);
+  assert.match(workflow, /--now\s+"\$\(date -u/);
   assert.match(
     workflow,
     /sha256sum\s+--check.*backup-ready|backup-ready.*sha256sum\s+--check/s,

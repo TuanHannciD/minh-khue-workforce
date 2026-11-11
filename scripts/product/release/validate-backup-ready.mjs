@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 import { parseJsonStrict } from "./validate-manifest.mjs";
 
 const SHA = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/i;
@@ -7,7 +8,18 @@ const UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 const SECRET =
   /(?:password|token|secret|private[_-]?key|access[_-]?key|credential|db[_-]?url|signature|(?:^|[?&#])sig(?:nature)?=|postgres(?:ql)?:\/\/|mysql:\/\/|https?:\/\/[^/]*:[^/@]+@)/i;
 
-export function validateBackupReady(value) {
+function parseUtcTimestamp(value) {
+  if (typeof value !== "string" || !UTC.test(value)) return null;
+  const parsed = Date.parse(value);
+  if (
+    !Number.isFinite(parsed) ||
+    new Date(parsed).toISOString().slice(0, 19) !== value.slice(0, 19)
+  )
+    return null;
+  return parsed;
+}
+
+export function validateBackupReady(value, options = {}) {
   const errors = [];
   if (!value || typeof value !== "object" || Array.isArray(value))
     return { ok: false, errors: ["backup-ready must be an object"] };
@@ -27,7 +39,7 @@ export function validateBackupReady(value) {
     "emptyEvidence",
   ]);
   for (const key of Object.keys(value))
-    if (!allowed.has(key)) errors.push(`${key} is unknown`);
+    if (!allowed.has(key)) errors.push("backup-ready contains unknown fields");
   for (const key of [
     "schemaVersion",
     "kind",
@@ -50,12 +62,55 @@ export function validateBackupReady(value) {
   if (typeof value.releaseSha !== "string" || !SHA.test(value.releaseSha))
     errors.push("releaseSha must be a full hexadecimal commit SHA");
   for (const field of ["createdAt", "retentionUntil"])
-    if (
-      typeof value[field] !== "string" ||
-      !UTC.test(value[field]) ||
-      Number.isNaN(Date.parse(value[field]))
-    )
+    if (parseUtcTimestamp(value[field]) === null)
       errors.push(`${field} must be a UTC timestamp`);
+  const expectedReleaseSha = options.expectedReleaseSha;
+  if (expectedReleaseSha !== undefined) {
+    if (typeof expectedReleaseSha !== "string" || !SHA.test(expectedReleaseSha))
+      errors.push("expected release SHA is invalid");
+    else if (
+      typeof value.releaseSha === "string" &&
+      SHA.test(value.releaseSha) &&
+      value.releaseSha.toLowerCase() !== expectedReleaseSha.toLowerCase()
+    )
+      errors.push("releaseSha does not match expected release SHA");
+  }
+  // Callers supply time explicitly so contract-only validation stays deterministic.
+  const maxAgeSeconds = options.maxAgeSeconds;
+  const timestampNow = parseUtcTimestamp(options.now);
+  if (
+    (Object.hasOwn(options, "now") || maxAgeSeconds !== undefined) &&
+    timestampNow === null
+  )
+    errors.push("validation time must be a UTC timestamp");
+  if (
+    maxAgeSeconds !== undefined &&
+    (!Number.isSafeInteger(maxAgeSeconds) || maxAgeSeconds < 0)
+  )
+    errors.push("maximum age must be a non-negative safe integer of seconds");
+  const createdAt = parseUtcTimestamp(value.createdAt);
+  const retentionUntil = parseUtcTimestamp(value.retentionUntil);
+  if (timestampNow !== null && createdAt !== null) {
+    if (createdAt > timestampNow)
+      errors.push("createdAt must not be in the future");
+    if (
+      Number.isFinite(maxAgeSeconds) &&
+      timestampNow - createdAt > maxAgeSeconds * 1000
+    )
+      errors.push("createdAt exceeds maximum age");
+  }
+  if (
+    timestampNow !== null &&
+    retentionUntil !== null &&
+    retentionUntil <= timestampNow
+  )
+    errors.push("retentionUntil has expired");
+  if (
+    createdAt !== null &&
+    retentionUntil !== null &&
+    retentionUntil <= createdAt
+  )
+    errors.push("retentionUntil must be after createdAt");
   if (
     typeof value.storageLocation !== "string" ||
     value.storageLocation.length === 0 ||
@@ -96,7 +151,7 @@ export function validateBackupReady(value) {
     else {
       for (const key of Object.keys(evidence))
         if (!["targetIdentity", "databaseIdentity", "checkedAt"].includes(key))
-          errors.push(`emptyEvidence.${key} is unknown`);
+          errors.push("emptyEvidence contains unknown fields");
       if (
         typeof evidence.targetIdentity !== "string" ||
         evidence.targetIdentity.length === 0
@@ -109,10 +164,19 @@ export function validateBackupReady(value) {
         errors.push("emptyEvidence.databaseIdentity is required");
       if (
         typeof evidence.checkedAt !== "string" ||
-        !UTC.test(evidence.checkedAt) ||
-        Number.isNaN(Date.parse(evidence.checkedAt))
+        parseUtcTimestamp(evidence.checkedAt) === null
       )
         errors.push("emptyEvidence.checkedAt must be a UTC timestamp");
+      else if (timestampNow !== null) {
+        const checkedAt = parseUtcTimestamp(evidence.checkedAt);
+        if (checkedAt > timestampNow)
+          errors.push("emptyEvidence.checkedAt must not be in the future");
+        if (
+          Number.isFinite(maxAgeSeconds) &&
+          timestampNow - checkedAt > maxAgeSeconds * 1000
+        )
+          errors.push("emptyEvidence.checkedAt exceeds maximum age");
+      }
     }
     if ("dumpSha256" in value || "size" in value)
       errors.push("INITIAL_EMPTY_DEPLOYMENT cannot contain dump metadata");
@@ -126,7 +190,7 @@ export function validateBackupReady(value) {
     else {
       for (const key of Object.keys(value.databaseIdentity))
         if (!["host", "name", "engine"].includes(key))
-          errors.push(`databaseIdentity.${key} is unknown`);
+          errors.push("databaseIdentity contains unknown fields");
       if (
         typeof value.databaseIdentity.host !== "string" ||
         value.databaseIdentity.host.length === 0
@@ -145,25 +209,51 @@ export function validateBackupReady(value) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [inputPath] = process.argv
-    .slice(2)
-    .filter((arg) => !arg.startsWith("--"));
-  if (!inputPath) {
+  let args;
+  try {
+    args = parseArgs({
+      allowPositionals: true,
+      tokens: true,
+      options: {
+        schema: { type: "string" },
+        "expected-release-sha": { type: "string" },
+        "max-age-seconds": { type: "string" },
+        now: { type: "string" },
+      },
+    });
+    const names = args.tokens
+      .filter((token) => token.kind === "option")
+      .map((token) => token.name);
+    if (args.positionals.length !== 1 || new Set(names).size !== names.length)
+      throw new Error("invalid arguments");
+  } catch {
     console.error(
-      "usage: node validate-backup-ready.mjs <backup-ready> [--schema <schema>]",
+      "usage: node validate-backup-ready.mjs <backup-ready> [--schema <schema>] [--expected-release-sha <sha>] [--max-age-seconds <seconds>] [--now <UTC timestamp>]",
     );
     process.exitCode = 2;
-  } else
+  }
+  if (args && process.exitCode !== 2)
     try {
+      const maxAgeArgument = args.values["max-age-seconds"];
       const result = validateBackupReady(
-        parseJsonStrict(await readFile(inputPath, "utf8")),
+        parseJsonStrict(await readFile(args.positionals[0], "utf8")),
+        {
+          expectedReleaseSha: args.values["expected-release-sha"],
+          maxAgeSeconds:
+            maxAgeArgument === undefined
+              ? undefined
+              : /^[0-9]+$/.test(maxAgeArgument)
+                ? Number(maxAgeArgument)
+                : Number.NaN,
+          now: args.values.now ?? new Date().toISOString(),
+        },
       );
       if (!result.ok) {
         console.error(result.errors.join("\n"));
         process.exitCode = 1;
       } else console.log("valid backup-ready contract");
-    } catch (error) {
-      console.error(error.message);
+    } catch {
+      console.error("backup-ready JSON could not be read or parsed");
       process.exitCode = 1;
     }
 }
