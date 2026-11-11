@@ -170,7 +170,12 @@ test("old release artifacts cannot select an old permissive backup validator", a
       join(tooling, "scripts/product/release/validate-backup-ready.mjs"),
       'console.log("OLD_VALIDATOR_BYPASS");\n',
     );
-  } else assert.equal(ref, "main", "tooling must use trusted current policy");
+  } else
+    assert.equal(
+      ref,
+      "${{ inputs.control_sha || 'main' }}",
+      "tooling must use trusted current policy or pinned push controls",
+    );
   for (const [label, overrides, error] of rejectedBackups) {
     await writeFile(
       join(dir, "backup-ready/backup-ready.json"),
@@ -746,4 +751,43 @@ test("I-03: missing trusted remote target policy fails closed before mutation", 
   assert.equal(result.code, 78, result.stdout + result.stderr);
   assert.match(result.stderr, /target policy/);
   assert.doesNotMatch(result.stdout, /MUTATION_REACHED/);
+});
+
+test("automatic digest outputs and source repository are bound before deploy transport", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(join(dir, "policy"));
+  await writeFile(
+    join(dir, "backup-ready/backup-ready.json"),
+    JSON.stringify(backup()),
+  );
+  const env = {
+    RELEASE_SHA: SHA,
+    BACKUP_MAX_AGE_SECONDS: "86400",
+    BACKUP_KIND: "BACKUP",
+    GITHUB_REPOSITORY: "minh-khue/workforce",
+    EXPECTED_API_DIGEST: "sha256:" + "1".repeat(64),
+    EXPECTED_WEB_DIGEST: "sha256:" + "2".repeat(64),
+    EXPECTED_POSTGRES_IMAGE: "postgres@sha256:" + "3".repeat(64),
+  };
+  for (const [patch, error] of [
+    [{}, null],
+    [{ EXPECTED_API_DIGEST: "sha256:" + "9".repeat(64) }, /API digest/],
+    [{ EXPECTED_WEB_DIGEST: "sha256:" + "9".repeat(64) }, /web digest/],
+    [
+      { EXPECTED_POSTGRES_IMAGE: "postgres@sha256:" + "9".repeat(64) },
+      /PostgreSQL image/,
+    ],
+    [{ GITHUB_REPOSITORY: "other/repo" }, /sourceRepository/],
+  ]) {
+    const result = await bash(
+      dir,
+      `date() { printf '%s\\n' '${NOW}'; };\n` +
+        stepScript("Validate artifact and release manifest"),
+      { ...env, ...patch },
+    );
+    if (error) {
+      assert.notEqual(result.code, 0, JSON.stringify(patch));
+      assert.match(result.stderr, error);
+    } else assert.equal(result.code, 0, result.stderr);
+  }
 });

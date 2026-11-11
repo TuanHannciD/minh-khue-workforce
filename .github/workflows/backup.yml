@@ -3,6 +3,49 @@ name: MKW encrypted production backup
 run-name: "mkw-backup-${{ inputs.coordinator_id || github.run_id }}"
 
 on:
+  workflow_call:
+    inputs:
+      control_sha:
+        description: Immutable control SHA for an automatic release; manual recovery uses current main
+        required: false
+        type: string
+      coordinator_id:
+        description: Unique release correlation
+        required: false
+        type: string
+      kind:
+        description: Backup contract kind
+        required: false
+        type: string
+        default: BACKUP
+      release_sha:
+        description: Release SHA recorded in backup metadata
+        required: true
+        type: string
+    secrets:
+      MKW_SSH_PRIVATE_KEY:
+        required: true
+      MKW_BACKUP_ENCRYPTION_KEY:
+        required: true
+    outputs:
+      backup_artifact_digest:
+        description: Exact producer backup_artifact_digest
+        value: ${{ jobs.backup.outputs.backup_artifact_digest }}
+      release_sha:
+        description: Release SHA bound to the backup
+        value: ${{ jobs.backup.outputs.release_sha }}
+      backup_run_id:
+        description: Backup workflow run ID
+        value: ${{ jobs.backup.outputs.backup_run_id }}
+      backup_run_attempt:
+        description: Backup workflow run attempt
+        value: ${{ jobs.backup.outputs.backup_run_attempt }}
+      backup_artifact_id:
+        description: Exact backup artifact ID
+        value: ${{ jobs.backup.outputs.backup_artifact_id }}
+      backup_artifact_name:
+        description: Exact backup artifact name
+        value: ${{ jobs.backup.outputs.backup_artifact_name }}
   workflow_dispatch:
     inputs:
       coordinator_id:
@@ -31,6 +74,13 @@ permissions:
 
 jobs:
   backup:
+    outputs:
+      backup_artifact_digest: ${{ steps.upload-backup.outputs.artifact-digest || steps.upload-backup-empty.outputs.artifact-digest }}
+      release_sha: ${{ inputs.release_sha || github.sha }}
+      backup_run_id: ${{ github.run_id }}
+      backup_run_attempt: ${{ github.run_attempt }}
+      backup_artifact_id: ${{ steps.upload-backup.outputs.artifact-id || steps.upload-backup-empty.outputs.artifact-id }}
+      backup_artifact_name: mkw-backup-${{ github.run_id }}-${{ github.run_attempt }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30
@@ -45,6 +95,9 @@ jobs:
       MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.control_sha || github.sha }}
+          persist-credentials: false
 
       - name: Validate backup inputs
         shell: bash
@@ -168,6 +221,7 @@ jobs:
           cp "$BACKUP_DIR/backup-ready.json" .
 
       - name: Upload encrypted backup and readiness gate
+        id: upload-backup
         if: env.BACKUP_KIND == 'BACKUP'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -180,6 +234,7 @@ jobs:
             ${{ runner.temp }}/mkw-backup/backup-ready.json
 
       - name: Upload initial-empty readiness gate
+        id: upload-backup-empty
         if: env.BACKUP_KIND == 'INITIAL_EMPTY_DEPLOYMENT'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

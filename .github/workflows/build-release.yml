@@ -1,14 +1,38 @@
 name: Build immutable release
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types:
-      - completed
-    branches: [main]
+  workflow_call:
+    outputs:
+      release_run_attempt:
+        description: Exact producer release_run_attempt
+        value: ${{ jobs.release.outputs.release_run_attempt }}
+      release_artifact_digest:
+        description: Exact producer release_artifact_digest
+        value: ${{ jobs.release.outputs.release_artifact_digest }}
+      release_sha:
+        description: Full source SHA used for this immutable release
+        value: ${{ jobs.release.outputs.release_sha }}
+      release_run_id:
+        description: Build workflow run owning the release artifact
+        value: ${{ jobs.release.outputs.release_run_id }}
+      release_artifact_name:
+        description: Exact immutable release artifact name
+        value: ${{ jobs.release.outputs.release_artifact_name }}
+      release_artifact_id:
+        description: Exact immutable release artifact ID
+        value: ${{ jobs.release.outputs.release_artifact_id }}
+      api_digest:
+        description: Exact API image digest
+        value: ${{ jobs.release.outputs.api_digest }}
+      web_digest:
+        description: Exact web image digest
+        value: ${{ jobs.release.outputs.web_digest }}
+      postgres_image:
+        description: Exact pinned PostgreSQL image
+        value: ${{ jobs.release.outputs.postgres_image }}
 
 concurrency:
-  group: mkw-release-${{ github.event.workflow_run.head_sha }}
+  group: mkw-release-${{ github.sha }}
   cancel-in-progress: false
 
 permissions:
@@ -19,12 +43,19 @@ permissions:
 
 jobs:
   release:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.event == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      release_run_attempt: ${{ github.run_attempt }}
+      release_artifact_digest: ${{ steps.upload-release.outputs.artifact-digest }}
+      release_sha: ${{ github.sha }}
+      release_run_id: ${{ github.run_id }}
+      release_artifact_name: mkw-release-${{ github.sha }}
+      release_artifact_id: ${{ steps.upload-release.outputs.artifact-id }}
+      api_digest: ${{ steps.api.outputs.digest }}
+      web_digest: ${{ steps.web.outputs.digest }}
+      postgres_image: ${{ steps.postgres.outputs.image }}
     steps:
       - name: Validate attestation mode
         shell: bash
@@ -40,17 +71,17 @@ jobs:
       - name: Checkout immutable CI commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Validate source SHA
         shell: bash
         env:
-          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
           set -Eeuo pipefail
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
-            echo 'workflow_run head_sha must be a full 40-character lowercase SHA' >&2
+            echo 'push source SHA must be a full 40-character lowercase SHA' >&2
             exit 64
           }
 
@@ -62,7 +93,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ github.token }}
 
       - name: Normalize image namespace
         id: image
@@ -76,9 +107,9 @@ jobs:
           context: .
           file: deploy/Dockerfile.api
           push: true
-          tags: ghcr.io/${{ steps.image.outputs.owner }}/mkw-api:${{ github.event.workflow_run.head_sha }}
+          tags: ghcr.io/${{ steps.image.outputs.owner }}/mkw-api:${{ github.sha }}
           labels: |
-            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+            org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
           provenance: true
           sbom: true
@@ -90,9 +121,9 @@ jobs:
           context: .
           file: deploy/Dockerfile.web
           push: true
-          tags: ghcr.io/${{ steps.image.outputs.owner }}/mkw-web:${{ github.event.workflow_run.head_sha }}
+          tags: ghcr.io/${{ steps.image.outputs.owner }}/mkw-web:${{ github.sha }}
           labels: |
-            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+            org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
           provenance: true
           sbom: true
@@ -163,7 +194,7 @@ jobs:
       - name: Write release metadata
         shell: bash
         env:
-          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_SHA: ${{ github.sha }}
           API_DIGEST: ${{ steps.api.outputs.digest }}
           WEB_DIGEST: ${{ steps.web.outputs.digest }}
           POSTGRES_IMAGE: ${{ steps.postgres.outputs.image }}
@@ -216,9 +247,10 @@ jobs:
           show-summary: false
 
       - name: Upload immutable release artifact
+        id: upload-release
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: mkw-release-${{ github.event.workflow_run.head_sha }}
+          name: mkw-release-${{ github.sha }}
           if-no-files-found: error
           retention-days: 30
           path: |

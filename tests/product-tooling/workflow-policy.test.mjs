@@ -12,10 +12,11 @@ const exists = async (path) => {
   }
 };
 
-test("CI runs product checks for PRs and pushes with read-only permissions", async () => {
+test("CI runs product checks for PRs and reusable push-release calls with read-only permissions", async () => {
   const ci = await read(".github/workflows/ci.yml");
   assert.match(ci, /pull_request:/);
-  assert.match(ci, /push:/);
+  assert.match(ci, /workflow_call:/);
+  assert.doesNotMatch(ci, /^\s+push:/m);
   assert.match(ci, /permissions:\s*\n\s+contents:\s*read/);
   assert.doesNotMatch(
     ci,
@@ -37,25 +38,13 @@ test("CI runs product checks for PRs and pushes with read-only permissions", asy
     );
 });
 
-test("release workflow is gated by successful CI on main and checks the full head SHA", async () => {
+test("release workflow is reusable and checks the full push SHA", async () => {
   const release = await read(".github/workflows/build-release.yml");
-  assert.match(release, /workflow_run:/);
-  assert.match(release, /workflows:[\s\S]*CI/);
-  assert.match(release, /types:\s*\n\s*-\s*completed/);
-  assert.match(
-    release,
-    /github\.event\.workflow_run\.conclusion\s*==\s*'success'/,
-  );
-  assert.match(
-    release,
-    /github\.event\.workflow_run\.head_branch\s*==\s*'main'/,
-  );
-  assert.match(
-    release,
-    /ref:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\}\}/,
-  );
+  assert.match(release, /workflow_call:/);
+  assert.doesNotMatch(release, /workflow_run:/);
+  assert.match(release, /ref:\s*\$\{\{\s*github\.sha\s*\}\}/);
   assert.match(release, /fetch-depth:\s*0/);
-  assert.match(release, /head_sha/);
+  assert.match(release, /github\.sha/);
 });
 
 test("release builds immutable API and web images with attestations", async () => {
@@ -64,7 +53,7 @@ test("release builds immutable API and web images with attestations", async () =
   assert.match(release, /file:\s*deploy\/Dockerfile\.api/);
   assert.match(release, /file:\s*deploy\/Dockerfile\.web/);
   assert.match(release, /push:\s*true/g);
-  assert.match(release, /tags:[\s\S]*workflow_run\.head_sha/);
+  assert.match(release, /tags:[\s\S]*github\.sha/);
   assert.match(release, /provenance:\s*true/);
   assert.match(release, /sbom:\s*true/);
   assert.match(release, /api-attestations\.json/);
@@ -94,10 +83,7 @@ test("release writes a validated manifest, checksums, and SHA-named artifact", a
   assert.match(release, /sha256sum/);
   assert.match(release, /release-manifest\.sha256/);
   assert.match(release, /actions\/upload-artifact@/);
-  assert.match(
-    release,
-    /mkw-release-\$\{\{\s*github\.event\.workflow_run\.head_sha\s*\}\}/,
-  );
+  assert.match(release, /mkw-release-\$\{\{\s*github\.sha\s*\}\}/);
   assert.match(release, /retention-days:/);
 });
 

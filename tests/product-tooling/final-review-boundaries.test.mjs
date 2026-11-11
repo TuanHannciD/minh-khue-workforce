@@ -196,7 +196,10 @@ for (const workflow of ["deploy", "post-deploy-verify"]) {
   test(`I-04: ${workflow} accepts old preflight payloads and requires exact IDs in release`, async (t) => {
     const dir = await fixture(t);
     const yaml = await source(workflow);
-    const inputs = yaml.split("    inputs:\n")[1].split(/\n[^ ]/)[0];
+    const inputs = yaml
+      .split("  workflow_dispatch:\n")[1]
+      .split("    inputs:\n")[1]
+      .split(/\n[^ ]/)[0];
     const required = [
       ...inputs.matchAll(
         /^ {6}([a-z_]+):\n(?:(?!^ {6}[a-z_]+:)[\s\S])*?^ {8}required: true/gm,

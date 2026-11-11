@@ -64,7 +64,7 @@ export async function coordinateRelease(input, api) {
   )) {
     checkTotal();
     const run = await api.run(id(artifact.workflow_run?.id));
-    if (!isTrustedBuild(run)) continue;
+    if (!isTrustedBuild(run, { sha, repository })) continue;
     await validateReleaseSource(
       { sha, repository, artifactId: id(artifact.id) },
       api,

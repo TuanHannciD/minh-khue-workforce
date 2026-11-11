@@ -5,10 +5,23 @@ export const actionsId = (value) => {
     throw new Error("invalid Actions id");
   return String(value);
 };
-export function isTrustedBuild(run) {
-  return (
+export function isTrustedBuild(run, { sha, repository } = {}) {
+  const legacy =
     run.path === ".github/workflows/build-release.yml" &&
-    run.event === "workflow_run" &&
+    run.event === "workflow_run";
+  const automatic =
+    run.path === ".github/workflows/main-release.yml" &&
+    run.event === "push" &&
+    run.head_sha === sha &&
+    run.referenced_workflows?.some(
+      (workflow) =>
+        workflow.path ===
+          `${repository}/.github/workflows/build-release.yml@refs/heads/main` &&
+        workflow.sha === sha &&
+        workflow.ref === "refs/heads/main",
+    );
+  return (
+    (legacy || automatic) &&
     run.head_branch === "main" &&
     run.status === "completed" &&
     run.conclusion === "success"
@@ -52,7 +65,7 @@ export async function resolveExactRelease(input, api) {
   )
     throw new Error("release artifact ownership/expiry mismatch");
   const run = await api.run(runId);
-  if (actionsId(run.id) !== runId || !isTrustedBuild(run))
+  if (actionsId(run.id) !== runId || !isTrustedBuild(run, { sha, repository }))
     throw new Error(
       "release artifact producer is not a successful canonical build-release",
     );

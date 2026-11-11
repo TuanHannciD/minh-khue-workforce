@@ -1,9 +1,15 @@
 name: CI
 
 on:
+  workflow_call:
+    outputs:
+      quality_sha:
+        description: Source SHA checked by this quality job
+        value: ${{ jobs.checks.outputs.quality_sha }}
+      quality_status:
+        description: Quality job result
+        value: ${{ jobs.checks.outputs.quality_status }}
   pull_request:
-  push:
-    branches: [main]
 
 concurrency:
   group: mkw-ci-${{ github.workflow }}-${{ github.ref }}
@@ -14,11 +20,14 @@ permissions:
 
 jobs:
   checks:
+    outputs:
+      quality_sha: ${{ github.sha }}
+      quality_status: ${{ job.status }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
       - name: Set up pnpm

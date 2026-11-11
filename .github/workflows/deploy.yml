@@ -3,6 +3,95 @@ name: MKW production deploy
 run-name: "mkw-deploy-${{ inputs.coordinator_id || github.run_id }}"
 
 on:
+  workflow_call:
+    inputs:
+      control_sha:
+        description: Immutable control SHA for an automatic release; manual recovery uses current main
+        required: false
+        type: string
+      coordinator_id:
+        description: Release correlation
+        required: false
+        type: string
+      mode:
+        description: Deployment mode
+        required: true
+        type: string
+      release_run_attempt:
+        description: Exact release run attempt
+        required: true
+        type: string
+      release_artifact_digest:
+        description: Exact release archive digest
+        required: true
+        type: string
+      backup_run_attempt:
+        description: Exact backup run attempt
+        required: true
+        type: string
+      backup_artifact_digest:
+        description: Exact backup archive digest
+        required: true
+        type: string
+      release_sha:
+        description: Full immutable release SHA
+        required: true
+        type: string
+      release_run_id:
+        description: Exact build workflow run ID
+        required: true
+        type: string
+      release_artifact_id:
+        description: Exact release artifact ID
+        required: true
+        type: string
+      release_artifact_name:
+        description: Exact release artifact name
+        required: true
+        type: string
+      api_digest:
+        description: Exact API image digest from build
+        required: true
+        type: string
+      web_digest:
+        description: Exact web image digest from build
+        required: true
+        type: string
+      postgres_image:
+        description: Exact pinned PostgreSQL image from build
+        required: true
+        type: string
+      backup_run_id:
+        description: Exact backup workflow run ID
+        required: true
+        type: string
+      backup_artifact_id:
+        description: Exact backup artifact ID
+        required: true
+        type: string
+      backup_artifact_name:
+        description: Exact backup artifact name
+        required: true
+        type: string
+      backup_kind:
+        description: Backup contract kind
+        required: true
+        type: string
+      backup_max_age_seconds:
+        description: Maximum backup age in seconds
+        required: false
+        type: string
+        default: "86400"
+    secrets:
+      MKW_SSH_PRIVATE_KEY:
+        required: true
+    outputs:
+      deploy_run_id:
+        description: Deploy workflow run ID
+        value: ${{ jobs.deploy.outputs.deploy_run_id }}
+      release_status:
+        description: Deploy job result
+        value: ${{ jobs.deploy.outputs.release_status }}
   workflow_dispatch:
     inputs:
       coordinator_id:
@@ -61,6 +150,9 @@ permissions:
 
 jobs:
   deploy:
+    outputs:
+      deploy_run_id: ${{ github.run_id }}
+      release_status: ${{ job.status }}
     environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -68,7 +160,7 @@ jobs:
       - name: Checkout trusted current policy
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: main
+          ref: ${{ inputs.control_sha || 'main' }}
           path: policy
           persist-credentials: false
 
@@ -84,12 +176,18 @@ jobs:
         shell: bash
         env:
           MODE: ${{ inputs.mode }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
           RELEASE_ARTIFACT_ID: ${{ inputs.release_artifact_id }}
+          RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
           BACKUP_ARTIFACT_ID: ${{ inputs.backup_artifact_id }}
           BACKUP_ARTIFACT_NAME: ${{ inputs.backup_artifact_name }}
           BACKUP_KIND: ${{ inputs.backup_kind }}
           RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt }}
+          RELEASE_ARTIFACT_DIGEST: ${{ inputs.release_artifact_digest }}
           BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
+          BACKUP_RUN_ATTEMPT: ${{ inputs.backup_run_attempt }}
+          BACKUP_ARTIFACT_DIGEST: ${{ inputs.backup_artifact_digest }}
         run: |
           set -Eeuo pipefail
           case "$MODE" in
@@ -98,9 +196,14 @@ jobs:
             *) echo 'invalid deploy mode' >&2; exit 64 ;;
           esac
           [[ "$RELEASE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'release_artifact_id is required for release' >&2; exit 64; }
+          [[ -z "${RELEASE_ARTIFACT_NAME:-}" || "$RELEASE_ARTIFACT_NAME" == "mkw-release-$RELEASE_SHA" ]] || { echo 'release_artifact_name must be the SHA-named release artifact' >&2; exit 64; }
           [[ "$BACKUP_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'backup_artifact_id is required for release' >&2; exit 64; }
           [[ "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'release_run_id is required for release' >&2; exit 64; }
+          if [[ -n "${RELEASE_RUN_ATTEMPT:-}" ]]; then [[ "$RELEASE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo 'release_run_attempt is invalid' >&2; exit 64; }; fi
+          if [[ -n "${RELEASE_ARTIFACT_DIGEST:-}" ]]; then [[ "$RELEASE_ARTIFACT_DIGEST" =~ ^(sha256:)?[0-9a-f]{64}$ ]] || { echo 'release_artifact_digest is invalid' >&2; exit 64; }; fi
           [[ "$BACKUP_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'backup_run_id is required for release' >&2; exit 64; }
+          if [[ -n "${BACKUP_RUN_ATTEMPT:-}" ]]; then [[ "$BACKUP_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo 'backup_run_attempt is invalid' >&2; exit 64; }; fi
+          if [[ -n "${BACKUP_ARTIFACT_DIGEST:-}" ]]; then [[ "$BACKUP_ARTIFACT_DIGEST" =~ ^(sha256:)?[0-9a-f]{64}$ ]] || { echo 'backup_artifact_digest is invalid' >&2; exit 64; }; fi
           [[ "$BACKUP_ARTIFACT_NAME" =~ ^mkw-backup-[1-9][0-9]*-[1-9][0-9]*$ ]] || { echo 'backup_artifact_name is required for release' >&2; exit 64; }
           [[ "$BACKUP_KIND" == BACKUP || "$BACKUP_KIND" == INITIAL_EMPTY_DEPLOYMENT ]] || { echo 'backup_kind is required for release' >&2; exit 64; }
 
@@ -136,6 +239,9 @@ jobs:
           MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
           TARGET_DATABASE: mkw
           TARGET_IDENTITY: ${{ vars.MKW_SSH_HOST }}/${{ vars.MKW_DEPLOY_PATH }}/${{ vars.MKW_PROJECT_NAME }}
+          EXPECTED_API_DIGEST: ${{ inputs.api_digest }}
+          EXPECTED_WEB_DIGEST: ${{ inputs.web_digest }}
+          EXPECTED_POSTGRES_IMAGE: ${{ inputs.postgres_image }}
         run: |
           set -Eeuo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'release_sha must be a full 40-char lowercase SHA'; exit 64; }
@@ -157,6 +263,13 @@ jobs:
           const [expected, path] = process.argv.slice(2);
           const manifest = JSON.parse(await readFile(path, 'utf8'));
           if (manifest.releaseSha !== expected) throw new Error('manifest releaseSha does not match release_sha');
+          if (process.env.GITHUB_REPOSITORY && manifest.sourceRepository !== process.env.GITHUB_REPOSITORY) throw new Error('manifest sourceRepository does not match repository');
+          const expectedApi = process.env.EXPECTED_API_DIGEST;
+          const expectedWeb = process.env.EXPECTED_WEB_DIGEST;
+          const expectedPostgres = process.env.EXPECTED_POSTGRES_IMAGE;
+          if (expectedApi && !manifest.apiImage.endsWith(`@${expectedApi}`)) throw new Error('manifest API digest does not match build output');
+          if (expectedWeb && !manifest.webImage.endsWith(`@${expectedWeb}`)) throw new Error('manifest web digest does not match build output');
+          if (expectedPostgres && manifest.postgresImage !== expectedPostgres) throw new Error('manifest PostgreSQL image does not match build output');
           NODE
 
       - name: Verify release attestations when configured
@@ -259,6 +372,7 @@ jobs:
           tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 -C policy scripts/product/deploy-entrypoint.sh scripts/product/release -C "$GITHUB_WORKSPACE/release-source" deploy/compose.production.yml
           printf -v remote_command 'mkdir -p -- %q' "$remote_dir"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
+
           scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "$RUNNER_TEMP/mkw-release.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
           printf -v remote_command 'tar -xzf %q -C %q && (cd %q && sha256sum --check backup-ready.json.sha256) && install -m 640 %q %q && rm -rf -- %q %q' \
             "$remote_dir/release.tgz" "$remote_dir" "$remote_dir/backup-ready" "$remote_dir/backup-ready/backup-ready.json" "$MKW_DEPLOY_PATH/shared/backup-ready.json" "$remote_dir/backup-ready" "$remote_dir/release.tgz"

@@ -3,6 +3,59 @@ name: MKW post-deploy verification
 run-name: "mkw-post-deploy-verify-${{ inputs.coordinator_id || github.run_id }}"
 
 on:
+  workflow_call:
+    inputs:
+      control_sha:
+        description: Immutable control SHA for an automatic release; manual recovery uses current main
+        required: false
+        type: string
+      coordinator_id:
+        description: Release correlation
+        required: false
+        type: string
+      mode:
+        description: Verification mode
+        required: true
+        type: string
+      release_sha:
+        description: Release SHA to verify
+        required: true
+        type: string
+      release_run_id:
+        description: Exact build workflow run ID
+        required: true
+        type: string
+      release_artifact_id:
+        description: Exact release artifact ID
+        required: true
+        type: string
+      api_digest:
+        description: Exact API digest from build
+        required: true
+        type: string
+      web_digest:
+        description: Exact web digest from build
+        required: true
+        type: string
+      postgres_image:
+        description: Exact PostgreSQL image from build
+        required: true
+        type: string
+      rollback_on_failure:
+        description: Emit rollback signal when verification fails
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      MKW_SSH_PRIVATE_KEY:
+        required: true
+    outputs:
+      verify_run_id:
+        description: Verification workflow run ID
+        value: ${{ jobs.verify.outputs.verify_run_id }}
+      release_status:
+        description: Verification result
+        value: ${{ jobs.verify.outputs.release_status }}
   workflow_dispatch:
     inputs:
       coordinator_id:
@@ -39,6 +92,9 @@ permissions:
 
 jobs:
   verify:
+    outputs:
+      verify_run_id: ${{ github.run_id }}
+      release_status: ${{ job.status }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 15
@@ -53,7 +109,7 @@ jobs:
       - name: Checkout trusted current policy
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: main
+          ref: ${{ inputs.control_sha || 'main' }}
           fetch-depth: 1
           persist-credentials: false
           path: policy
@@ -88,6 +144,9 @@ jobs:
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
+          EXPECTED_API_DIGEST: ${{ inputs.api_digest }}
+          EXPECTED_WEB_DIGEST: ${{ inputs.web_digest }}
+          EXPECTED_POSTGRES_IMAGE: ${{ inputs.postgres_image }}
         run: |
           set -Eeuo pipefail
           (cd release-artifact && sha256sum --check release-manifest.sha256)
@@ -97,6 +156,10 @@ jobs:
           import { parseJsonStrict } from './policy/scripts/product/release/validate-manifest.mjs';
           const m = parseJsonStrict(await readFile('release-artifact/release-manifest.json', 'utf8'));
           if (m.releaseSha !== process.env.RELEASE_SHA) throw new Error('manifest releaseSha mismatch');
+          if (process.env.GITHUB_REPOSITORY && m.sourceRepository !== process.env.GITHUB_REPOSITORY) throw new Error('manifest sourceRepository mismatch');
+          if (process.env.EXPECTED_API_DIGEST && !m.apiImage.endsWith(`@${process.env.EXPECTED_API_DIGEST}`)) throw new Error('manifest API digest mismatch');
+          if (process.env.EXPECTED_WEB_DIGEST && !m.webImage.endsWith(`@${process.env.EXPECTED_WEB_DIGEST}`)) throw new Error('manifest web digest mismatch');
+          if (process.env.EXPECTED_POSTGRES_IMAGE && m.postgresImage !== process.env.EXPECTED_POSTGRES_IMAGE) throw new Error('manifest PostgreSQL image mismatch');
           NODE
 
       - name: Verify running digests, schema, gateway, and startup health

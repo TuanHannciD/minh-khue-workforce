@@ -1,0 +1,127 @@
+name: MKW push-main release
+
+run-name: "mkw-release-${{ github.sha }}-${{ github.run_attempt }}"
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: mkw-production-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  quality:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  build:
+    needs: quality
+    uses: ./.github/workflows/build-release.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
+  backup:
+    needs: quality
+    uses: ./.github/workflows/backup.yml
+    permissions:
+      contents: read
+    with:
+      control_sha: ${{ github.sha }}
+      coordinator_id: ${{ github.run_id }}-${{ github.run_attempt }}
+      kind: BACKUP
+      release_sha: ${{ github.sha }}
+    secrets:
+      MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+      MKW_BACKUP_ENCRYPTION_KEY: ${{ secrets.MKW_BACKUP_ENCRYPTION_KEY }}
+
+  deploy:
+    needs: [build, backup]
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
+    with:
+      control_sha: ${{ github.sha }}
+      coordinator_id: ${{ github.run_id }}-${{ github.run_attempt }}
+      release_run_attempt: ${{ needs.build.outputs.release_run_attempt }}
+      release_artifact_digest: ${{ needs.build.outputs.release_artifact_digest }}
+      backup_run_attempt: ${{ needs.backup.outputs.backup_run_attempt }}
+      backup_artifact_digest: ${{ needs.backup.outputs.backup_artifact_digest }}
+      mode: release
+      release_sha: ${{ needs.build.outputs.release_sha }}
+      release_run_id: ${{ needs.build.outputs.release_run_id }}
+      release_artifact_id: ${{ needs.build.outputs.release_artifact_id }}
+      release_artifact_name: ${{ needs.build.outputs.release_artifact_name }}
+      api_digest: ${{ needs.build.outputs.api_digest }}
+      web_digest: ${{ needs.build.outputs.web_digest }}
+      postgres_image: ${{ needs.build.outputs.postgres_image }}
+      backup_run_id: ${{ needs.backup.outputs.backup_run_id }}
+      backup_artifact_id: ${{ needs.backup.outputs.backup_artifact_id }}
+      backup_artifact_name: ${{ needs.backup.outputs.backup_artifact_name }}
+      backup_kind: BACKUP
+      backup_max_age_seconds: ${{ vars.MKW_BACKUP_MAX_AGE_SECONDS || '86400' }}
+    secrets:
+      MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+
+  verify:
+    needs: [build, deploy]
+    uses: ./.github/workflows/post-deploy-verify.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      control_sha: ${{ github.sha }}
+      coordinator_id: ${{ github.run_id }}-${{ github.run_attempt }}
+      mode: release
+      release_sha: ${{ needs.build.outputs.release_sha }}
+      release_run_id: ${{ needs.build.outputs.release_run_id }}
+      release_artifact_id: ${{ needs.build.outputs.release_artifact_id }}
+      api_digest: ${{ needs.build.outputs.api_digest }}
+      web_digest: ${{ needs.build.outputs.web_digest }}
+      postgres_image: ${{ needs.build.outputs.postgres_image }}
+      rollback_on_failure: true
+    secrets:
+      MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+
+  release-status:
+    if: ${{ always() }}
+    needs: [quality, build, backup, deploy, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release_status: ${{ steps.status.outputs.release_status }}
+      correlation_id: ${{ steps.status.outputs.correlation_id }}
+      release_sha: ${{ steps.status.outputs.release_sha }}
+    steps:
+      - name: Record release correlation and status
+        id: status
+        env:
+          RELEASE_STATUS: ${{ needs.verify.result == 'success' && 'success' || 'failed' }}
+          RELEASE_SHA: ${{ github.sha }}
+          CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+          STAGES_JSON: ${{ toJSON(needs) }}
+        run: |
+          set -Eeuo pipefail
+          printf 'release_status=%s\n' "$RELEASE_STATUS" >> "$GITHUB_OUTPUT"
+          printf 'correlation_id=%s\n' "$CORRELATION_ID" >> "$GITHUB_OUTPUT"
+          printf 'release_sha=%s\n' "$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "release_sha=$RELEASE_SHA"
+            echo "correlation_id=$CORRELATION_ID"
+            echo "quality=${{ needs.quality.result }} build=${{ needs.build.result }} backup=${{ needs.backup.result }} deploy=${{ needs.deploy.result }} verify=${{ needs.verify.result }}"
+            printf '%s\n' "$STAGES_JSON"
+          } >> "$GITHUB_STEP_SUMMARY"
