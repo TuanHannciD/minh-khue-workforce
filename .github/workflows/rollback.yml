@@ -11,6 +11,10 @@ on:
         description: Build-release run containing the old immutable artifact
         required: true
         type: string
+      old_release_artifact_id:
+        description: Exact immutable release artifact ID from the canonical build-release run
+        required: true
+        type: string
       backup_run_id:
         description: Backup workflow run containing a fresh current-database snapshot
         required: true
@@ -39,23 +43,43 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      # Control scripts/compose follow this approved workflow revision; only the
-      # immutable manifest and API/Web digests come from the old release.
+      - name: Require canonical rollback dispatch
+        shell: bash
+        env:
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$GITHUB_REF" == refs/heads/main ]] || { echo 'rollback must be dispatched from canonical main' >&2; exit 78; }
+
+      # Only the immutable manifest and image digests come from the old release.
       - name: Checkout current rollback control tooling
+        id: controls
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ github.sha }}
+          ref: main
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Resolve exact old release artifact through trusted policy
+        shell: bash
+        env:
+          OLD_RELEASE_SHA: ${{ inputs.old_release_sha }}
+          OLD_RELEASE_RUN_ID: ${{ inputs.old_release_run_id }}
+          OLD_RELEASE_ARTIFACT_ID: ${{ inputs.old_release_artifact_id }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/product/release/resolve-rollback.mjs
 
       - name: Download and verify old manifest
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: mkw-release-${{ inputs.old_release_sha }}
+          merge-multiple: true
           path: old-release-artifact
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           run-id: ${{ inputs.old_release_run_id }}
+          artifact-ids: ${{ inputs.old_release_artifact_id }}
 
       - name: Download current-database rollback snapshot
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -75,6 +99,8 @@ jobs:
           ROLLBACK_REASON: ${{ inputs.reason }}
           ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
           MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
+          TARGET_DATABASE: mkw
+          TARGET_IDENTITY: ${{ vars.MKW_SSH_HOST }}/${{ vars.MKW_DEPLOY_PATH }}/${{ vars.MKW_PROJECT_NAME }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -Eeuo pipefail
@@ -97,12 +123,13 @@ jobs:
           NODE
           test -s backup-ready/backup-ready.json
           node scripts/product/release/validate-backup-ready.mjs backup-ready/backup-ready.json \
-            --expected-kind BACKUP --max-age-seconds 86400 --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            --expected-kind BACKUP --expected-target-host "$MKW_SSH_HOST" --expected-database "$TARGET_DATABASE" \
+            --max-age-seconds 86400 --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
           import { parseJsonStrict } from './scripts/product/release/validate-manifest.mjs';
           const backup = parseJsonStrict(await readFile('backup-ready/backup-ready.json', 'utf8'));
-          if (!process.env.MKW_SSH_HOST || backup.databaseIdentity.host !== process.env.MKW_SSH_HOST || backup.databaseIdentity.name !== 'mkw') {
+          if (!process.env.MKW_SSH_HOST || backup.databaseIdentity.host !== process.env.MKW_SSH_HOST || backup.databaseIdentity.name !== process.env.TARGET_DATABASE) {
             throw new Error('rollback backup database identity does not match the current target');
           }
           NODE
@@ -140,6 +167,9 @@ jobs:
           MKW_ATTESTATION_STATUS: ${{ steps.attestations.outputs.status || 'not-applicable' }}
           MKW_BACKUP_MAX_AGE_SECONDS: "86400"
           MKW_BACKUP_EXPECTED_KIND: BACKUP
+          MKW_BACKUP_EXPECTED_HOST: ${{ vars.MKW_SSH_HOST }}
+          MKW_BACKUP_EXPECTED_DATABASE: mkw
+          MKW_BACKUP_EXPECTED_TARGET_IDENTITY: ${{ vars.MKW_SSH_HOST }}/${{ vars.MKW_DEPLOY_PATH }}/${{ vars.MKW_PROJECT_NAME }}
           MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
         run: |
           set -Eeuo pipefail
@@ -148,9 +178,17 @@ jobs:
           [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo 'invalid gateway port' >&2; exit 78; }
           [[ "$OLD_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'invalid old release SHA' >&2; exit 64; }
           install -m 700 -d "$HOME/.ssh"
+          : "${MKW_SSH_HOST_FINGERPRINT:?Trusted SSH fingerprint is required}"
           ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
-          ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" -E sha256 | grep -F -- "$MKW_SSH_HOST_FINGERPRINT"
-          install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
+          : > "$RUNNER_TEMP/mkw_pinned_hosts"
+          while IFS= read -r line; do
+            printf '%s\n' "$line" > "$RUNNER_TEMP/mkw_candidate"
+            if [[ "$(ssh-keygen -lf "$RUNNER_TEMP/mkw_candidate" -E sha256 | awk '{print $2}')" == "$MKW_SSH_HOST_FINGERPRINT" ]]; then
+              printf '%s\n' "$line" >> "$RUNNER_TEMP/mkw_pinned_hosts"
+            fi
+          done < "$RUNNER_TEMP/mkw_known_hosts"
+          test -s "$RUNNER_TEMP/mkw_pinned_hosts"
+          install -m 600 "$RUNNER_TEMP/mkw_pinned_hosts" "$HOME/.ssh/known_hosts"
           test -n "$MKW_SSH_PRIVATE_KEY"
           printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
@@ -158,19 +196,19 @@ jobs:
           (cd backup-ready && sha256sum backup-ready.json > backup-ready.json.sha256)
           tar -czf "$RUNNER_TEMP/mkw-rollback.tgz" old-release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 deploy/compose.production.yml scripts/product/deploy-entrypoint.sh scripts/product/release
           printf -v remote_command 'mkdir -p -- %q' "$remote_dir"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_command"
-          scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-rollback.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
+          scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "$RUNNER_TEMP/mkw-rollback.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
           printf -v remote_command 'tar -xzf %q -C %q && (cd %q && sha256sum --check backup-ready.json.sha256) && install -m 640 %q %q && rm -rf -- %q %q' \
             "$remote_dir/release.tgz" "$remote_dir" "$remote_dir/backup-ready" "$remote_dir/backup-ready/backup-ready.json" "$MKW_DEPLOY_PATH/shared/backup-ready.json" "$remote_dir/backup-ready" "$remote_dir/release.tgz"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_command"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
           api_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('old-release-artifact/release-manifest.json','utf8')).apiImage)")"
           postgres_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('old-release-artifact/release-manifest.json','utf8')).postgresImage)")"
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
           [[ "$postgres_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_POSTGRES_IMAGE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_OPERATION_KIND=application-rollback MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image" "$postgres_image" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND"
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_POSTGRES_IMAGE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_OPERATION_KIND=application-rollback MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q MKW_BACKUP_EXPECTED_HOST=%q MKW_BACKUP_EXPECTED_DATABASE=%q MKW_BACKUP_EXPECTED_TARGET_IDENTITY=%q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image" "$postgres_image" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND" "$MKW_BACKUP_EXPECTED_HOST" "$MKW_BACKUP_EXPECTED_DATABASE" "$MKW_BACKUP_EXPECTED_TARGET_IDENTITY"
           printf -v remote_command '%s bash %q --release --manifest %q --compose %q --backup-ready %q' "$remote_env" "$remote_dir/scripts/product/deploy-entrypoint.sh" "$remote_dir/old-release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_command"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
 
       - name: Emit rollback receipt and signal
         if: always()
@@ -180,7 +218,7 @@ jobs:
           ROLLBACK_REASON: ${{ inputs.reason }}
           ROLLBACK_RESULT: ${{ job.status }}
           ATTESTATION_STATUS: ${{ steps.attestations.outputs.status || 'not-configured' }}
-          CONTROL_SHA: ${{ github.sha }}
+          CONTROL_SHA: ${{ steps.controls.outputs.commit }}
         run: |
           set -Eeuo pipefail
           [[ -n "$ROLLBACK_REASON" && "${#ROLLBACK_REASON}" -le 512 ]] || { echo 'rollback reason must be 1-512 characters' >&2; exit 64; }

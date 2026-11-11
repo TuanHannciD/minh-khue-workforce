@@ -1,22 +1,47 @@
-import { validateManifest } from "./validate-manifest.mjs";
+import {
+  actionsId as id,
+  isTrustedBuild,
+  validateReleaseSource,
+} from "./resolve-release.mjs";
 import { validateBackupReadyFreshness } from "./orchestration-policy.mjs";
 
 export const CANONICAL_REF = "main";
+const DEFAULT_TIMEOUTS = Object.freeze({
+  totalMs: 150 * 60 * 1000,
+  discoveryMs: 5 * 60 * 1000,
+  stages: {
+    "backup.yml": 50 * 60 * 1000,
+    "deploy.yml": 50 * 60 * 1000,
+    "post-deploy-verify.yml": 30 * 60 * 1000,
+  },
+});
 
 const single = (items, label) => {
   if (items.length !== 1)
     throw new Error(`${label}: expected one match, found ${items.length}`);
   return items[0];
 };
-const id = (value) => {
-  if (!/^[1-9][0-9]*$/.test(String(value)))
-    throw new Error("invalid Actions id");
-  return String(value);
-};
 
 // Only trusted current orchestration code is imported. Release archives are data.
 export async function coordinateRelease(input, api) {
   const { sha, mode, kind, correlationId, repository, maxAgeMs } = input;
+  const target = input.target ?? {};
+  const timeouts = { ...DEFAULT_TIMEOUTS, ...(input.timeouts ?? {}) };
+  const startedAt = api.now?.() ?? Date.now();
+  const clock = () => api.now?.() ?? Date.now();
+  const checkTotal = () => {
+    if (clock() - startedAt >= timeouts.totalMs)
+      throw new Error(
+        `coordinator total timed out after ${timeouts.totalMs}ms`,
+      );
+  };
+  for (const timeout of [
+    timeouts.totalMs,
+    timeouts.discoveryMs,
+    ...Object.values(timeouts.stages),
+  ])
+    if (!Number.isSafeInteger(timeout) || timeout <= 0)
+      throw new Error("invalid coordinator timeout");
   if (
     !/^[a-f0-9]{40}$/.test(sha) ||
     !["dry-run", "bootstrap", "release"].includes(mode) ||
@@ -27,6 +52,8 @@ export async function coordinateRelease(input, api) {
     throw new Error("invalid coordinator inputs");
   if (!Number.isFinite(maxAgeMs) || maxAgeMs < 0)
     throw new Error("invalid backup age policy");
+  if (!target.host || !target.database || !target.identity)
+    throw new Error("trusted production target configuration is required");
 
   // workflow_run execution head_sha is not the CI source SHA. Select by artifact
   // name, then validate the manifest and build-metadata sourceSha inside that ID.
@@ -35,35 +62,23 @@ export async function coordinateRelease(input, api) {
   for (const artifact of artifacts.filter(
     (a) => !a.expired && a.name === `mkw-release-${sha}`,
   )) {
+    checkTotal();
     const run = await api.run(id(artifact.workflow_run?.id));
-    if (
-      run.path !== ".github/workflows/build-release.yml" ||
-      run.event !== "workflow_run" ||
-      run.head_branch !== CANONICAL_REF ||
-      run.status !== "completed" ||
-      run.conclusion !== "success"
-    )
-      continue;
-    const manifest = await api.jsonFromArtifact(
-      id(artifact.id),
-      "release-manifest.json",
+    if (!isTrustedBuild(run)) continue;
+    await validateReleaseSource(
+      { sha, repository, artifactId: id(artifact.id) },
+      api,
     );
-    const metadata = await api.jsonFromArtifact(
-      id(artifact.id),
-      "build-metadata.json",
-    );
-    if (
-      !validateManifest(manifest).ok ||
-      manifest.releaseSha !== sha ||
-      metadata.sourceSha !== sha ||
-      manifest.sourceRepository !== repository
-    )
-      throw new Error("release manifest/source SHA linkage failed");
     matches.push({ artifactId: id(artifact.id), runId: id(run.id) });
   }
   const release = single(matches, "successful source SHA release artifact");
 
   async function dispatchAndWait(workflow, fields) {
+    checkTotal();
+    const stageDeadline = Math.min(
+      startedAt + timeouts.totalMs,
+      clock() + timeouts.stages[workflow],
+    );
     const marker = `${correlationId}-${workflow.replace(/\.yml$/, "")}`;
     // Never dispatch the same marker twice (including coordinator reruns).
     const before = await api.runs(workflow);
@@ -74,13 +89,38 @@ export async function coordinateRelease(input, api) {
       )
     )
       throw new Error("dispatch correlation already exists");
-    await api.dispatch(workflow, CANONICAL_REF, {
-      ...fields,
-      coordinator_id: marker,
-    });
+    checkTotal();
+    if (clock() >= stageDeadline)
+      throw new Error(`${workflow} stage timed out before dispatch`);
     let selected;
+    const workflowUrl = `https://github.com/${repository}/actions/workflows/${workflow}`;
+    const discoveryTimeout = () => {
+      throw new Error(
+        `${workflow} dispatch timed out; child may still be active; correlation=${marker}; inspect ${workflowUrl}`,
+      );
+    };
+    try {
+      await api.dispatch(workflow, CANONICAL_REF, {
+        ...fields,
+        coordinator_id: marker,
+      });
+    } catch {
+      discoveryTimeout();
+    }
+    const discoveryStarted = clock();
     for (let poll = 0; poll < 120; poll++) {
-      const runs = (await api.runs(workflow)).filter(
+      if (
+        clock() >= stageDeadline ||
+        clock() - discoveryStarted >= timeouts.discoveryMs
+      )
+        discoveryTimeout();
+      let discovered;
+      try {
+        discovered = await api.runs(workflow);
+      } catch {
+        discoveryTimeout();
+      }
+      const runs = discovered.filter(
         (run) =>
           run.display_title ===
             `mkw-${workflow.replace(/\.yml$/, "")}-${marker}` &&
@@ -95,11 +135,31 @@ export async function coordinateRelease(input, api) {
       }
       await api.pause();
     }
-    if (!selected) throw new Error(`${workflow} dispatch timed out`);
+    if (!selected) discoveryTimeout();
     const runId = id(selected.id);
     const attempt = id(selected.run_attempt);
-    for (let poll = 0; poll < 600; poll++) {
-      const run = await api.run(runId);
+    const timeoutRun = async () => {
+      let cancelMessage = "child run may still be active";
+      if (typeof api.cancelRun === "function") {
+        try {
+          await api.cancelRun(runId);
+          cancelMessage = "cancel requested";
+        } catch {
+          cancelMessage = "child run may still be active (cancel failed)";
+        }
+      }
+      throw new Error(
+        `${workflow} conclusion timed out (https://github.com/${repository}/actions/runs/${runId}; ${cancelMessage}; verify termination before retry)`,
+      );
+    };
+    for (let poll = 0; poll < 1800; poll++) {
+      if (clock() >= stageDeadline) await timeoutRun();
+      let run;
+      try {
+        run = await api.run(runId);
+      } catch {
+        await timeoutRun();
+      }
       if (
         id(run.id) !== runId ||
         id(run.run_attempt) !== attempt ||
@@ -109,14 +169,16 @@ export async function coordinateRelease(input, api) {
         run.display_title !== selected.display_title
       )
         throw new Error("exact run/attempt identity changed");
+      if (clock() >= stageDeadline) await timeoutRun();
       if (run.status === "completed") {
+        checkTotal();
         if (run.conclusion !== "success")
           throw new Error(`${workflow} failed: ${run.conclusion}`);
         return { runId, attempt };
       }
       await api.pause();
     }
-    throw new Error(`${workflow} conclusion timed out`);
+    await timeoutRun();
   }
 
   const backup = await dispatchAndWait("backup.yml", {
@@ -137,6 +199,9 @@ export async function coordinateRelease(input, api) {
     expectedKind: kind,
     now: api.now(),
     maxAgeMs,
+    expectedTargetHost: target.host,
+    expectedDatabase: target.database,
+    expectedTargetIdentity: target.identity,
   });
   if (!gate.ok) throw new Error(gate.errors.join("; "));
 

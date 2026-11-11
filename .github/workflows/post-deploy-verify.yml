@@ -21,11 +21,11 @@ on:
         type: string
       release_run_id:
         description: Build-release workflow run containing the release manifest
-        required: true
+        required: false
         type: string
       release_artifact_id:
         description: Exact release artifact id resolved by the coordinator
-        required: true
+        required: false
         type: string
       rollback_on_failure:
         description: Emit an actionable rollback signal when verification fails
@@ -58,7 +58,22 @@ jobs:
           persist-credentials: false
           path: policy
 
+      - name: Validate mode-specific artifact inputs
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          RELEASE_ARTIFACT_ID: ${{ inputs.release_artifact_id }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+        run: |
+          set -Eeuo pipefail
+          case "$MODE" in
+            dry-run|bootstrap) [[ -z "$RELEASE_ARTIFACT_ID" || "$RELEASE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] ;;
+            release) [[ "$RELEASE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'release_run_id and release_artifact_id are required for release' >&2; exit 64; } ;;
+            *) echo 'invalid verification mode' >&2; exit 64 ;;
+          esac
+
       - name: Download and validate release manifest
+        if: inputs.mode == 'release' || inputs.release_artifact_id != ''
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           merge-multiple: true
@@ -69,6 +84,7 @@ jobs:
           run-id: ${{ inputs.release_run_id }}
 
       - name: Validate exact release linkage for every mode
+        if: inputs.mode == 'release' || inputs.release_artifact_id != ''
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
@@ -112,13 +128,21 @@ jobs:
           [[ "${#manifest_images[@]}" -eq 3 ]]
           EXPECTED_API_IMAGE="${manifest_images[0]}"; EXPECTED_WEB_IMAGE="${manifest_images[1]}"; EXPECTED_POSTGRES_IMAGE="${manifest_images[2]}"
           install -m 700 -d "$HOME/.ssh"
+          : "${MKW_SSH_HOST_FINGERPRINT:?Trusted SSH fingerprint is required}"
           ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
-          ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" -E sha256 | grep -F -- "$MKW_SSH_HOST_FINGERPRINT"
-          install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
+          : > "$RUNNER_TEMP/mkw_pinned_hosts"
+          while IFS= read -r line; do
+            printf '%s\n' "$line" > "$RUNNER_TEMP/mkw_candidate"
+            if [[ "$(ssh-keygen -lf "$RUNNER_TEMP/mkw_candidate" -E sha256 | awk '{print $2}')" == "$MKW_SSH_HOST_FINGERPRINT" ]]; then
+              printf '%s\n' "$line" >> "$RUNNER_TEMP/mkw_pinned_hosts"
+            fi
+          done < "$RUNNER_TEMP/mkw_known_hosts"
+          test -s "$RUNNER_TEMP/mkw_pinned_hosts"
+          install -m 600 "$RUNNER_TEMP/mkw_pinned_hosts" "$HOME/.ssh/known_hosts"
           test -n "$MKW_SSH_PRIVATE_KEY"
           printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"; chmod 600 "$RUNNER_TEMP/mkw_key"
           remote_env="EXPECTED_API_IMAGE=$(printf '%q' "$EXPECTED_API_IMAGE") EXPECTED_WEB_IMAGE=$(printf '%q' "$EXPECTED_WEB_IMAGE") EXPECTED_POSTGRES_IMAGE=$(printf '%q' "$EXPECTED_POSTGRES_IMAGE") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") RELEASE_SHA=$(printf '%q' "$RELEASE_SHA")"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < release-source/scripts/product/post-deploy-verify.sh
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < policy/scripts/product/post-deploy-verify.sh
 
       - name: Record verification receipt
         if: always()

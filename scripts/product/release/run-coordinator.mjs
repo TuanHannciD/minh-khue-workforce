@@ -17,6 +17,11 @@ const result = await coordinateRelease(
     correlationId: process.env.CORRELATION_ID,
     repository,
     maxAgeMs: MAX_BACKUP_AGE_MS,
+    target: {
+      host: process.env.MKW_SSH_HOST,
+      database: "mkw",
+      identity: `${process.env.MKW_SSH_HOST}/${process.env.MKW_DEPLOY_PATH}/${process.env.MKW_PROJECT_NAME}`,
+    },
   },
   api,
 );

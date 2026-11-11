@@ -31,7 +31,9 @@ in the protected environment or server; never commit or print their values.
 
 Run `deploy-entrypoint.sh --dry-run` before bootstrap, then use `--bootstrap`, and
 finally invoke `--release --manifest <path> --compose <path> --backup-ready <path>`
-with explicit `MKW_BACKUP_MAX_AGE_SECONDS` and `MKW_BACKUP_EXPECTED_KIND` after the
+with explicit `MKW_BACKUP_MAX_AGE_SECONDS`, `MKW_BACKUP_EXPECTED_KIND`,
+`MKW_BACKUP_EXPECTED_HOST`, `MKW_BACKUP_EXPECTED_DATABASE=mkw` and
+`MKW_BACKUP_EXPECTED_TARGET_IDENTITY` after the
 required JSON gate and release artifact are available. The remote host reads its
 own UTC clock for preflight, again under the deploy lock before changing env or
 Compose state, and before migrations. `MKW_BACKUP_NOW` is not a production clock
@@ -45,3 +47,10 @@ evidence cannot authorize rollback. Retention and maximum age still apply at the
 remote mutation boundary. Rollback preserves the running PostgreSQL container and
 rejects a PostgreSQL digest mismatch before changing env or Compose state.
 No production deploy is performed by this repository task.
+
+Target policy đến từ trusted production vars: host là `MKW_SSH_HOST`, database
+`mkw` theo bootstrap/Compose, initial-empty identity chính xác
+`${MKW_SSH_HOST}/${MKW_DEPLOY_PATH}/${MKW_PROJECT_NAME}` như backup producer.
+Workflow truyền policy vào remote; thiếu identity hoặc metadata khác target bị
+chặn ở runner và dưới deploy lock trước mutation. Không dùng dispatch input làm
+nguồn expected production target.

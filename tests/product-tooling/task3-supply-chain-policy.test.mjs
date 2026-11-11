@@ -45,7 +45,7 @@ test("rollback sanitizes reason and receipt declares application-only scope", as
   assert.match(workflow, /application-only/);
   assert.match(workflow, /databaseRecovery.*false|database-recovery.*false/i);
   assert.match(workflow, /control character/);
-  assert.doesNotMatch(workflow, /reason=\"\$\{\{\s*inputs\.reason/);
+  assert.doesNotMatch(workflow, /reason="\$\{\{\s*inputs\.reason/);
   assert.match(entrypoint, /attestationVerification/);
   assert.match(entrypoint, /application-only/);
 });

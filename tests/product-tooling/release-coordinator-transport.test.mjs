@@ -97,3 +97,18 @@ test("API fixture paginates artifacts and obtains workflow path from owning work
   assert.equal(run.path, ".github/workflows/build-release.yml");
   assert.ok(requested.includes("/repos/org/repo/actions/workflows/100"));
 });
+
+test("M-01: cancellation uses bounded POST and accepts an empty successful response", async () => {
+  const api = createGithubApi({
+    repository: "org/repo",
+    token: "fixture-token",
+    async exec(command, args, options) {
+      assert.equal(command, "gh");
+      assert.ok(args.includes("POST"));
+      assert.equal(args.at(-1), "/repos/org/repo/actions/runs/30/cancel");
+      assert.equal(options.timeout, 30000);
+      return { stdout: "" };
+    },
+  });
+  await api.cancelRun("30");
+});

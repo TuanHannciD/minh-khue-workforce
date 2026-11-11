@@ -157,6 +157,7 @@ test("entrypoint apply blocks reject DB mismatch before mutations and apply only
     [true, false],
     [false, false],
     [false, true],
+    ["target-after-lock", false],
   ]) {
     const cwd = await mkdtemp(join(tmpdir(), "mkw-apply-"));
     for (const dir of ["bin", "shared", "current", "receipts"])
@@ -211,8 +212,12 @@ esac
     const clock = elapsed
       ? 'if [[ -e "$CLOCK_FILE" ]]; then echo 2026-11-10T10:00:01Z; else touch "$CLOCK_FILE"; echo 2026-11-09T12:00:00Z; fi'
       : "echo 2026-11-09T12:00:00Z";
+    const changedTarget =
+      mismatch === "target-after-lock"
+        ? 'node --input-type=module -e \'import fs from "node:fs"; const p=process.env.backup_ready; const b=JSON.parse(fs.readFileSync(p,"utf8")); b.databaseIdentity.host="other-host"; fs.writeFileSync(p,JSON.stringify(b));\''
+        : "";
     const result = run(
-      `date() { ${clock}; }\ncd "$script_root"\nrun_node() { node "$@"; }\ncurl() { :; }\n${gate}\nvalidate_backup_gate\n${apply}`,
+      `date() { ${clock}; }\ncd "$script_root"\nrun_node() { node "$@"; }\ncurl() { :; }\n${gate}\nvalidate_backup_gate\n${changedTarget}\n${apply}`,
       cwd,
       {
         PATH: `${join(cwd, "bin")}${process.platform === "win32" ? ";" : ":"}${process.env.PATH}`,
@@ -223,6 +228,9 @@ esac
         MKW_RELEASE_SHA: sha,
         backup_ready: posix(join(cwd, "backup.json")),
         backup_max_age_seconds: "86400",
+        backup_expected_host: "fixture",
+        backup_expected_database: "mkw",
+        backup_expected_target_identity: "fixture-target",
         release_sha: sha,
         MKW_API_IMAGE: images.api,
         MKW_WEB_IMAGE: images.web,
@@ -232,9 +240,10 @@ esac
         MKW_WEB_ORIGIN: "https://example.test",
         manifest: posix(join(cwd, "manifest.json")),
         compose: posix(join(cwd, "compose.yml")),
-        CURRENT_POSTGRES: mismatch
-          ? `postgres@sha256:${"4".repeat(64)}`
-          : images.postgres,
+        CURRENT_POSTGRES:
+          mismatch === true
+            ? `postgres@sha256:${"4".repeat(64)}`
+            : images.postgres,
         FIXTURE_COMPOSE: compose,
         MUTATIONS: posix(join(cwd, "mutations")),
         CLOCK_FILE: posix(join(cwd, "clock")),
@@ -248,7 +257,11 @@ esac
     if (mismatch || elapsed) {
       assert.match(
         result.stderr,
-        mismatch ? /PostgreSQL runtime digest mismatch/ : /maximum age/,
+        mismatch === true
+          ? /PostgreSQL runtime digest mismatch/
+          : mismatch === "target-after-lock"
+            ? /host.*expected target/
+            : /maximum age/,
       );
       for (const file of ["mutations", "current/compose.rendered.yml"])
         assert.equal(await readFile(join(cwd, file)).catch(() => null), null);
@@ -299,9 +312,11 @@ test("rollback uses current workflow controls for legacy payloads and serializes
   const source = (await workflow("rollback.yml")).replaceAll("\r\n", "\n");
   const checkout = source.slice(
     source.indexOf("      - name: Checkout current rollback control tooling"),
-    source.indexOf("      - name: Download and verify old manifest"),
+    source.indexOf(
+      "      - name: Resolve exact old release artifact through trusted policy",
+    ),
   );
-  assert.match(checkout, /ref: \$\{\{ github\.sha \}\}/);
+  assert.match(checkout, /ref: main/);
   assert.doesNotMatch(checkout, /inputs\.old_release_sha/);
   const cwd = await mkdtemp(join(tmpdir(), "mkw-rollback-receipt-"));
   const old = "9f899308d6fdf1508ab75421e56457cf20e1f9b2";

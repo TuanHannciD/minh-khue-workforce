@@ -6,6 +6,9 @@ compose="${MKW_COMPOSE_FILE:-}"
 backup_ready="${MKW_BACKUP_READY:-}"
 backup_max_age_seconds="${MKW_BACKUP_MAX_AGE_SECONDS:-}"
 backup_expected_kind="${MKW_BACKUP_EXPECTED_KIND:-BACKUP}"
+backup_expected_host="${MKW_BACKUP_EXPECTED_HOST:-}"
+backup_expected_database="${MKW_BACKUP_EXPECTED_DATABASE:-mkw}"
+backup_expected_target_identity="${MKW_BACKUP_EXPECTED_TARGET_IDENTITY:-}"
 while (($#)); do
   case "$1" in
     --dry-run|--bootstrap|--release) mode="${1#--}" ;;
@@ -103,6 +106,7 @@ fi
 validate_backup_gate() {
   [[ -f "$backup_ready" ]] || { echo "backup-ready JSON gate is required" >&2; exit 78; }
   [[ "$backup_max_age_seconds" =~ ^[0-9]+$ ]] || { echo "backup freshness policy is required" >&2; exit 78; }
+  [[ -n "$backup_expected_host" && "$backup_expected_database" == mkw && -n "$backup_expected_target_identity" ]] || { echo "trusted backup target policy is required" >&2; exit 78; }
   local now
   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   local args=("$backup_ready" --max-age-seconds "$backup_max_age_seconds" --now "$now")
@@ -114,6 +118,7 @@ validate_backup_gate() {
     case "$backup_expected_kind" in BACKUP|INITIAL_EMPTY_DEPLOYMENT) ;; *) echo "backup kind policy is required" >&2; exit 78 ;; esac
     args+=(--expected-release-sha "$MKW_RELEASE_SHA" --expected-kind "$backup_expected_kind")
   fi
+  args+=(--expected-target-host "$backup_expected_host" --expected-database "$backup_expected_database" --expected-target-identity "$backup_expected_target_identity")
   run_node "$script_root/scripts/product/release/validate-backup-ready.mjs" "${args[@]}" >/dev/null || { echo "backup-ready JSON gate failed" >&2; exit 78; }
 }
 if [[ "$mode" == release ]]; then validate_backup_gate; fi

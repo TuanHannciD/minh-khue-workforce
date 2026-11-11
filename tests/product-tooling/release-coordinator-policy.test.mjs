@@ -86,6 +86,7 @@ const input = (kind = "BACKUP", mode = "release") => ({
   correlationId: "coord-1",
   repository: "org/repo",
   maxAgeMs: 24 * 3600e3,
+  target: { host: "prod", database: "mkw", identity: "vps/mkw" },
 });
 function fakeApi({
   backupConclusion = "success",
@@ -130,6 +131,7 @@ function fakeApi({
   }
   return {
     dispatches,
+    readiness,
     async listArtifacts() {
       const artifact = {
         id: "101",
@@ -241,6 +243,7 @@ test("behaviorally dispatches backup before deploy and verify with exact IDs and
       correlationId: "coord-1",
       repository: "org/repo",
       maxAgeMs: 24 * 3600e3,
+      target: input().target,
     },
     api,
   );
@@ -268,6 +271,7 @@ test("backup failure or stale readiness prevents deploy and verification dispatc
           correlationId: "coord-2",
           repository: "org/repo",
           maxAgeMs: 24 * 3600e3,
+          target: input().target,
         },
         api,
       ),
@@ -409,4 +413,173 @@ test("unreadable or missing exact backup artifact cannot fall back to another ru
     );
     assert.equal(api.dispatches.length, 1);
   }
+});
+
+for (const mismatch of ["host", "database", "empty-target", "empty-database"]) {
+  test(`I-03: coordinator rejects wrong ${mismatch} before deploy`, async () => {
+    const kind = mismatch.startsWith("empty")
+      ? "INITIAL_EMPTY_DEPLOYMENT"
+      : "BACKUP";
+    const api = fakeApi({ kind });
+    if (mismatch === "host")
+      api.readiness.databaseIdentity = {
+        ...api.readiness.databaseIdentity,
+        host: "other-host",
+      };
+    if (mismatch === "database")
+      api.readiness.databaseIdentity = {
+        ...api.readiness.databaseIdentity,
+        name: "other-database",
+      };
+    if (mismatch === "empty-target")
+      api.readiness.emptyEvidence.targetIdentity = "other-target";
+    if (mismatch === "empty-database")
+      api.readiness.emptyEvidence.databaseIdentity = "other-database";
+    await assert.rejects(
+      () => coordinateRelease(input(kind), api),
+      /target|database/,
+    );
+    assert.equal(api.dispatches.length, 1);
+  });
+}
+
+for (const cancel of ["supported", "unavailable", "failed"]) {
+  test(`M-01: stage timeout (${cancel} cancel) surfaces active run and never dispatches verify`, async () => {
+    const api = fakeApi();
+    const original = api.run;
+    let clock = api.now();
+    api.now = () => clock;
+    let pauses = 0;
+    api.pause = async () => {
+      clock += 5000;
+      assert.ok(++pauses < 10, "deadline must bound polling");
+    };
+    api.run = async (id) =>
+      id === "30"
+        ? { ...(await original(id)), status: "in_progress", conclusion: null }
+        : original(id);
+    const cancelled = [];
+    if (cancel !== "unavailable")
+      api.cancelRun = async (id) => {
+        cancelled.push(id);
+        if (cancel === "failed") throw new Error("denied");
+      };
+    await assert.rejects(
+      () =>
+        coordinateRelease(
+          {
+            ...input(),
+            timeouts: {
+              totalMs: 25000,
+              discoveryMs: 5000,
+              stages: {
+                "backup.yml": 10000,
+                "deploy.yml": 10000,
+                "post-deploy-verify.yml": 10000,
+              },
+            },
+          },
+          api,
+        ),
+      (error) => {
+        assert.match(error.message, /timed out/);
+        assert.match(
+          error.message,
+          /https:\/\/github.com\/org\/repo\/actions\/runs\/30/,
+        );
+        assert.match(
+          error.message,
+          cancel === "supported" ? /cancel requested/ : /may still be active/,
+        );
+        return true;
+      },
+    );
+    assert.equal(pauses, 2);
+    assert.deepEqual(cancelled, cancel === "unavailable" ? [] : ["30"]);
+    assert.equal(api.dispatches.length, 2);
+  });
+}
+
+test("M-01: total deadline includes source resolution and prevents first dispatch", async () => {
+  const api = fakeApi();
+  let clock = api.now();
+  api.now = () => clock;
+  const original = api.jsonFromArtifact;
+  api.jsonFromArtifact = async (...args) => {
+    clock += 15000;
+    return original(...args);
+  };
+  await assert.rejects(
+    () => coordinateRelease({ ...input(), timeouts: { totalMs: 10000 } }, api),
+    /total.*timed out/,
+  );
+  assert.equal(api.dispatches.length, 0);
+});
+
+test("M-01: unknown child discovery timeout surfaces correlation/workflow URL without later dispatch", async () => {
+  const api = fakeApi();
+  let clock = api.now();
+  api.now = () => clock;
+  api.runs = async () => [];
+  api.pause = async () => {
+    clock += 5000;
+  };
+  await assert.rejects(
+    () =>
+      coordinateRelease({ ...input(), timeouts: { discoveryMs: 5000 } }, api),
+    /child may still be active; correlation=coord-1-backup; inspect https:\/\/github.com\/org\/repo\/actions\/workflows\/backup.yml/,
+  );
+  assert.equal(api.dispatches.length, 1);
+});
+
+test("M-01: API latency cannot accept a child completion beyond its stage deadline", async () => {
+  const api = fakeApi();
+  let clock = api.now();
+  api.now = () => clock;
+  const original = api.run;
+  api.run = async (id) => {
+    if (id === "30") clock += 11000;
+    return original(id);
+  };
+  await assert.rejects(
+    () =>
+      coordinateRelease(
+        {
+          ...input(),
+          timeouts: {
+            stages: {
+              "backup.yml": 10000,
+              "deploy.yml": 10000,
+              "post-deploy-verify.yml": 10000,
+            },
+          },
+        },
+        api,
+      ),
+    /conclusion timed out/,
+  );
+  assert.equal(api.dispatches.length, 2);
+});
+
+test("M-01: timed out polling API cancels known active child and reports its URL", async () => {
+  const api = fakeApi();
+  const original = api.run;
+  api.run = async (id) => {
+    if (id === "30")
+      throw Object.assign(new Error("command timed out"), {
+        killed: true,
+        signal: "SIGTERM",
+      });
+    return original(id);
+  };
+  const cancelled = [];
+  api.cancelRun = async (id) => {
+    cancelled.push(id);
+  };
+  await assert.rejects(
+    () => coordinateRelease(input(), api),
+    /https:\/\/github.com\/org\/repo\/actions\/runs\/30; cancel requested/,
+  );
+  assert.deepEqual(cancelled, ["30"]);
+  assert.equal(api.dispatches.length, 2);
 });

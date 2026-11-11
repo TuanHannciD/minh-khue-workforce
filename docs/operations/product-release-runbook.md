@@ -8,10 +8,12 @@ Phạm vi: quy trình tài liệu cho artifact đã kiểm chứng; không tự 
 
 1. CI từ push lên main chạy trên exact commit và tạo bằng chứng kiểm thử.
 2. Build release tạo manifest với full SHA và image digests; chỉ artifact này được bàn giao.
-3. Dispatch `release-pipeline.yml` từ `main` với full SHA, mode và backup kind. Coordinator chọn đúng một successful build artifact theo source SHA/manifest/repository rồi dispatch backup → deploy → verify theo exact run/attempt/artifact ID. Backup workflow tạo `BACKUP` đã restore-verified, hoặc `INITIAL_EMPTY_DEPLOYMENT` cho lần đầu.
+3. Dispatch `release-pipeline.yml` từ `main` với full SHA, mode và backup kind. Coordinator chạy trusted controls từ `main`, yêu cầu production target vars (`MKW_SSH_HOST`, `MKW_DEPLOY_PATH`, `MKW_PROJECT_NAME`, database `mkw`), chọn đúng một non-expired artifact ID thuộc successful canonical `build-release.yml` và kiểm tra manifest/build-metadata source linkage rồi dispatch backup → deploy → verify theo exact run/attempt/artifact ID. Backup workflow tạo `BACKUP` đã restore-verified, hoặc `INITIAL_EMPTY_DEPLOYMENT` cho lần đầu; mọi metadata phải khớp host/database và target identity hiện hành.
 4. Người vận hành duyệt protected environment, kiểm tra target identity, checksum và SSH fingerprint.
 5. Chỉ mode `release` chạy migration forward, health/smoke rồi ghi receipt. `dry-run` deploy chỉ SSH preflight; `bootstrap` tạo thư mục/secret env, không apply release. Coordinator ở cả ba mode vẫn dispatch backup thật qua SSH, không phải offline test. Không lookup tag/digest động.
 6. Mode `release`: post-deploy verify đối chiếu receipt, SHA, digest, health và Prisma migration status. Hai mode còn lại chỉ kiểm artifact/SHA, receipt ghi `skipped-preflight-only`.
+
+Coordinator có ngân sách tổng nhỏ hơn job cha và ngân sách riêng cho discovery/conclusion từng child. Khi hết hạn, workflow không dispatch stage sau; nếu API hỗ trợ thì coordinator gửi cancel cho child, nếu không thì ghi run URL/correlation để operator kiểm tra trước retry. Hết hạn không phải là bằng chứng child đã dừng.
 
 ## Gate và bằng chứng
 

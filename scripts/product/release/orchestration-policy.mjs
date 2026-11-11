@@ -9,9 +9,16 @@ export function validateBackupReadyFreshness(
     expectedKind,
     now = Date.now(),
     maxAgeMs = MAX_BACKUP_AGE_MS,
+    expectedTargetHost,
+    expectedDatabase,
+    expectedTargetIdentity,
   } = {},
 ) {
-  const base = validateBackupReady(value);
+  const base = validateBackupReady(value, {
+    expectedTargetHost,
+    expectedDatabase,
+    expectedTargetIdentity,
+  });
   const errors = [...base.errors];
   if (value?.releaseSha !== expectedSha)
     errors.push("backup release SHA mismatch");

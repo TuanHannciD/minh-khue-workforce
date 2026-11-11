@@ -17,6 +17,7 @@ export function createGithubApi({
       ["api", "--paginate", "--slurp", ...args],
       {
         env: { ...process.env, GH_TOKEN: token },
+        timeout: 30000,
         ...options,
       },
     );
@@ -25,6 +26,24 @@ export function createGithubApi({
   const pages = (value) =>
     value.flatMap((page) => page.workflow_runs ?? page.artifacts ?? page);
   const api = {
+    async artifact(id) {
+      return (await call([`/repos/${repository}/actions/artifacts/${id}`]))[0];
+    },
+    async cancelRun(id) {
+      await exec(
+        "gh",
+        [
+          "api",
+          "--method",
+          "POST",
+          `/repos/${repository}/actions/runs/${id}/cancel`,
+        ],
+        {
+          env: { ...process.env, GH_TOKEN: token },
+          timeout: 30000,
+        },
+      );
+    },
     async listArtifacts(name) {
       return pages(
         await call([
@@ -68,6 +87,7 @@ export function createGithubApi({
               {
                 env: { ...process.env, GH_TOKEN: token },
                 stdio: ["ignore", file.fd, "pipe"],
+                timeout: 30000,
               },
             );
             child.stderr.resume();
@@ -81,14 +101,18 @@ export function createGithubApi({
         } finally {
           await file.close();
         }
-        const { stdout: names } = await exec("unzip", ["-Z1", zip]);
+        const { stdout: names } = await exec("unzip", ["-Z1", zip], {
+          timeout: 30000,
+        });
         const matches = names
           .trim()
           .split(/\r?\n/)
           .filter((name) => name === entry || name.endsWith(`/${entry}`));
         if (matches.length !== 1)
           throw new Error(`artifact entry ${entry} is ambiguous`);
-        const { stdout: value } = await exec("unzip", ["-p", zip, matches[0]]);
+        const { stdout: value } = await exec("unzip", ["-p", zip, matches[0]], {
+          timeout: 30000,
+        });
         return parseJsonStrict(value);
       } finally {
         await rm(dir, { recursive: true, force: true });
@@ -124,7 +148,7 @@ export function createGithubApi({
             `${key}=${value}`,
           ]),
         ],
-        { env: { ...process.env, GH_TOKEN: token } },
+        { env: { ...process.env, GH_TOKEN: token }, timeout: 30000 },
       );
     },
     async pause() {

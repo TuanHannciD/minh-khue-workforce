@@ -10,6 +10,8 @@ export MKW_DEPLOY_PATH
 MKW_DEPLOY_PATH="$(mktemp -d /home/runner/mkw-rehearsal.XXXXXX)"
 export MKW_PROJECT_NAME=mkw-rehearsal MKW_GATEWAY_PORT=3200 MKW_VALIDATOR_RUNTIME=container
 export MKW_BACKUP_MAX_AGE_SECONDS=86400 MKW_BACKUP_EXPECTED_KIND=INITIAL_EMPTY_DEPLOYMENT
+export MKW_BACKUP_EXPECTED_HOST=github-hosted-runner MKW_BACKUP_EXPECTED_DATABASE=mkw
+export MKW_BACKUP_EXPECTED_TARGET_IDENTITY=github-hosted-runner/mkw-rehearsal
 export MKW_RELEASE_SHA MKW_API_IMAGE MKW_WEB_IMAGE MKW_POSTGRES_IMAGE
 MKW_RELEASE_SHA="$(jq -r .releaseSha release-manifest.json)"
 MKW_API_IMAGE="$(jq -r .apiImage release-manifest.json)"

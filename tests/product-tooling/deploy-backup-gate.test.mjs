@@ -50,6 +50,28 @@ function backup(overrides = {}) {
   };
 }
 const rejectedBackups = [
+  [
+    "wrong host",
+    {
+      databaseIdentity: {
+        host: "other-host",
+        name: "mkw",
+        engine: "postgresql",
+      },
+    },
+    /host.*expected target/i,
+  ],
+  [
+    "wrong database",
+    {
+      databaseIdentity: {
+        host: "fixture-db",
+        name: "other-database",
+        engine: "postgresql",
+      },
+    },
+    /name.*expected target/i,
+  ],
   ["wrong SHA", { releaseSha: "b".repeat(40) }, /releaseSha.*expected/i],
   ["stale", { createdAt: "2026-11-08T10:00:00Z" }, /createdAt.*maximum age/i],
   ["future", { createdAt: "2026-11-09T13:00:00Z" }, /createdAt.*future/i],
@@ -68,7 +90,18 @@ function bash(cwd, script, env = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(BASH, ["--noprofile", "--norc", "-c", script], {
       cwd,
-      env: { ...process.env, ...env },
+      env: {
+        ...process.env,
+        MKW_SSH_HOST: "fixture-db",
+        MKW_BACKUP_EXPECTED_HOST: "fixture-db",
+        MKW_BACKUP_EXPECTED_DATABASE: "mkw",
+        MKW_BACKUP_EXPECTED_TARGET_IDENTITY: "fixture-db//home/deploy/mkw/mkw",
+        TARGET_DATABASE: "mkw",
+        TARGET_IDENTITY: "fixture-db//home/deploy/mkw/mkw",
+        MKW_DEPLOY_PATH: "/home/deploy/mkw",
+        MKW_PROJECT_NAME: "mkw",
+        ...env,
+      },
     });
     let stdout = "",
       stderr = "";
@@ -190,7 +223,7 @@ const transport = `
 install() { :; }
 chmod() { :; }
 ssh-keyscan() { echo KEYSCAN_REACHED; }
-ssh-keygen() { echo fixture-fingerprint; }
+ssh-keygen() { echo '256 fixture-fingerprint fixture (ED25519)'; }
 ssh() { echo SSH_MUTATION_REACHED; exit 91; }
 scp() { echo SCP_MUTATION_REACHED; exit 91; }
 `;
@@ -647,4 +680,70 @@ test("actual rollback preflight accepts current snapshot provenance and fails cl
         /required attestation verification did not complete/,
       );
   }
+});
+
+test("I-03: runner and remote reject wrong initial-empty target/database before any mutation", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(dir);
+  await copyTooling(join(dir, "policy"));
+  const empty = backup({
+    kind: "INITIAL_EMPTY_DEPLOYMENT",
+    restoreVerified: false,
+    databaseVerifiedEmpty: true,
+    dumpSha256: undefined,
+    size: undefined,
+    emptyEvidence: {
+      targetIdentity: "fixture-db//home/deploy/mkw/mkw",
+      databaseIdentity: "mkw",
+      checkedAt: NOW,
+    },
+  });
+  for (const patch of [
+    { targetIdentity: "wrong-host//home/deploy/mkw/mkw" },
+    { databaseIdentity: "wrong-database" },
+  ]) {
+    await writeFile(
+      join(dir, "backup-ready/backup-ready.json"),
+      JSON.stringify({
+        ...empty,
+        emptyEvidence: { ...empty.emptyEvidence, ...patch },
+      }),
+    );
+    for (const script of [
+      entryPrelude,
+      `date() { echo ${NOW}; }\n` +
+        stepScript("Validate artifact and release manifest"),
+    ]) {
+      const result = await bash(dir, script, {
+        RELEASE_SHA: SHA,
+        MKW_RELEASE_SHA: SHA,
+        MKW_API_IMAGE: API,
+        BACKUP_KIND: "INITIAL_EMPTY_DEPLOYMENT",
+        MKW_BACKUP_EXPECTED_KIND: "INITIAL_EMPTY_DEPLOYMENT",
+        BACKUP_MAX_AGE_SECONDS: "86400",
+        MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+      });
+      assert.notEqual(result.code, 0, result.stdout + result.stderr);
+      assert.match(result.stderr, /expected target/);
+      assert.doesNotMatch(result.stdout, /MUTATION_REACHED/);
+    }
+  }
+});
+
+test("I-03: missing trusted remote target policy fails closed before mutation", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(dir);
+  await writeFile(
+    join(dir, "backup-ready/backup-ready.json"),
+    JSON.stringify(backup()),
+  );
+  const result = await bash(dir, entryPrelude, {
+    MKW_RELEASE_SHA: SHA,
+    MKW_API_IMAGE: API,
+    MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+    MKW_BACKUP_EXPECTED_HOST: "",
+  });
+  assert.equal(result.code, 78, result.stdout + result.stderr);
+  assert.match(result.stderr, /target policy/);
+  assert.doesNotMatch(result.stdout, /MUTATION_REACHED/);
 });

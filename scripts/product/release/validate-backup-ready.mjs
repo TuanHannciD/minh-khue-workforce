@@ -23,6 +23,17 @@ export function validateBackupReady(value, options = {}) {
   const errors = [];
   if (!value || typeof value !== "object" || Array.isArray(value))
     return { ok: false, errors: ["backup-ready must be an object"] };
+  const targetOptions = [
+    "expectedTargetHost",
+    "expectedDatabase",
+    "expectedTargetIdentity",
+  ];
+  for (const key of targetOptions)
+    if (
+      options[key] !== undefined &&
+      (typeof options[key] !== "string" || !options[key].trim())
+    )
+      errors.push("trusted expected target policy is invalid");
   const allowed = new Set([
     "schemaVersion",
     "kind",
@@ -208,6 +219,32 @@ export function validateBackupReady(value, options = {}) {
         errors.push("databaseIdentity.engine must be postgresql");
     }
   }
+  if (
+    options.expectedTargetHost !== undefined &&
+    value.kind === "BACKUP" &&
+    value.databaseIdentity?.host !== options.expectedTargetHost
+  )
+    errors.push("databaseIdentity.host does not match expected target");
+  if (
+    options.expectedDatabase !== undefined &&
+    value.kind === "BACKUP" &&
+    value.databaseIdentity?.name !== options.expectedDatabase
+  )
+    errors.push("databaseIdentity.name does not match expected target");
+  if (
+    value.kind === "INITIAL_EMPTY_DEPLOYMENT" &&
+    options.expectedTargetIdentity !== undefined &&
+    value.emptyEvidence?.targetIdentity !== options.expectedTargetIdentity
+  )
+    errors.push("emptyEvidence.targetIdentity does not match expected target");
+  if (
+    value.kind === "INITIAL_EMPTY_DEPLOYMENT" &&
+    options.expectedDatabase !== undefined &&
+    value.emptyEvidence?.databaseIdentity !== options.expectedDatabase
+  )
+    errors.push(
+      "emptyEvidence.databaseIdentity does not match expected target",
+    );
   return { ok: errors.length === 0, errors };
 }
 
@@ -223,6 +260,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         "max-age-seconds": { type: "string" },
         now: { type: "string" },
         "expected-kind": { type: "string" },
+        "expected-target-host": { type: "string" },
+        "expected-database": { type: "string" },
+        "expected-target-identity": { type: "string" },
       },
     });
     const names = args.tokens
@@ -232,7 +272,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       throw new Error("invalid arguments");
   } catch {
     console.error(
-      "usage: node validate-backup-ready.mjs <backup-ready> [--schema <schema>] [--expected-release-sha <sha>] [--max-age-seconds <seconds>] [--now <UTC timestamp>] [--expected-kind <kind>]",
+      "usage: node validate-backup-ready.mjs <backup-ready> [--expected-release-sha <sha>] [--max-age-seconds <seconds>] [--now <UTC timestamp>] [--expected-kind <kind>] [--expected-target-host <host>] [--expected-database <name>] [--expected-target-identity <identity>]",
     );
     process.exitCode = 2;
   }
@@ -244,6 +284,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         {
           expectedReleaseSha: args.values["expected-release-sha"],
           expectedKind: args.values["expected-kind"],
+          expectedTargetHost: args.values["expected-target-host"],
+          expectedDatabase: args.values["expected-database"],
+          expectedTargetIdentity: args.values["expected-target-identity"],
           maxAgeSeconds:
             maxAgeArgument === undefined
               ? undefined

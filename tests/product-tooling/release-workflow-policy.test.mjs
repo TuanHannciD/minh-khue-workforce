@@ -129,7 +129,7 @@ test("rollback is protected/manual, verifies old manifest and backup, and redepl
   assert.match(workflow, /old.*manifest|manifest.*old/i);
   assert.match(workflow, /backup-ready/);
   assert.match(workflow, /--expected-kind BACKUP/);
-  assert.doesNotMatch(workflow, /--expected-release-sha \"\$OLD_RELEASE_SHA\"/);
+  assert.doesNotMatch(workflow, /--expected-release-sha "\$OLD_RELEASE_SHA"/);
   assert.match(workflow, /sha256/);
   assert.match(workflow, /deploy-entrypoint\.sh/);
   assert.match(workflow, /rollback-receipt\.json/);

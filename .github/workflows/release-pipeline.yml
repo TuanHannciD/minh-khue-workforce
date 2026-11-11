@@ -31,6 +31,7 @@ concurrency:
 jobs:
   orchestrate:
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 180
     steps:
       - name: Checkout trusted current orchestration policy
@@ -48,4 +49,7 @@ jobs:
           RELEASE_MODE: ${{ inputs.mode }}
           BACKUP_KIND: ${{ inputs.backup_kind || 'BACKUP' }}
           CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+          MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
+          MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
+          MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
         run: node scripts/product/release/run-coordinator.mjs
