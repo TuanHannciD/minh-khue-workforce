@@ -4,6 +4,8 @@ mode=""
 manifest="${MKW_RELEASE_MANIFEST:-}"
 compose="${MKW_COMPOSE_FILE:-}"
 backup_ready="${MKW_BACKUP_READY:-}"
+backup_max_age_seconds="${MKW_BACKUP_MAX_AGE_SECONDS:-}"
+backup_now="${MKW_BACKUP_NOW:-}"
 while (($#)); do
   case "$1" in
     --dry-run|--bootstrap|--release) mode="${1#--}" ;;
@@ -38,7 +40,7 @@ run_node() {
       --workdir "$script_root" --entrypoint node "$MKW_API_IMAGE" "$@"
   fi
 }
-case "$MKW_DEPLOY_PATH" in /home/*) ;; *) echo "deploy path must be under /home" >&2; exit 78 ;; esac
+[[ "$MKW_DEPLOY_PATH" =~ ^/home/[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ ]] || { echo "invalid deploy path" >&2; exit 78; }
 [[ "$MKW_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "invalid project name" >&2; exit 78; }
 [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo "invalid gateway port" >&2; exit 78; }
 command -v docker >/dev/null && docker compose version >/dev/null 2>&1 || { echo "Docker Compose is required" >&2; exit 69; }
@@ -78,7 +80,12 @@ NODE
   export MKW_API_IMAGE MKW_WEB_IMAGE MKW_POSTGRES_IMAGE
   [[ -n "$backup_ready" ]] || backup_ready="$MKW_DEPLOY_PATH/shared/backup-ready.json"
   [[ -f "$backup_ready" ]] || { echo "backup-ready JSON gate is required" >&2; exit 78; }
-  run_node "$script_root/scripts/product/release/validate-backup-ready.mjs" "$backup_ready" >/dev/null || { echo "backup-ready JSON gate failed" >&2; exit 78; }
+  [[ "$backup_max_age_seconds" =~ ^[0-9]+$ ]] || { echo "backup freshness policy is required" >&2; exit 78; }
+  [[ "$backup_now" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,3})?Z$ ]] || { echo "backup freshness policy is required" >&2; exit 78; }
+  run_node "$script_root/scripts/product/release/validate-backup-ready.mjs" "$backup_ready" \
+    --expected-release-sha "$MKW_RELEASE_SHA" \
+    --max-age-seconds "$backup_max_age_seconds" \
+    --now "$backup_now" >/dev/null || { echo "backup-ready JSON gate failed" >&2; exit 78; }
 fi
 
 install -d -m 0750 "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/releases" "$MKW_DEPLOY_PATH/current" "$MKW_DEPLOY_PATH/shared" "$MKW_DEPLOY_PATH/backups" "$MKW_DEPLOY_PATH/receipts"

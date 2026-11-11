@@ -86,6 +86,7 @@ jobs:
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
           printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q' \
             "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image"
+          printf -v remote_env '%s MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_NOW=%q' "$remote_env" 86400 "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash '$remote_dir/scripts/product/deploy-entrypoint.sh' --release --manifest '$remote_dir/old-release-artifact/release-manifest.json' --compose '$remote_dir/deploy/compose.production.yml' --backup-ready '$MKW_DEPLOY_PATH/shared/backup-ready.json'"
 
       - name: Emit rollback receipt and signal

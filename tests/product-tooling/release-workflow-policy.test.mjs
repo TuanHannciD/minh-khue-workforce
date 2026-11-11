@@ -74,7 +74,7 @@ test("deploy consumes only the SHA-named build artifact and never resolves GHCR 
   assert.match(workflow, /backup_max_age_seconds/);
   assert.match(workflow, /--expected-release-sha\s+"\$RELEASE_SHA"/);
   assert.match(workflow, /--max-age-seconds\s+"\$BACKUP_MAX_AGE_SECONDS"/);
-  assert.match(workflow, /--now\s+"\$\(date -u/);
+  assert.match(workflow, /--now\s+"\$BACKUP_NOW"/);
   assert.match(
     workflow,
     /sha256sum\s+--check.*backup-ready|backup-ready.*sha256sum\s+--check/s,
@@ -82,7 +82,7 @@ test("deploy consumes only the SHA-named build artifact and never resolves GHCR 
   assert.match(workflow, /scripts\/product\/release/);
   assert.match(
     workflow,
-    /bash '\$remote_dir\/scripts\/product\/deploy-entrypoint\.sh'/,
+    /\$remote_dir\/scripts\/product\/deploy-entrypoint\.sh/,
   );
   assert.doesNotMatch(workflow, /remote_env '.*bash -s/);
   assert.match(workflow, /ssh-keyscan/);

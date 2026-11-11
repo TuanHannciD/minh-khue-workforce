@@ -31,5 +31,7 @@ in the protected environment or server; never commit or print their values.
 
 Run `deploy-entrypoint.sh --dry-run` before bootstrap, then use `--bootstrap`, and
 finally invoke `--release --manifest <path> --compose <path> --backup-ready <path>`
-only after the required JSON gate and release artifact are available. No production
-deploy is performed by this repository task.
+with `MKW_BACKUP_MAX_AGE_SECONDS` and an explicit UTC `MKW_BACKUP_NOW` after the
+required JSON gate and release artifact are available. Release mode rechecks the
+backup release SHA, freshness, and retention immediately before migrations. No
+production deploy is performed by this repository task.
