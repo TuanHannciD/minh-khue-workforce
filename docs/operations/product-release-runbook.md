@@ -2,7 +2,7 @@
 
 Phạm vi: quy trình tài liệu cho artifact đã kiểm chứng; không tự cấp quyền production.
 
-Đường vận hành hiện hành: [checklist một SHA](release-checklist.md). [Evidence Task4](../reports/2026-11-11-task4-release-checklist.md) ghi verification local trên controls 47e1d7f; không thay readiness sản phẩm. Các giới hạn chưa được quyết định trong hồ sơ bàn giao cũ phải được operator xác minh lại bằng cấu hình/approval thực trước release.
+Đường vận hành hiện hành: [checklist kích hoạt/push-main](release-checklist.md) và [evidence Task 5](../reports/2026-11-11-push-main-cd-verification.md). [Evidence Task4](../reports/2026-11-11-task4-release-checklist.md) giữ verification lịch sử của manual controls 47e1d7f; không thay readiness sản phẩm. Các giới hạn cần operator xác minh bằng cấu hình/approval thực trước release.
 
 ## Daily release — merge local → push main
 

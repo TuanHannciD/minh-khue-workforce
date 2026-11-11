@@ -1,6 +1,6 @@
 # Checklist kích hoạt và phát hành push-main
 
-Phạm vi: push-main controls Tasks 1–4 tại `d8dd9fb` và tài liệu Task 5, không tự cấp quyền production hoặc xác nhận G3/G4 sản phẩm. [Release runbook](product-release-runbook.md), [backup/restore](product-backup-restore.md), [rollback](product-rollback-runbook.md) và [readiness](../agent/READINESS.md) giữ gate tương ứng. [Evidence local Task4](../reports/2026-11-11-task4-release-checklist.md) phân biệt phần đã chạy với điều operator còn phải kiểm.
+Phạm vi: push-main controls Tasks 1–4 tại `d8dd9fb` và tài liệu Task 5, không tự cấp quyền production hoặc xác nhận G3/G4 sản phẩm. [Release runbook](product-release-runbook.md), [backup/restore](product-backup-restore.md), [rollback](product-rollback-runbook.md) và [readiness](../agent/READINESS.md) giữ gate tương ứng. [Evidence Task 5](../reports/2026-11-11-push-main-cd-verification.md) ghi kết quả hiện tại; [Task4 cũ](../reports/2026-11-11-task4-release-checklist.md) giữ lịch sử manual controls.
 
 ## Kích hoạt một lần — chưa thực hiện trong Task 5
 

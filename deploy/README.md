@@ -16,7 +16,7 @@ contract before rendering Compose; it never resolves a digest from a registry.
 Before any database migration or Compose mutation it pulls API/Web by those exact
 digests and checks the local `RepoDigest`. A public GHCR package uses anonymous
 pull. A private package requires a VPS-only mode-600 token file and a dedicated
-read-only `packages:read` credential (`MKW_REGISTRY_PULL_USERNAME` and
+read-only `read:packages` credential (`MKW_REGISTRY_PULL_USERNAME` and
 `MKW_REGISTRY_PULL_TOKEN_FILE`); the build's package-write token is never sent to
 the VPS, artifact, receipt, or command line.
 
