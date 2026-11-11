@@ -66,9 +66,13 @@ test("deploy consumes only the exact validated artifact IDs and never resolves G
   const workflow = await read("deploy.yml");
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /actions\/download-artifact@/);
-  assert.match(workflow, /artifact-ids: \$\{\{\s*inputs\.release_artifact_id\s*\}\}/);
+  assert.match(
+    workflow,
+    /artifact-ids: \$\{\{\s*inputs\.release_artifact_id\s*\}\}/,
+  );
   assert.match(workflow, /release-manifest\.sha256/);
   assert.match(workflow, /backup-ready/);
+  assert.match(workflow, /backup_artifact_id/);
   assert.match(workflow, /if: inputs\.mode == 'release'/);
   assert.match(workflow, /backup-ready\.json\.sha256/);
   assert.match(
@@ -78,7 +82,7 @@ test("deploy consumes only the exact validated artifact IDs and never resolves G
   assert.match(workflow, /scripts\/product\/release/);
   assert.match(
     workflow,
-    /bash '\$remote_dir\/release-source\/scripts\/product\/deploy-entrypoint\.sh'/,
+    /\$remote_dir\/scripts\/product\/deploy-entrypoint\.sh/,
   );
   assert.doesNotMatch(workflow, /remote_env '.*bash -s/);
   assert.match(workflow, /ssh-keyscan/);
@@ -124,6 +128,8 @@ test("rollback is protected/manual, verifies old manifest and backup, and redepl
   assert.match(workflow, /environment:\s*production/);
   assert.match(workflow, /old.*manifest|manifest.*old/i);
   assert.match(workflow, /backup-ready/);
+  assert.match(workflow, /--expected-kind BACKUP/);
+  assert.doesNotMatch(workflow, /--expected-release-sha \"\$OLD_RELEASE_SHA\"/);
   assert.match(workflow, /sha256/);
   assert.match(workflow, /deploy-entrypoint\.sh/);
   assert.match(workflow, /rollback-receipt\.json/);

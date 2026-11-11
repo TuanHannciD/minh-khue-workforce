@@ -5,7 +5,7 @@ manifest="${MKW_RELEASE_MANIFEST:-}"
 compose="${MKW_COMPOSE_FILE:-}"
 backup_ready="${MKW_BACKUP_READY:-}"
 backup_max_age_seconds="${MKW_BACKUP_MAX_AGE_SECONDS:-}"
-backup_now="${MKW_BACKUP_NOW:-}"
+backup_expected_kind="${MKW_BACKUP_EXPECTED_KIND:-BACKUP}"
 while (($#)); do
   case "$1" in
     --dry-run|--bootstrap|--release) mode="${1#--}" ;;
@@ -98,14 +98,25 @@ NODE
   done
   export MKW_API_IMAGE MKW_WEB_IMAGE MKW_POSTGRES_IMAGE
   [[ -n "$backup_ready" ]] || backup_ready="$MKW_DEPLOY_PATH/shared/backup-ready.json"
+fi
+
+validate_backup_gate() {
   [[ -f "$backup_ready" ]] || { echo "backup-ready JSON gate is required" >&2; exit 78; }
   [[ "$backup_max_age_seconds" =~ ^[0-9]+$ ]] || { echo "backup freshness policy is required" >&2; exit 78; }
-  [[ "$backup_now" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,3})?Z$ ]] || { echo "backup freshness policy is required" >&2; exit 78; }
-  run_node "$script_root/scripts/product/release/validate-backup-ready.mjs" "$backup_ready" \
-    --expected-release-sha "$MKW_RELEASE_SHA" \
-    --max-age-seconds "$backup_max_age_seconds" \
-    --now "$backup_now" >/dev/null || { echo "backup-ready JSON gate failed" >&2; exit 78; }
-fi
+  local now
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  local args=("$backup_ready" --max-age-seconds "$backup_max_age_seconds" --now "$now")
+  if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
+    # Snapshot provenance need not equal the application version being restored.
+    # Empty-deployment evidence cannot protect an existing database rollback.
+    args+=(--expected-kind BACKUP)
+  else
+    case "$backup_expected_kind" in BACKUP|INITIAL_EMPTY_DEPLOYMENT) ;; *) echo "backup kind policy is required" >&2; exit 78 ;; esac
+    args+=(--expected-release-sha "$MKW_RELEASE_SHA" --expected-kind "$backup_expected_kind")
+  fi
+  run_node "$script_root/scripts/product/release/validate-backup-ready.mjs" "${args[@]}" >/dev/null || { echo "backup-ready JSON gate failed" >&2; exit 78; }
+}
+if [[ "$mode" == release ]]; then validate_backup_gate; fi
 
 install -d -m 0750 "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/releases" "$MKW_DEPLOY_PATH/current" "$MKW_DEPLOY_PATH/shared" "$MKW_DEPLOY_PATH/backups" "$MKW_DEPLOY_PATH/receipts"
 exec 9>"$MKW_DEPLOY_PATH/.deploy.lock"; flock -n 9 || { echo "another deploy is running" >&2; exit 75; }
@@ -130,6 +141,9 @@ if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
   MKW_PROJECT_NAME="$MKW_PROJECT_NAME" MKW_POSTGRES_IMAGE="$MKW_POSTGRES_IMAGE" \
     bash "$script_root/scripts/product/release/verify-rollback-postgres.sh"
 fi
+
+# Re-read metadata and remote time under the lock, immediately before mutation.
+validate_backup_gate
 
 # Update only public origin/TLS settings; retain existing database/auth secrets.
 api_env="$MKW_DEPLOY_PATH/shared/api.env"
@@ -163,6 +177,7 @@ write_receipt() {
 }
 on_error() { local code=$?; if (( post_start == 1 && receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }
 trap on_error ERR
+validate_backup_gate
 # Approved forward migration (migrate deploy) and the JSON backup gate are
 # required before traffic; INITIAL_EMPTY_DEPLOYMENT is validated by JSON.
 # Immutable images use sha256:[0-9a-f]{64}.

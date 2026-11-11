@@ -31,7 +31,17 @@ in the protected environment or server; never commit or print their values.
 
 Run `deploy-entrypoint.sh --dry-run` before bootstrap, then use `--bootstrap`, and
 finally invoke `--release --manifest <path> --compose <path> --backup-ready <path>`
-with `MKW_BACKUP_MAX_AGE_SECONDS` and an explicit UTC `MKW_BACKUP_NOW` after the
-required JSON gate and release artifact are available. Release mode rechecks the
-backup release SHA, freshness, and retention immediately before migrations. No
-production deploy is performed by this repository task.
+with explicit `MKW_BACKUP_MAX_AGE_SECONDS` and `MKW_BACKUP_EXPECTED_KIND` after the
+required JSON gate and release artifact are available. The remote host reads its
+own UTC clock for preflight, again under the deploy lock before changing env or
+Compose state, and before migrations. `MKW_BACKUP_NOW` is not a production clock
+override. Tests stub `date` to keep comparisons deterministic.
+
+Forward releases require backup `releaseSha` to match the target application SHA.
+Application rollback requires a fresh, restore-verified `BACKUP` snapshot of the
+current database installed at `shared/backup-ready.json`; its `releaseSha` records
+snapshot provenance and need not equal the old application SHA. Empty-deployment
+evidence cannot authorize rollback. Retention and maximum age still apply at the
+remote mutation boundary. Rollback preserves the running PostgreSQL container and
+rejects a PostgreSQL digest mismatch before changing env or Compose state.
+No production deploy is performed by this repository task.

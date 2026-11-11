@@ -11,6 +11,14 @@ on:
         description: Build-release run containing the old immutable artifact
         required: true
         type: string
+      backup_run_id:
+        description: Backup workflow run containing a fresh current-database snapshot
+        required: true
+        type: string
+      backup_artifact_id:
+        description: Exact backup artifact id for the current-database snapshot
+        required: true
+        type: string
       reason:
         description: Incident/approval reference confirming old application compatibility with current database schema; no database restore
         required: true
@@ -38,6 +46,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Download and verify old manifest
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -48,6 +57,16 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ inputs.old_release_run_id }}
 
+      - name: Download current-database rollback snapshot
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          merge-multiple: true
+          artifact-ids: ${{ inputs.backup_artifact_id }}
+          path: backup-ready
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.backup_run_id }}
+
       - name: Verify old manifest and backup-ready gate
         id: attestations
         shell: bash
@@ -55,6 +74,7 @@ jobs:
           OLD_RELEASE_SHA: ${{ inputs.old_release_sha }}
           ROLLBACK_REASON: ${{ inputs.reason }}
           ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
+          MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -Eeuo pipefail
@@ -74,6 +94,17 @@ jobs:
           const [expected, path] = process.argv.slice(2);
           const manifest = JSON.parse(await readFile(path, 'utf8'));
           if (manifest.releaseSha !== expected) throw new Error('old manifest releaseSha mismatch');
+          NODE
+          test -s backup-ready/backup-ready.json
+          node scripts/product/release/validate-backup-ready.mjs backup-ready/backup-ready.json \
+            --expected-kind BACKUP --max-age-seconds 86400 --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          import { parseJsonStrict } from './scripts/product/release/validate-manifest.mjs';
+          const backup = parseJsonStrict(await readFile('backup-ready/backup-ready.json', 'utf8'));
+          if (!process.env.MKW_SSH_HOST || backup.databaseIdentity.host !== process.env.MKW_SSH_HOST || backup.databaseIdentity.name !== 'mkw') {
+            throw new Error('rollback backup database identity does not match the current target');
+          }
           NODE
           mode="${ATTESTATION_MODE:-not-configured}"
           case "$mode" in
@@ -107,24 +138,39 @@ jobs:
           MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
           MKW_ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
           MKW_ATTESTATION_STATUS: ${{ steps.attestations.outputs.status || 'not-applicable' }}
+          MKW_BACKUP_MAX_AGE_SECONDS: "86400"
+          MKW_BACKUP_EXPECTED_KIND: BACKUP
+          MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
         run: |
           set -Eeuo pipefail
+          [[ "$MKW_DEPLOY_PATH" =~ ^/home/[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ ]] || { echo 'invalid deploy path' >&2; exit 78; }
+          [[ "$MKW_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo 'invalid project name' >&2; exit 78; }
+          [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo 'invalid gateway port' >&2; exit 78; }
+          [[ "$OLD_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'invalid old release SHA' >&2; exit 64; }
           install -m 700 -d "$HOME/.ssh"
           ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
           ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" -E sha256 | grep -F -- "$MKW_SSH_HOST_FINGERPRINT"
           install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
-          printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
+          test -n "$MKW_SSH_PRIVATE_KEY"
+          printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
           remote_dir="${MKW_DEPLOY_PATH}/releases/${OLD_RELEASE_SHA}"
-          tar -czf "$RUNNER_TEMP/mkw-rollback.tgz" old-release-artifact deploy/compose.production.yml scripts/product/deploy-entrypoint.sh scripts/product/release
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir' && test -s '$MKW_DEPLOY_PATH/shared/backup-ready.json'"
+          (cd backup-ready && sha256sum backup-ready.json > backup-ready.json.sha256)
+          tar -czf "$RUNNER_TEMP/mkw-rollback.tgz" old-release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 deploy/compose.production.yml scripts/product/deploy-entrypoint.sh scripts/product/release
+          printf -v remote_command 'mkdir -p -- %q' "$remote_dir"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_command"
           scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-rollback.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && rm -f '$remote_dir/release.tgz'"
+          printf -v remote_command 'tar -xzf %q -C %q && (cd %q && sha256sum --check backup-ready.json.sha256) && install -m 640 %q %q && rm -rf -- %q %q' \
+            "$remote_dir/release.tgz" "$remote_dir" "$remote_dir/backup-ready" "$remote_dir/backup-ready/backup-ready.json" "$MKW_DEPLOY_PATH/shared/backup-ready.json" "$remote_dir/backup-ready" "$remote_dir/release.tgz"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_command"
           api_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('old-release-artifact/release-manifest.json','utf8')).apiImage)")"
+          postgres_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('old-release-artifact/release-manifest.json','utf8')).postgresImage)")"
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_OPERATION_KIND=application-rollback' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash '$remote_dir/scripts/product/deploy-entrypoint.sh' --release --manifest '$remote_dir/old-release-artifact/release-manifest.json' --compose '$remote_dir/deploy/compose.production.yml' --backup-ready '$MKW_DEPLOY_PATH/shared/backup-ready.json'"
+          [[ "$postgres_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_POSTGRES_IMAGE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_OPERATION_KIND=application-rollback MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$OLD_RELEASE_SHA" "$api_image" "$postgres_image" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND"
+          printf -v remote_command '%s bash %q --release --manifest %q --compose %q --backup-ready %q' "$remote_env" "$remote_dir/scripts/product/deploy-entrypoint.sh" "$remote_dir/old-release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_command"
 
       - name: Emit rollback receipt and signal
         if: always()

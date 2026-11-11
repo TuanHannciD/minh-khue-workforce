@@ -74,6 +74,7 @@ test("actual always receipt/signal/summary blocks preserve hostile inputs after 
     ]) {
       const cwd = await mkdtemp(join(tmpdir(), "mkw-receipt-"));
       const env = {
+        MODE: "release",
         RELEASE_SHA: releaseSha,
         ROLLBACK_ON_FAILURE: "true",
         JOB_STATUS: result,
@@ -96,6 +97,8 @@ test("actual always receipt/signal/summary blocks preserve hostile inputs after 
         await readFile(join(cwd, "verification-receipt.json"), "utf8"),
       );
       assert.equal(data.releaseSha, releaseSha);
+      assert.equal(data.mode, "release");
+      assert.equal(data.runtimeVerification, "attempted");
       assert.equal(data.rollbackOnFailure, true);
       assert.equal(data.result, result);
       let signal = JSON.parse(
@@ -136,7 +139,13 @@ test("entrypoint apply blocks reject DB mismatch before mutations and apply only
   // Execute the exact remaining apply path, including guard, render and receipt.
   const marker = "# Hold the deployment lock";
   assert.ok(entrypoint.includes(marker));
-  const apply = entrypoint.slice(entrypoint.indexOf(marker));
+  const gate = entrypoint.slice(
+    entrypoint.indexOf("validate_backup_gate() {"),
+    entrypoint.indexOf(
+      'if [[ "$mode" == release ]]; then validate_backup_gate; fi',
+    ),
+  );
+  const apply = gate + "\n" + entrypoint.slice(entrypoint.indexOf(marker));
   const sha = "a".repeat(40);
   const images = {
     api: `ghcr.io/example/api@sha256:${"1".repeat(64)}`,
@@ -144,10 +153,34 @@ test("entrypoint apply blocks reject DB mismatch before mutations and apply only
     postgres: `postgres@sha256:${"3".repeat(64)}`,
   };
   const compose = `services:\n  db:\n    image: ${images.postgres}\n  api:\n    image: ${images.api}\n  gateway:\n    image: ${images.web}\n`;
-  for (const mismatch of [true, false]) {
+  for (const [mismatch, elapsed] of [
+    [true, false],
+    [false, false],
+    [false, true],
+  ]) {
     const cwd = await mkdtemp(join(tmpdir(), "mkw-apply-"));
     for (const dir of ["bin", "shared", "current", "receipts"])
       await mkdir(join(cwd, dir));
+    await writeFile(
+      join(cwd, "backup.json"),
+      JSON.stringify({
+        schemaVersion: "1",
+        kind: "BACKUP",
+        backupId: "fixture-current",
+        releaseSha: "b".repeat(40),
+        createdAt: "2026-11-09T10:00:00Z",
+        retentionUntil: "2026-12-09T10:00:00Z",
+        restoreVerified: true,
+        dumpSha256: "6".repeat(64),
+        size: 10,
+        storageLocation: "fixture-current",
+        databaseIdentity: {
+          host: "fixture",
+          name: "mkw",
+          engine: "postgresql",
+        },
+      }),
+    );
     await writeFile(join(cwd, "shared/api.env"), "fixture-retained=true\n");
     await writeFile(join(cwd, "compose.yml"), compose);
     await writeFile(
@@ -175,8 +208,11 @@ esac
 `,
     );
     await chmod(join(cwd, "bin/docker"), 0o755);
+    const clock = elapsed
+      ? 'if [[ -e "$CLOCK_FILE" ]]; then echo 2026-11-10T10:00:01Z; else touch "$CLOCK_FILE"; echo 2026-11-09T12:00:00Z; fi'
+      : "echo 2026-11-09T12:00:00Z";
     const result = run(
-      `cd "$script_root"\nrun_node() { node "$@"; }\ncurl() { :; }\n${apply}`,
+      `date() { ${clock}; }\ncd "$script_root"\nrun_node() { node "$@"; }\ncurl() { :; }\n${gate}\nvalidate_backup_gate\n${apply}`,
       cwd,
       {
         PATH: `${join(cwd, "bin")}${process.platform === "win32" ? ";" : ":"}${process.env.PATH}`,
@@ -185,6 +221,8 @@ esac
         MKW_PROJECT_NAME: "fixture",
         MKW_GATEWAY_PORT: "3200",
         MKW_RELEASE_SHA: sha,
+        backup_ready: posix(join(cwd, "backup.json")),
+        backup_max_age_seconds: "86400",
         release_sha: sha,
         MKW_API_IMAGE: images.api,
         MKW_WEB_IMAGE: images.web,
@@ -199,15 +237,19 @@ esac
           : images.postgres,
         FIXTURE_COMPOSE: compose,
         MUTATIONS: posix(join(cwd, "mutations")),
+        CLOCK_FILE: posix(join(cwd, "clock")),
       },
     );
     assert.equal(
       result.status,
-      mismatch ? 78 : 0,
+      mismatch || elapsed ? 78 : 0,
       result.stdout + result.stderr,
     );
-    if (mismatch) {
-      assert.match(result.stderr, /PostgreSQL runtime digest mismatch/);
+    if (mismatch || elapsed) {
+      assert.match(
+        result.stderr,
+        mismatch ? /PostgreSQL runtime digest mismatch/ : /maximum age/,
+      );
       for (const file of ["mutations", "current/compose.rendered.yml"])
         assert.equal(await readFile(join(cwd, file)).catch(() => null), null);
       assert.equal(

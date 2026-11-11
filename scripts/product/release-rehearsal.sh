@@ -9,7 +9,7 @@ fi
 export MKW_DEPLOY_PATH
 MKW_DEPLOY_PATH="$(mktemp -d /home/runner/mkw-rehearsal.XXXXXX)"
 export MKW_PROJECT_NAME=mkw-rehearsal MKW_GATEWAY_PORT=3200 MKW_VALIDATOR_RUNTIME=container
-export MKW_BACKUP_MAX_AGE_SECONDS=86400 MKW_BACKUP_NOW
+export MKW_BACKUP_MAX_AGE_SECONDS=86400 MKW_BACKUP_EXPECTED_KIND=INITIAL_EMPTY_DEPLOYMENT
 export MKW_RELEASE_SHA MKW_API_IMAGE MKW_WEB_IMAGE MKW_POSTGRES_IMAGE
 MKW_RELEASE_SHA="$(jq -r .releaseSha release-manifest.json)"
 MKW_API_IMAGE="$(jq -r .apiImage release-manifest.json)"
@@ -38,7 +38,6 @@ await writeFile(`${process.env.MKW_DEPLOY_PATH}/shared/backup-ready.json`, JSON.
 NODE
 # Run from a different working directory, like a remote SSH session.
 repo_root="$PWD"
-MKW_BACKUP_NOW="$(node -e 'console.log(new Date().toISOString())')"
 cd /home/runner
 bash "$repo_root/scripts/product/deploy-entrypoint.sh" --release \
   --manifest "$repo_root/release-manifest.json" --compose "$repo_root/deploy/compose.production.yml" \

@@ -3,13 +3,27 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 const read = (name) => readFile(`.github/workflows/${name}`, "utf8");
-const entrypoint = await readFile("scripts/product/deploy-entrypoint.sh", "utf8");
+const entrypoint = await readFile(
+  "scripts/product/deploy-entrypoint.sh",
+  "utf8",
+);
 
 test("touched release workflows pin third-party actions immutably", async () => {
-  for (const name of ["build-release.yml", "deploy.yml", "rollback.yml", "post-deploy-verify.yml"]) {
+  for (const name of [
+    "backup.yml",
+    "release-pipeline.yml",
+    "build-release.yml",
+    "deploy.yml",
+    "rollback.yml",
+    "post-deploy-verify.yml",
+  ]) {
     const workflow = await read(name);
     for (const match of workflow.matchAll(/^\s*-?\s*uses:\s*([^\s#]+)/gm)) {
-      assert.match(match[1], /@[0-9a-f]{40}$/i, `${name} uses mutable action ${match[1]}`);
+      assert.match(
+        match[1],
+        /@[0-9a-f]{40}$/i,
+        `${name} uses mutable action ${match[1]}`,
+      );
     }
   }
 });

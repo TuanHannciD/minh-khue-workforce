@@ -20,7 +20,7 @@ on:
         required: true
         type: string
   schedule:
-    - cron: '17 2 * * *'
+    - cron: "17 2 * * *"
 
 concurrency:
   group: mkw-backup
@@ -44,7 +44,7 @@ jobs:
       MKW_SSH_PORT: ${{ vars.MKW_SSH_PORT }}
       MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Validate backup inputs
         shell: bash
@@ -169,7 +169,7 @@ jobs:
 
       - name: Upload encrypted backup and readiness gate
         if: env.BACKUP_KIND == 'BACKUP'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mkw-backup-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error
@@ -181,7 +181,7 @@ jobs:
 
       - name: Upload initial-empty readiness gate
         if: env.BACKUP_KIND == 'INITIAL_EMPTY_DEPLOYMENT'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mkw-backup-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error

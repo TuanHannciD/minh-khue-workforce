@@ -350,7 +350,10 @@ test("consumer workflows preserve production approvals and download only exact I
   }
   const deploy = await readFile(".github/workflows/deploy.yml", "utf8");
   assert.match(deploy, /artifact-ids: \$\{\{ inputs.backup_artifact_id \}\}/);
-  assert.match(deploy, /import.*validateBackupReadyFreshness.*policy\/scripts/);
+  assert.match(
+    deploy,
+    /node policy\/scripts\/product\/release\/validate-backup-ready\.mjs/,
+  );
 });
 
 test("F5: a historical permissive validator cannot participate in trusted resolution", async () => {

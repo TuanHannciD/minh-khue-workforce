@@ -40,6 +40,11 @@ on:
         required: true
         type: choice
         options: [BACKUP, INITIAL_EMPTY_DEPLOYMENT]
+      backup_max_age_seconds:
+        description: Maximum backup age in seconds at mutation time
+        required: false
+        type: string
+        default: "86400"
       backup_artifact_name:
         description: Exact backup artifact name
         required: true
@@ -103,24 +108,20 @@ jobs:
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
           BACKUP_KIND: ${{ inputs.backup_kind }}
+          BACKUP_MAX_AGE_SECONDS: ${{ inputs.backup_max_age_seconds || '86400' }}
         run: |
           set -Eeuo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'release_sha must be a full 40-char lowercase SHA'; exit 64; }
-          test -s release-source/scripts/product/deploy-entrypoint.sh
+          test -s policy/scripts/product/deploy-entrypoint.sh
           test -f release-artifact/release-manifest.json
           test -f release-artifact/release-manifest.sha256
           (cd release-artifact && sha256sum --check release-manifest.sha256)
           node policy/scripts/product/release/validate-manifest.mjs release-artifact/release-manifest.json
           test -s backup-ready/backup-ready.json
-          node --input-type=module - "$RELEASE_SHA" "$BACKUP_KIND" backup-ready/backup-ready.json <<'NODE'
-          import { readFile } from 'node:fs/promises';
-          import { parseJsonStrict } from './policy/scripts/product/release/validate-manifest.mjs';
-          import { validateBackupReadyFreshness } from './policy/scripts/product/release/orchestration-policy.mjs';
-          const [expectedSha, expectedKind, path] = process.argv.slice(2);
-          const value = parseJsonStrict(await readFile(path, 'utf8'));
-          const result = validateBackupReadyFreshness(value, { expectedSha, expectedKind });
-          if (!result.ok) throw new Error(result.errors.join('; '));
-          NODE
+          BACKUP_NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          node policy/scripts/product/release/validate-backup-ready.mjs backup-ready/backup-ready.json \
+            --expected-release-sha "$RELEASE_SHA" --expected-kind "$BACKUP_KIND" \
+            --max-age-seconds "$BACKUP_MAX_AGE_SECONDS" --now "$BACKUP_NOW"
           node --input-type=module - "$RELEASE_SHA" release-artifact/release-manifest.json <<'NODE'
           import { readFile } from 'node:fs/promises';
           const [expected, path] = process.argv.slice(2);
@@ -178,6 +179,9 @@ jobs:
           MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
           MKW_ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
           MKW_ATTESTATION_STATUS: ${{ steps.attestations.outputs.status || 'not-applicable' }}
+          MKW_BACKUP_MAX_AGE_SECONDS: ${{ inputs.backup_max_age_seconds || '86400' }}
+          MKW_BACKUP_EXPECTED_KIND: ${{ inputs.backup_kind || 'BACKUP' }}
+          MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
         run: |
           set -Eeuo pipefail
           : "${MKW_SSH_HOST:?Set production variable MKW_SSH_HOST}"
@@ -186,31 +190,43 @@ jobs:
           : "${MKW_DEPLOY_PATH:?Set production variable MKW_DEPLOY_PATH}"
           : "${MKW_PROJECT_NAME:?Set production variable MKW_PROJECT_NAME}"
           : "${MKW_GATEWAY_PORT:?Set production variable MKW_GATEWAY_PORT}"
+          [[ "$MKW_DEPLOY_PATH" =~ ^/home/[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ ]] || { echo 'invalid deploy path' >&2; exit 78; }
+          [[ "$MKW_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo 'invalid project name' >&2; exit 78; }
+          [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo 'invalid gateway port' >&2; exit 78; }
+          case "$MODE" in dry-run|bootstrap|release) ;; *) echo 'invalid deploy mode' >&2; exit 64 ;; esac
+          if [[ "$MODE" == release ]]; then
+            [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'invalid release SHA' >&2; exit 64; }
+            [[ "$MKW_BACKUP_MAX_AGE_SECONDS" =~ ^[0-9]+$ ]] || { echo 'invalid backup freshness policy' >&2; exit 78; }
+          fi
           install -m 700 -d "$HOME/.ssh"
           ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
           test -s "$RUNNER_TEMP/mkw_known_hosts"
           ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" -E sha256 | grep -F -- "$MKW_SSH_HOST_FINGERPRINT"
           install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
-          test -n "${{ secrets.MKW_SSH_PRIVATE_KEY }}"
-          printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"
+          test -n "$MKW_SSH_PRIVATE_KEY"
+          printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
           if [[ "$MODE" != release ]]; then
             ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
               "deploy@$MKW_SSH_HOST" \
               "MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") bash -s -- --$(printf '%q' "$MODE")" \
-              < release-source/scripts/product/deploy-entrypoint.sh
+              < policy/scripts/product/deploy-entrypoint.sh
             exit 0
           fi
           remote_dir="${MKW_DEPLOY_PATH}/releases/${RELEASE_SHA}"
           (cd backup-ready && sha256sum backup-ready.json > backup-ready.json.sha256)
           (cd backup-ready && sha256sum --check backup-ready.json.sha256)
-          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 release-source/deploy/compose.production.yml release-source/scripts/product/deploy-entrypoint.sh release-source/scripts/product/release
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "mkdir -p '$remote_dir'"
+          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 -C policy scripts/product/deploy-entrypoint.sh scripts/product/release -C "$GITHUB_WORKSPACE/release-source" deploy/compose.production.yml
+          printf -v remote_command 'mkdir -p -- %q' "$remote_dir"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_command"
           scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" "$RUNNER_TEMP/mkw-release.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "tar -xzf '$remote_dir/release.tgz' -C '$remote_dir' && (cd '$remote_dir/backup-ready' && sha256sum --check backup-ready.json.sha256) && install -m 640 '$remote_dir/backup-ready/backup-ready.json' '$MKW_DEPLOY_PATH/shared/backup-ready.json' && rm -rf '$remote_dir/backup-ready' '$remote_dir/release.tgz'"
+          printf -v remote_command 'tar -xzf %q -C %q && (cd %q && sha256sum --check backup-ready.json.sha256) && install -m 640 %q %q && rm -rf -- %q %q' \
+            "$remote_dir/release.tgz" "$remote_dir" "$remote_dir/backup-ready" "$remote_dir/backup-ready/backup-ready.json" "$MKW_DEPLOY_PATH/shared/backup-ready.json" "$remote_dir/backup-ready" "$remote_dir/release.tgz"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_command"
           api_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('release-artifact/release-manifest.json','utf8')).apiImage)")"
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$api_image" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS"
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$api_image" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND"
           # deploy-entrypoint.sh enforces the forward migration gate (pnpm db:deploy / migrate deploy) before compose up and traffic smoke checks.
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash '$remote_dir/release-source/scripts/product/deploy-entrypoint.sh' --release --manifest '$remote_dir/release-artifact/release-manifest.json' --compose '$remote_dir/release-source/deploy/compose.production.yml' --backup-ready '$MKW_DEPLOY_PATH/shared/backup-ready.json'"
+          printf -v remote_command '%s bash %q --release --manifest %q --compose %q --backup-ready %q' "$remote_env" "$remote_dir/scripts/product/deploy-entrypoint.sh" "$remote_dir/release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_command"

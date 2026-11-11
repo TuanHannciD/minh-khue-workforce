@@ -64,6 +64,9 @@ export function validateBackupReady(value, options = {}) {
   for (const field of ["createdAt", "retentionUntil"])
     if (parseUtcTimestamp(value[field]) === null)
       errors.push(`${field} must be a UTC timestamp`);
+  const expectedKind = options.expectedKind;
+  if (expectedKind !== undefined && value.kind !== expectedKind)
+    errors.push("kind does not match expected kind");
   const expectedReleaseSha = options.expectedReleaseSha;
   if (expectedReleaseSha !== undefined) {
     if (typeof expectedReleaseSha !== "string" || !SHA.test(expectedReleaseSha))
@@ -219,6 +222,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         "expected-release-sha": { type: "string" },
         "max-age-seconds": { type: "string" },
         now: { type: "string" },
+        "expected-kind": { type: "string" },
       },
     });
     const names = args.tokens
@@ -228,7 +232,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       throw new Error("invalid arguments");
   } catch {
     console.error(
-      "usage: node validate-backup-ready.mjs <backup-ready> [--schema <schema>] [--expected-release-sha <sha>] [--max-age-seconds <seconds>] [--now <UTC timestamp>]",
+      "usage: node validate-backup-ready.mjs <backup-ready> [--schema <schema>] [--expected-release-sha <sha>] [--max-age-seconds <seconds>] [--now <UTC timestamp>] [--expected-kind <kind>]",
     );
     process.exitCode = 2;
   }
@@ -239,6 +243,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         parseJsonStrict(await readFile(args.positionals[0], "utf8")),
         {
           expectedReleaseSha: args.values["expected-release-sha"],
+          expectedKind: args.values["expected-kind"],
           maxAgeSeconds:
             maxAgeArgument === undefined
               ? undefined

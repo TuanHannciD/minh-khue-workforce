@@ -51,7 +51,7 @@ jobs:
           path: release-source
 
       - name: Checkout trusted current policy
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: main
           fetch-depth: 1
@@ -94,6 +94,7 @@ jobs:
           MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
           MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
           MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
+          MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
         run: |
           set -Eeuo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 64
@@ -114,7 +115,8 @@ jobs:
           ssh-keyscan -T 10 -p "$MKW_SSH_PORT" "$MKW_SSH_HOST" > "$RUNNER_TEMP/mkw_known_hosts"
           ssh-keygen -lf "$RUNNER_TEMP/mkw_known_hosts" -E sha256 | grep -F -- "$MKW_SSH_HOST_FINGERPRINT"
           install -m 600 "$RUNNER_TEMP/mkw_known_hosts" "$HOME/.ssh/known_hosts"
-          printf '%s\n' '${{ secrets.MKW_SSH_PRIVATE_KEY }}' > "$RUNNER_TEMP/mkw_key"; chmod 600 "$RUNNER_TEMP/mkw_key"
+          test -n "$MKW_SSH_PRIVATE_KEY"
+          printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"; chmod 600 "$RUNNER_TEMP/mkw_key"
           remote_env="EXPECTED_API_IMAGE=$(printf '%q' "$EXPECTED_API_IMAGE") EXPECTED_WEB_IMAGE=$(printf '%q' "$EXPECTED_WEB_IMAGE") EXPECTED_POSTGRES_IMAGE=$(printf '%q' "$EXPECTED_POSTGRES_IMAGE") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") RELEASE_SHA=$(printf '%q' "$RELEASE_SHA")"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < release-source/scripts/product/post-deploy-verify.sh
 
@@ -126,11 +128,14 @@ jobs:
           ROLLBACK_ON_FAILURE: ${{ inputs.rollback_on_failure }}
           JOB_STATUS: ${{ job.status }}
           RUN_ID: ${{ github.run_id }}
+          MODE: ${{ inputs.mode }}
         run: |
           set -Eeuo pipefail
           node --input-type=module <<'NODE'
           import { writeFile } from 'node:fs/promises';
           const receipt = {
+            mode: process.env.MODE,
+            runtimeVerification: process.env.MODE === 'release' ? 'attempted' : 'skipped-preflight-only',
             releaseSha: process.env.RELEASE_SHA,
             gateway: 'smoke',
             schema: 'prisma-migrate-status',
@@ -158,6 +163,7 @@ jobs:
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
           RUN_ID: ${{ github.run_id }}
+          MODE: ${{ inputs.mode }}
         run: |
           set -Eeuo pipefail
           node --input-type=module <<'NODE'

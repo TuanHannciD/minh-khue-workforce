@@ -123,18 +123,21 @@ test("old release artifacts cannot select an old permissive backup validator", a
   const path = checkout.match(/path: (.+)/)?.[1].trim() ?? ".";
   const tooling = join(dir, path);
   await copyTooling(tooling);
+  await copyTooling(join(dir, "release-source"));
+  await writeFile(
+    join(
+      dir,
+      "release-source/scripts/product/release/validate-backup-ready.mjs",
+    ),
+    'console.log("OLD_VALIDATOR_BYPASS");\n',
+  );
   if (ref === "${{ inputs.release_sha }}") {
     // Historical validators accepted unknown flags: reproduce that public CLI behavior.
     await writeFile(
       join(tooling, "scripts/product/release/validate-backup-ready.mjs"),
       'console.log("OLD_VALIDATOR_BYPASS");\n',
     );
-  } else
-    assert.equal(
-      ref,
-      "${{ github.workflow_sha }}",
-      "tooling must use the immutable orchestration revision",
-    );
+  } else assert.equal(ref, "main", "tooling must use trusted current policy");
   for (const [label, overrides, error] of rejectedBackups) {
     await writeFile(
       join(dir, "backup-ready/backup-ready.json"),
@@ -148,6 +151,11 @@ test("old release artifacts cannot select an old permissive backup validator", a
         GITHUB_WORKSPACE: dir.replaceAll("\\", "/"),
         RELEASE_SHA: SHA,
         BACKUP_MAX_AGE_SECONDS: "86400",
+        BACKUP_KIND: "BACKUP",
+        MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+        MKW_BACKUP_EXPECTED_KIND: "BACKUP",
+        MKW_ATTESTATION_MODE: "off",
+        MKW_ATTESTATION_STATUS: "not-configured",
         GITHUB_ENV: join(dir, "github-env").replaceAll("\\", "/"),
       },
     );
@@ -171,6 +179,7 @@ test("old release artifacts cannot select an old permissive backup validator", a
       GITHUB_WORKSPACE: dir.replaceAll("\\", "/"),
       RELEASE_SHA: SHA,
       BACKUP_MAX_AGE_SECONDS: "86400",
+      BACKUP_KIND: "BACKUP",
       GITHUB_ENV: join(dir, "github-env").replaceAll("\\", "/"),
     },
   );
@@ -188,6 +197,8 @@ scp() { echo SCP_MUTATION_REACHED; exit 91; }
 test("safe paths preserve remote command arguments, trusted tooling and backup policy", async (t) => {
   const dir = await fixture(t);
   await copyTooling(dir);
+  await copyTooling(join(dir, "policy"));
+  await copyTooling(join(dir, "release-source"));
   await writeFile(
     join(dir, "backup-ready/backup-ready.json"),
     JSON.stringify(backup()),
@@ -221,7 +232,12 @@ scp() { echo SCP_TRANSFER_REACHED; }
         MODE: mode,
         RELEASE_SHA: SHA,
         BACKUP_MAX_AGE_SECONDS: "86400",
-        BACKUP_NOW: NOW,
+        BACKUP_KIND: "BACKUP",
+        MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+        MKW_BACKUP_EXPECTED_KIND: "BACKUP",
+        MKW_ATTESTATION_MODE: "off",
+        MKW_ATTESTATION_STATUS: "not-configured",
+
         GITHUB_WORKSPACE: shellPath(dir),
         RUNNER_TEMP: shellPath(dir),
         MKW_SSH_HOST: "fixture.invalid",
@@ -246,7 +262,7 @@ scp() { echo SCP_TRANSFER_REACHED; }
         result.stdout,
       );
       assert.ok(
-        result.stdout.includes(`REMOTE_POLICY [${NOW}] [86400] [${SHA}]`),
+        result.stdout.includes(`REMOTE_POLICY [] [86400] [${SHA}]`),
         result.stdout,
       );
       assert.ok(
@@ -277,6 +293,8 @@ scp() { echo SCP_TRANSFER_REACHED; }
 test("malformed deploy paths are rejected before SSH in every mode", async (t) => {
   const dir = await fixture(t);
   await copyTooling(dir);
+  await copyTooling(join(dir, "policy"));
+  await copyTooling(join(dir, "release-source"));
   await writeFile(
     join(dir, "backup-ready/backup-ready.json"),
     JSON.stringify(backup()),
@@ -300,6 +318,11 @@ test("malformed deploy paths are rejected before SSH in every mode", async (t) =
         MODE: mode,
         RELEASE_SHA: SHA,
         BACKUP_MAX_AGE_SECONDS: "86400",
+        BACKUP_KIND: "BACKUP",
+        MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+        MKW_BACKUP_EXPECTED_KIND: "BACKUP",
+        MKW_ATTESTATION_MODE: "off",
+        MKW_ATTESTATION_STATUS: "not-configured",
         GITHUB_WORKSPACE: dir.replaceAll("\\", "/"),
         RUNNER_TEMP: dir.replaceAll("\\", "/"),
         MKW_SSH_HOST: "fixture.invalid",
@@ -329,6 +352,7 @@ test("malformed deploy paths are rejected before SSH in every mode", async (t) =
 });
 
 const entryPrelude = `
+date() { printf '%s\\n' "${NOW}"; }
 docker() { if [[ "$*" == 'compose version' ]]; then return 0; fi; echo DOCKER_MUTATION_REACHED; exit 91; }
 df() { printf 'Filesystem 1024-blocks Used Available Capacity Mounted\\nfixture 9999999 0 9999999 0%% /home\\n'; }
 install() { echo FILESYSTEM_MUTATION_REACHED; exit 91; }
@@ -337,6 +361,8 @@ source ./scripts/product/deploy-entrypoint.sh --release --manifest release-artif
 test("remote release gate rejects wrong SHA, stale/future backup and expired retention before mutation", async (t) => {
   const dir = await fixture(t);
   await copyTooling(dir);
+  await copyTooling(join(dir, "policy"));
+  await copyTooling(join(dir, "release-source"));
   for (const [label, overrides, error] of rejectedBackups) {
     await writeFile(
       join(dir, "backup-ready/backup-ready.json"),
@@ -375,26 +401,250 @@ test("remote release gate rejects wrong SHA, stale/future backup and expired ret
 test("remote gate fails closed for missing or malformed explicit freshness policy", async (t) => {
   const dir = await fixture(t);
   await copyTooling(dir);
+  await copyTooling(join(dir, "policy"));
+  await copyTooling(join(dir, "release-source"));
   await writeFile(
     join(dir, "backup-ready/backup-ready.json"),
     JSON.stringify(backup()),
   );
   for (const [age, now] of [
     ["", NOW],
-    ["86400", ""],
     ["-1", NOW],
     ["9007199254740992", NOW],
     ["86400", "2026-02-30T00:00:00Z"],
   ]) {
+    const result = await bash(
+      dir,
+      `date() { echo "${now}"; }\n` +
+        entryPrelude.replace(/date\(\) \{[^\n]+\n/, ""),
+      {
+        MKW_DEPLOY_PATH: "/home/deploy/mkw",
+        MKW_RELEASE_SHA: SHA,
+        MKW_API_IMAGE: API,
+        MKW_BACKUP_MAX_AGE_SECONDS: age,
+        MKW_BACKUP_NOW: now,
+      },
+    );
+    assert.equal(result.code, 78, result.stderr);
+    assert.match(result.stderr, /backup.*policy|maximum age|validation time/i);
+    assert.doesNotMatch(result.stdout, /MUTATION_REACHED/);
+  }
+});
+
+const rollbackWorkflow = (
+  await readFile(join(ROOT, ".github/workflows/rollback.yml"), "utf8")
+).replaceAll("\r\n", "\n");
+function rollbackStep(
+  name = "Redeploy exact old digests through deploy-entrypoint.sh",
+) {
+  const section = rollbackWorkflow.split(`      - name: ${name}\n`)[1];
+  return section
+    .split("        run: |\n")[1]
+    .split(/\n {6}- /)[0]
+    .replace(/^ {10}/gm, "");
+}
+test("rollback rejects hostile paths before any SSH or secret handling", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(dir);
+  await cp(join(dir, "release-artifact"), join(dir, "old-release-artifact"), {
+    recursive: true,
+  });
+  for (const path of [
+    "/home/deploy/mkw'; touch payload-executed; #",
+    "/home/deploy/$(touch payload-executed)",
+    "/home/deploy/mkw\nnext",
+    "/home/deploy/../mkw",
+  ]) {
+    const result = await bash(dir, transport + rollbackStep(), {
+      OLD_RELEASE_SHA: SHA,
+      MKW_DEPLOY_PATH: path,
+      MKW_PROJECT_NAME: "mkw",
+      MKW_GATEWAY_PORT: "3200",
+      MKW_SSH_HOST: "fixture.invalid",
+      MKW_SSH_PORT: "22",
+      MKW_SSH_HOST_FINGERPRINT: "fixture-fingerprint",
+      MKW_SSH_PRIVATE_KEY: "fixture-key",
+      RUNNER_TEMP: shellPath(dir),
+    });
+    assert.equal(result.code, 78, result.stderr);
+    assert.match(result.stderr, /invalid deploy path/);
+    assert.doesNotMatch(result.stdout, /KEYSCAN_REACHED|SSH_MUTATION_REACHED/);
+  }
+});
+test("rollback accepts fresh current-state backup with another release SHA and rejects empty/stale snapshots", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(dir);
+  for (const [overrides, accepted] of [
+    [{ releaseSha: "b".repeat(40) }, true],
+    [{ releaseSha: "b".repeat(40), createdAt: "2026-11-07T10:00:00Z" }, false],
+    [
+      {
+        kind: "INITIAL_EMPTY_DEPLOYMENT",
+        restoreVerified: false,
+        dumpSha256: undefined,
+        size: undefined,
+        databaseVerifiedEmpty: true,
+        emptyEvidence: {
+          targetIdentity: "fixture",
+          databaseIdentity: "mkw",
+          checkedAt: NOW,
+        },
+      },
+      false,
+    ],
+  ]) {
+    await writeFile(
+      join(dir, "backup-ready/backup-ready.json"),
+      JSON.stringify(backup(overrides)),
+    );
     const result = await bash(dir, entryPrelude, {
       MKW_DEPLOY_PATH: "/home/deploy/mkw",
       MKW_RELEASE_SHA: SHA,
       MKW_API_IMAGE: API,
-      MKW_BACKUP_MAX_AGE_SECONDS: age,
-      MKW_BACKUP_NOW: now,
+      MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+      MKW_BACKUP_NOW: NOW,
+      MKW_OPERATION_KIND: "application-rollback",
     });
-    assert.equal(result.code, 78, result.stderr);
-    assert.match(result.stderr, /backup.*policy|maximum age|validation time/i);
-    assert.doesNotMatch(result.stdout, /MUTATION_REACHED/);
+    assert.equal(
+      result.code,
+      accepted ? 91 : 78,
+      result.stdout + result.stderr,
+    );
+    if (!accepted) assert.doesNotMatch(result.stdout, /MUTATION_REACHED/);
+  }
+});
+test("remote clock refresh rejects a backup that ages out after runner validation despite frozen runner timestamp", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(dir);
+  await writeFile(
+    join(dir, "backup-ready/backup-ready.json"),
+    JSON.stringify(backup()),
+  );
+  const script =
+    `date() { echo 2026-11-10T10:00:01Z; }\n` +
+    entryPrelude.replace(/date\(\) \{[^\n]+\n/, "");
+  const result = await bash(dir, script, {
+    MKW_DEPLOY_PATH: "/home/deploy/mkw",
+    MKW_RELEASE_SHA: SHA,
+    MKW_API_IMAGE: API,
+    MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+    MKW_BACKUP_NOW: NOW,
+  });
+  assert.equal(result.code, 78, result.stdout + result.stderr);
+  assert.match(result.stderr, /maximum age/);
+  assert.doesNotMatch(result.stdout, /MUTATION_REACHED/);
+});
+
+test("rollback transports explicit current-snapshot policy and safely quoted current controls", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(dir);
+  await writeFile(
+    join(dir, "backup-ready/backup-ready.json"),
+    JSON.stringify(backup({ releaseSha: "b".repeat(40) })),
+  );
+  await cp(join(dir, "release-artifact"), join(dir, "old-release-artifact"), {
+    recursive: true,
+  });
+  const capture =
+    transport +
+    `
+ssh() {
+  local command_text="\${!#}"
+  (
+    mkdir() { :; }; tar() { :; }; rm() { :; }; cd() { :; }; sha256sum() { :; }
+    test() { :; }
+    bash() {
+      printf 'ROLLBACK_POLICY [%s] [%s] [%s] [%s]\\n' "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND" "$MKW_OPERATION_KIND" "\${MKW_BACKUP_NOW:-}"
+      printf 'ROLLBACK_ARGS'; printf ' [%s]' "$@"; echo
+    }
+    eval "$command_text"
+  )
+}
+scp() { :; }
+`;
+  const result = await bash(dir, capture + rollbackStep(), {
+    OLD_RELEASE_SHA: SHA,
+    MKW_DEPLOY_PATH: "/home/deploy/mkw-test_1.2",
+    MKW_PROJECT_NAME: "mkw",
+    MKW_GATEWAY_PORT: "3200",
+    MKW_SSH_HOST: "fixture.invalid",
+    MKW_SSH_PORT: "22",
+    MKW_SSH_HOST_FINGERPRINT: "fixture-fingerprint",
+    MKW_SSH_PRIVATE_KEY: "fixture'key\n$(echo SECRET_MUST_STAY_LITERAL)",
+    RUNNER_TEMP: shellPath(dir),
+    MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+    MKW_BACKUP_EXPECTED_KIND: "BACKUP",
+    MKW_ATTESTATION_MODE: "off",
+    MKW_ATTESTATION_STATUS: "not-configured",
+  });
+  assert.equal(result.code, 0, result.stdout + result.stderr);
+  assert.match(
+    result.stdout,
+    /ROLLBACK_POLICY \[86400\] \[BACKUP\] \[application-rollback\] \[\]/,
+  );
+  assert.ok(
+    result.stdout.includes(
+      `[/home/deploy/mkw-test_1.2/releases/${SHA}/scripts/product/deploy-entrypoint.sh]`,
+    ),
+    result.stdout,
+  );
+  assert.doesNotMatch(
+    result.stdout + result.stderr,
+    /SECRET_MUST_STAY_LITERAL/,
+  );
+});
+
+test("actual rollback preflight accepts current snapshot provenance and fails closed for stale, empty or unattested metadata", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(dir);
+  await cp(join(dir, "release-artifact"), join(dir, "old-release-artifact"), {
+    recursive: true,
+  });
+  for (const [overrides, attestationMode, accepted] of [
+    [{ releaseSha: "b".repeat(40) }, "off", true],
+    [
+      {
+        databaseIdentity: {
+          host: "other-target",
+          name: "mkw",
+          engine: "postgresql",
+        },
+      },
+      "off",
+      false,
+    ],
+    [
+      { releaseSha: "b".repeat(40), createdAt: "2026-11-07T10:00:00Z" },
+      "off",
+      false,
+    ],
+    [{ kind: "INITIAL_EMPTY_DEPLOYMENT" }, "off", false],
+    [{ releaseSha: "b".repeat(40) }, "required", false],
+  ]) {
+    await writeFile(
+      join(dir, "backup-ready/backup-ready.json"),
+      JSON.stringify(backup(overrides)),
+    );
+    const result = await bash(
+      dir,
+      `date() { echo ${NOW}; }\ngh() { return 1; }\n` +
+        rollbackStep("Verify old manifest and backup-ready gate"),
+      {
+        OLD_RELEASE_SHA: SHA,
+        MKW_SSH_HOST: "fixture-db",
+        ROLLBACK_REASON: "incident-approved-current-schema",
+        ATTESTATION_MODE: attestationMode,
+        GITHUB_OUTPUT: shellPath(join(dir, "output")),
+        GITHUB_STEP_SUMMARY: shellPath(join(dir, "summary")),
+        GITHUB_REPOSITORY: "fixture/repo",
+      },
+    );
+    if (accepted) assert.equal(result.code, 0, result.stdout + result.stderr);
+    else assert.notEqual(result.code, 0, result.stdout + result.stderr);
+    if (attestationMode === "required")
+      assert.match(
+        result.stderr,
+        /required attestation verification did not complete/,
+      );
   }
 });
