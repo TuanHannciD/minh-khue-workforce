@@ -13,6 +13,10 @@ on:
         description: Release correlation
         required: false
         type: string
+      operation_id:
+        description: Stable operation identifier for receipts and idempotency
+        required: false
+        type: string
       mode:
         description: Deployment mode
         required: true
@@ -86,6 +90,9 @@ on:
       MKW_SSH_PRIVATE_KEY:
         required: true
     outputs:
+      correlation_id:
+        description: Release correlation carried by this deploy stage
+        value: ${{ jobs.deploy.outputs.correlation_id }}
       deploy_run_id:
         description: Deploy workflow run ID
         value: ${{ jobs.deploy.outputs.deploy_run_id }}
@@ -140,7 +147,7 @@ on:
         type: string
 
 concurrency:
-  group: mkw-production
+  group: ${{ (github.event_name == 'push' || startsWith(inputs.coordinator_id, 'parent-')) && format('mkw-deploy-child-{0}', github.run_id) || 'mkw-production-release' }}
   cancel-in-progress: false
 
 permissions:
@@ -151,8 +158,9 @@ permissions:
 jobs:
   deploy:
     outputs:
+      correlation_id: ${{ inputs.coordinator_id || github.run_id }}
       deploy_run_id: ${{ github.run_id }}
-      release_status: ${{ job.status }}
+      release_status: ${{ steps.source.outputs.release_status || steps.remote.outputs.release_status || job.status }}
     environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -195,6 +203,7 @@ jobs:
             release) ;;
             *) echo 'invalid deploy mode' >&2; exit 64 ;;
           esac
+
           [[ "$RELEASE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'release_artifact_id is required for release' >&2; exit 64; }
           [[ -z "${RELEASE_ARTIFACT_NAME:-}" || "$RELEASE_ARTIFACT_NAME" == "mkw-release-$RELEASE_SHA" ]] || { echo 'release_artifact_name must be the SHA-named release artifact' >&2; exit 64; }
           [[ "$BACKUP_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'backup_artifact_id is required for release' >&2; exit 64; }
@@ -206,6 +215,14 @@ jobs:
           if [[ -n "${BACKUP_ARTIFACT_DIGEST:-}" ]]; then [[ "$BACKUP_ARTIFACT_DIGEST" =~ ^(sha256:)?[0-9a-f]{64}$ ]] || { echo 'backup_artifact_digest is invalid' >&2; exit 64; }; fi
           [[ "$BACKUP_ARTIFACT_NAME" =~ ^mkw-backup-[1-9][0-9]*-[1-9][0-9]*$ ]] || { echo 'backup_artifact_name is required for release' >&2; exit 64; }
           [[ "$BACKUP_KIND" == BACKUP || "$BACKUP_KIND" == INITIAL_EMPTY_DEPLOYMENT ]] || { echo 'backup_kind is required for release' >&2; exit 64; }
+
+      - name: Validate active coordinator parent
+        if: startsWith(inputs.coordinator_id, 'parent-')
+        env:
+          COORDINATOR_ID: ${{ inputs.coordinator_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node policy/scripts/product/release/check-coordinator-parent.mjs
 
       - name: Download immutable release artifact
         if: inputs.mode == 'release'
@@ -309,7 +326,26 @@ jobs:
             exit 78
           fi
 
+      - name: Recheck current main before remote mutation
+        id: source
+        if: inputs.control_sha != ''
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'invalid release SHA' >&2; exit 64; }
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]] || exit 78
+          if [[ "$current_sha" != "$RELEASE_SHA" ]]; then
+            echo "ORCHESTRATION_OUTCOME=superseded release_sha=$RELEASE_SHA current_sha=$current_sha" >&2
+            echo 'release_status=superseded' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run remote deploy entrypoint with verified artifact
+        id: remote
+        if: steps.source.outputs.release_status != 'superseded'
         shell: bash
         env:
           MODE: ${{ inputs.mode }}
@@ -332,6 +368,8 @@ jobs:
           MKW_REGISTRY_PULL_USERNAME: ${{ vars.MKW_REGISTRY_PULL_USERNAME || '' }}
           MKW_REGISTRY_PULL_TOKEN_FILE: ${{ vars.MKW_REGISTRY_PULL_TOKEN_FILE || '' }}
           MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+          MKW_OPERATION_ID: ${{ inputs.operation_id || inputs.coordinator_id || github.run_id }}
+          MKW_AUTOMATIC_RELEASE: ${{ inputs.control_sha != '' }}
         run: |
           set -Eeuo pipefail
           : "${MKW_SSH_HOST:?Set production variable MKW_SSH_HOST}"
@@ -384,8 +422,14 @@ jobs:
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
           api_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('release-artifact/release-manifest.json','utf8')).apiImage)")"
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_API_IMAGE=%q MKW_REGISTRY_HOST=%q MKW_REGISTRY_VISIBILITY=%q MKW_REGISTRY_PULL_USERNAME=%q MKW_REGISTRY_PULL_TOKEN_FILE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q MKW_BACKUP_EXPECTED_HOST=%q MKW_BACKUP_EXPECTED_DATABASE=%q MKW_BACKUP_EXPECTED_TARGET_IDENTITY=%q' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$api_image" "${MKW_REGISTRY_HOST:-ghcr.io}" "${MKW_REGISTRY_VISIBILITY:-}" "${MKW_REGISTRY_PULL_USERNAME:-}" "${MKW_REGISTRY_PULL_TOKEN_FILE:-}" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND" "$MKW_BACKUP_EXPECTED_HOST" "$MKW_BACKUP_EXPECTED_DATABASE" "$MKW_BACKUP_EXPECTED_TARGET_IDENTITY"
+          MKW_OPERATION_ID="${MKW_OPERATION_ID:-$RELEASE_SHA}"
+          MKW_AUTOMATIC_RELEASE="${MKW_AUTOMATIC_RELEASE:-false}"
+          printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_OPERATION_ID=%q MKW_API_IMAGE=%q MKW_REGISTRY_HOST=%q MKW_REGISTRY_VISIBILITY=%q MKW_REGISTRY_PULL_USERNAME=%q MKW_REGISTRY_PULL_TOKEN_FILE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q MKW_BACKUP_EXPECTED_HOST=%q MKW_BACKUP_EXPECTED_DATABASE=%q MKW_BACKUP_EXPECTED_TARGET_IDENTITY=%q' \
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$MKW_OPERATION_ID" "$api_image" "${MKW_REGISTRY_HOST:-ghcr.io}" "${MKW_REGISTRY_VISIBILITY:-}" "${MKW_REGISTRY_PULL_USERNAME:-}" "${MKW_REGISTRY_PULL_TOKEN_FILE:-}" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_KIND" "$MKW_BACKUP_EXPECTED_HOST" "$MKW_BACKUP_EXPECTED_DATABASE" "$MKW_BACKUP_EXPECTED_TARGET_IDENTITY"
           # deploy-entrypoint.sh enforces the forward migration gate (pnpm db:deploy / migrate deploy) before compose up and traffic smoke checks.
           printf -v remote_command '%s bash %q --release --manifest %q --compose %q --backup-ready %q' "$remote_env" "$remote_dir/scripts/product/deploy-entrypoint.sh" "$remote_dir/release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
+          remote_command="MKW_AUTOMATIC_RELEASE=$(printf '%q' "$MKW_AUTOMATIC_RELEASE") $remote_command"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command" | tee "$RUNNER_TEMP/mkw-deploy-output"
+          if [[ "$MKW_AUTOMATIC_RELEASE" == true ]] && grep -Fqx "ORCHESTRATION_OUTCOME=already-deployed release_sha=$RELEASE_SHA operation_id=$MKW_OPERATION_ID" "$RUNNER_TEMP/mkw-deploy-output"; then
+            echo 'release_status=already-deployed' >> "$GITHUB_OUTPUT"
+          fi

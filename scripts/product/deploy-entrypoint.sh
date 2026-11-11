@@ -28,6 +28,9 @@ done
 : "${MKW_ATTESTATION_MODE:=not-configured}"
 : "${MKW_ATTESTATION_STATUS:=not-applicable}"
 : "${MKW_OPERATION_KIND:=release}"
+: "${MKW_OPERATION_ID:=${MKW_RELEASE_SHA:-unknown}}"
+: "${MKW_AUTOMATIC_RELEASE:=false}"
+[[ "$MKW_OPERATION_ID" =~ ^[A-Za-z0-9._-]{1,160}$ ]] || { echo "invalid operation id" >&2; exit 78; }
 : "${MKW_REGISTRY_HOST:=ghcr.io}"
 : "${MKW_REGISTRY_VISIBILITY:=}"
 : "${MKW_REGISTRY_PULL_USERNAME:=}"
@@ -140,9 +143,9 @@ exec 9>"$MKW_DEPLOY_PATH/.deploy.lock"; flock -n 9 || { echo "another deploy is 
 registry_auth_status="not-run"; registry_pull_status="not-run"; mutation_started="false"
 receipt_written=0
 write_receipt() {
-  local status="$1" tmp="$(mktemp "$MKW_DEPLOY_PATH/receipts/.receipt.XXXXXX")"
-  printf '{"operation":"%s","releaseSha":"%s","imageDigests":{"api":"%s","web":"%s","postgres":"%s"},"registry":{"host":"%s","auth":"%s","pull":"%s"},"mutationStarted":%s,"attestationVerification":"%s","rollbackScope":"application-only","databaseRecovery":false,"status":"%s","utc":"%s"}\n' \
-    "$MKW_OPERATION_KIND" "$release_sha" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE" "$MKW_REGISTRY_HOST" "$registry_auth_status" "$registry_pull_status" "$mutation_started" "$MKW_ATTESTATION_STATUS" "$status" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
+  local status="$1" op_id="${MKW_OPERATION_ID:-unknown}" tmp="$(mktemp "$MKW_DEPLOY_PATH/receipts/.receipt.XXXXXX")"
+  printf '{"operation":"%s","operationId":"%s","releaseSha":"%s","imageDigests":{"api":"%s","web":"%s","postgres":"%s"},"registry":{"host":"%s","auth":"%s","pull":"%s"},"mutationStarted":%s,"attestationVerification":"%s","rollbackScope":"application-only","databaseRecovery":false,"status":"%s","utc":"%s"}\n' \
+    "$MKW_OPERATION_KIND" "$op_id" "$release_sha" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE" "$MKW_REGISTRY_HOST" "$registry_auth_status" "$registry_pull_status" "$mutation_started" "$MKW_ATTESTATION_STATUS" "$status" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
   chmod 640 "$tmp"; mv -f "$tmp" "$MKW_DEPLOY_PATH/receipts/$(date -u +%Y%m%dT%H%M%SZ)-$status.json"; receipt_written=1
 }
 if [[ "$mode" == bootstrap ]]; then
@@ -158,6 +161,16 @@ if [[ "$mode" == bootstrap ]]; then
     chmod 600 "$db_tmp" "$api_tmp"; mv -n "$db_tmp" "$db_env"; mv -n "$api_tmp" "$api_env"; trap - EXIT
   fi
   echo "BOOTSTRAP_OK path=$MKW_DEPLOY_PATH project=$MKW_PROJECT_NAME"; exit 0
+fi
+
+# Only an automatic ordinary release skips a verified SHA. Manual recovery and
+# application rollback retain their explicit target and existing safety gates.
+if [[ "$mode" == release && "${MKW_AUTOMATIC_RELEASE:-false}" == true && -e "$MKW_DEPLOY_PATH/shared/current-state.json" ]]; then
+  decision="$(run_node "$script_root/scripts/product/release/read-current-state.mjs" "$MKW_DEPLOY_PATH/shared/current-state.json" "$MKW_RELEASE_SHA")"
+  if [[ "$decision" == already-deployed ]]; then
+    echo "ORCHESTRATION_OUTCOME=already-deployed release_sha=$MKW_RELEASE_SHA operation_id=$MKW_OPERATION_ID"
+    exit 0
+  fi
 fi
 
 if [[ "$mode" == release ]]; then
@@ -186,6 +199,11 @@ fi
 validate_backup_gate
 
 # Update only public origin/TLS settings; retain existing database/auth secrets.
+# Journal before the first config/migration mutation. Signals, timeouts, failed
+# SSH and failed verification leave this state uncertain until operator review.
+state_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.current-state.XXXXXX")"
+printf '{"status":"deploying","releaseSha":"%s","operationId":"%s"}\n' "$release_sha" "${MKW_OPERATION_ID:-unknown}" > "$state_tmp"
+chmod 640 "$state_tmp"; mv -f "$state_tmp" "$MKW_DEPLOY_PATH/shared/current-state.json"
 api_env="$MKW_DEPLOY_PATH/shared/api.env"
 [[ -f "$api_env" ]] || { echo "bootstrap API env is required" >&2; exit 78; }
 api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api-origin.XXXXXX")"

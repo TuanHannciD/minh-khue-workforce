@@ -29,7 +29,7 @@ on:
         type: string
 
 concurrency:
-  group: mkw-production
+  group: mkw-production-release
   cancel-in-progress: false
 
 permissions:

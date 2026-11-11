@@ -129,12 +129,45 @@ chmod() { :; }
 ssh-keyscan() { cat "$HOST_SCAN_FIXTURE"; }
 `;
 
+test("verified remote rerun is surfaced as already-deployed rather than a fresh mutation", async (t) => {
+  const dir = await fixture(t);
+  const output = join(dir, "outputs");
+  const result = run(
+    scan +
+      `
+ssh() {
+  if [[ "\${!#}" == *'--release --manifest'* ]]; then
+    printf 'ORCHESTRATION_OUTCOME=already-deployed release_sha=%s operation_id=%s\\n' "$RELEASE_SHA" "$MKW_OPERATION_ID"
+  fi
+}
+scp() { :; }
+` +
+      block(
+        await source("deploy"),
+        "Run remote deploy entrypoint with verified artifact",
+      ),
+    dir,
+    {
+      ...envFor(dir),
+      MKW_AUTOMATIC_RELEASE: "true",
+      MKW_OPERATION_ID: "rerun-2",
+      GITHUB_OUTPUT: posix(output),
+    },
+  );
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(
+    await readFile(output, "utf8"),
+    /release_status=already-deployed/,
+  );
+});
+
 test("I-02: historical bypass verifier stays data and trusted verifier rejects failing runtime", async (t) => {
   const dir = await fixture(t);
   const result = run(
     scan +
       `
 docker() { echo TRUSTED_RUNTIME_FAILED >&2; return 77; }; export -f docker
+flock() { :; }; export -f flock
 ssh() { eval "\${!#}"; }
 ` +
       block(

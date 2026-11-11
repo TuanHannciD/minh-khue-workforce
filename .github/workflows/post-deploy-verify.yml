@@ -13,6 +13,10 @@ on:
         description: Release correlation
         required: false
         type: string
+      operation_id:
+        description: Stable operation identifier for current-state evidence
+        required: false
+        type: string
       mode:
         description: Verification mode
         required: true
@@ -50,6 +54,9 @@ on:
       MKW_SSH_PRIVATE_KEY:
         required: true
     outputs:
+      correlation_id:
+        description: Release correlation carried by verification
+        value: ${{ jobs.verify.outputs.correlation_id }}
       verify_run_id:
         description: Verification workflow run ID
         value: ${{ jobs.verify.outputs.verify_run_id }}
@@ -93,6 +100,7 @@ permissions:
 jobs:
   verify:
     outputs:
+      correlation_id: ${{ inputs.coordinator_id || github.run_id }}
       verify_run_id: ${{ github.run_id }}
       release_status: ${{ job.status }}
     runs-on: ubuntu-latest
@@ -127,6 +135,14 @@ jobs:
             release) [[ "$RELEASE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$RELEASE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'release_run_id and release_artifact_id are required for release' >&2; exit 64; } ;;
             *) echo 'invalid verification mode' >&2; exit 64 ;;
           esac
+
+      - name: Validate active coordinator parent
+        if: startsWith(inputs.coordinator_id, 'parent-')
+        env:
+          COORDINATOR_ID: ${{ inputs.coordinator_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node policy/scripts/product/release/check-coordinator-parent.mjs
 
       - name: Download and validate release manifest
         if: inputs.mode == 'release' || inputs.release_artifact_id != ''
@@ -174,6 +190,8 @@ jobs:
           MKW_PROJECT_NAME: ${{ vars.MKW_PROJECT_NAME }}
           MKW_GATEWAY_PORT: ${{ vars.MKW_GATEWAY_PORT }}
           MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+          MKW_OPERATION_ID: ${{ inputs.operation_id || inputs.coordinator_id || github.run_id }}
+          MKW_AUTOMATIC_RELEASE: ${{ inputs.control_sha != '' }}
         run: |
           set -Eeuo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 64
@@ -204,7 +222,9 @@ jobs:
           install -m 600 "$RUNNER_TEMP/mkw_pinned_hosts" "$HOME/.ssh/known_hosts"
           test -n "$MKW_SSH_PRIVATE_KEY"
           printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"; chmod 600 "$RUNNER_TEMP/mkw_key"
-          remote_env="EXPECTED_API_IMAGE=$(printf '%q' "$EXPECTED_API_IMAGE") EXPECTED_WEB_IMAGE=$(printf '%q' "$EXPECTED_WEB_IMAGE") EXPECTED_POSTGRES_IMAGE=$(printf '%q' "$EXPECTED_POSTGRES_IMAGE") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") RELEASE_SHA=$(printf '%q' "$RELEASE_SHA")"
+          MKW_OPERATION_ID="${MKW_OPERATION_ID:-$RELEASE_SHA}"
+          remote_env="EXPECTED_API_IMAGE=$(printf '%q' "$EXPECTED_API_IMAGE") EXPECTED_WEB_IMAGE=$(printf '%q' "$EXPECTED_WEB_IMAGE") EXPECTED_POSTGRES_IMAGE=$(printf '%q' "$EXPECTED_POSTGRES_IMAGE") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") RELEASE_SHA=$(printf '%q' "$RELEASE_SHA") MKW_OPERATION_ID=$(printf '%q' "$MKW_OPERATION_ID")"
+          remote_env="MKW_AUTOMATIC_RELEASE=$(printf '%q' "${MKW_AUTOMATIC_RELEASE:-false}") $remote_env"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < policy/scripts/product/post-deploy-verify.sh
 
       - name: Record verification receipt

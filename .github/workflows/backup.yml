@@ -28,6 +28,9 @@ on:
       MKW_BACKUP_ENCRYPTION_KEY:
         required: true
     outputs:
+      correlation_id:
+        description: Release correlation carried by this backup stage
+        value: ${{ jobs.backup.outputs.correlation_id }}
       backup_artifact_digest:
         description: Exact producer backup_artifact_digest
         value: ${{ jobs.backup.outputs.backup_artifact_digest }}
@@ -71,10 +74,12 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   backup:
     outputs:
+      correlation_id: ${{ inputs.coordinator_id || github.run_id }}
       backup_artifact_digest: ${{ steps.upload-backup.outputs.artifact-digest || steps.upload-backup-empty.outputs.artifact-digest }}
       release_sha: ${{ inputs.release_sha || github.sha }}
       backup_run_id: ${{ github.run_id }}
@@ -125,6 +130,14 @@ jobs:
             echo "Unsupported backup kind: $BACKUP_KIND" >&2
             exit 1
           fi
+
+      - name: Validate active coordinator parent
+        if: startsWith(inputs.coordinator_id, 'parent-')
+        env:
+          COORDINATOR_ID: ${{ inputs.coordinator_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/product/release/check-coordinator-parent.mjs
 
       - name: Dump, encrypt, hash, and verify PostgreSQL backup
         if: env.BACKUP_KIND == 'BACKUP'

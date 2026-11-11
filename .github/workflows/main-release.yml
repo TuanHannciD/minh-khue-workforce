@@ -18,7 +18,38 @@ permissions:
   attestations: write
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      release_status: ${{ steps.state.outputs.release_status }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Read current transaction state
+        env:
+          MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
+          MKW_SSH_PORT: ${{ vars.MKW_SSH_PORT }}
+          MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
+          MKW_DEPLOY_PATH: ${{ vars.MKW_DEPLOY_PATH }}
+          MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
+        run: bash scripts/product/release/probe-current-state.sh
+      - name: Decide current source and rerun outcome
+        id: state
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          CURRENT_STATE_PATH: ${{ runner.temp }}/current-state.json
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/product/release/preflight.mjs
+
   quality:
+    needs: preflight
+    if: needs.preflight.outputs.release_status == 'ready'
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
@@ -37,6 +68,7 @@ jobs:
     uses: ./.github/workflows/backup.yml
     permissions:
       contents: read
+      actions: read
     with:
       control_sha: ${{ github.sha }}
       coordinator_id: ${{ github.run_id }}-${{ github.run_attempt }}
@@ -56,6 +88,7 @@ jobs:
     with:
       control_sha: ${{ github.sha }}
       coordinator_id: ${{ github.run_id }}-${{ github.run_attempt }}
+      operation_id: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
       release_run_attempt: ${{ needs.build.outputs.release_run_attempt }}
       release_artifact_digest: ${{ needs.build.outputs.release_artifact_digest }}
       backup_run_attempt: ${{ needs.backup.outputs.backup_run_attempt }}
@@ -78,6 +111,7 @@ jobs:
 
   verify:
     needs: [build, deploy]
+    if: needs.deploy.outputs.release_status == 'success'
     uses: ./.github/workflows/post-deploy-verify.yml
     permissions:
       contents: read
@@ -93,12 +127,13 @@ jobs:
       web_digest: ${{ needs.build.outputs.web_digest }}
       postgres_image: ${{ needs.build.outputs.postgres_image }}
       rollback_on_failure: true
+      operation_id: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
     secrets:
       MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
 
   release-status:
     if: ${{ always() }}
-    needs: [quality, build, backup, deploy, verify]
+    needs: [preflight, quality, build, backup, deploy, verify]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -110,7 +145,7 @@ jobs:
       - name: Record release correlation and status
         id: status
         env:
-          RELEASE_STATUS: ${{ needs.verify.result == 'success' && 'success' || 'failed' }}
+          RELEASE_STATUS: ${{ needs.deploy.outputs.release_status == 'superseded' && 'superseded' || needs.preflight.outputs.release_status == 'superseded' && 'superseded' || needs.deploy.outputs.release_status == 'already-deployed' && 'already-deployed' || needs.preflight.outputs.release_status == 'already-deployed' && 'already-deployed' || needs.verify.result == 'success' && 'success' || 'failed' }}
           RELEASE_SHA: ${{ github.sha }}
           CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
           STAGES_JSON: ${{ toJSON(needs) }}

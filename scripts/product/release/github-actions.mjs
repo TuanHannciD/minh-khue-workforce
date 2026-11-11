@@ -26,6 +26,18 @@ export function createGithubApi({
   const pages = (value) =>
     value.flatMap((page) => page.workflow_runs ?? page.artifacts ?? page);
   const api = {
+    // Actions does not expose a trustworthy migration boundary. A missing
+    // receipt or a queued/running job cannot prove cancellation is safe.
+    async canCancelRun() {
+      return false;
+    },
+    async currentSourceSha() {
+      const [ref] = await call([`/repos/${repository}/git/ref/heads/main`]);
+      const sha = ref?.object?.sha;
+      if (!/^[a-f0-9]{40}$/.test(String(sha)))
+        throw new Error("canonical main ref did not return a full SHA");
+      return sha;
+    },
     async artifact(id) {
       return (await call([`/repos/${repository}/actions/artifacts/${id}`]))[0];
     },

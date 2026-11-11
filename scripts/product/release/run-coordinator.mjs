@@ -17,6 +17,10 @@ const result = await coordinateRelease(
     correlationId: process.env.CORRELATION_ID,
     repository,
     maxAgeMs: MAX_BACKUP_AGE_MS,
+    // Manual recovery intentionally targets the supplied immutable SHA; the
+    // push-main entry enforces current-main freshness before mutation.
+    enforceCurrentSource: false,
+    parentRunId: process.env.GITHUB_RUN_ID,
     target: {
       host: process.env.MKW_SSH_HOST,
       database: "mkw",

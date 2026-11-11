@@ -2,6 +2,40 @@ import { validateBackupReady } from "./validate-backup-ready.mjs";
 
 export const MAX_BACKUP_AGE_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Decide whether a push-main coordinator may continue before dispatching a
+ * child workflow. These are pure outcomes so a retry cannot accidentally
+ * turn a newer source or verified release into another mutation.
+ */
+export function decideOrchestrationOutcome({
+  requestedSha,
+  currentSha,
+  verifiedSha,
+  state,
+} = {}) {
+  if (!/^[a-f0-9]{40}$/.test(requestedSha ?? ""))
+    throw new Error("requested release SHA is invalid");
+  if (currentSha != null && !/^[a-f0-9]{40}$/.test(currentSha))
+    throw new Error("canonical main SHA is invalid");
+  if (currentSha && currentSha !== requestedSha)
+    return { status: "superseded", reason: "newer main SHA is current" };
+  if (state != null) {
+    if (
+      state.status !== "verified" ||
+      !/^[a-f0-9]{40}$/.test(state.releaseSha ?? "") ||
+      !/^[A-Za-z0-9._-]{1,160}$/.test(state.operationId ?? "")
+    )
+      throw new Error("incident-required: current mutation state is uncertain");
+    verifiedSha = state.releaseSha;
+  }
+  if (verifiedSha === requestedSha)
+    return {
+      status: "already-deployed",
+      reason: "current runtime is already verified",
+    };
+  return null;
+}
+
 export function validateBackupReadyFreshness(
   value,
   {

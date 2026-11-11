@@ -223,6 +223,7 @@ function fakeApi({
             : workflow === "backup.yml"
               ? backupConclusion
               : "success",
+        mutation_started: false,
         run_attempt: 1,
       });
     },
@@ -464,6 +465,7 @@ for (const cancel of ["supported", "unavailable", "failed"]) {
         cancelled.push(id);
         if (cancel === "failed") throw new Error("denied");
       };
+    if (cancel !== "unavailable") api.canCancelRun = async () => true;
     await assert.rejects(
       () =>
         coordinateRelease(
@@ -576,6 +578,7 @@ test("M-01: timed out polling API cancels known active child and reports its URL
   api.cancelRun = async (id) => {
     cancelled.push(id);
   };
+  api.canCancelRun = async () => true;
   await assert.rejects(
     () => coordinateRelease(input(), api),
     /https:\/\/github.com\/org\/repo\/actions\/runs\/30; cancel requested/,

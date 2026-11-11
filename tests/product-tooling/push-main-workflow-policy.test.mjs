@@ -39,13 +39,28 @@ test("one push-main release producer, no paths filter or manual IDs, PR quality 
   );
 });
 
+test("backup coordinator parent validation can read Actions run state", async () => {
+  const backup = await read("backup.yml");
+  assert.equal(backup.permissions.actions, "read");
+  const entry = await read("main-release.yml");
+  assert.equal(entry.jobs.backup.permissions.actions, "read");
+});
+
 test("needs stop deployment after either failed producer and verification after failed deploy", async () => {
   const { jobs } = await read("main-release.yml");
   assert.deepEqual(needs(jobs.build), ["quality"]);
   assert.deepEqual(needs(jobs.backup), ["quality"]);
   assert.deepEqual(needs(jobs.deploy), ["build", "backup"]);
   assert.deepEqual(needs(jobs.verify), ["build", "deploy"]);
-  for (const name of ["quality", "build", "backup", "deploy", "verify"]) {
+  assert.equal(
+    jobs.quality.if,
+    "needs.preflight.outputs.release_status == 'ready'",
+  );
+  assert.equal(
+    jobs.verify.if,
+    "needs.deploy.outputs.release_status == 'success'",
+  );
+  for (const name of ["build", "backup", "deploy"]) {
     assert.equal(
       jobs[name].if,
       undefined,
@@ -148,6 +163,7 @@ test("summary stays failed for every failed prerequisite and manual routes remai
   const { jobs } = await read("main-release.yml");
   const summary = jobs["release-status"];
   assert.deepEqual(needs(summary), [
+    "preflight",
     "quality",
     "build",
     "backup",
@@ -156,7 +172,9 @@ test("summary stays failed for every failed prerequisite and manual routes remai
   ]);
   assert.equal(
     summary.steps[0].env.RELEASE_STATUS,
-    expr("needs.verify.result == 'success' && 'success' || 'failed'"),
+    expr(
+      "needs.deploy.outputs.release_status == 'superseded' && 'superseded' || needs.preflight.outputs.release_status == 'superseded' && 'superseded' || needs.deploy.outputs.release_status == 'already-deployed' && 'already-deployed' || needs.preflight.outputs.release_status == 'already-deployed' && 'already-deployed' || needs.verify.result == 'success' && 'success' || 'failed'",
+    ),
   );
   assert.ok(summary.outputs.correlation_id);
   for (const file of [

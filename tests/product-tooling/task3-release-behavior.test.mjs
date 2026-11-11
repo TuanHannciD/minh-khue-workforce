@@ -53,7 +53,8 @@ function block(source, name, values = {}) {
 }
 
 function run(script, cwd, env = {}) {
-  return spawnSync(bash, ["-Eeuo", "pipefail", "-c", script], {
+  return spawnSync(bash, ["-Eeuo", "pipefail"], {
+    input: script,
     cwd,
     env: { ...process.env, ...env },
     encoding: "utf8",
