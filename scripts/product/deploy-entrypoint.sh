@@ -124,6 +124,13 @@ if [[ "$mode" == bootstrap ]]; then
   echo "BOOTSTRAP_OK path=$MKW_DEPLOY_PATH project=$MKW_PROJECT_NAME"; exit 0
 fi
 
+# Hold the deployment lock while checking the current DB, before rendering or
+# invoking any mutating compose operation. Old releases use this current guard.
+if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
+  MKW_PROJECT_NAME="$MKW_PROJECT_NAME" MKW_POSTGRES_IMAGE="$MKW_POSTGRES_IMAGE" \
+    bash "$script_root/scripts/product/release/verify-rollback-postgres.sh"
+fi
+
 # Update only public origin/TLS settings; retain existing database/auth secrets.
 api_env="$MKW_DEPLOY_PATH/shared/api.env"
 [[ -f "$api_env" ]] || { echo "bootstrap API env is required" >&2; exit 78; }
@@ -159,10 +166,16 @@ trap on_error ERR
 # Approved forward migration (migrate deploy) and the JSON backup gate are
 # required before traffic; INITIAL_EMPTY_DEPLOYMENT is validated by JSON.
 # Immutable images use sha256:[0-9a-f]{64}.
-docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait db
+if [[ "$MKW_OPERATION_KIND" != application-rollback ]]; then
+  docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait db
+fi
 docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
 post_start=1
-docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --remove-orphans
+if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
+  docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --no-deps api gateway
+else
+  docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --remove-orphans
+fi
 docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" ps
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${MKW_GATEWAY_PORT}/" >/dev/null
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${MKW_GATEWAY_PORT}/api/health" >/dev/null

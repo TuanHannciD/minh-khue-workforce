@@ -31,9 +31,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      # Control scripts/compose follow this approved workflow revision; only the
+      # immutable manifest and API/Web digests come from the old release.
+      - name: Checkout current rollback control tooling
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: ${{ inputs.old_release_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Download and verify old manifest
@@ -131,6 +134,7 @@ jobs:
           ROLLBACK_REASON: ${{ inputs.reason }}
           ROLLBACK_RESULT: ${{ job.status }}
           ATTESTATION_STATUS: ${{ steps.attestations.outputs.status || 'not-configured' }}
+          CONTROL_SHA: ${{ github.sha }}
         run: |
           set -Eeuo pipefail
           [[ -n "$ROLLBACK_REASON" && "${#ROLLBACK_REASON}" -le 512 ]] || { echo 'rollback reason must be 1-512 characters' >&2; exit 64; }
@@ -148,6 +152,7 @@ jobs:
             databaseCompatibility: 'operator-approved-current-schema',
             attestationVerification: process.env.ATTESTATION_STATUS || 'not-verified',
             oldReleaseSha: process.env.OLD_RELEASE_SHA,
+            controlSha: process.env.CONTROL_SHA,
             reason,
             result: process.env.ROLLBACK_RESULT,
             signal: 'rollback-requested',

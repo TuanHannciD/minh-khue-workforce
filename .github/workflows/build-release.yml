@@ -26,6 +26,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Validate attestation mode
+        shell: bash
+        env:
+          ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
+        run: |
+          set -Eeuo pipefail
+          case "${ATTESTATION_MODE:-not-configured}" in
+            not-configured|off|best-effort|required) ;;
+            *) echo 'MKW_ATTESTATION_MODE must be one of not-configured, off, best-effort, required' >&2; exit 78 ;;
+          esac
+
       - name: Checkout immutable CI commit
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

@@ -121,25 +121,57 @@ jobs:
       - name: Record verification receipt
         if: always()
         shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          ROLLBACK_ON_FAILURE: ${{ inputs.rollback_on_failure }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -Eeuo pipefail
-          cat > verification-receipt.json <<JSON
-          {"mode":"${{ inputs.mode }}","runtimeVerification":"${{ inputs.mode == 'release' && 'attempted' || 'skipped-preflight-only' }}","releaseSha":"${{ inputs.release_sha }}","gateway":"smoke","schema":"prisma-migrate-status","imageDigests":"exact-manifest-image-ids-and-digests","startup":"compose-running-and-health-checked","rollback":".github/workflows/rollback.yml","rollbackOnFailure":${{ inputs.rollback_on_failure }},"result":"${{ job.status }}"}
-          JSON
-          cat > rollback-signal.json <<JSON
-          {"signal":"none","releaseSha":"${{ inputs.release_sha }}","workflow":".github/workflows/rollback.yml","reason":"verification passed","runId":"${{ github.run_id }}"}
-          JSON
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          const receipt = {
+            releaseSha: process.env.RELEASE_SHA,
+            gateway: 'smoke',
+            schema: 'prisma-migrate-status',
+            imageDigests: 'exact-manifest-image-ids-and-digests',
+            startup: 'compose-running-and-health-checked',
+            rollback: '.github/workflows/rollback.yml',
+            rollbackOnFailure: process.env.ROLLBACK_ON_FAILURE === 'true',
+            result: process.env.JOB_STATUS,
+          };
+          const signal = {
+            signal: 'none',
+            releaseSha: process.env.RELEASE_SHA,
+            workflow: '.github/workflows/rollback.yml',
+            reason: process.env.JOB_STATUS === 'success' ? 'verification passed' : 'verification did not pass; inspect receipt',
+            runId: process.env.RUN_ID,
+          };
+          await writeFile('verification-receipt.json', `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
+          await writeFile('rollback-signal.json', `${JSON.stringify(signal)}\n`, { mode: 0o600 });
+          NODE
           test -s verification-receipt.json
 
       - name: Emit actionable rollback signal
         if: failure() && inputs.rollback_on_failure
         shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -Eeuo pipefail
-          cat > rollback-signal.json <<JSON
-          {"signal":"rollback-requested","releaseSha":"${{ inputs.release_sha }}","workflow":".github/workflows/rollback.yml","reason":"post-deploy verification failed; inspect verification-receipt.json and startup logs","runId":"${{ github.run_id }}"}
-          JSON
-          echo "rollback-requested: run .github/workflows/rollback.yml for ${{ inputs.release_sha }}" >> "$GITHUB_STEP_SUMMARY"
+          node --input-type=module <<'NODE'
+          import { appendFile, writeFile } from 'node:fs/promises';
+          const signal = {
+            signal: 'rollback-requested',
+            releaseSha: process.env.RELEASE_SHA,
+            workflow: '.github/workflows/rollback.yml',
+            reason: 'post-deploy verification failed; inspect verification-receipt.json and startup logs',
+            runId: process.env.RUN_ID,
+          };
+          await writeFile('rollback-signal.json', `${JSON.stringify(signal)}\n`, { mode: 0o600 });
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, `rollback-requested: run .github/workflows/rollback.yml for ${JSON.stringify(process.env.RELEASE_SHA)}\n`);
+          NODE
 
       - name: Upload verification receipt and rollback signal
         if: always()
