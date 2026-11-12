@@ -1,4 +1,8 @@
 import { validateManifest } from "./validate-manifest.mjs";
+import {
+  requiresGatewayPromotion,
+  validGatewayPromotionState,
+} from "./gateway-validation.mjs";
 
 const sha = /^[a-f0-9]{40}$/;
 const digest = /^sha256:[a-f0-9]{64}$/;
@@ -58,6 +62,9 @@ export function validVerifiedState(state) {
     verification?.verifiedAt === state.verifiedAt &&
     ["apiImage", "webImage", "postgresImage"].every(
       (key) => verification[key] === state.manifest[key],
-    )
+    ) &&
+    (requiresGatewayPromotion(state)
+      ? validGatewayPromotionState(state, state.runtimeServices)
+      : true)
   );
 }

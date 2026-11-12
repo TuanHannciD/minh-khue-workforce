@@ -4,10 +4,33 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { validVerifiedState } from "./verified-state.mjs";
 import { parseJsonStrict, validateManifest } from "./validate-manifest.mjs";
+import {
+  canonicalDataEvidenceMatches,
+  policyDescriptor,
+  same,
+  validGatewayEvidence,
+  validGatewayPolicy,
+  validService,
+  validServices,
+  validGatewayPromotionState,
+  validOwner,
+} from "./gateway-validation.mjs";
+export {
+  canonicalDataEvidenceMatches,
+  policyDescriptor,
+  same,
+  validGatewayEvidence,
+  validGatewayPolicy,
+  validService,
+  validServices,
+  validGatewayPromotionState,
+  validOwner,
+};
 
 const digest = /^sha256:[a-f0-9]{64}$/;
 const sha = /^[a-f0-9]{40}$/;
-export const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const fingerprint = (bytes) =>
+  `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const unchangedDatabase = (a, b) =>
   a?.known === true &&
   b?.known === true &&
@@ -20,29 +43,6 @@ const unchangedDatabase = (a, b) =>
   a.failed === false &&
   b.pending === false &&
   b.failed === false;
-const keys = (v, allowed) =>
-  v &&
-  Object.keys(v).length === allowed.length &&
-  Object.keys(v).every((k) => allowed.includes(k));
-const fingerprint = (bytes) =>
-  `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-const policyKeys = [
-  "schemaVersion",
-  "kind",
-  "source",
-  "scope",
-  "operationId",
-  "releaseSha",
-  "sourceRepository",
-  "apiImage",
-  "webImage",
-  "postgresImage",
-  "apiSourceFingerprint",
-  "apiSourceSha",
-  "previousReleaseSha",
-  "previousOwnership",
-  "businessDataWrites",
-];
 
 // Conservative committed-tree allowlist. Unknown future inputs force rebuild.
 export function apiSourceFingerprint(root, ref = "HEAD") {
@@ -69,10 +69,6 @@ export function apiSourceFingerprint(root, ref = "HEAD") {
   )
     throw new Error("API source tree incomplete");
   return fingerprint(records.join("\0"));
-}
-export function policyDescriptor(policy) {
-  const bytes = Buffer.from(JSON.stringify(policy));
-  return { sha256: fingerprint(bytes).slice(7), size: bytes.length };
 }
 export function bindPolicy(manifest, policy) {
   return {
@@ -130,73 +126,6 @@ export function buildPolicy({
     businessDataWrites: "not-assessed",
   };
 }
-function validOwner(o) {
-  return (
-    keys(o, [
-      "runId",
-      "runAttempt",
-      "artifactId",
-      "artifactDigest",
-      "controlSha",
-    ]) &&
-    ["runId", "runAttempt", "artifactId"].every((k) =>
-      /^[1-9][0-9]*$/.test(o[k] ?? ""),
-    ) &&
-    digest.test(o.artifactDigest ?? "") &&
-    sha.test(o.controlSha ?? "")
-  );
-}
-export function validGatewayPolicy(p, s) {
-  return Boolean(
-    keys(p, policyKeys) &&
-    p.schemaVersion === "1" &&
-    p.kind === "gateway-only" &&
-    p.source === "canonical-build-policy" &&
-    p.scope === "bounded-release-operation" &&
-    p.businessDataWrites === "not-assessed" &&
-    p.operationId === s?.operationId &&
-    p.operationId ===
-      `${s?.ownership?.runId}-${s?.ownership?.runAttempt}-${s?.releaseSha}` &&
-    p.releaseSha === s?.releaseSha &&
-    p.sourceRepository === s?.manifest?.sourceRepository &&
-    ["apiImage", "webImage", "postgresImage"].every(
-      (k) => p[k] === s?.manifest?.[k],
-    ) &&
-    p.apiImage === s?.previousState?.manifest?.apiImage &&
-    p.postgresImage === s?.previousState?.manifest?.postgresImage &&
-    digest.test(p.apiSourceFingerprint ?? "") &&
-    p.apiSourceFingerprint === s?.manifest?.buildInputs?.apiSourceFingerprint &&
-    p.apiSourceFingerprint ===
-      s?.previousState?.manifest?.buildInputs?.apiSourceFingerprint &&
-    sha.test(p.apiSourceSha ?? "") &&
-    p.apiSourceSha === s?.manifest?.buildInputs?.apiSourceSha &&
-    p.apiSourceSha === s?.previousState?.manifest?.buildInputs?.apiSourceSha &&
-    p.previousReleaseSha === s?.previousState?.releaseSha &&
-    validOwner(p.previousOwnership) &&
-    same(p.previousOwnership, s?.previousState?.ownership) &&
-    same(policyDescriptor(p), s?.manifest?.artifacts?.releasePolicy),
-  );
-}
-export function validService(s) {
-  return (
-    keys(s, ["containerId", "image", "imageId", "startedAt", "restartCount"]) &&
-    /^[a-f0-9]{12,64}$/.test(s.containerId ?? "") &&
-    /^[^@\s]+@sha256:[a-f0-9]{64}$/.test(s.image ?? "") &&
-    digest.test(s.imageId ?? "") &&
-    Number.isFinite(Date.parse(s.startedAt ?? "")) &&
-    Number.isSafeInteger(s.restartCount) &&
-    s.restartCount >= 0
-  );
-}
-export function validServices(s, manifest) {
-  return (
-    keys(s, ["api", "db"]) &&
-    validService(s.api) &&
-    validService(s.db) &&
-    s.api.image === manifest?.apiImage &&
-    s.db.image === manifest?.postgresImage
-  );
-}
 export function gatewayReceipt({ state, policy, before, after, recordedAt }) {
   const result = {
     kind: "gateway-only",
@@ -215,53 +144,6 @@ export function gatewayReceipt({ state, policy, before, after, recordedAt }) {
   if (!validGatewayEvidence(result, state))
     throw new Error("invalid gateway policy or runtime receipt");
   return result;
-}
-export function validGatewayEvidence(e, s) {
-  return Boolean(
-    keys(e, [
-      "kind",
-      "source",
-      "scope",
-      "operationId",
-      "releaseSha",
-      "ownership",
-      "policy",
-      "before",
-      "after",
-      "commands",
-      "businessDataWrites",
-      "recordedAt",
-    ]) &&
-    e.kind === "gateway-only" &&
-    e.source === "remote-operation-runtime-receipt" &&
-    e.scope === "bounded-release-operation" &&
-    e.operationId === s?.operationId &&
-    e.releaseSha === s?.releaseSha &&
-    validOwner(e.ownership) &&
-    same(e.ownership, s.ownership) &&
-    validGatewayPolicy(e.policy, s) &&
-    validServices(e.before, s.manifest) &&
-    validServices(e.after, s.manifest) &&
-    same(e.before, e.after) &&
-    same(e.before, s.previousState?.runtimeServices) &&
-    s.migrationOutcome === "not-executed" &&
-    s.before?.known === true &&
-    s.after?.known === true &&
-    s.before.schemaFingerprint === s.after.schemaFingerprint &&
-    s.before.migrationFingerprint === s.after.migrationFingerprint &&
-    same(e.commands, ["gateway-up-no-deps"]) &&
-    e.businessDataWrites === "not-assessed" &&
-    Number.isFinite(Date.parse(e.recordedAt ?? "")) &&
-    Date.parse(e.recordedAt) >= Date.parse(s.applicationStartedAt ?? "") &&
-    Date.parse(e.recordedAt) >= Date.parse(s.previousState?.verifiedAt ?? ""),
-  );
-}
-export function canonicalDataEvidenceMatches(policy, state) {
-  return (
-    state?.dataOperations === "gateway-only" &&
-    validGatewayEvidence(state.dataOperationEvidence, state) &&
-    same(policy, state.dataOperationEvidence.policy)
-  );
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [command, ...args] = process.argv.slice(2);

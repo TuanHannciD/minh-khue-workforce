@@ -6,6 +6,7 @@ import {
   unchangedDatabase,
 } from "./auto-rollback.mjs";
 import { same, validServices } from "./gateway-policy.mjs";
+import { validVerifiedState } from "./verified-state.mjs";
 
 const read = async (p) => parseJsonStrict(await readFile(p, "utf8"));
 const [command, ...args] = process.argv.slice(2);
@@ -87,21 +88,29 @@ if (command === "check") {
         !same(services, state.dataOperationEvidence?.after)))
   )
     throw new Error("rollback DB invariant mismatch");
-  console.log(
-    JSON.stringify({
-      ...state.previousState,
-      operationId: `${opId}.rollback`,
+  // A gateway receipt binds its source operation. Preserve that identity when
+  // restoring the verified release; record this recovery transaction separately.
+  const restoredOperationId = state.previousState?.manifest?.artifacts
+    ?.releasePolicy
+    ? state.previousState.operationId
+    : `${opId}.rollback`;
+  const restored = {
+    ...state.previousState,
+    operationId: restoredOperationId,
+    verifiedAt: now,
+    database,
+    runtimeVerification: {
+      ...(state.previousState.runtimeVerification ?? {}),
+      status: "verified",
+      operationId: restoredOperationId,
       verifiedAt: now,
-      database,
-      runtimeVerification: {
-        ...(state.previousState.runtimeVerification ?? {}),
-        status: "verified",
-        operationId: `${opId}.rollback`,
-        verifiedAt: now,
-      },
-      recovery: "recovered-by-app-rollback",
-    }),
-  );
+    },
+    recovery: "recovered-by-app-rollback",
+    recoveryOperationId: `${opId}.rollback`,
+  };
+  if (!validVerifiedState(restored))
+    throw new Error("invalid recovered verified state");
+  console.log(JSON.stringify(restored));
 } else if (command === "evidence") {
   const [outcome, attempted, opId, releaseSha] = args;
   console.log(

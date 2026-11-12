@@ -6,83 +6,72 @@ import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { fixture } from "./fixtures/auto-rollback.mjs";
 import {
-  buildPolicy,
-  bindPolicy,
   gatewayReceipt,
   validGatewayEvidence,
 } from "../../scripts/product/release/gateway-policy.mjs";
-import { beginOperation } from "../../scripts/product/release/operation-state.mjs";
+import { promoteOperation } from "../../scripts/product/release/operation-state.mjs";
+import { validVerifiedState } from "../../scripts/product/release/verified-state.mjs";
 import { decideAutomaticRollback } from "../../scripts/product/release/auto-rollback.mjs";
 
-const hash = "sha256:" + "1".repeat(64);
-function sample() {
-  const f = fixture();
-  f.state.previousState.manifest.buildInputs = {
-    apiSourceFingerprint: hash,
-    apiSourceSha: f.state.previousState.releaseSha,
-  };
-  f.trustedManifest = structuredClone(f.state.previousState.manifest);
-  f.state.manifest.apiImage = f.state.previousState.manifest.apiImage;
-  f.state.manifest.buildInputs = {
-    ...f.state.previousState.manifest.buildInputs,
-  };
-  const policy = buildPolicy({
-    manifest: f.state.manifest,
+import { sample } from "./fixtures/gateway-operation.mjs";
+
+test("gateway promotion rejects every missing or confused producer obligation", () => {
+  const mutations = [
+    (state) => delete state.dataOperationEvidence,
+    (state) => (state.dataOperations = "unknown"),
+    (state) => (state.migrationOutcome = "unknown"),
+    (state) => delete state.operationClass,
+    (state) => (state.operationClass = "normal"),
+    (state) => (state.gatewayPolicy.apiImage = "forged"),
+    (state) => (state.manifest.artifacts.releasePolicy.sha256 = "f".repeat(64)),
+    (state) => (state.runtimeServices.api.restartCount = 1),
+    (state) =>
+      (state.dataOperationEvidence.after.db.containerId = "e".repeat(64)),
+  ];
+  for (const [index, mutate] of mutations.entries()) {
+    const { f, runtime } = sample();
+    const state = structuredClone(f.state);
+    mutate(state);
+    assert.throws(
+      () =>
+        promoteOperation(state, {
+          operationId: state.operationId,
+          releaseSha: state.releaseSha,
+          database: state.after,
+          verifiedAt: "2026-11-12T02:02:00Z",
+          runtimeServices: runtime,
+        }),
+      /incident-required/,
+      `mutation ${index}`,
+    );
+    assert.equal(validVerifiedState({ ...state, status: "verified" }), false);
+  }
+});
+
+test("healthy gateway promotion requires receipt.after to equal promoted runtime services", () => {
+  const { f, runtime } = sample();
+  const changed = structuredClone(runtime);
+  changed.api.containerId = "b".repeat(64);
+  assert.throws(
+    () =>
+      promoteOperation(f.state, {
+        operationId: f.expectedOperationId,
+        releaseSha: f.state.releaseSha,
+        database: f.state.after,
+        verifiedAt: "2026-11-12T02:02:00Z",
+        runtimeServices: changed,
+      }),
+    /incident-required/,
+  );
+  const promoted = promoteOperation(f.state, {
     operationId: f.expectedOperationId,
-    apiSourceFingerprint: hash,
-    apiSourceSha: f.state.previousState.releaseSha,
-    previous: f.state.previousState,
+    releaseSha: f.state.releaseSha,
+    database: f.state.after,
+    verifiedAt: "2026-11-12T02:02:00Z",
+    runtimeServices: runtime,
   });
-  f.state.manifest = bindPolicy(f.state.manifest, policy);
-  const service = {
-    containerId: "a".repeat(64),
-    image: f.state.manifest.apiImage,
-    imageId: hash,
-    startedAt: "2026-11-12T01:00:00.000Z",
-    restartCount: 0,
-  };
-  const runtime = {
-    api: service,
-    db: {
-      ...service,
-      containerId: "c".repeat(64),
-      image: f.state.manifest.postgresImage,
-    },
-  };
-  f.state.previousState.runtimeServices = structuredClone(runtime);
-  const state = beginOperation({
-    manifest: f.state.manifest,
-    previousState: f.state.previousState,
-    operationId: f.expectedOperationId,
-    ownership: f.state.ownership,
-    attestation: f.attestation,
-    backup: { ...f.backup, backupId: "pre-release" },
-  });
-  Object.assign(state, {
-    before: f.state.before,
-    after: f.state.after,
-    migrationOutcome: "not-executed",
-    applicationAttempted: true,
-    applicationStartedAt: "2026-11-12T02:00:00Z",
-  });
-  state.dataOperationEvidence = gatewayReceipt({
-    state,
-    policy,
-    before: runtime,
-    after: runtime,
-    recordedAt: "2026-11-12T02:01:00Z",
-  });
-  state.dataOperations = "gateway-only";
-  f.state = state;
-  f.runtime.services = runtime;
-  f.runtime.apiImage = state.manifest.apiImage;
-  f.currentReleaseProof = {
-    ownership: state.ownership,
-    manifest: state.manifest,
-    dataOperationEvidence: policy,
-  };
-  return { f, policy, runtime };
-}
+  assert.equal(validVerifiedState(promoted), true);
+});
 
 test("real build policy and runtime producer allow bounded gateway recovery", () => {
   const { f } = sample();

@@ -7,7 +7,11 @@ import {
   validSnapshot,
   validVerifiedState,
 } from "./auto-rollback.mjs";
-import { validServices } from "./gateway-policy.mjs";
+import {
+  requiresGatewayPromotion,
+  validServices,
+  validGatewayPromotionState,
+} from "./gateway-validation.mjs";
 
 const read = async (path) => parseJsonStrict(await readFile(path, "utf8"));
 const optional = async (path) => {
@@ -66,7 +70,9 @@ export function promoteOperation(
     database.postgresImage !== state.manifest.postgresImage ||
     !Number.isFinite(Date.parse(verifiedAt ?? "")) ||
     (runtimeServices !== undefined &&
-      !validServices(runtimeServices, state.manifest))
+      !validServices(runtimeServices, state.manifest)) ||
+    (requiresGatewayPromotion(state) &&
+      !validGatewayPromotionState(state, runtimeServices, database))
   )
     throw new Error("incident-required: verification evidence is incomplete");
   const result = {
@@ -89,7 +95,19 @@ export function promoteOperation(
   };
   if (!validVerifiedState(result))
     throw new Error("incident-required: runtime verification evidence invalid");
-  delete result.previousState;
+  if (requiresGatewayPromotion(state)) {
+    // Keep only the baseline used by the canonical policy/runtime receipt.
+    // Its own history is not needed and must not grow with every Web release.
+    result.previousState = Object.fromEntries(
+      [
+        "manifest",
+        "ownership",
+        "releaseSha",
+        "runtimeServices",
+        "verifiedAt",
+      ].map((key) => [key, structuredClone(state.previousState[key])]),
+    );
+  } else delete result.previousState;
   delete result.rollbackAttempted;
   return result;
 }
