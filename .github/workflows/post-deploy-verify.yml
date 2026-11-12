@@ -14,7 +14,7 @@ on:
         required: false
         type: string
       operation_id:
-        description: Stable operation identifier for current-state evidence
+        description: Stable release operation identifier for receipts
         required: false
         type: string
       mode:
@@ -53,11 +53,6 @@ on:
         description: Exact PostgreSQL image from build
         required: true
         type: string
-      rollback_on_failure:
-        description: Emit rollback signal when verification fails
-        required: false
-        type: boolean
-        default: true
     secrets:
       MKW_SSH_PRIVATE_KEY:
         required: true
@@ -103,11 +98,6 @@ on:
         description: Exact release artifact id resolved by the coordinator
         required: false
         type: string
-      rollback_on_failure:
-        description: Emit an actionable rollback signal when verification fails
-        required: true
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -188,7 +178,7 @@ jobs:
           RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt }}
           RELEASE_ARTIFACT_ID: ${{ inputs.release_artifact_id }}
           RELEASE_ARTIFACT_DIGEST: ${{ inputs.release_artifact_digest }}
-          MKW_AUTOMATIC_RELEASE: ${{ inputs.control_sha != '' }}
+          MKW_AUTOMATIC_RELEASE: false
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXPECTED_API_DIGEST: ${{ inputs.api_digest }}
           EXPECTED_WEB_DIGEST: ${{ inputs.web_digest }}
@@ -209,7 +199,7 @@ jobs:
           NODE
           node policy/scripts/product/release/resolve-dispatch-provenance.mjs
 
-      - name: Verify running digests, schema, gateway, and startup health
+      - name: Verify running image digests, migration status, health, and smoke
         if: inputs.mode == 'release'
         shell: bash
         env:
@@ -226,7 +216,8 @@ jobs:
           MKW_RELEASE_ARTIFACT_ID: ${{ steps.provenance.outputs.release_artifact_id || inputs.release_artifact_id }}
           MKW_RELEASE_ARTIFACT_DIGEST: ${{ steps.provenance.outputs.release_artifact_digest || inputs.release_artifact_digest }}
           MKW_OPERATION_ID: ${{ inputs.operation_id || inputs.coordinator_id || github.run_id }}
-          MKW_AUTOMATIC_RELEASE: ${{ inputs.control_sha != '' }}
+          MKW_AUTOMATIC_RELEASE: false
+          MKW_SIMPLE_RELEASE: ${{ inputs.control_sha != '' }}
         run: |
           set -Eeuo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 64
@@ -260,6 +251,7 @@ jobs:
           MKW_OPERATION_ID="${MKW_OPERATION_ID:-$RELEASE_SHA}"
           remote_env="EXPECTED_API_IMAGE=$(printf '%q' "$EXPECTED_API_IMAGE") EXPECTED_WEB_IMAGE=$(printf '%q' "$EXPECTED_WEB_IMAGE") EXPECTED_POSTGRES_IMAGE=$(printf '%q' "$EXPECTED_POSTGRES_IMAGE") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") RELEASE_SHA=$(printf '%q' "$RELEASE_SHA") MKW_OPERATION_ID=$(printf '%q' "$MKW_OPERATION_ID")"
           remote_env="MKW_AUTOMATIC_RELEASE=$(printf '%q' "${MKW_AUTOMATIC_RELEASE:-false}") $remote_env"
+          remote_env="MKW_SIMPLE_RELEASE=$(printf '%q' "${MKW_SIMPLE_RELEASE:-false}") $remote_env"
           remote_env="MKW_RELEASE_RUN_ID=$(printf '%q' "${MKW_RELEASE_RUN_ID:-}") MKW_RELEASE_RUN_ATTEMPT=$(printf '%q' "${MKW_RELEASE_RUN_ATTEMPT:-}") MKW_RELEASE_ARTIFACT_ID=$(printf '%q' "${MKW_RELEASE_ARTIFACT_ID:-}") MKW_RELEASE_ARTIFACT_DIGEST=$(printf '%q' "${MKW_RELEASE_ARTIFACT_DIGEST:-}") $remote_env"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < policy/scripts/product/post-deploy-verify.sh
 
@@ -268,7 +260,6 @@ jobs:
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
-          ROLLBACK_ON_FAILURE: ${{ inputs.rollback_on_failure }}
           JOB_STATUS: ${{ job.status }}
           RUN_ID: ${{ github.run_id }}
           MODE: ${{ inputs.mode }}
@@ -280,54 +271,29 @@ jobs:
             mode: process.env.MODE,
             runtimeVerification: process.env.MODE === 'release' ? 'attempted' : 'skipped-preflight-only',
             releaseSha: process.env.RELEASE_SHA,
-            gateway: 'smoke',
-            schema: 'prisma-migrate-status',
             imageDigests: 'exact-manifest-image-ids-and-digests',
             startup: 'compose-running-and-health-checked',
-            rollback: '.github/workflows/rollback.yml',
-            rollbackOnFailure: process.env.ROLLBACK_ON_FAILURE === 'true',
+            migration: 'prisma-migrate-status',
+            recovery: 'manual-operator-route-only',
             result: process.env.JOB_STATUS,
           };
           const signal = {
             signal: 'none',
             releaseSha: process.env.RELEASE_SHA,
-            workflow: '.github/workflows/rollback.yml',
-            reason: process.env.JOB_STATUS === 'success' ? 'verification passed' : 'verification did not pass; inspect receipt',
+            reason: process.env.JOB_STATUS === 'success' ? 'verification passed' : 'verification failed; stop and use the manual recovery runbook',
             runId: process.env.RUN_ID,
           };
           await writeFile('verification-receipt.json', `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
-          await writeFile('rollback-signal.json', `${JSON.stringify(signal)}\n`, { mode: 0o600 });
+          await writeFile('manual-recovery-notice.json', `${JSON.stringify(signal)}\n`, { mode: 0o600 });
           NODE
           test -s verification-receipt.json
 
-      - name: Emit actionable rollback signal
-        if: failure() && inputs.rollback_on_failure
-        shell: bash
-        env:
-          RELEASE_SHA: ${{ inputs.release_sha }}
-          RUN_ID: ${{ github.run_id }}
-          MODE: ${{ inputs.mode }}
-        run: |
-          set -Eeuo pipefail
-          node --input-type=module <<'NODE'
-          import { appendFile, writeFile } from 'node:fs/promises';
-          const signal = {
-            signal: 'rollback-requested',
-            releaseSha: process.env.RELEASE_SHA,
-            workflow: '.github/workflows/rollback.yml',
-            reason: 'post-deploy verification failed; inspect verification-receipt.json and startup logs',
-            runId: process.env.RUN_ID,
-          };
-          await writeFile('rollback-signal.json', `${JSON.stringify(signal)}\n`, { mode: 0o600 });
-          await appendFile(process.env.GITHUB_STEP_SUMMARY, `rollback-requested: run .github/workflows/rollback.yml for ${JSON.stringify(process.env.RELEASE_SHA)}\n`);
-          NODE
-
-      - name: Upload verification receipt and rollback signal
+      - name: Upload verification receipt and manual-recovery notice
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mkw-post-deploy-receipt-${{ inputs.release_sha }}
           path: |
             verification-receipt.json
-            rollback-signal.json
+            manual-recovery-notice.json
           if-no-files-found: error

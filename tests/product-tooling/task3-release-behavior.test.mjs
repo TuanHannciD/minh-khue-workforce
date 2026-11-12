@@ -63,7 +63,7 @@ function run(script, cwd, env = {}) {
   });
 }
 
-test("actual always receipt/signal/summary blocks preserve hostile inputs after checkout or validation failure", async () => {
+test("verification receipt and manual-recovery notice preserve hostile inputs without rollback dispatch", async () => {
   const source = await workflow("post-deploy-verify.yml");
   for (const result of ["success", "failure", "cancelled"]) {
     for (const releaseSha of [
@@ -77,14 +77,11 @@ test("actual always receipt/signal/summary blocks preserve hostile inputs after 
       const env = {
         MODE: "release",
         RELEASE_SHA: releaseSha,
-        ROLLBACK_ON_FAILURE: "true",
         JOB_STATUS: result,
         RUN_ID: '123"\nrun',
-        GITHUB_STEP_SUMMARY: "summary",
       };
       const values = {
         "inputs.release_sha": releaseSha,
-        "inputs.rollback_on_failure": "true",
         "job.status": result,
         "github.run_id": env.RUN_ID,
       };
@@ -100,28 +97,14 @@ test("actual always receipt/signal/summary blocks preserve hostile inputs after 
       assert.equal(data.releaseSha, releaseSha);
       assert.equal(data.mode, "release");
       assert.equal(data.runtimeVerification, "attempted");
-      assert.equal(data.rollbackOnFailure, true);
+      assert.equal(data.recovery, "manual-operator-route-only");
       assert.equal(data.result, result);
-      let signal = JSON.parse(
-        await readFile(join(cwd, "rollback-signal.json"), "utf8"),
+      const notice = JSON.parse(
+        await readFile(join(cwd, "manual-recovery-notice.json"), "utf8"),
       );
-      assert.equal(signal.releaseSha, releaseSha);
-      assert.equal(signal.runId, env.RUN_ID);
-      if (result === "failure") {
-        const failed = run(
-          block(source, "Emit actionable rollback signal", values),
-          cwd,
-          env,
-        );
-        assert.equal(failed.status, 0, failed.stdout + failed.stderr);
-        signal = JSON.parse(
-          await readFile(join(cwd, "rollback-signal.json"), "utf8"),
-        );
-        assert.equal(signal.signal, "rollback-requested");
-        assert.equal(signal.releaseSha, releaseSha);
-        const summary = await readFile(join(cwd, "summary"), "utf8");
-        assert.ok(summary.includes(JSON.stringify(releaseSha)));
-      }
+      assert.equal(notice.signal, "none");
+      assert.equal(notice.releaseSha, releaseSha);
+      assert.equal(notice.runId, env.RUN_ID);
       assert.equal(
         await readFile(join(cwd, "payload-executed")).catch(() => null),
         null,

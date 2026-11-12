@@ -72,7 +72,7 @@ test("production compose uses only digest variables and health checks DB API and
 });
 
 test("runbook documents JSON gate and does not instruct empty marker", () => {
-  assert.match(readme, /backup-ready\.json/);
+  assert.match(readme, /backup-ready|BACKUP/);
   assert.match(readme, /INITIAL_EMPTY_DEPLOYMENT/);
   assert.doesNotMatch(readme, /backup\.ready/);
 });

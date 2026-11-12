@@ -103,7 +103,7 @@ test("post-deploy verification records receipt, digests, schema, gateway, and st
   assert.match(workflow, /schema|migration/i);
   assert.match(workflow, /gateway|smoke|health/i);
   assert.match(workflow, /startup|error/i);
-  assert.match(workflow, /rollback/i);
+  assert.doesNotMatch(workflow, /rollback_on_failure|automatic-rollback|rollback-requested/);
   assert.match(workflow, /release_run_id/);
   assert.match(workflow, /scripts\/product\/post-deploy-verify\.sh/);
   const verifier = await readFile(
@@ -114,11 +114,8 @@ test("post-deploy verification records receipt, digests, schema, gateway, and st
   assert.match(verifier, /docker image inspect/);
   assert.match(verifier, /migrate\s+status|information_schema/i);
   assert.match(verifier, /State\.Health\.Status/);
-  assert.match(
-    workflow,
-    /failure\(\).*rollback_on_failure|rollback_on_failure.*failure\(\)/s,
-  );
-  assert.match(workflow, /rollback-signal\.json|rollback-requested/);
+  assert.match(workflow, /manual-recovery-notice\.json|manual recovery/);
+  assert.doesNotMatch(workflow, /automatic-rollback|rollback-requested/);
 });
 
 test("rollback is protected/manual, verifies old manifest and backup, and redeploys exact digests without down migration", async () => {

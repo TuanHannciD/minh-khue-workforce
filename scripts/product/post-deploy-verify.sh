@@ -27,7 +27,7 @@ done
 # Use the image runtime; the VPS does not require host Node or pnpm.
 docker run --rm -i --user "$(id -u):$(id -g)" \
   -v "$MKW_DEPLOY_PATH/receipts:/receipts:ro" -v "$MKW_DEPLOY_PATH/shared:/state:ro" --entrypoint node "$EXPECTED_API_IMAGE" \
-  --input-type=module - "$RELEASE_SHA" "$MKW_OPERATION_ID" "${MKW_AUTOMATIC_RELEASE:-false}" <<'NODE'
+  --input-type=module - "$RELEASE_SHA" "$MKW_OPERATION_ID" "${MKW_SIMPLE_RELEASE:-false}" <<'NODE'
 import {readdir, readFile} from 'node:fs/promises';
 const receipts = (await readdir('/receipts')).filter(name => /^\d{8}T\d{6}Z-(ok|failed)\.json$/.test(name)).sort();
 if (!receipts.length) throw new Error('release receipt missing');
@@ -41,7 +41,7 @@ if (process.argv[4] === 'true') {
 NODE
 # For a gateway-only operation, never execute an API/migration command.
 evidence_mode=with-api-status
-if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
+if [[ "${MKW_SIMPLE_RELEASE:-false}" != true && "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
   script_root="$MKW_DEPLOY_PATH/releases/$RELEASE_SHA"
   run_node() {
     docker run --rm -i --pull=never --user "$(id -u):$(id -g)" \
@@ -53,7 +53,7 @@ fi
 if [[ "${evidence_mode:-with-api-status}" != read-only-history ]]; then compose exec -T api node node_modules/prisma/build/index.js migrate status; fi
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/" >/dev/null
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/api/health" >/dev/null
-if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
+if [[ "${MKW_SIMPLE_RELEASE:-false}" != true && "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
   # Deploy transferred these control helpers with this exact immutable SHA.
   script_root="$MKW_DEPLOY_PATH/releases/$RELEASE_SHA"
   rendered="$compose_file"
@@ -73,7 +73,7 @@ if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
   cp -p "$state_path" "$lkg_tmp"; mv -f "$lkg_tmp" "$MKW_DEPLOY_PATH/shared/last-known-good.json"
 else
   # A manual runtime recheck has no bound producer/operation promotion inputs.
-  # Preserve current-state and LKG, including any incident/uncertain journal.
-  echo 'MANUAL_RUNTIME_VERIFY_OK: current-state and last-known-good preserved'
+  # Manual legacy verification preserves its journal; simple releases never promote state.
+  echo 'POST_DEPLOY_VERIFY_SIMPLE_OK: runtime checked; no current-state/LKG promotion or automatic rollback'
 fi
-echo 'POST_DEPLOY_VERIFY_OK: receipt, image IDs/digests, schema, startup health and gateway smoke'
+echo 'POST_DEPLOY_VERIFY_OK: receipt, image IDs/digests, migration status, startup health and gateway smoke'

@@ -172,7 +172,7 @@ ssh() { eval "\${!#}"; }
 ` +
       block(
         await source("post-deploy-verify"),
-        "Verify running digests, schema, gateway, and startup health",
+        "Verify running image digests, migration status, health, and smoke",
       ),
     dir,
     { ...envFor(dir), MKW_DEPLOY_PATH: posix(dir) },
@@ -190,7 +190,7 @@ for (const [workflow, name] of [
   ["deploy", "Run remote deploy entrypoint with verified artifact"],
   [
     "post-deploy-verify",
-    "Verify running digests, schema, gateway, and startup health",
+    "Verify running image digests, migration status, health, and smoke",
   ],
   ["rollback", "Redeploy exact old digests through deploy-entrypoint.sh"],
 ]) {

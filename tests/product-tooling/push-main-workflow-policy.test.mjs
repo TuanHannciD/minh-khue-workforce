@@ -48,14 +48,11 @@ test("backup coordinator parent validation can read Actions run state", async ()
 
 test("needs stop deployment after either failed producer and verification after failed deploy", async () => {
   const { jobs } = await read("main-release.yml");
-  assert.deepEqual(needs(jobs.build), ["preflight", "quality"]);
+  assert.deepEqual(needs(jobs.build), ["quality"]);
   assert.deepEqual(needs(jobs.backup), ["quality"]);
   assert.deepEqual(needs(jobs.deploy), ["build", "backup"]);
   assert.deepEqual(needs(jobs.verify), ["build", "deploy"]);
-  assert.equal(
-    jobs.quality.if,
-    "needs.preflight.outputs.release_status == 'ready'",
-  );
+  assert.equal(jobs.quality.if, undefined);
   assert.equal(
     jobs.verify.if,
     "needs.deploy.outputs.release_status == 'success'",
@@ -69,6 +66,7 @@ test("needs stop deployment after either failed producer and verification after 
     assert.equal(jobs[name]["continue-on-error"], undefined);
   }
   assert.equal(jobs.backup.with.kind, "BACKUP");
+  assert.equal(jobs.deploy.with.simple_release, true);
   assert.equal(jobs.backup.with.release_sha, expr("github.sha"));
   assert.equal(jobs.deploy.with.mode, "release");
   assert.equal(jobs.deploy.with.backup_kind, "BACKUP");
@@ -162,8 +160,9 @@ test("every forwarded exact output exists at workflow and producer job levels", 
 test("summary stays failed for every failed prerequisite and manual routes remain", async () => {
   const { jobs } = await read("main-release.yml");
   const summary = jobs["release-status"];
+  assert.equal(jobs.preflight, undefined);
+  assert.equal(jobs.recovery, undefined);
   assert.deepEqual(needs(summary), [
-    "preflight",
     "quality",
     "build",
     "backup",
@@ -173,7 +172,7 @@ test("summary stays failed for every failed prerequisite and manual routes remai
   assert.equal(
     summary.steps[0].env.RELEASE_STATUS,
     expr(
-      "needs.deploy.outputs.release_status == 'superseded' && 'superseded' || needs.preflight.outputs.release_status == 'superseded' && 'superseded' || needs.deploy.outputs.release_status == 'already-deployed' && 'already-deployed' || needs.preflight.outputs.release_status == 'already-deployed' && 'already-deployed' || needs.verify.result == 'success' && 'success' || 'failed'",
+      "needs.deploy.outputs.release_status == 'superseded' && 'superseded' || needs.verify.result == 'success' && 'success' || 'failed'",
     ),
   );
   assert.ok(summary.outputs.correlation_id);

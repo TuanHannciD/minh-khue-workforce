@@ -1,5 +1,32 @@
 # MKW-CICD-001 — Điều phối CI/CD
 
+## Amendment: simplified push-main release (2026-11-12)
+
+Base implementation tip: `f024b5b77b404796304395439a140f35ca3fdf56` (`origin/main`).
+The user approved replacing the overengineered automatic path with one coherent
+`push main → quality → full API/Web Docker build → encrypted verified BACKUP →
+Compose deploy → health/smoke verify` flow. This amendment is local-only: no
+push/merge/main mutation, GitHub settings/secrets, VPS mutation, or adoption
+feature commits. Existing production variables, pinned actions, SSH fingerprint,
+least permissions, backup target binding/freshness/restore verification, remote
+flock, forward Prisma migration and Compose entrypoint remain required.
+
+The normal path no longer reads or promotes `current-state.json`/
+`last-known-good.json`, selects API reuse/LKG, emits schema or gateway-only
+proofs, uses empty-deployment fallback, or dispatches automatic rollback. A
+legacy healthy VPS without those files proceeds when the fresh `BACKUP`, exact
+manifest/image digests and target/ref checks pass. Failures stop at their stage
+and report SHA/digests/backup identity; manual controlled recovery remains an
+operator route and explicitly does not auto-restore or down-migrate.
+
+Acceptance for this amendment: stale main, wrong fingerprint/digest/target/ref,
+backup, migration, build, health or smoke failures block later mutation; reruns
+of the same SHA use forward idempotent migrations; existing DB volume/data is
+preserved; remote flock still serializes releases; healthy and unhealthy
+disposable Docker fixtures are visible. Tests are updated to assert the new
+automatic contract and remove only dead normal-path consumers after consumer
+search. Operator activation is documented in one current runbook/checklist.
+
 ## Phạm vi đã duyệt
 
 Người dùng yêu cầu agent chính điều phối sub-agent nâng cấp CI/CD; cho phép bật Docker Desktop khi cần kiểm thử local. Thiết kế trong hội thoại được duyệt bằng “Approved”: coordinator nhận một release SHA, chạy backup và deploy/verify qua các boundary hiện có; backup gate đúng release/freshness/target; supply-chain và rollback có bằng chứng rõ; tài liệu và kiểm thử local. Chưa có quyền push/merge/deploy production hoặc ghi secret thật.
@@ -155,3 +182,15 @@ Fresh independent review `mkw-candidate-filter-fix-review-r1`: **PASS — no blo
 Coordinator kiểm tra sau tích hợp tại worktree này: `node --test --test-concurrency=1 tests/product-tooling/release-coordinator-policy.test.mjs` **40/40 PASS**, `git diff --check` PASS. Combined run với manual-provenance trước đó Failed vì thiếu apps/api/node_modules/exceljs; `pnpm install --frozen-lockfile` Failed do launcher local thiếu executable. Không coi lỗi setup này là test PASS; full evidence độc lập tại exact tip giữ nguyên.
 
 Ruling: chấp nhận code/review gates local trong phạm vi evidence trên, không còn finding chặn đã biết. Giới hạn: 19 historical docs links, 5 Windows API child-process errors và lịch sử web timeout vẫn được giữ; Docker evidence từ rehearsal trước, không chạy lại cho metadata/filter delta. Live GitHub/GHCR signing/SSH/VPS/DB/production Not run. Main vẫn9f89930; không push/merge main/settings/secrets. Primary dirty/untracked không thuộc task được bảo toàn. Next action: bàn giao branch feat/modern-cicd, checklist activation tại docs/operations/release-checklist.md; activation ngoài phạm vi local chưa thực hiện.
+
+## Simplification implementation checkpoint (2026-11-12)
+
+Writer changes are local on `t3/simplify-main-release-cicd`, base `f024b5b`. The automatic path now has jobs `quality → (build + BACKUP) → deploy → verify → release-status`; `preflight`, current-state/LKG adoption, API reuse, gateway/schema proof production and automatic rollback are absent from `main-release.yml`. Build always pushes API and Web images and emits exact digest outputs. Deploy/verify receive `MKW_SIMPLE_RELEASE`; the trusted entrypoint keeps remote flock, exact pull/RepoDigest, BACKUP freshness/target checks, forward migration, Compose wait and smoke while skipping journal/LKG promotion. Manual workflow routes retain their existing protected controls.
+
+Current tests: `node --test --test-concurrency=1 tests/product-tooling/simplified-release-policy.test.mjs` 4/4; scoped deploy/receipt behavior 6/6; workflow YAML parsed with Python PyYAML; `git diff --check` pending final snapshot. Bash syntax could not run from this Windows shell because `/bin/bash` is unavailable; the Git Bash-backed behavior test suite did execute its own fixture runner. Live GitHub/GHCR attestation, SSH/VPS/DB and Docker Desktop rehearsal are not run in this worker. Parent must run fresh independent review on the exact commit and perform any authorized disposable Docker rehearsal.
+
+Docs current route: `docs/operations/release-checklist.md`, `product-release-runbook.md`, `product-rollback-runbook.md`, and `deploy/README.md`; old design/report evidence remains untouched and is explicitly superseded for normal push-main.
+
+## Simplification final worker snapshot (2026-11-12)
+
+Added explicit `MKW_SIMPLE_RELEASE` propagation to the SSH post-deploy verifier and a policy assertion for it. Focused affected suite: **31/31 pass** (`simplified-release-policy`, deploy-entrypoint, task3 receipt behavior, release workflow, final review boundaries). `npm run check:skills` passed; all 9 workflow YAML files parsed; `node --check scripts/product/local-rehearsal-driver.mjs` passed; Git Bash `bash -n` passed for changed shell scripts; `git diff --check` passed. Full `npm run product:test:tooling` was attempted; unrelated historical tests remain blocked/failing where workspace dependencies are absent (`eslint`, `dependency-cruiser`, `typescript`, `exceljs`, app API setup) and existing benchmark login fixtures return 401. No production/live GitHub/GHCR/SSH/VPS/Docker rehearsal was run in this worker. Exact commit is recorded after the final local commit; parent must perform fresh independent review on that exact tip.

@@ -30,7 +30,10 @@ done
 : "${MKW_OPERATION_KIND:=release}"
 : "${MKW_OPERATION_ID:=${MKW_RELEASE_SHA:-unknown}}"
 : "${MKW_AUTOMATIC_RELEASE:=false}"
+: "${MKW_SIMPLE_RELEASE:=false}"
 [[ "$MKW_OPERATION_ID" =~ ^[A-Za-z0-9._-]{1,160}$ ]] || { echo "invalid operation id" >&2; exit 78; }
+case "$MKW_SIMPLE_RELEASE" in true|false) ;; *) echo "invalid simple release mode" >&2; exit 78 ;; esac
+[[ "$MKW_SIMPLE_RELEASE" != true || "$MKW_OPERATION_KIND" == release ]] || { echo "simple release only supports forward release" >&2; exit 78; }
 : "${MKW_REGISTRY_HOST:=ghcr.io}"
 : "${MKW_REGISTRY_VISIBILITY:=}"
 : "${MKW_REGISTRY_PULL_USERNAME:=}"
@@ -130,7 +133,11 @@ validate_backup_gate() {
     # Empty-deployment evidence cannot protect an existing database rollback.
     args+=(--expected-kind BACKUP)
   else
-    case "$backup_expected_kind" in BACKUP|INITIAL_EMPTY_DEPLOYMENT) ;; *) echo "backup kind policy is required" >&2; exit 78 ;; esac
+    if [[ "${MKW_SIMPLE_RELEASE:-false}" == true ]]; then
+      [[ "$backup_expected_kind" == BACKUP ]] || { echo "simple release requires a BACKUP snapshot" >&2; exit 78; }
+    else
+      case "$backup_expected_kind" in BACKUP|INITIAL_EMPTY_DEPLOYMENT) ;; *) echo "backup kind policy is required" >&2; exit 78 ;; esac
+    fi
     args+=(--expected-release-sha "$MKW_RELEASE_SHA" --expected-kind "$backup_expected_kind")
   fi
   args+=(--expected-target-host "$backup_expected_host" --expected-database "$backup_expected_database" --expected-target-identity "$backup_expected_target_identity")
@@ -163,16 +170,6 @@ if [[ "$mode" == bootstrap ]]; then
   echo "BOOTSTRAP_OK path=$MKW_DEPLOY_PATH project=$MKW_PROJECT_NAME"; exit 0
 fi
 
-# Only an automatic ordinary release skips a verified SHA. Manual recovery and
-# application rollback retain their explicit target and existing safety gates.
-if [[ "$mode" == release && "${MKW_AUTOMATIC_RELEASE:-false}" == true && -e "$MKW_DEPLOY_PATH/shared/current-state.json" ]]; then
-  decision="$(run_node "$script_root/scripts/product/release/read-current-state.mjs" "$MKW_DEPLOY_PATH/shared/current-state.json" "$MKW_RELEASE_SHA")"
-  if [[ "$decision" == already-deployed ]]; then
-    echo "ORCHESTRATION_OUTCOME=already-deployed release_sha=$MKW_RELEASE_SHA operation_id=$MKW_OPERATION_ID"
-    exit 0
-  fi
-fi
-
 if [[ "$mode" == release ]]; then
   if [[ -z "$MKW_REGISTRY_VISIBILITY" ]]; then
     if [[ -f "$MKW_DEPLOY_PATH/shared/secrets/ghcr-pull-username" ]]; then MKW_REGISTRY_VISIBILITY=private; else MKW_REGISTRY_VISIBILITY=public; fi
@@ -188,37 +185,45 @@ if [[ "$mode" == release ]]; then
   registry_pull_status="verified"
 fi
 
-# Hold the deployment lock while checking the current DB, before rendering or
-# invoking any mutating compose operation. Old releases use this current guard.
-if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
-  MKW_PROJECT_NAME="$MKW_PROJECT_NAME" MKW_POSTGRES_IMAGE="$MKW_POSTGRES_IMAGE" \
-    bash "$script_root/scripts/product/release/verify-rollback-postgres.sh"
-fi
-
-# Re-read metadata and remote time under the lock, immediately before mutation.
-validate_backup_gate
-
-# Update only public origin/TLS settings; retain existing database/auth secrets.
-# Journal before the first config/migration mutation. Signals, timeouts, failed
-# SSH and failed verification leave this state uncertain until operator review.
-source "$script_root/scripts/product/release/operation-state.sh"
-write_state begin "$manifest" "$MKW_DEPLOY_PATH/shared/last-known-good.json" "$backup_ready" "$MKW_OPERATION_ID" \
-  "${MKW_RELEASE_RUN_ID:-}" "${MKW_RELEASE_RUN_ATTEMPT:-}" "${MKW_RELEASE_ARTIFACT_ID:-}" "${MKW_RELEASE_ARTIFACT_DIGEST:-}" "${MKW_CONTROL_SHA:-}" "${MKW_ATTESTATION_MODE:-not-configured}" "${MKW_ATTESTATION_STATUS:-not-verified}" "${MKW_BACKUP_PROVENANCE:-}"
-gateway_policy_file="$(dirname "$manifest")/data-operation-evidence.json"
+# Manual recovery may retain its historical journal/evidence path; the simple
+# push-main release intentionally skips current-state/LKG and gateway proofs.
 operation_class=normal
-if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true && "$MKW_OPERATION_KIND" == release ]]; then
-  operation_class="$(run_node "$script_root/scripts/product/release/gateway-policy.mjs" classify "$state_path" "$gateway_policy_file")"
+if [[ "${MKW_SIMPLE_RELEASE:-false}" != true ]]; then
+  # Hold the deployment lock while checking the current DB, before rendering or
+  # invoking any mutating compose operation. Old releases use this current guard.
+  if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
+    MKW_PROJECT_NAME="$MKW_PROJECT_NAME" MKW_POSTGRES_IMAGE="$MKW_POSTGRES_IMAGE" \
+      bash "$script_root/scripts/product/release/verify-rollback-postgres.sh"
+  fi
+
+  # Re-read metadata and remote time under the lock, immediately before mutation.
+  validate_backup_gate
+
+  # Update only public origin/TLS settings; retain existing database/auth secrets.
+  # Journal before the first config/migration mutation. Signals, timeouts, failed
+  # SSH and failed verification leave this state uncertain until operator review.
+  source "$script_root/scripts/product/release/operation-state.sh"
+  write_state begin "$manifest" "$MKW_DEPLOY_PATH/shared/last-known-good.json" "$backup_ready" "$MKW_OPERATION_ID" \
+    "${MKW_RELEASE_RUN_ID:-}" "${MKW_RELEASE_RUN_ATTEMPT:-}" "${MKW_RELEASE_ARTIFACT_ID:-}" "${MKW_RELEASE_ARTIFACT_DIGEST:-}" "${MKW_CONTROL_SHA:-}" "${MKW_ATTESTATION_MODE:-not-configured}" "${MKW_ATTESTATION_STATUS:-not-verified}" "${MKW_BACKUP_PROVENANCE:-}"
+  gateway_policy_file="$(dirname "$manifest")/data-operation-evidence.json"
+  operation_class=normal
+  if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true && "$MKW_OPERATION_KIND" == release ]]; then
+    operation_class="$(run_node "$script_root/scripts/product/release/gateway-policy.mjs" classify "$state_path" "$gateway_policy_file")"
+  fi
+  if [[ "$operation_class" == gateway-only ]]; then
+    # Prove current API/PG identity before any config, migration or service change.
+    MKW_DATABASE_EVIDENCE_MODE=read-only-history
+    rendered="$MKW_DEPLOY_PATH/current/compose.rendered.yml"
+    capture_database "$MKW_DEPLOY_PATH/shared/database-before.json"
+    bash "$script_root/scripts/product/release/runtime-evidence.sh" "$rendered" > "$MKW_DEPLOY_PATH/shared/runtime-before.json"
+    run_node "$script_root/scripts/product/release/gateway-policy.mjs" precheck "$state_path" "$MKW_DEPLOY_PATH/shared/runtime-before.json" "$MKW_DEPLOY_PATH/shared/database-before.json"
+    write_state update "$state_path" before "$MKW_DEPLOY_PATH/shared/database-before.json"
+    write_state update "$state_path" gateway-policy "$gateway_policy_file" "$MKW_DEPLOY_PATH/shared/runtime-before.json"
+  fi
 fi
-if [[ "$operation_class" == gateway-only ]]; then
-  # Prove current API/PG identity before any config, migration or service change.
-  MKW_DATABASE_EVIDENCE_MODE=read-only-history
-  rendered="$MKW_DEPLOY_PATH/current/compose.rendered.yml"
-  capture_database "$MKW_DEPLOY_PATH/shared/database-before.json"
-  bash "$script_root/scripts/product/release/runtime-evidence.sh" "$rendered" > "$MKW_DEPLOY_PATH/shared/runtime-before.json"
-  run_node "$script_root/scripts/product/release/gateway-policy.mjs" precheck "$state_path" "$MKW_DEPLOY_PATH/shared/runtime-before.json" "$MKW_DEPLOY_PATH/shared/database-before.json"
-  write_state update "$state_path" before "$MKW_DEPLOY_PATH/shared/database-before.json"
-  write_state update "$state_path" gateway-policy "$gateway_policy_file" "$MKW_DEPLOY_PATH/shared/runtime-before.json"
-fi
+# Revalidate the encrypted BACKUP under the deployment lock immediately before
+# any environment, migration, or Compose mutation.
+validate_backup_gate
 api_env="$MKW_DEPLOY_PATH/shared/api.env"
 [[ -f "$api_env" ]] || { echo "bootstrap API env is required" >&2; exit 78; }
 if [[ "$operation_class" != gateway-only ]]; then
@@ -244,7 +249,7 @@ if (!result.ok) { console.error(result.errors.join('; ')); process.exit(78); }
 NODE
 echo "RELEASE_CONFIG_OK project=$MKW_PROJECT_NAME"
 
-on_error() { local code=$?; if [[ -n "${state_path:-}" && -s "$state_path" ]]; then write_state update "$state_path" failed || true; fi; if (( receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }
+on_error() { local code=$?; if [[ "${MKW_SIMPLE_RELEASE:-false}" != true && -n "${state_path:-}" && -s "$state_path" ]]; then write_state update "$state_path" failed || true; fi; if (( receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }
 trap on_error ERR
 validate_backup_gate
 # Approved forward migration (migrate deploy) and the JSON backup gate are
@@ -252,15 +257,20 @@ validate_backup_gate
 # Immutable images use sha256:[0-9a-f]{64}.
 mutation_started=true
 if [[ "$MKW_OPERATION_KIND" != application-rollback && "$operation_class" != gateway-only ]]; then
-  # Evidence before any DB start/replacement, not just before migration.
-  capture_database "$MKW_DEPLOY_PATH/shared/database-before.json"
-  write_state update "$state_path" before "$MKW_DEPLOY_PATH/shared/database-before.json"
+  if [[ "${MKW_SIMPLE_RELEASE:-false}" != true ]]; then
+    capture_database "$MKW_DEPLOY_PATH/shared/database-before.json"
+    write_state update "$state_path" before "$MKW_DEPLOY_PATH/shared/database-before.json"
+  fi
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait db
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
-  capture_database "$MKW_DEPLOY_PATH/shared/database-after.json"
-  write_state update "$state_path" after "$MKW_DEPLOY_PATH/shared/database-after.json"
+  if [[ "${MKW_SIMPLE_RELEASE:-false}" != true ]]; then
+    capture_database "$MKW_DEPLOY_PATH/shared/database-after.json"
+    write_state update "$state_path" after "$MKW_DEPLOY_PATH/shared/database-after.json"
+  fi
 fi
-write_state update "$state_path" app unused "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+if [[ "${MKW_SIMPLE_RELEASE:-false}" != true ]]; then
+  write_state update "$state_path" app unused "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+fi
 if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --no-deps api gateway
 elif [[ "$operation_class" == gateway-only ]]; then
