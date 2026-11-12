@@ -41,10 +41,18 @@ test("entrypoint delegates registry auth/pull and requires exact immutable diges
 });
 
 test("forward migration gate is before compose up and traffic smoke checks follow health", () => {
-  const migration = entrypoint.indexOf("migrate deploy");
+  const migration = entrypoint.indexOf(
+    "run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy",
+  );
+  const databaseOnly = entrypoint.indexOf("up -d --wait --no-deps db");
   const up = entrypoint.indexOf(" up -d --wait --remove-orphans");
   assert.ok(migration >= 0, "approved forward migration command is required");
+  assert.ok(databaseOnly >= 0, "database-only Compose preparation is required");
   assert.ok(up > migration, "migration must run before compose up");
+  assert.ok(
+    migration > databaseOnly,
+    "database must be available before migration",
+  );
   assert.match(entrypoint, /--wait|service_healthy|Health/);
   assert.match(entrypoint, /\/api\/health/);
   assert.match(entrypoint, /curl .*127\.0\.0\.1/);

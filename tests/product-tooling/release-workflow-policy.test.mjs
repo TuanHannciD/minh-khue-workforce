@@ -103,7 +103,10 @@ test("post-deploy verification records receipt, digests, schema, gateway, and st
   assert.match(workflow, /schema|migration/i);
   assert.match(workflow, /gateway|smoke|health/i);
   assert.match(workflow, /startup|error/i);
-  assert.doesNotMatch(workflow, /rollback_on_failure|automatic-rollback|rollback-requested/);
+  assert.doesNotMatch(
+    workflow,
+    /rollback_on_failure|automatic-rollback|rollback-requested/,
+  );
   assert.match(workflow, /release_run_id/);
   assert.match(workflow, /scripts\/product\/post-deploy-verify\.sh/);
   const verifier = await readFile(

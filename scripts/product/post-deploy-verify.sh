@@ -24,20 +24,18 @@ for service in api gateway db; do
   [[ "$(docker inspect "$id" --format '{{.State.Status}}|{{.State.Health.Status}}')" == 'running|healthy' ]]
   echo "VERIFIED service=$service digest-and-health"
 done
-# Use the image runtime; the VPS does not require host Node or pnpm.
+# Use the image runtime; the VPS does not require host Node or pnpm. Receipt
+# correlation is sufficient for the simplified path; it never needs state
+# files, so a legacy VPS without current-state/LKG remains verifiable.
 docker run --rm -i --user "$(id -u):$(id -g)" \
-  -v "$MKW_DEPLOY_PATH/receipts:/receipts:ro" -v "$MKW_DEPLOY_PATH/shared:/state:ro" --entrypoint node "$EXPECTED_API_IMAGE" \
-  --input-type=module - "$RELEASE_SHA" "$MKW_OPERATION_ID" "${MKW_SIMPLE_RELEASE:-false}" <<'NODE'
+  -v "$MKW_DEPLOY_PATH/receipts:/receipts:ro" --entrypoint node "$EXPECTED_API_IMAGE" \
+  --input-type=module - "$RELEASE_SHA" "$MKW_OPERATION_ID" <<'NODE'
 import {readdir, readFile} from 'node:fs/promises';
 const receipts = (await readdir('/receipts')).filter(name => /^\d{8}T\d{6}Z-(ok|failed)\.json$/.test(name)).sort();
 if (!receipts.length) throw new Error('release receipt missing');
 const latest = JSON.parse(await readFile(`/receipts/${receipts.at(-1)}`, 'utf8'));
-if (latest.releaseSha !== process.argv[2] || latest.status !== 'ok') throw new Error('latest release receipt is not successful for expected SHA');
-if (process.argv[4] === 'true') {
-  const state = JSON.parse(await readFile('/state/current-state.json', 'utf8'));
-  if (state.releaseSha !== process.argv[2] || state.operationId !== process.argv[3] || !['deploying', 'verified'].includes(state.status))
-    throw new Error('incident-required: current operation identity mismatch');
-}
+if (latest.releaseSha !== process.argv[2] || latest.operationId !== process.argv[3] || latest.status !== 'ok')
+  throw new Error('latest release receipt is not successful for expected SHA and operation');
 NODE
 # For a gateway-only operation, never execute an API/migration command.
 evidence_mode=with-api-status

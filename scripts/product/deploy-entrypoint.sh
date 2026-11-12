@@ -256,13 +256,18 @@ validate_backup_gate
 # required before traffic; INITIAL_EMPTY_DEPLOYMENT is validated by JSON.
 # Immutable images use sha256:[0-9a-f]{64}.
 mutation_started=true
+migration_complete=false
 if [[ "$MKW_OPERATION_KIND" != application-rollback && "$operation_class" != gateway-only ]]; then
   if [[ "${MKW_SIMPLE_RELEASE:-false}" != true ]]; then
     capture_database "$MKW_DEPLOY_PATH/shared/database-before.json"
     write_state update "$state_path" before "$MKW_DEPLOY_PATH/shared/database-before.json"
   fi
-  docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait db
+  # Prepare only PostgreSQL. This Compose operation has no API or gateway
+  # dependency and cannot expose application traffic before migration.
+  docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --no-deps db
+  # The forward migration is the gate for the later application Compose apply.
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
+  migration_complete=true
   if [[ "${MKW_SIMPLE_RELEASE:-false}" != true ]]; then
     capture_database "$MKW_DEPLOY_PATH/shared/database-after.json"
     write_state update "$state_path" after "$MKW_DEPLOY_PATH/shared/database-after.json"
@@ -289,6 +294,7 @@ elif [[ "$operation_class" == gateway-only ]]; then
     exit "$gateway_status"
   fi
 else
+  [[ "$MKW_OPERATION_KIND" == application-rollback || "$migration_complete" == true ]] || { echo "migration gate did not complete" >&2; exit 78; }
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --remove-orphans
 fi
 docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" ps
