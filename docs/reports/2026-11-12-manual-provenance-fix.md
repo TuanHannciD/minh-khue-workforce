@@ -1,0 +1,43 @@
+# Manual release — sửa provenance xuyên suốt
+
+Base: `42c143dfbdcdbb09328b43268bd5d3c7e8d3cac7` (integrated R2), branch `t3/complete-push-main-cd`, worktree `t3-8849e8d4`. Scope chỉ Important finding: mất producing attempt/archive digest trên đường manual coordinator → deploy/verify → remote journal. Writer tự triển khai, parent review độc lập exact committed tip; không production/SSH/settings/push/merge/nested agents.
+
+## Amendment và kế hoạch kiểm chứng
+
+- Resolver phải trả tuple immutable `{runId, runAttempt, artifactId, artifactDigest}`. Archive digest lấy từ trusted Actions artifact API và kiểm SHA-256 bytes tải về trước đọc entry. Metadata producer trong archive do canonical build ghi được đối chiếu với exact attempt API; artifact cũ thiếu producer fields chỉ được suy attempt khi trusted artifact creation time thuộc duy nhất một completed attempt. Không dùng latest attempt thay producing attempt.
+- Coordinator dùng resolver chung, truyền tuple release/backup sang deploy, tuple release sang verify, và xuất đầy đủ outputs. Backup giữ binding run/attempt qua tên artifact, backupId có purpose và metadata readiness; thiếu/giả digest hoặc metadata phải fail trước dispatch deploy/SSH.
+- Manual workflow nhận provenance tùy chọn, tự derive từ trusted API khi không nhập; giá trị được cung cấp phải khớp. Reusable automatic vẫn dùng exact outputs của producer đang chạy; không buộc completed parent. Remote nhận tuple đã resolve; manual verify bảo toàn v2 state/LKG như R2.
+- RED adversarial: thiếu/sai attempt/digest, rerun attempt2 giữ artifact attempt1, sai bytes checksum, backup metadata không đầy đủ; test chạy actual resolver/coordinator/workflow blocks và transport tại biên external giả rõ ràng. GREEN focused + full tooling serial, lint/format/YAML/Bash/actionlint/diff. Tái sử dụng product build/Docker đã PASS nếu không sửa runtime deploy/state behavior.
+- Giới hạn: local metadata/API boundary tests không chứng minh live GitHub/GHCR/VPS. Giữ19 historical links/5 Windows API child errors và các giới hạn R2; không sửa setup reviewer ngoài scope.
+
+## Phản hồi finding
+
+Đã sửa end-to-end: `resolveExactRelease` trả đầy đủ tuple, đối chiếu canonical source/metadata với exact attempt API và artifact creation time; archive cũ chỉ derive khi duy nhất một attempt hợp lệ. Build mới ghi producer fields. SHA-256 ZIP bytes phải khớp digest từ GitHub API; local manifest/build metadata/backup-ready được so với canonical archive. Không dùng checksum tự khai báo làm producer proof.
+
+Coordinator xuất attempt/digest cho cả release và backup. Deploy manual dùng một optional `provenance` JSON input (giữ giới hạn10 inputs của pinned actionlint); thay input tên backup dư thừa bằng tên derive từ API. Operator không phải nhập thêm tuple khi bỏ trống. Giá trị được cung cấp phải đầy đủ và khớp resolver. Verify có optional attempt/digest và cũng chạy resolver trước SSH. Automatic workflow-call tiếp tục dùng exact upload outputs của parent còn chạy, không áp completed-run gate của manual.
+
+Actual remote command nhận resolved release tuple và backup tuple đã lọc; journal ghi `ownership` đầy đủ cùng `preReleaseBackupOwnership`. Thay đổi entrypoint chỉ thêm đối số metadata vào journal, không đổi service/migration/recovery commands. Manual verify vẫn giữ nguyên state/LKG; gateway safety/ownership/attestation/PG/backup/unknown guards trước đây giữ nguyên. Runbook đã cập nhật input contract và producer trust boundary.
+
+## Kiểm chứng
+
+Runtime: Node `24.22.1`, pnpm `12.15.0`, dependencies lock hiện có; không cài dependency hoặc tạo `pnpm.exe` shim. Evidence giữ tại `.agent-runs/push-main-completion/manual-provenance/`.
+
+| Gate                      | Kết quả/evidence                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RED exact base            | `red-final-exact42c143d.log`: **20 failures dự kiến /21 tests**,1 pre-existing backup refusal vẫn đạt. Snapshot source base trong evidence, không sửa checkout khác.                                                                                                                                                                                        |
+| Focused final             | `focused-final.log`: **24/24 PASS**, gồm actual deploy/verify blocks, valid ZIP sai checksum, missing/forged attempt/digest, incomplete backup tuple/metadata, legacy rerun attempt1/latest2, actual quoted remote command và actual journal CLI. GitHub/SSH được giả tại external process boundary; ZIP/unzip/hash/resolver/coordinator/journal chạy thật. |
+| Full tooling              | `tooling-final2.log` + `tooling-final2-exit.txt`: **726/726 PASS**, exit0,0 skipped/cancelled. Lệnh `node --test --test-concurrency=1 tests/product-tooling/*.test.mjs`. Run cuối sau khi bỏ override completed/success ở latest-run precheck và tăng độ chặt checksum fixture thành ZIP vẫn đọc được nhưng đổi archive comment.                            |
+| Root                      | `root.log`: **10/10 PASS**.                                                                                                                                                                                                                                                                                                                                 |
+| Lint/format               | `lint-final2.log`, `format-check.log`: product lint và tất cả changed JS/YAML/docs **PASS**.                                                                                                                                                                                                                                                                |
+| YAML/Bash/actionlint/diff | 9 workflows/55 inline Bash, entrypoint `bash -n`, actionlint1.7.9 và `git diff --check` **PASS**.                                                                                                                                                                                                                                                           |
+| Docs                      | `docs.log`: **Failed19 historical missing links**, không thêm missing link mới.                                                                                                                                                                                                                                                                             |
+
+Lần full đầu `tooling-full.log` là **722/723 Failed**: fixture ZIP cũ chỉ mô phỏng `unzip`, chưa trả digest cho API read mới. Đã bổ sung trusted API response với SHA-256 của đúng ZIP bytes, không bỏ checksum guard; transport-focused và full sau đó đạt. Các focused đầu có fixture thiếu provenance mới đã được cập nhật; không gọi các run lỗi đó là PASS.
+
+## Giới hạn và bàn giao
+
+Tái sử dụng product type/build/boundaries/contract và Docker evidence đã được review trong [R2](2026-11-12-push-main-integrated-fix-r2.md); **không rerun Docker** vì thay đổi runtime chỉ thêm journal metadata, không đổi container/service/migration/state-promotion logic. Actual workflow transport/journal CLI đã được kiểm mới ở trên. Harness external GitHub boundary được bổ sung producer fields/timestamps cho contract mới, chưa gọi đó là fresh Docker PASS. Retained Docker A→B/recovery/refusal/backup-restore/manual-state/rerun evidence vẫn giữ nguyên, không là live signing/GHCR/VPS proof.
+
+19 historical links và5 Windows API `pnpm.exe` child errors (`COMMAND_PROCESS_ERROR`, `-4058`) vẫn là giới hạn chưa giải quyết; API/web/browser/sandbox/product build không rerun trong scope này. Prior web full-suite timeout và targeted25/25 PASS được giữ đúng như R2, không gọi timeout là baseline mới. Thiếu typescript/pg, login401 và checkout CSS EOL ở môi trường acceptance reviewer không được sửa ngoài scope.
+
+Implementation commit: `e20d0bf0ec3709248448806d1a66b983cbd247c5`. Commit tiếp chỉ ghi report; exact handoff tip lấy bằng `git rev-parse HEAD` trong bàn giao, tránh hash tự tham chiếu. Parent fresh scoped review finding này trên exact committed tip; chưa claim final acceptance.
