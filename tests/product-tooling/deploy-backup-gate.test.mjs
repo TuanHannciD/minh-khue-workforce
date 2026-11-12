@@ -201,6 +201,7 @@ const execute = async (command, args) => {
   if (command !== 'gh') throw new Error('unexpected external command');
   const route = args.at(-1);
   const value = route.endsWith('/artifacts/101') ? {id:101, name:'mkw-release-${SHA}', expired:false, digest:"sha256:${"d".repeat(64)}", workflow_run:{id:10}}
+    : route.endsWith('/runs/10/attempts/1') ? {id:10, workflow_id:100, run_attempt:1, event:'workflow_run', head_branch:'main', status:'completed', conclusion:'success'}
     : route.endsWith('/runs/10') ? {id:10, workflow_id:100, event:'workflow_run', head_branch:'main', status:'completed', conclusion:'success'}
     : route.endsWith('/workflows/100') ? {id:100, path:'.github/workflows/noncanonical.yml'}
     : (() => { throw new Error('unexpected GitHub route'); })();

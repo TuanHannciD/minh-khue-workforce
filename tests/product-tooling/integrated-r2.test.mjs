@@ -47,18 +47,32 @@ test("GitHub producer attempt lookup reads immutable attempt1 rather than transi
   assert.equal(run.path, ".github/workflows/build-release.yml");
 });
 
-test("recovery resolves LKG producing attempt1 after its successful already-deployed rerun attempt2", async () => {
-  const f = fixture();
-  const api = rollbackApi();
-  const readRun = api.run;
-  api.run = async (id, attempt) => {
-    const run = await readRun(id);
-    return id === f.state.previousState.ownership.runId
-      ? { ...run, run_attempt: attempt === "1" ? 1 : 2 }
-      : run;
-  };
-  assert.equal((await prepareAutomaticRollback(f, api)).action, "eligible");
-});
+for (const latestStatus of ["success", "failure", "in_progress"])
+  test(`recovery resolves LKG producing attempt1 with latest rerun ${latestStatus}`, async () => {
+    const f = fixture();
+    const api = rollbackApi();
+    const readRun = api.run;
+    api.run = async (id, attempt) => {
+      const run = await readRun(id);
+      return id === f.state.previousState.ownership.runId
+        ? {
+            ...run,
+            run_attempt: attempt === "1" ? 1 : 2,
+            ...(attempt === undefined
+              ? {
+                  status:
+                    latestStatus === "in_progress"
+                      ? "in_progress"
+                      : "completed",
+                  conclusion:
+                    latestStatus === "in_progress" ? null : latestStatus,
+                }
+              : {}),
+          }
+        : run;
+    };
+    assert.equal((await prepareAutomaticRollback(f, api)).action, "eligible");
+  });
 
 test("actual manual verification branch preserves valid v2 current-state/LKG for the next push-main preflight", async (t) => {
   const dir = await mkdtemp(join(tmpdir(), "mkw-manual-state-r2-"));

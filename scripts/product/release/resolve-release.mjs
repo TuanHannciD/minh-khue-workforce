@@ -142,11 +142,22 @@ export async function resolveExactRelease(input, api) {
     digest(input.artifactDigest) !== artifactDigest
   )
     throw new Error("release artifact digest mismatch");
-  const latest = await api.run(runId);
-  if (!isTrustedBuild(latest, { sha, repository }))
-    throw new Error(
-      "release artifact producer is not a canonical build-release",
-    );
+  // A supplied immutable attempt can be checked before reading the archive.
+  // Archive-bound/legacy attempts are checked after reading their provenance.
+  let boundRun;
+  if (input.runAttempt !== undefined) {
+    if (!/^[1-9][0-9]*$/.test(String(input.runAttempt)))
+      throw new Error("release producer attempt provenance is invalid");
+    boundRun = await api.run(runId, String(input.runAttempt));
+    if (
+      actionsId(boundRun.id) !== runId ||
+      String(boundRun.run_attempt) !== String(input.runAttempt) ||
+      !isTrustedBuild(boundRun, { sha, repository })
+    )
+      throw new Error(
+        "release artifact producer is not a canonical build-release",
+      );
+  }
   const { metadata } = await validateReleaseSource(
     { sha, repository, artifactId },
     api,
@@ -168,14 +179,22 @@ export async function resolveExactRelease(input, api) {
     String(input.runAttempt) !== String(metadataAttempt)
   )
     throw new Error("release producer attempt provenance mismatch");
-  let runAttempt = metadataAttempt;
+  // An explicit dispatch binding or the archive's immutable producer metadata
+  // identifies the run attempt. Do not gate that exact producer on the mutable
+  // latest rerun, which may be failed or still in progress.
+  let runAttempt =
+    input.runAttempt !== undefined ? String(input.runAttempt) : metadataAttempt;
+  if (runAttempt !== undefined && !/^[1-9][0-9]*$/.test(String(runAttempt)))
+    throw new Error("release producer attempt provenance is invalid");
   if (runAttempt === undefined) {
     // Legacy archives predate producer fields. Only trusted API creation/run
     // windows can establish their attempt; latest is never a fallback.
     const created = Date.parse(artifact.created_at ?? "");
+    const latest = await api.run(runId);
     const count = Number(latest.run_attempt);
     if (
       !Number.isFinite(created) ||
+      actionsId(latest.id) !== runId ||
       !Number.isSafeInteger(count) ||
       count < 1 ||
       count > 100
@@ -186,7 +205,10 @@ export async function resolveExactRelease(input, api) {
       const candidate = await api.run(runId, String(attempt));
       const start = Date.parse(candidate.run_started_at ?? "");
       const end = Date.parse(candidate.updated_at ?? "");
-      if (String(candidate.run_attempt) !== String(attempt))
+      if (
+        actionsId(candidate.id) !== runId ||
+        String(candidate.run_attempt) !== String(attempt)
+      )
         throw new Error("release producer attempt API mismatch");
       if (
         isTrustedBuild(candidate, { sha, repository }) &&
@@ -208,7 +230,7 @@ export async function resolveExactRelease(input, api) {
     String(input.runAttempt) !== String(runAttempt)
   )
     throw new Error("release producer attempt provenance mismatch");
-  const run = await api.run(runId, runAttempt);
+  const run = boundRun ?? (await api.run(runId, String(runAttempt)));
   const created = Date.parse(artifact.created_at ?? "");
   const started = Date.parse(run.run_started_at ?? "");
   const completed = Date.parse(run.updated_at ?? "");

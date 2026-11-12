@@ -1,6 +1,5 @@
 import {
   actionsId as id,
-  isTrustedBuild,
   resolveExactRelease,
   resolveExactBackup,
 } from "./resolve-release.mjs";
@@ -133,14 +132,13 @@ export async function coordinateRelease(input, api) {
     (a) => !a.expired && a.name === `mkw-release-${sha}`,
   )) {
     checkTotal();
-    const run = await api.run(id(artifact.workflow_run?.id));
-    if (!isTrustedBuild(run, { sha, repository })) continue;
+    const artifactRunId = id(artifact.workflow_run?.id);
     const resolved = await resolveExactRelease(
       {
         sha,
         repository,
         artifactId: id(artifact.id),
-        runId: id(run.id),
+        runId: artifactRunId,
         dispatchRef: "refs/heads/main",
       },
       api,

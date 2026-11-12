@@ -95,6 +95,81 @@ test("manual resolver returns the archive's producing attempt and trusted digest
   });
 });
 
+for (const binding of ["metadata", "dispatch"])
+  for (const latestStatus of ["success", "failure", "in_progress"]) {
+    test(`${binding}-bound producing attempt 1 remains valid when latest rerun is ${latestStatus}`, async () => {
+      const boundary = api();
+      const originalRun = boundary.run;
+      const attempts = [];
+      boundary.run = async (id, requestedAttempt) => {
+        attempts.push(String(requestedAttempt));
+        if (requestedAttempt === undefined)
+          return {
+            ...(await originalRun(id, "2")),
+            status:
+              latestStatus === "in_progress" ? "in_progress" : "completed",
+            conclusion: latestStatus === "in_progress" ? null : latestStatus,
+          };
+        return originalRun(id, requestedAttempt);
+      };
+      assert.deepEqual(
+        await resolveExactRelease(
+          { ...input, ...(binding === "dispatch" ? { runAttempt: "1" } : {}) },
+          boundary,
+        ),
+        {
+          artifactId: "101",
+          runId: "10",
+          runAttempt: "1",
+          artifactDigest: DIGEST,
+        },
+      );
+      assert.deepEqual(
+        attempts,
+        ["1"],
+        "only the bound attempt may be consulted",
+      );
+    });
+  }
+
+test("explicit producing attempt resolves a legacy archive without consulting latest", async () => {
+  const boundary = api({
+    metadata: { producerRunId: undefined, producerRunAttempt: undefined },
+  });
+  const readRun = boundary.run;
+  boundary.run = async (id, attempt) => {
+    assert.equal(attempt, "1");
+    return readRun(id, attempt);
+  };
+  assert.equal(
+    (await resolveExactRelease({ ...input, runAttempt: "1" }, boundary))
+      .runAttempt,
+    "1",
+  );
+});
+
+for (const [label, patch] of [
+  ["run ID", { id: "11" }],
+  ["attempt", { run_attempt: "2" }],
+  ["branch", { head_branch: "attacker" }],
+  ["workflow", { path: ".github/workflows/noncanonical.yml" }],
+  ["event", { event: "workflow_dispatch" }],
+  ["failed", { conclusion: "failure" }],
+  ["in-progress", { status: "in_progress", conclusion: null }],
+])
+  test(`bound producer rejects mismatched ${label} even with successful latest rerun`, async () => {
+    const boundary = api();
+    const originalRun = boundary.run;
+    boundary.run = async (id, requestedAttempt) => {
+      const run = await originalRun(id, requestedAttempt);
+      return String(requestedAttempt) === "1" ? { ...run, ...patch } : run;
+    };
+    await assert.rejects(
+      () => resolveExactRelease(input, boundary),
+      /canonical|producer/,
+    );
+  });
+
 test("producer fields cannot override missing API evidence or an artifact created in another attempt", async () => {
   for (const change of ["missing-digest", "missing-time", "forged-attempt"]) {
     const boundary = api(
@@ -141,141 +216,156 @@ test("manual resolver rejects missing or forged producer metadata and mismatched
   );
 });
 
-test("coordinator forwards immutable release and backup provenance to deploy and verify", async () => {
-  const sha = SHA;
-  const runs = new Map();
-  const calls = [];
-  const readiness = {
-    schemaVersion: "1",
-    kind: "BACKUP",
-    backupId: "mkw-20-1-release",
-    releaseSha: sha,
-    createdAt: "2026-11-12T10:00:00Z",
-    dumpSha256: "e".repeat(64),
-    size: 1,
-    restoreVerified: true,
-    retentionUntil: "2026-12-12T10:00:00Z",
-    storageLocation: "github-actions-artifact:mkw",
-    databaseIdentity: {
-      host: "prod",
-      name: "mkw",
-      engine: "postgresql",
-      targetIdentity: "vps/mkw",
-    },
-  };
-  const api = {
-    now: () => Date.parse("2026-11-12T12:00:00Z"),
-    async listArtifacts() {
-      return [
-        {
-          id: "101",
-          name: `mkw-release-${sha}`,
-          expired: false,
-          digest: DIGEST,
-          workflow_run: { id: "10" },
-        },
-      ];
-    },
-    async artifact(id) {
-      return id === "101"
-        ? {
-            id,
+for (const latestStatus of ["success", "failure", "in_progress"])
+  test(`coordinator forwards immutable release and backup provenance with latest rerun ${latestStatus}`, async () => {
+    const sha = SHA;
+    const runs = new Map();
+    const calls = [];
+    const readiness = {
+      schemaVersion: "1",
+      kind: "BACKUP",
+      backupId: "mkw-20-1-release",
+      releaseSha: sha,
+      createdAt: "2026-11-12T10:00:00Z",
+      dumpSha256: "e".repeat(64),
+      size: 1,
+      restoreVerified: true,
+      retentionUntil: "2026-12-12T10:00:00Z",
+      storageLocation: "github-actions-artifact:mkw",
+      databaseIdentity: {
+        host: "prod",
+        name: "mkw",
+        engine: "postgresql",
+        targetIdentity: "vps/mkw",
+      },
+    };
+    const api = {
+      now: () => Date.parse("2026-11-12T12:00:00Z"),
+      async listArtifacts() {
+        return [
+          {
+            id: "101",
             name: `mkw-release-${sha}`,
             expired: false,
             digest: DIGEST,
             workflow_run: { id: "10" },
-            created_at: "2026-11-12T10:00:30Z",
-          }
-        : {
-            id,
+          },
+        ];
+      },
+      async artifact(id) {
+        return id === "101"
+          ? {
+              id,
+              name: `mkw-release-${sha}`,
+              expired: false,
+              digest: DIGEST,
+              workflow_run: { id: "10" },
+              created_at: "2026-11-12T10:00:30Z",
+            }
+          : {
+              id,
+              name: "mkw-backup-20-1",
+              expired: false,
+              digest: `sha256:${"f".repeat(64)}`,
+              workflow_run: { id: "20" },
+            };
+      },
+      async run(id, attempt) {
+        if (id === "10")
+          return {
+            ...producer,
+            run_attempt: attempt ?? 2,
+            ...(attempt === undefined
+              ? {
+                  status:
+                    latestStatus === "in_progress"
+                      ? "in_progress"
+                      : "completed",
+                  conclusion:
+                    latestStatus === "in_progress" ? null : latestStatus,
+                }
+              : {}),
+          };
+        const stored = runs.get(id);
+        return { ...stored, run_attempt: attempt ?? stored.run_attempt };
+      },
+      async jsonFromArtifact(id, entry) {
+        if (id === "101")
+          return entry === "release-manifest.json"
+            ? manifest
+            : {
+                sourceSha: sha,
+                producerRunId: "10",
+                producerRunAttempt: 1,
+                artifactDigest: DIGEST,
+              };
+        return readiness;
+      },
+      async runArtifacts() {
+        return [
+          {
+            id: "201",
             name: "mkw-backup-20-1",
             expired: false,
             digest: `sha256:${"f".repeat(64)}`,
             workflow_run: { id: "20" },
-          };
-    },
-    async run(id, attempt) {
-      if (id === "10") return { ...producer, run_attempt: attempt ?? 1 };
-      const stored = runs.get(id);
-      return { ...stored, run_attempt: attempt ?? stored.run_attempt };
-    },
-    async jsonFromArtifact(id, entry) {
-      if (id === "101")
-        return entry === "release-manifest.json"
-          ? manifest
-          : {
-              sourceSha: sha,
-              producerRunId: "10",
-              producerRunAttempt: 1,
-              artifactDigest: DIGEST,
-            };
-      return readiness;
-    },
-    async runArtifacts() {
-      return [
-        {
-          id: "201",
-          name: "mkw-backup-20-1",
-          expired: false,
-          digest: `sha256:${"f".repeat(64)}`,
-          workflow_run: { id: "20" },
-        },
-      ];
-    },
-    async runs(workflow) {
-      return [...runs.values()].filter((run) => run.path.endsWith(workflow));
-    },
-    async dispatch(workflow, ref, fields) {
-      calls.push({ workflow, fields });
-      const id =
-        workflow === "backup.yml"
-          ? "20"
-          : workflow === "deploy.yml"
-            ? "30"
-            : "40";
-      runs.set(id, {
-        id,
-        path: `.github/workflows/${workflow}`,
-        event: "workflow_dispatch",
-        head_branch: "main",
-        status: "completed",
-        conclusion: "success",
-        run_attempt: 1,
-        display_title: `mkw-${workflow.replace(".yml", "")}-${fields.coordinator_id}`,
-      });
-    },
-    async pause() {},
-  };
-  const result = await coordinateRelease(
-    {
-      sha,
-      mode: "release",
-      kind: "BACKUP",
-      correlationId: "coord-provenance",
-      repository: "org/repo",
-      maxAgeMs: 86400000,
-      target: { host: "prod", database: "mkw", identity: "vps/mkw" },
-    },
-    api,
-  );
-  const deploy = [...runs.values()].find((run) =>
-    run.path.endsWith("deploy.yml"),
-  );
-  assert.equal(result.outputs.release_run_attempt, "1");
-  assert.equal(result.outputs.release_artifact_digest, DIGEST);
-  assert.equal(
-    result.outputs.backup_artifact_digest,
-    `sha256:${"f".repeat(64)}`,
-  );
-  assert.equal(deploy.path, ".github/workflows/deploy.yml");
-  const forwarded = JSON.parse(calls[1].fields.provenance);
-  assert.equal(forwarded.release.runAttempt, "1");
-  assert.equal(forwarded.release.artifactDigest, DIGEST);
-  assert.equal(forwarded.backup.runAttempt, "1");
-  assert.equal(forwarded.backup.artifactDigest, `sha256:${"f".repeat(64)}`);
-  assert.equal(calls[2].fields.release_run_attempt, "1");
-  assert.equal(calls[2].fields.release_artifact_digest, DIGEST);
-});
+          },
+        ];
+      },
+      async runs(workflow) {
+        return [...runs.values()].filter((run) => run.path.endsWith(workflow));
+      },
+      async dispatch(workflow, ref, fields) {
+        calls.push({ workflow, fields });
+        const id =
+          workflow === "backup.yml"
+            ? "20"
+            : workflow === "deploy.yml"
+              ? "30"
+              : "40";
+        runs.set(id, {
+          id,
+          path: `.github/workflows/${workflow}`,
+          event: "workflow_dispatch",
+          head_branch: "main",
+          status: "completed",
+          conclusion: "success",
+          run_attempt: 1,
+          display_title: `mkw-${workflow.replace(".yml", "")}-${fields.coordinator_id}`,
+        });
+      },
+      async pause() {},
+    };
+    const result = await coordinateRelease(
+      {
+        sha,
+        mode: "release",
+        kind: "BACKUP",
+        correlationId: "coord-provenance",
+        repository: "org/repo",
+        maxAgeMs: 86400000,
+        target: { host: "prod", database: "mkw", identity: "vps/mkw" },
+      },
+      api,
+    );
+    const deploy = [...runs.values()].find((run) =>
+      run.path.endsWith("deploy.yml"),
+    );
+    assert.equal(result.outputs.release_run_attempt, "1");
+    assert.equal(result.outputs.release_artifact_digest, DIGEST);
+    assert.equal(
+      result.outputs.backup_artifact_digest,
+      `sha256:${"f".repeat(64)}`,
+    );
+    assert.equal(deploy.path, ".github/workflows/deploy.yml");
+    const forwarded = JSON.parse(calls[1].fields.provenance);
+    assert.equal(forwarded.release.runAttempt, "1");
+    assert.equal(forwarded.release.artifactDigest, DIGEST);
+    assert.equal(forwarded.backup.runAttempt, "1");
+    assert.equal(forwarded.backup.artifactDigest, `sha256:${"f".repeat(64)}`);
+    assert.equal(calls[2].fields.release_run_attempt, "1");
+    assert.equal(calls[2].fields.release_artifact_digest, DIGEST);
+  });
 
 function block(workflow, name) {
   return workflow
@@ -297,6 +387,8 @@ function runBlock(f, script, extra = {}) {
 for (const workflow of ["deploy", "post-deploy-verify"]) {
   for (const mutation of [
     "healthy-rerun",
+    "failed-latest-rerun",
+    "in-progress-latest-rerun",
     "missing-attempt",
     "wrong-attempt",
     "wrong-digest",
@@ -323,6 +415,15 @@ for (const workflow of ["deploy", "post-deploy-verify"]) {
           : "Validate exact release linkage for every mode",
       );
       const env = {};
+      if (
+        ["failed-latest-rerun", "in-progress-latest-rerun"].includes(mutation)
+      ) {
+        f.records.runs["10"].status =
+          mutation === "failed-latest-rerun" ? "completed" : "in_progress";
+        f.records.runs["10"].conclusion =
+          mutation === "failed-latest-rerun" ? "failure" : null;
+        await f.persist();
+      }
       if (mutation === "missing-attempt") {
         delete f.metadata.producerRunAttempt;
         await f.persist();
@@ -375,7 +476,13 @@ for (const workflow of ["deploy", "post-deploy-verify"]) {
         `date() { echo 2026-11-12T12:00:00Z; }\n${script}\necho SSH_MUTATION_REACHED`,
         env,
       );
-      if (mutation === "healthy-rerun") {
+      if (
+        [
+          "healthy-rerun",
+          "failed-latest-rerun",
+          "in-progress-latest-rerun",
+        ].includes(mutation)
+      ) {
         assert.equal(result.status, 0, result.stdout + result.stderr);
         const output = await readFile(join(f.dir, "output"), "utf8");
         assert.match(output, /release_run_attempt=1\n/);
@@ -402,31 +509,39 @@ for (const workflow of ["deploy", "post-deploy-verify"]) {
   }
 }
 
-test("legacy artifact timestamp resolves attempt1 despite latest no-op attempt2; missing or overlapping windows fail closed", async () => {
-  const legacy = api({
-    attempt: "2",
-    metadata: { producerRunId: undefined, producerRunAttempt: undefined },
+for (const latestStatus of ["success", "failure", "in_progress"])
+  test(`legacy artifact discovers unique attempt1 with latest rerun ${latestStatus}; overlapping windows fail closed`, async () => {
+    const legacy = api({
+      attempt: "2",
+      metadata: { producerRunId: undefined, producerRunAttempt: undefined },
+    });
+    const artifact = legacy.artifact;
+    legacy.artifact = async () => ({
+      ...(await artifact()),
+      created_at: "2026-11-12T10:30:00Z",
+    });
+    legacy.run = async (id, attempt) => ({
+      ...producer,
+      run_attempt: attempt ?? "2",
+      ...(attempt === undefined
+        ? {
+            status:
+              latestStatus === "in_progress" ? "in_progress" : "completed",
+            conclusion: latestStatus === "in_progress" ? null : latestStatus,
+          }
+        : {}),
+      run_started_at: `2026-11-12T${attempt === "1" ? "10" : "11"}:00:00Z`,
+      updated_at: `2026-11-12T${attempt === "1" ? "10" : "11"}:59:59Z`,
+    });
+    assert.equal((await resolveExactRelease(input, legacy)).runAttempt, "1");
+    legacy.run = async (id, attempt) => ({
+      ...producer,
+      run_attempt: attempt ?? "2",
+      run_started_at: "2026-11-12T10:00:00Z",
+      updated_at: "2026-11-12T11:59:59Z",
+    });
+    await assert.rejects(() => resolveExactRelease(input, legacy), /ambiguous/);
   });
-  const artifact = legacy.artifact;
-  legacy.artifact = async () => ({
-    ...(await artifact()),
-    created_at: "2026-11-12T10:30:00Z",
-  });
-  legacy.run = async (id, attempt) => ({
-    ...producer,
-    run_attempt: attempt ?? "2",
-    run_started_at: `2026-11-12T${attempt === "1" ? "10" : "11"}:00:00Z`,
-    updated_at: `2026-11-12T${attempt === "1" ? "10" : "11"}:59:59Z`,
-  });
-  assert.equal((await resolveExactRelease(input, legacy)).runAttempt, "1");
-  legacy.run = async (id, attempt) => ({
-    ...producer,
-    run_attempt: attempt ?? "2",
-    run_started_at: "2026-11-12T10:00:00Z",
-    updated_at: "2026-11-12T11:59:59Z",
-  });
-  await assert.rejects(() => resolveExactRelease(input, legacy), /ambiguous/);
-});
 
 test("actual journal CLI consumes resolved release and backup provenance without empty ownership fields", async (t) => {
   const f = await boundaryFixture(t, ROOT, manifest);

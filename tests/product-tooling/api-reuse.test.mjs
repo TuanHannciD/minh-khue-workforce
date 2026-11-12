@@ -108,17 +108,28 @@ test("reuse refuses forged ownership/source/provenance even when image digests m
     );
   }
 });
-test("reuse binds artifact attempt1 after an already-deployed rerun advances latest to attempt2", async () => {
-  const { input, api } = source();
-  const producingRun = await api.run();
-  api.run = async (id, attempt) => {
-    assert.equal(id, "41");
-    return { ...producingRun, run_attempt: attempt === "1" ? "1" : "2" };
-  };
-  const result = await selectApiReuse(input, api);
-  assert.equal(result.mode, "gateway-only");
-  assert.equal(result.apiImage, input.previous.manifest.apiImage);
-});
+for (const latestStatus of ["success", "failure", "in_progress"])
+  test(`reuse binds artifact attempt1 with latest rerun ${latestStatus}`, async () => {
+    const { input, api } = source();
+    const producingRun = await api.run();
+    api.run = async (id, attempt) => {
+      assert.equal(id, "41");
+      return {
+        ...producingRun,
+        run_attempt: attempt === "1" ? "1" : "2",
+        ...(attempt === undefined
+          ? {
+              status:
+                latestStatus === "in_progress" ? "in_progress" : "completed",
+              conclusion: latestStatus === "in_progress" ? null : latestStatus,
+            }
+          : {}),
+      };
+    };
+    const result = await selectApiReuse(input, api);
+    assert.equal(result.mode, "gateway-only");
+    assert.equal(result.apiImage, input.previous.manifest.apiImage);
+  });
 for (const mode of ["off", "not-configured", "best-effort"])
   test(`unavailable ${mode} signing falls back to a normal API build without inspecting/reusing image`, async () => {
     const { input, api } = source();
