@@ -204,13 +204,30 @@ validate_backup_gate
 source "$script_root/scripts/product/release/operation-state.sh"
 write_state begin "$manifest" "$MKW_DEPLOY_PATH/shared/last-known-good.json" "$backup_ready" "$MKW_OPERATION_ID" \
   "${MKW_RELEASE_RUN_ID:-}" "${MKW_RELEASE_RUN_ATTEMPT:-}" "${MKW_RELEASE_ARTIFACT_ID:-}" "${MKW_RELEASE_ARTIFACT_DIGEST:-}" "${MKW_CONTROL_SHA:-}" "${MKW_ATTESTATION_MODE:-not-configured}" "${MKW_ATTESTATION_STATUS:-not-verified}"
+gateway_policy_file="$(dirname "$manifest")/data-operation-evidence.json"
+operation_class=normal
+if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true && "$MKW_OPERATION_KIND" == release ]]; then
+  operation_class="$(run_node "$script_root/scripts/product/release/gateway-policy.mjs" classify "$state_path" "$gateway_policy_file")"
+fi
+if [[ "$operation_class" == gateway-only ]]; then
+  # Prove current API/PG identity before any config, migration or service change.
+  MKW_DATABASE_EVIDENCE_MODE=read-only-history
+  rendered="$MKW_DEPLOY_PATH/current/compose.rendered.yml"
+  capture_database "$MKW_DEPLOY_PATH/shared/database-before.json"
+  bash "$script_root/scripts/product/release/runtime-evidence.sh" "$rendered" > "$MKW_DEPLOY_PATH/shared/runtime-before.json"
+  run_node "$script_root/scripts/product/release/gateway-policy.mjs" precheck "$state_path" "$MKW_DEPLOY_PATH/shared/runtime-before.json" "$MKW_DEPLOY_PATH/shared/database-before.json"
+  write_state update "$state_path" before "$MKW_DEPLOY_PATH/shared/database-before.json"
+  write_state update "$state_path" gateway-policy "$gateway_policy_file" "$MKW_DEPLOY_PATH/shared/runtime-before.json"
+fi
 api_env="$MKW_DEPLOY_PATH/shared/api.env"
 [[ -f "$api_env" ]] || { echo "bootstrap API env is required" >&2; exit 78; }
+if [[ "$operation_class" != gateway-only ]]; then
 api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api-origin.XXXXXX")"
 trap 'rm -f "$api_tmp"' EXIT
 awk '!/^WEB_ORIGIN=/ && !/^TLS_TERMINATED=/' "$api_env" > "$api_tmp"
 printf 'WEB_ORIGIN=%s\nTLS_TERMINATED=true\n' "$MKW_WEB_ORIGIN" >> "$api_tmp"
 chmod 600 "$api_tmp"; mv -f "$api_tmp" "$api_env"; trap - EXIT
+fi
 
 rendered="$MKW_DEPLOY_PATH/current/compose.rendered.yml"
 sed "s#\./shared/#$MKW_DEPLOY_PATH/shared/#g" "$compose" > "$rendered"
@@ -234,7 +251,7 @@ validate_backup_gate
 # required before traffic; INITIAL_EMPTY_DEPLOYMENT is validated by JSON.
 # Immutable images use sha256:[0-9a-f]{64}.
 mutation_started=true
-if [[ "$MKW_OPERATION_KIND" != application-rollback ]]; then
+if [[ "$MKW_OPERATION_KIND" != application-rollback && "$operation_class" != gateway-only ]]; then
   # Evidence before any DB start/replacement, not just before migration.
   capture_database "$MKW_DEPLOY_PATH/shared/database-before.json"
   write_state update "$state_path" before "$MKW_DEPLOY_PATH/shared/database-before.json"
@@ -246,6 +263,21 @@ fi
 write_state update "$state_path" app unused "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --no-deps api gateway
+elif [[ "$operation_class" == gateway-only ]]; then
+  gateway_status=0
+  docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --no-deps gateway || gateway_status=$?
+  # Receipt is produced even when gateway health failed; API/PG checks must pass.
+  capture_database "$MKW_DEPLOY_PATH/shared/database-after.json"
+  bash "$script_root/scripts/product/release/runtime-evidence.sh" "$rendered" > "$MKW_DEPLOY_PATH/shared/runtime-after.json"
+  write_state update "$state_path" gateway-db "$MKW_DEPLOY_PATH/shared/database-after.json"
+  state_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.gateway-evidence.XXXXXX")"
+  run_node "$script_root/scripts/product/release/gateway-policy.mjs" receipt "$state_path" "$gateway_policy_file" "$MKW_DEPLOY_PATH/shared/runtime-before.json" "$MKW_DEPLOY_PATH/shared/runtime-after.json" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state_tmp"
+  chmod 640 "$state_tmp"; mv -f "$state_tmp" "$state_path"
+  if (( gateway_status != 0 )); then
+    write_state update "$state_path" failed
+    write_receipt failed
+    exit "$gateway_status"
+  fi
 else
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --remove-orphans
 fi

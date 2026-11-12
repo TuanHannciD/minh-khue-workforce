@@ -2,6 +2,12 @@ name: Build immutable release
 
 on:
   workflow_call:
+    inputs:
+      previous_state:
+        description: Untrusted candidate; build validates exact canonical producer and API source before reuse
+        required: false
+        type: string
+        default: ""
     outputs:
       release_run_attempt:
         description: Exact producer release_run_attempt
@@ -37,6 +43,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
   packages: write
   id-token: write
   attestations: write
@@ -53,7 +60,7 @@ jobs:
       release_run_id: ${{ github.run_id }}
       release_artifact_name: mkw-release-${{ github.sha }}
       release_artifact_id: ${{ steps.upload-release.outputs.artifact-id }}
-      api_digest: ${{ steps.api.outputs.digest }}
+      api_digest: ${{ steps.api.outputs.digest || steps.select-api.outputs.digest }}
       web_digest: ${{ steps.web.outputs.digest }}
       postgres_image: ${{ steps.postgres.outputs.image }}
     steps:
@@ -100,7 +107,18 @@ jobs:
         shell: bash
         run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
 
+      - name: Validate canonical previous API source and provenance before reuse
+        id: select-api
+        env:
+          PREVIOUS_STATE: ${{ inputs.previous_state }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          export POSTGRES_IMAGE="$(awk -F= '$1 == "MKW_POSTGRES_IMAGE" { print $2 }' deploy/postgres-image.env)"
+          node scripts/product/release/select-api-reuse.mjs
+
       - name: Build and push API image
+        if: steps.select-api.outputs.mode == 'build'
         id: api
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
@@ -143,7 +161,7 @@ jobs:
       - name: Export registry attestations for immutable digests
         shell: bash
         env:
-          API_DIGEST: ${{ steps.api.outputs.digest }}
+          API_DIGEST: ${{ steps.api.outputs.digest || steps.select-api.outputs.digest }}
           WEB_DIGEST: ${{ steps.web.outputs.digest }}
           OWNER: ${{ steps.image.outputs.owner }}
         run: |
@@ -195,7 +213,7 @@ jobs:
         shell: bash
         env:
           SOURCE_SHA: ${{ github.sha }}
-          API_DIGEST: ${{ steps.api.outputs.digest }}
+          API_DIGEST: ${{ steps.api.outputs.digest || steps.select-api.outputs.digest }}
           WEB_DIGEST: ${{ steps.web.outputs.digest }}
           POSTGRES_IMAGE: ${{ steps.postgres.outputs.image }}
         run: |
@@ -213,7 +231,9 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFile, stat, writeFile } from 'node:fs/promises';
           import { createHash } from 'node:crypto';
+          import { buildPolicy, bindPolicy } from './scripts/product/release/gateway-policy.mjs';
           const metadata = JSON.parse(await readFile('build-metadata.json', 'utf8'));
+          const selection = JSON.parse(await readFile('api-selection.json', 'utf8'));
           const artifact = async (path) => {
             const bytes = await readFile(path);
             return { sha256: createHash('sha256').update(bytes).digest('hex'), size: bytes.length };
@@ -226,8 +246,16 @@ jobs:
             apiImage: `ghcr.io/${process.env.GITHUB_REPOSITORY_OWNER.toLowerCase()}/mkw-api@${metadata.apiDigest}`,
             webImage: `ghcr.io/${process.env.GITHUB_REPOSITORY_OWNER.toLowerCase()}/mkw-web@${metadata.webDigest}`,
             postgresImage: metadata.postgresImage,
+            buildInputs: { apiSourceFingerprint: selection.apiSourceFingerprint, apiSourceSha: selection.apiSourceSha },
             artifacts: { sbom: await artifact('api-attestations.json'), provenance: await artifact('web-attestations.json') },
           };
+          let policy = { kind: 'unknown', releaseSha: metadata.sourceSha, businessDataWrites: 'not-assessed' };
+          if (selection.mode === 'gateway-only') {
+            manifest.apiImage = selection.apiImage;
+            policy = buildPolicy({ manifest, previous: selection.previous, operationId: `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}-${metadata.sourceSha}`, apiSourceFingerprint: selection.apiSourceFingerprint, apiSourceSha: selection.apiSourceSha });
+            Object.assign(manifest, bindPolicy(manifest, policy));
+          }
+          await writeFile('data-operation-evidence.json', `${JSON.stringify(policy)}\n`);
           await writeFile('release-manifest.json', `${JSON.stringify(manifest, null, 2)}\n`);
           NODE
           node scripts/product/release/validate-manifest.mjs release-manifest.json
@@ -260,3 +288,4 @@ jobs:
             api-attestations.json
             web-attestations.json
             build-metadata.json
+            data-operation-evidence.json

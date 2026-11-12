@@ -40,6 +40,7 @@ old_sha="${fields[0]}"; old_api="${fields[1]}"; old_web="${fields[2]}"; old_pg="
 # gate still re-reads the journal and DB under the lock; runner state is no substitute.
 rendered="$MKW_DEPLOY_PATH/current/compose.rendered.yml"
 export MKW_WEB_IMAGE="${MKW_WEB_IMAGE:?}"
+MKW_DATABASE_EVIDENCE_MODE="$(run_node "$script_root/scripts/product/release/gateway-policy.mjs" runtime-mode "$state_path")"
 capture_database "$recovery_dir/database-current.json"
 compose() { docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" "$@"; }
 image_ids_match=true
@@ -51,7 +52,10 @@ for service in api gateway; do
   if [[ "$service" == api ]]; then expected="$MKW_API_IMAGE"; api_image="$current_image"; else expected="$MKW_WEB_IMAGE"; web_image="$current_image"; fi
   [[ "$(docker inspect "$service_id" --format '{{.Image}}')" == "$(docker image inspect "$expected" --format '{{.Id}}')" ]] || image_ids_match=false
 done
-run_node "$script_root/scripts/product/release/auto-rollback-io.mjs" runtime "$recovery_dir/database-current.json" "$api_image" "$web_image" "$image_ids_match" > "$recovery_dir/runtime.json"
+if [[ "$MKW_DATABASE_EVIDENCE_MODE" == read-only-history ]]; then
+  bash "$script_root/scripts/product/release/runtime-evidence.sh" "$rendered" > "$recovery_dir/services-current.json" || { echo 'incident-required: runtime evidence unavailable' >&2; emit; exit 78; }
+fi
+run_node "$script_root/scripts/product/release/auto-rollback-io.mjs" runtime "$recovery_dir/database-current.json" "$api_image" "$web_image" "$image_ids_match" "$recovery_dir/services-current.json" > "$recovery_dir/runtime.json"
 decision_json="$(run_node "$script_root/scripts/product/release/auto-rollback-io.mjs" check "$state_path" "$recovery_dir" "$MKW_OPERATION_ID" "$MKW_RELEASE_SHA" "$MKW_SOURCE_REPOSITORY" "$MKW_BACKUP_MAX_AGE_SECONDS" "$MKW_BACKUP_EXPECTED_HOST" "$MKW_BACKUP_EXPECTED_TARGET_IDENTITY" "$MKW_ATTESTATION_MODE" "$MKW_ATTESTATION_STATUS" "$(date -u +%Y-%m-%dT%H:%M:%SZ)")"
 decision="$(printf '%s' "$decision_json" | run_node --input-type=module -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).action))')"
 if [[ "$decision" != rollback ]]; then emit; exit 78; fi
@@ -65,7 +69,11 @@ export MKW_API_IMAGE="$old_api" MKW_WEB_IMAGE="$old_web" MKW_POSTGRES_IMAGE="$ol
 # services can be changed. No env editing, DB up/run/exec mutation or migration.
 rendered="$MKW_DEPLOY_PATH/current/compose.rollback.yml"
 sed "s#\./shared/#$MKW_DEPLOY_PATH/shared/#g" "$script_root/deploy/compose.production.yml" > "$rendered"
-compose up -d --wait --no-deps api gateway >/dev/null
+if [[ "$MKW_DATABASE_EVIDENCE_MODE" == read-only-history ]]; then
+  compose up -d --wait --no-deps gateway >/dev/null
+else
+  compose up -d --wait --no-deps api gateway >/dev/null
+fi
 for service in api gateway; do
   service_id="$(compose ps -q "$service")"
   [[ "$service_id" =~ ^[a-f0-9]{12,64}$ ]]
@@ -77,8 +85,11 @@ done
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/" >/dev/null
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/api/health" >/dev/null
 capture_database "$recovery_dir/database-recovered.json"
+if [[ "$MKW_DATABASE_EVIDENCE_MODE" == read-only-history ]]; then
+  bash "$script_root/scripts/product/release/runtime-evidence.sh" "$rendered" > "$recovery_dir/services-recovered.json"
+fi
 state_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.recovered-state.XXXXXX")"
-run_node "$script_root/scripts/product/release/auto-rollback-io.mjs" complete "$state_path" "$recovery_dir/database-recovered.json" "$MKW_OPERATION_ID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state_tmp"
+run_node "$script_root/scripts/product/release/auto-rollback-io.mjs" complete "$state_path" "$recovery_dir/database-recovered.json" "$MKW_OPERATION_ID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$recovery_dir/services-recovered.json" > "$state_tmp"
 chmod 640 "$state_tmp"
 # Update the compose file only after old apps and DB invariants are verified.
 mv -f "$rendered" "$MKW_DEPLOY_PATH/current/compose.rendered.yml"

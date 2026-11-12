@@ -4,6 +4,8 @@ set -Eeuo pipefail
 set +x
 : "${MKW_PROJECT_NAME:?}" "${MKW_POSTGRES_IMAGE:?}"
 compose_file="$1"
+read_mode="${2:-with-api-status}"
+[[ "$read_mode" == with-api-status || "$read_mode" == read-only-history ]] || exit 78
 compose() { docker compose -p "$MKW_PROJECT_NAME" -f "$compose_file" "$@"; }
 mapfile -t ids < <(compose ps -q db)
 [[ ${#ids[@]} == 1 && "${ids[0]}" =~ ^[a-f0-9]{12,64}$ ]] || exit 78
@@ -29,5 +31,9 @@ pending=true; failed=true
 [[ "$failed_count" == 0 ]] && failed=false
 # An unavailable/failed status read is conservatively pending, never permission
 # to roll back. The actual schema/history hashes still come from the DB above.
-if compose run --rm --no-deps api node node_modules/prisma/build/index.js migrate status >/dev/null 2>&1; then pending=false; fi
+if [[ "$read_mode" == read-only-history ]]; then
+  # Only gateway-only controls use this after proving unchanged API sources,
+  # previous verified migration state and exact runtime. No API command runs.
+  [[ "$failed_count" == 0 ]] && pending=false
+elif compose run --rm --no-deps api node node_modules/prisma/build/index.js migrate status >/dev/null 2>&1; then pending=false; fi
 printf '{"known":true,"schemaFingerprint":"sha256:%s","migrationFingerprint":"sha256:%s","pending":%s,"failed":%s,"postgresContainerId":"%s","postgresImage":"%s","postgresImageId":"%s"}\n' "$schema_hash" "$history_hash" "$pending" "$failed" "$db" "$MKW_POSTGRES_IMAGE" "$image_id"

@@ -97,6 +97,7 @@ function checkObject(value, path, errors) {
     "apiImage",
     "webImage",
     "postgresImage",
+    "buildInputs",
     "artifacts",
   ]);
   for (const key of Object.keys(value))
@@ -136,15 +137,39 @@ function checkObject(value, path, errors) {
     errors.push(
       "postgresImage must be an immutable postgres sha256 image reference",
     );
+  if (value.buildInputs !== undefined) {
+    if (
+      !value.buildInputs ||
+      typeof value.buildInputs !== "object" ||
+      Array.isArray(value.buildInputs)
+    )
+      errors.push("buildInputs must be an object");
+    else {
+      for (const key of Object.keys(value.buildInputs))
+        if (!["apiSourceFingerprint", "apiSourceSha"].includes(key))
+          errors.push(`buildInputs.${key} is unknown`);
+      if (
+        typeof value.buildInputs.apiSourceFingerprint !== "string" ||
+        !/^sha256:[a-f0-9]{64}$/i.test(value.buildInputs.apiSourceFingerprint)
+      )
+        errors.push("buildInputs.apiSourceFingerprint is invalid");
+      if (!/^[a-f0-9]{40}$/.test(value.buildInputs.apiSourceSha ?? ""))
+        errors.push("buildInputs.apiSourceSha is invalid");
+    }
+  }
   const artifacts = value.artifacts;
   if (!artifacts || typeof artifacts !== "object" || Array.isArray(artifacts)) {
     errors.push("artifacts must be an object");
     return;
   }
   for (const key of Object.keys(artifacts))
-    if (!["sbom", "provenance"].includes(key))
+    if (!["sbom", "provenance", "releasePolicy"].includes(key))
       errors.push(`artifacts.${key} is unknown`);
-  for (const key of ["sbom", "provenance"]) {
+  for (const key of [
+    "sbom",
+    "provenance",
+    ...(artifacts.releasePolicy === undefined ? [] : ["releasePolicy"]),
+  ]) {
     const artifact = artifacts[key];
     if (!artifact || typeof artifact !== "object" || Array.isArray(artifact)) {
       errors.push(`artifacts.${key} must be an object`);

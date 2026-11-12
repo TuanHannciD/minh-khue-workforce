@@ -48,7 +48,7 @@ test("backup coordinator parent validation can read Actions run state", async ()
 
 test("needs stop deployment after either failed producer and verification after failed deploy", async () => {
   const { jobs } = await read("main-release.yml");
-  assert.deepEqual(needs(jobs.build), ["quality"]);
+  assert.deepEqual(needs(jobs.build), ["preflight", "quality"]);
   assert.deepEqual(needs(jobs.backup), ["quality"]);
   assert.deepEqual(needs(jobs.deploy), ["build", "backup"]);
   assert.deepEqual(needs(jobs.verify), ["build", "deploy"]);

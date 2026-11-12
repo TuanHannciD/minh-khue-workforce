@@ -7,6 +7,7 @@ import {
   validSnapshot,
   validVerifiedState,
 } from "./auto-rollback.mjs";
+import { validServices } from "./gateway-policy.mjs";
 
 const read = async (path) => parseJsonStrict(await readFile(path, "utf8"));
 const optional = async (path) => {
@@ -41,11 +42,12 @@ export function beginOperation({
     // A release must earn a producer-backed data-operation receipt after the
     // forward migration step. Never infer safety from a missing input.
     dataOperations: "unknown",
+    operationClass: "normal",
   };
 }
 export function promoteOperation(
   state,
-  { operationId, releaseSha, database, verifiedAt },
+  { operationId, releaseSha, database, verifiedAt, runtimeServices },
 ) {
   if (
     !state ||
@@ -62,7 +64,9 @@ export function promoteOperation(
     state.manifest.releaseSha !== releaseSha ||
     !validSnapshot(database) ||
     database.postgresImage !== state.manifest.postgresImage ||
-    !Number.isFinite(Date.parse(verifiedAt ?? ""))
+    !Number.isFinite(Date.parse(verifiedAt ?? "")) ||
+    (runtimeServices !== undefined &&
+      !validServices(runtimeServices, state.manifest))
   )
     throw new Error("incident-required: verification evidence is incomplete");
   const result = {
@@ -70,6 +74,9 @@ export function promoteOperation(
     status: "verified",
     database,
     verifiedAt,
+    ...(runtimeServices && validServices(runtimeServices, state.manifest)
+      ? { runtimeServices }
+      : {}),
     runtimeVerification: {
       status: "verified",
       operationId,
@@ -128,6 +135,17 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     } else if (phase === "after") {
       output.after = await read(snapshot);
       output.migrationOutcome = "succeeded";
+    } else if (phase === "gateway-db") {
+      output.after = await read(snapshot);
+      output.migrationOutcome = "not-executed";
+    } else if (phase === "gateway-policy") {
+      output.gatewayPolicy = await read(snapshot);
+      output.runtimeServices = await read(now);
+      output.operationClass = "gateway-only";
+      output.migrationOutcome = "not-executed";
+    } else if (phase === "gateway-evidence") {
+      output.dataOperationEvidence = await read(snapshot);
+      output.dataOperations = "gateway-only";
     } else if (phase === "app") {
       output.applicationAttempted = true;
       output.applicationStartedAt = now;
@@ -138,12 +156,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       output.rollbackAttempted = true;
     } else throw new Error("invalid journal phase");
   } else if (command === "promote") {
-    const [path, operationId, releaseSha, snapshot, verifiedAt] = args;
+    const [path, operationId, releaseSha, snapshot, verifiedAt, runtimePath] =
+      args;
     output = promoteOperation(await read(path), {
       operationId,
       releaseSha,
       database: await read(snapshot),
       verifiedAt,
+      runtimeServices: runtimePath ? await read(runtimePath) : undefined,
     });
   } else throw new Error("invalid state command");
   console.log(JSON.stringify(output));

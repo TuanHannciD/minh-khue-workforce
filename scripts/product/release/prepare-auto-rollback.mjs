@@ -11,6 +11,7 @@ import {
   incident,
   validDataOperationEvidence,
 } from "./auto-rollback.mjs";
+import { canonicalDataEvidenceMatches } from "./gateway-policy.mjs";
 
 // The failed push run is still running while its recovery job executes. Require
 // its exact successful reusable build job instead of treating the failed parent
@@ -83,9 +84,12 @@ async function resolveCurrentFailedRelease(input, api) {
   );
   if (
     JSON.stringify(manifest) !== JSON.stringify(state.manifest) ||
-    !validDataOperationEvidence(dataOperationEvidence, state) ||
-    JSON.stringify(dataOperationEvidence) !==
-      JSON.stringify(state.dataOperationEvidence)
+    !(
+      canonicalDataEvidenceMatches(dataOperationEvidence, state) ||
+      (validDataOperationEvidence(dataOperationEvidence, state) &&
+        JSON.stringify(dataOperationEvidence) ===
+          JSON.stringify(state.dataOperationEvidence))
+    )
   )
     throw new Error("current canonical release evidence mismatch");
   return { ownership: o, manifest, dataOperationEvidence };

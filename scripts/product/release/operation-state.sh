@@ -9,7 +9,7 @@ write_state() {
   chmod 640 "$state_tmp"; mv -f "$state_tmp" "$state_path"
 }
 capture_database() {
-  if ! MKW_POSTGRES_IMAGE="$MKW_POSTGRES_IMAGE" MKW_PROJECT_NAME="$MKW_PROJECT_NAME" bash "$script_root/scripts/product/release/database-evidence.sh" "$rendered" > "$1" 2>/dev/null; then
+  if ! MKW_POSTGRES_IMAGE="$MKW_POSTGRES_IMAGE" MKW_PROJECT_NAME="$MKW_PROJECT_NAME" bash "$script_root/scripts/product/release/database-evidence.sh" "$rendered" "${MKW_DATABASE_EVIDENCE_MODE:-with-api-status}" > "$1" 2>/dev/null; then
     printf '{"known":false}\n' > "$1"
   fi
   chmod 640 "$1"

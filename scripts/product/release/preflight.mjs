@@ -35,6 +35,15 @@ if (
     process.env.GITHUB_OUTPUT,
     `release_status=${result.status}\n`,
   );
+  if (result.status === "ready") {
+    const previous = parseJsonStrict(
+      await readFile(process.env.CURRENT_STATE_PATH, "utf8"),
+    );
+    await appendFile(
+      process.env.GITHUB_OUTPUT,
+      `previous_state=${JSON.stringify(previous)}\n`,
+    );
+  }
   if (process.env.GITHUB_STEP_SUMMARY)
     await appendFile(
       process.env.GITHUB_STEP_SUMMARY,

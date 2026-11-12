@@ -39,7 +39,18 @@ if (process.argv[4] === 'true') {
     throw new Error('incident-required: current operation identity mismatch');
 }
 NODE
-compose exec -T api node node_modules/prisma/build/index.js migrate status
+# For a gateway-only operation, never execute an API/migration command.
+evidence_mode=with-api-status
+if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
+  script_root="$MKW_DEPLOY_PATH/releases/$RELEASE_SHA"
+  run_node() {
+    docker run --rm -i --pull=never --user "$(id -u):$(id -g)" \
+      -v "$script_root:$script_root:ro" -v "$MKW_DEPLOY_PATH/shared:$MKW_DEPLOY_PATH/shared:ro" \
+      --entrypoint node "$EXPECTED_API_IMAGE" "$@"
+  }
+  evidence_mode="$(run_node "$script_root/scripts/product/release/gateway-policy.mjs" runtime-mode "$MKW_DEPLOY_PATH/shared/current-state.json")"
+fi
+if [[ "${evidence_mode:-with-api-status}" != read-only-history ]]; then compose exec -T api node node_modules/prisma/build/index.js migrate status; fi
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/" >/dev/null
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:$MKW_GATEWAY_PORT/api/health" >/dev/null
 if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
@@ -52,8 +63,11 @@ if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
       --entrypoint node "$EXPECTED_API_IMAGE" "$@"
   }
   source "$script_root/scripts/product/release/operation-state.sh"
+  MKW_DATABASE_EVIDENCE_MODE="${evidence_mode:-with-api-status}"
   capture_database "$MKW_DEPLOY_PATH/shared/database-verified.json"
-  write_state promote "$state_path" "$MKW_OPERATION_ID" "$RELEASE_SHA" "$MKW_DEPLOY_PATH/shared/database-verified.json" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  test -s "$MKW_DEPLOY_PATH/shared/database-verified.json" || { echo 'incident-required: database evidence unavailable' >&2; exit 78; }
+  bash "$script_root/scripts/product/release/runtime-evidence.sh" "$rendered" > "$MKW_DEPLOY_PATH/shared/runtime-verified.json" || { echo 'incident-required: runtime evidence unavailable' >&2; exit 78; }
+  write_state promote "$state_path" "$MKW_OPERATION_ID" "$RELEASE_SHA" "$MKW_DEPLOY_PATH/shared/database-verified.json" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$MKW_DEPLOY_PATH/shared/runtime-verified.json"
   # Atomic copy; only a successful runtime verifier can promote last-known-good.
   lkg_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.last-known-good.XXXXXX")"
   cp -p "$state_path" "$lkg_tmp"; mv -f "$lkg_tmp" "$MKW_DEPLOY_PATH/shared/last-known-good.json"

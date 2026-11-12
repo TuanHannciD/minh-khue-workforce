@@ -5,6 +5,7 @@ import {
   buildRollbackEvidence,
   unchangedDatabase,
 } from "./auto-rollback.mjs";
+import { same, validServices } from "./gateway-policy.mjs";
 
 const read = async (p) => parseJsonStrict(await readFile(p, "utf8"));
 const [command, ...args] = process.argv.slice(2);
@@ -52,13 +53,16 @@ if (command === "check") {
   });
   console.log(JSON.stringify(decision));
 } else if (command === "runtime") {
-  const [databasePath, apiImage, webImage, imageIdsMatch] = args;
+  const [databasePath, apiImage, webImage, imageIdsMatch, servicesPath] = args;
   console.log(
     JSON.stringify({
       database: await read(databasePath),
       apiImage,
       webImage,
       imageIdsMatch: imageIdsMatch === "true",
+      ...(servicesPath
+        ? { services: await read(servicesPath).catch(() => null) }
+        : {}),
     }),
   );
 } else if (command === "fields") {
@@ -68,13 +72,19 @@ if (command === "check") {
   for (const k of ["releaseSha", "apiImage", "webImage", "postgresImage"])
     console.log(manifest[k]);
 } else if (command === "complete") {
-  const [statePath, snapshotPath, opId, now] = args;
+  const [statePath, snapshotPath, opId, now, servicesPath] = args;
   const state = await read(statePath),
     database = await read(snapshotPath);
+  const services = servicesPath
+    ? await read(servicesPath).catch(() => null)
+    : null;
   if (
     !state.rollbackAttempted ||
     state.operationId !== opId ||
-    !unchangedDatabase(state.after, database)
+    !unchangedDatabase(state.after, database) ||
+    (state.dataOperations === "gateway-only" &&
+      (!validServices(services, state.manifest) ||
+        !same(services, state.dataOperationEvidence?.after)))
   )
     throw new Error("rollback DB invariant mismatch");
   console.log(

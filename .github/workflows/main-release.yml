@@ -26,6 +26,7 @@ jobs:
       contents: read
     outputs:
       release_status: ${{ steps.state.outputs.release_status }}
+      previous_state: ${{ steps.state.outputs.previous_state }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -55,10 +56,13 @@ jobs:
       contents: read
 
   build:
-    needs: quality
+    needs: [preflight, quality]
     uses: ./.github/workflows/build-release.yml
+    with:
+      previous_state: ${{ needs.preflight.outputs.previous_state }}
     permissions:
       contents: read
+      actions: read
       packages: write
       id-token: write
       attestations: write

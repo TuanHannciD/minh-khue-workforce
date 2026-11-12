@@ -1,5 +1,11 @@
 import { validateManifest } from "./validate-manifest.mjs";
 import { validateBackupReady } from "./validate-backup-ready.mjs";
+import {
+  validGatewayEvidence,
+  canonicalDataEvidenceMatches,
+  same as equivalent,
+} from "./gateway-policy.mjs";
+import { validVerifiedState } from "./verified-state.mjs";
 
 const sha = /^[a-f0-9]{40}$/;
 const digest = /^sha256:[a-f0-9]{64}$/;
@@ -84,29 +90,11 @@ export function validDataOperationEvidence(e, state) {
   );
 }
 
-export function validVerifiedState(state) {
-  const v = state?.runtimeVerification;
-  return (
-    state?.schemaVersion === 2 &&
-    state?.status === "verified" &&
-    operation.test(state.operationId ?? "") &&
-    sha.test(state.releaseSha ?? "") &&
-    Number.isFinite(Date.parse(state.verifiedAt ?? "")) &&
-    validateManifest(state.manifest).ok &&
-    state.manifest.releaseSha === state.releaseSha &&
-    validOwnership(state.ownership) &&
-    validAttestation(state.attestation) &&
-    validSnapshot(state.database) &&
-    state.database.postgresImage === state.manifest.postgresImage &&
-    v?.status === "verified" &&
-    v?.operationId === state.operationId &&
-    v?.releaseSha === state.releaseSha &&
-    v?.verifiedAt === state.verifiedAt &&
-    ["apiImage", "webImage", "postgresImage"].every(
-      (key) => v[key] === state.manifest[key],
-    )
-  );
+function validOperationEvidence(e, state) {
+  return validGatewayEvidence(e, state) || validDataOperationEvidence(e, state);
 }
+
+export { validVerifiedState } from "./verified-state.mjs";
 
 /** A precheck excludes backup/runtime, which are freshly acquired only after eligibility. */
 export function rollbackPrecheck({
@@ -130,8 +118,8 @@ export function rollbackPrecheck({
     return incident("failed-operation-mismatch-or-application-not-applied");
   if (
     !Number.isFinite(Date.parse(state.applicationStartedAt ?? "")) ||
-    state.dataOperations !== "migration-only" ||
-    !validDataOperationEvidence(state.dataOperationEvidence, state)
+    !["migration-only", "gateway-only"].includes(state.dataOperations) ||
+    !validOperationEvidence(state.dataOperationEvidence, state)
   )
     return incident("unknown-data-operations");
   if (state.rollbackAttempted === true)
@@ -164,7 +152,12 @@ export function rollbackPrecheck({
   )
     return incident("current-manifest-ownership-invalid");
   if (
-    state.migrationOutcome !== "succeeded" ||
+    !(
+      (state.dataOperations === "gateway-only" &&
+        state.migrationOutcome === "not-executed") ||
+      (state.dataOperations === "migration-only" &&
+        state.migrationOutcome === "succeeded")
+    ) ||
     !unchangedDatabase(state.before, state.after) ||
     !unchangedDatabase(previous.database, state.before) ||
     state.manifest.postgresImage !== previous.manifest.postgresImage ||
@@ -192,13 +185,19 @@ export function decideAutomaticRollback(input = {}) {
     !currentReleaseProof ||
     !same(currentReleaseProof.ownership, state.ownership) ||
     !same(currentReleaseProof.manifest, state.manifest) ||
-    !validDataOperationEvidence(
-      currentReleaseProof.dataOperationEvidence,
-      state,
-    ) ||
-    !same(
-      currentReleaseProof.dataOperationEvidence,
-      state.dataOperationEvidence,
+    !(
+      canonicalDataEvidenceMatches(
+        currentReleaseProof.dataOperationEvidence,
+        state,
+      ) ||
+      (validDataOperationEvidence(
+        currentReleaseProof.dataOperationEvidence,
+        state,
+      ) &&
+        same(
+          currentReleaseProof.dataOperationEvidence,
+          state.dataOperationEvidence,
+        ))
     )
   )
     return incident("current-canonical-release-evidence-unverified");
@@ -213,6 +212,8 @@ export function decideAutomaticRollback(input = {}) {
     runtime.apiImage !== state.manifest.apiImage ||
     runtime.webImage !== state.manifest.webImage ||
     runtime.imageIdsMatch !== true ||
+    (state.dataOperations === "gateway-only" &&
+      !equivalent(runtime.services, state.dataOperationEvidence.after)) ||
     !unchangedDatabase(state.after, runtime.database)
   )
     return incident("interleaved-runtime-or-database-mismatch");
