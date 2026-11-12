@@ -104,9 +104,16 @@ jobs:
       verify_run_id: ${{ github.run_id }}
       release_status: ${{ job.status }}
     runs-on: ubuntu-latest
-    environment: production
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'production-recovery' || 'production' }}
     timeout-minutes: 15
     steps:
+      - name: Require approved source ref
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            [[ "$GITHUB_REF" == refs/heads/main ]] || { echo 'manual recovery must be dispatched from canonical main' >&2; exit 78; }
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ inputs.release_sha }}

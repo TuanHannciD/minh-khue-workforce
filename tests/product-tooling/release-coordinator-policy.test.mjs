@@ -349,7 +349,7 @@ for (const mode of ["dry-run", "bootstrap"]) {
 test("consumer workflows preserve production approvals and download only exact IDs", async () => {
   for (const workflow of ["deploy", "post-deploy-verify"]) {
     const yaml = await readFile(`.github/workflows/${workflow}.yml`, "utf8");
-    assert.match(yaml, /environment: production/);
+    assert.match(yaml, /environment:.*production-recovery.*production/);
     assert.match(yaml, /artifact-ids: \$\{\{ inputs.release_artifact_id \}\}/);
     assert.doesNotMatch(yaml, /name: mkw-release-/);
   }

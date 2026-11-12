@@ -31,9 +31,16 @@ concurrency:
 jobs:
   orchestrate:
     runs-on: ubuntu-latest
-    environment: production
+    environment: production-recovery
     timeout-minutes: 180
     steps:
+      - name: Require approved source ref
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            [[ "$GITHUB_REF" == refs/heads/main ]] || { echo 'manual recovery must be dispatched from canonical main' >&2; exit 78; }
+          fi
       - name: Checkout trusted current orchestration policy
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

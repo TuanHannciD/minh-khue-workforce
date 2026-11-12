@@ -92,7 +92,7 @@ jobs:
       backup_artifact_id: ${{ steps.upload-backup.outputs.artifact-id || steps.upload-backup-empty.outputs.artifact-id }}
       backup_artifact_name: mkw-backup-${{ github.run_id }}-${{ github.run_attempt }}${{ inputs.purpose == 'app-rollback' && '-app-rollback' || '' }}
     runs-on: ubuntu-latest
-    environment: production
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'production-recovery' || 'production' }}
     timeout-minutes: 30
     env:
       BACKUP_KIND: ${{ inputs.kind || 'BACKUP' }}
@@ -105,6 +105,13 @@ jobs:
       MKW_SSH_PORT: ${{ vars.MKW_SSH_PORT }}
       MKW_SSH_HOST_FINGERPRINT: ${{ vars.MKW_SSH_HOST_FINGERPRINT }}
     steps:
+      - name: Require approved source ref
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            [[ "$GITHUB_REF" == refs/heads/main ]] || { echo 'manual recovery must be dispatched from canonical main' >&2; exit 78; }
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ inputs.control_sha || github.sha }}
