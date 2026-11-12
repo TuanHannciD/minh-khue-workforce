@@ -126,6 +126,8 @@ jobs:
       mode: release
       release_sha: ${{ needs.build.outputs.release_sha }}
       release_run_id: ${{ needs.build.outputs.release_run_id }}
+      release_run_attempt: ${{ needs.build.outputs.release_run_attempt }}
+      release_artifact_digest: ${{ needs.build.outputs.release_artifact_digest }}
       release_artifact_id: ${{ needs.build.outputs.release_artifact_id }}
       api_digest: ${{ needs.build.outputs.api_digest }}
       web_digest: ${{ needs.build.outputs.web_digest }}

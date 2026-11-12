@@ -37,12 +37,15 @@ function source() {
       id: "42",
       workflow_run: { id: "41" },
       expired: false,
+      created_at: "2026-11-12T10:00:30Z",
       name: `mkw-release-${previous.releaseSha}`,
       digest: previous.ownership.artifactDigest,
     }),
     run: async () => ({
       id: "41",
       run_attempt: "1",
+      run_started_at: "2026-11-12T10:00:00Z",
+      updated_at: "2026-11-12T10:59:59Z",
       path: ".github/workflows/build-release.yml",
       event: "workflow_run",
       head_branch: "main",
@@ -56,6 +59,8 @@ function source() {
         ? structuredClone(previous.manifest)
         : {
             sourceSha: previous.releaseSha,
+            producerRunId: "41",
+            producerRunAttempt: "1",
             apiDigest: previous.manifest.apiImage.split("@")[1],
           },
   };

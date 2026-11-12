@@ -210,6 +210,9 @@ const input = {
   dispatchRef: "refs/heads/main",
 };
 const producer = {
+  run_attempt: "1",
+  run_started_at: "2026-11-12T10:00:00Z",
+  updated_at: "2026-11-12T10:59:59Z",
   id: "10",
   path: ".github/workflows/main-release.yml",
   event: "push",
@@ -229,8 +232,10 @@ const api = (patch = {}) => ({
   async artifact() {
     return {
       id: "101",
+      digest: `sha256:${"d".repeat(64)}`,
       name: `mkw-release-${sha}`,
       expired: false,
+      created_at: "2026-11-12T10:00:30Z",
       workflow_run: { id: "10" },
     };
   },
@@ -239,13 +244,17 @@ const api = (patch = {}) => ({
   },
   async jsonFromArtifact(id, name) {
     assert.equal(id, "101");
-    return name === "release-manifest.json" ? manifest : { sourceSha: sha };
+    return name === "release-manifest.json"
+      ? manifest
+      : { sourceSha: sha, producerRunId: "10", producerRunAttempt: "1" };
   },
 });
 test("manual recovery resolves the successful push producer with canonical reusable build provenance", async () => {
   assert.deepEqual(await resolveExactRelease(input, api()), {
     artifactId: "101",
     runId: "10",
+    runAttempt: "1",
+    artifactDigest: `sha256:${"d".repeat(64)}`,
   });
 });
 for (const patch of [

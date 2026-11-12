@@ -1,4 +1,5 @@
 import { validateManifest } from "./validate-manifest.mjs";
+import { validateBackupReady } from "./validate-backup-ready.mjs";
 
 export const actionsId = (value) => {
   if (!/^[1-9][0-9]*$/.test(String(value)))
@@ -46,6 +47,77 @@ export async function validateReleaseSource(
     manifest.sourceRepository !== repository
   )
     throw new Error("release manifest/source SHA linkage failed");
+  for (const [field, expected] of [
+    ["apiDigest", manifest.apiImage.split("@")[1]],
+    ["webDigest", manifest.webImage.split("@")[1]],
+    ["postgresImage", manifest.postgresImage],
+  ])
+    if (metadata[field] !== undefined && metadata[field] !== expected)
+      throw new Error("release build metadata image linkage failed");
+  return { manifest, metadata };
+}
+
+const digest = (value) => {
+  const normalized = String(value ?? "").startsWith("sha256:")
+    ? String(value)
+    : `sha256:${value ?? ""}`;
+  if (!/^sha256:[a-f0-9]{64}$/.test(normalized))
+    throw new Error("release artifact digest is missing or invalid");
+  return normalized;
+};
+
+export async function resolveExactBackup(input, api) {
+  const { sha, repository, dispatchRef, kind = "BACKUP" } = input;
+  if (dispatchRef !== "refs/heads/main")
+    throw new Error("dispatch must use canonical main");
+  if (!/^[a-f0-9]{40}$/.test(sha) || !/^[\w.-]+\/[\w.-]+$/.test(repository))
+    throw new Error("invalid backup artifact inputs");
+  const artifactId = actionsId(input.artifactId);
+  const runId = actionsId(input.runId);
+  const artifact = await api.artifact(artifactId);
+  if (
+    actionsId(artifact.id) !== artifactId ||
+    artifact.expired !== false ||
+    actionsId(artifact.workflow_run?.id) !== runId
+  )
+    throw new Error("backup artifact ownership/expiry mismatch");
+  const name = String(artifact.name ?? "");
+  const match = name.match(new RegExp(`^mkw-backup-${runId}-([1-9][0-9]*)$`));
+  if (!match)
+    throw new Error("backup artifact name does not bind a producing attempt");
+  const runAttempt = match[1];
+  if (input.runAttempt !== undefined && String(input.runAttempt) !== runAttempt)
+    throw new Error("backup producing attempt mismatch");
+  const artifactDigest = digest(artifact.digest);
+  if (
+    input.artifactDigest !== undefined &&
+    digest(input.artifactDigest) !== artifactDigest
+  )
+    throw new Error("backup artifact digest mismatch");
+  const run = await api.run(runId, runAttempt);
+  if (
+    actionsId(run.id) !== runId ||
+    String(run.run_attempt) !== runAttempt ||
+    run.path !== ".github/workflows/backup.yml" ||
+    run.event !== "workflow_dispatch" ||
+    run.head_branch !== "main" ||
+    run.status !== "completed" ||
+    run.conclusion !== "success"
+  )
+    throw new Error(
+      "backup artifact producer is not an exact successful canonical backup",
+    );
+  const readiness = await api.jsonFromArtifact(artifactId, "backup-ready.json");
+  if (
+    !validateBackupReady(readiness, {
+      expectedKind: kind,
+      expectedReleaseSha: sha,
+    }).ok
+  )
+    throw new Error("backup metadata does not match requested release");
+  if (readiness.backupId !== `mkw-${runId}-${runAttempt}-release`)
+    throw new Error("backup metadata does not bind producing attempt");
+  return { artifactId, runId, runAttempt, artifactDigest, artifactName: name };
 }
 // Resolve the supplied immutable ID; a same-name artifact is never a fallback.
 export async function resolveExactRelease(input, api) {
@@ -64,21 +136,94 @@ export async function resolveExactRelease(input, api) {
     actionsId(artifact.workflow_run?.id) !== runId
   )
     throw new Error("release artifact ownership/expiry mismatch");
+  const artifactDigest = digest(artifact.digest);
   if (
     input.artifactDigest !== undefined &&
-    input.artifactDigest !== artifact.digest
+    digest(input.artifactDigest) !== artifactDigest
   )
     throw new Error("release artifact digest mismatch");
-  const run = await api.run(runId, input.runAttempt);
+  const latest = await api.run(runId);
+  if (!isTrustedBuild(latest, { sha, repository }))
+    throw new Error(
+      "release artifact producer is not a canonical build-release",
+    );
+  const { metadata } = await validateReleaseSource(
+    { sha, repository, artifactId },
+    api,
+  );
+  const metadataRunId = metadata.producerRunId;
+  const metadataAttempt = metadata.producerRunAttempt;
+  if ((metadataRunId === undefined) !== (metadataAttempt === undefined))
+    throw new Error("release producer attempt provenance is incomplete");
+  if (metadataRunId !== undefined && actionsId(metadataRunId) !== runId)
+    throw new Error("release producer run provenance mismatch");
+  if (
+    metadataAttempt !== undefined &&
+    !/^[1-9][0-9]*$/.test(String(metadataAttempt))
+  )
+    throw new Error("release producer attempt provenance is invalid");
+  if (
+    input.runAttempt !== undefined &&
+    metadataAttempt !== undefined &&
+    String(input.runAttempt) !== String(metadataAttempt)
+  )
+    throw new Error("release producer attempt provenance mismatch");
+  let runAttempt = metadataAttempt;
+  if (runAttempt === undefined) {
+    // Legacy archives predate producer fields. Only trusted API creation/run
+    // windows can establish their attempt; latest is never a fallback.
+    const created = Date.parse(artifact.created_at ?? "");
+    const count = Number(latest.run_attempt);
+    if (
+      !Number.isFinite(created) ||
+      !Number.isSafeInteger(count) ||
+      count < 1 ||
+      count > 100
+    )
+      throw new Error("release producer attempt provenance is missing");
+    const matches = [];
+    for (let attempt = 1; attempt <= count; attempt++) {
+      const candidate = await api.run(runId, String(attempt));
+      const start = Date.parse(candidate.run_started_at ?? "");
+      const end = Date.parse(candidate.updated_at ?? "");
+      if (String(candidate.run_attempt) !== String(attempt))
+        throw new Error("release producer attempt API mismatch");
+      if (
+        isTrustedBuild(candidate, { sha, repository }) &&
+        Number.isFinite(start) &&
+        Number.isFinite(end) &&
+        start <= created &&
+        created <= end
+      )
+        matches.push(String(attempt));
+    }
+    if (matches.length !== 1)
+      throw new Error(
+        "release producer attempt provenance is missing or ambiguous",
+      );
+    [runAttempt] = matches;
+  }
+  if (
+    input.runAttempt !== undefined &&
+    String(input.runAttempt) !== String(runAttempt)
+  )
+    throw new Error("release producer attempt provenance mismatch");
+  const run = await api.run(runId, runAttempt);
+  const created = Date.parse(artifact.created_at ?? "");
+  const started = Date.parse(run.run_started_at ?? "");
+  const completed = Date.parse(run.updated_at ?? "");
   if (
     actionsId(run.id) !== runId ||
-    (input.runAttempt !== undefined &&
-      String(run.run_attempt) !== String(input.runAttempt)) ||
+    String(run.run_attempt) !== String(runAttempt) ||
+    !Number.isFinite(created) ||
+    !Number.isFinite(started) ||
+    !Number.isFinite(completed) ||
+    created < started ||
+    created > completed ||
     !isTrustedBuild(run, { sha, repository })
   )
     throw new Error(
       "release artifact producer is not a successful canonical build-release",
     );
-  await validateReleaseSource({ sha, repository, artifactId }, api);
-  return { artifactId, runId };
+  return { artifactId, runId, runAttempt: String(runAttempt), artifactDigest };
 }

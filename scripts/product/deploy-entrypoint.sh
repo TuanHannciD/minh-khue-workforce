@@ -203,7 +203,7 @@ validate_backup_gate
 # SSH and failed verification leave this state uncertain until operator review.
 source "$script_root/scripts/product/release/operation-state.sh"
 write_state begin "$manifest" "$MKW_DEPLOY_PATH/shared/last-known-good.json" "$backup_ready" "$MKW_OPERATION_ID" \
-  "${MKW_RELEASE_RUN_ID:-}" "${MKW_RELEASE_RUN_ATTEMPT:-}" "${MKW_RELEASE_ARTIFACT_ID:-}" "${MKW_RELEASE_ARTIFACT_DIGEST:-}" "${MKW_CONTROL_SHA:-}" "${MKW_ATTESTATION_MODE:-not-configured}" "${MKW_ATTESTATION_STATUS:-not-verified}"
+  "${MKW_RELEASE_RUN_ID:-}" "${MKW_RELEASE_RUN_ATTEMPT:-}" "${MKW_RELEASE_ARTIFACT_ID:-}" "${MKW_RELEASE_ARTIFACT_DIGEST:-}" "${MKW_CONTROL_SHA:-}" "${MKW_ATTESTATION_MODE:-not-configured}" "${MKW_ATTESTATION_STATUS:-not-verified}" "${MKW_BACKUP_PROVENANCE:-}"
 gateway_policy_file="$(dirname "$manifest")/data-operation-evidence.json"
 operation_class=normal
 if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true && "$MKW_OPERATION_KIND" == release ]]; then

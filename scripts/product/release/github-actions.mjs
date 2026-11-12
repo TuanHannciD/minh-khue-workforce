@@ -3,6 +3,8 @@ import { mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { parseJsonStrict } from "./validate-manifest.mjs";
 
 export function createGithubApi({
@@ -122,6 +124,15 @@ export function createGithubApi({
         } finally {
           await file.close();
         }
+        const artifact = await api.artifact(id);
+        if (!/^sha256:[a-f0-9]{64}$/.test(artifact.digest ?? ""))
+          throw new Error("artifact archive digest is missing or invalid");
+        const hash = createHash("sha256");
+        for await (const bytes of createReadStream(zip)) hash.update(bytes);
+        if (`sha256:${hash.digest("hex")}` !== artifact.digest)
+          throw new Error(
+            "artifact archive checksum does not match trusted digest",
+          );
         const { stdout: names } = await exec("unzip", ["-Z1", zip], {
           timeout: 30000,
         });

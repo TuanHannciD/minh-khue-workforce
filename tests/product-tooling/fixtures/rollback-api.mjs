@@ -15,6 +15,7 @@ export function rollbackApi(change = {}) {
         name: `mkw-release-${s.releaseSha}`,
         digest: s.ownership.artifactDigest,
         expired: false,
+        created_at: "2026-11-12T10:00:30Z",
         workflow_run: { id: s.ownership.runId },
         ...(s === current ? change.currentArtifact : change.artifact),
       };
@@ -24,6 +25,8 @@ export function rollbackApi(change = {}) {
       return {
         id: s.ownership.runId,
         run_attempt: s.ownership.runAttempt,
+        run_started_at: "2026-11-12T10:00:00Z",
+        updated_at: "2026-11-12T10:59:59Z",
         repository: { full_name: "owner/repo" },
         head_repository: { full_name: "owner/repo" },
         head_sha: s.ownership.controlSha,
@@ -67,6 +70,8 @@ export function rollbackApi(change = {}) {
       if (entry === "build-metadata.json")
         return {
           sourceSha: s.releaseSha,
+          producerRunId: s.ownership.runId,
+          producerRunAttempt: s.ownership.runAttempt,
           ...(s === current ? change.currentMetadata : {}),
         };
       return {

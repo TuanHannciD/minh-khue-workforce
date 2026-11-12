@@ -37,7 +37,7 @@ const target = { host: "prod", database: "mkw", identity: "prod/mkw" };
 const readiness = {
   schemaVersion: "1",
   kind: "BACKUP",
-  backupId: "backup-1",
+  backupId: "mkw-20-1-release",
   releaseSha: SHA,
   createdAt: "2026-11-11T10:00:00Z",
   dumpSha256: "c".repeat(64),
@@ -83,15 +83,26 @@ function fixture({
     status: "completed",
     conclusion: "success",
     run_attempt: 1,
+    run_started_at: "2026-11-12T10:00:00Z",
+    updated_at: "2026-11-12T10:59:59Z",
   };
   return {
     dispatches,
+    async artifact(id) {
+      const artifacts =
+        id === "101" || id === "102"
+          ? await this.listArtifacts()
+          : await this.runArtifacts("20");
+      return artifacts.find((a) => a.id === id);
+    },
     async listArtifacts() {
       return [
         {
           id: "101",
+          digest: `sha256:${"d".repeat(64)}`,
           name: `mkw-release-${SHA}`,
           expired: false,
+          created_at: "2026-11-12T10:00:30Z",
           workflow_run: { id: "10" },
         },
       ];
@@ -105,7 +116,8 @@ function fixture({
     },
     async jsonFromArtifact(id, entry) {
       if (entry === "release-manifest.json") return manifest;
-      if (entry === "build-metadata.json") return { sourceSha: SHA };
+      if (entry === "build-metadata.json")
+        return { sourceSha: SHA, producerRunId: "10", producerRunAttempt: "1" };
       return readiness;
     },
     async runs(workflow) {
@@ -115,8 +127,10 @@ function fixture({
       return [
         {
           id: "201",
+          digest: `sha256:${"e".repeat(64)}`,
           name: "mkw-backup-20-1",
           expired: false,
+          created_at: "2026-11-12T10:00:30Z",
           workflow_run: { id: "20" },
         },
       ];
@@ -143,6 +157,8 @@ function fixture({
         mutation_started: activeDeploy && workflow === "deploy.yml",
         conclusion: fail === workflow ? "failure" : "success",
         run_attempt: 1,
+        run_started_at: "2026-11-12T10:00:00Z",
+        updated_at: "2026-11-12T10:59:59Z",
       });
     },
     async pause() {},
@@ -200,6 +216,8 @@ test("duplicate producer correlation reuses successful stages", async () => {
             status: "completed",
             conclusion: "success",
             run_attempt: 1,
+            run_started_at: "2026-11-12T10:00:00Z",
+            updated_at: "2026-11-12T10:59:59Z",
           },
         ]
       : originalRuns(workflow);
@@ -215,6 +233,8 @@ test("duplicate producer correlation reuses successful stages", async () => {
           status: "completed",
           conclusion: "success",
           run_attempt: 1,
+          run_started_at: "2026-11-12T10:00:00Z",
+          updated_at: "2026-11-12T10:59:59Z",
         }
       : originalRun(id);
   const result = await coordinateRelease(input(), api);

@@ -4,6 +4,7 @@ import { PassThrough } from "node:stream";
 import { writeSync, existsSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { createGithubApi } from "../../scripts/product/release/github-actions.mjs";
 
@@ -36,6 +37,18 @@ test("ZIP fixture reads exact ID without extracting source or passing a token to
         return child;
       },
       async exec(command, args, options) {
+        if (command === "gh") {
+          assert.equal(args.at(-1), "/repos/org/repo/actions/artifacts/201");
+          assert.equal(options.env.GH_TOKEN, "fixture-write-token");
+          return {
+            stdout: JSON.stringify([
+              {
+                id: "201",
+                digest: `sha256:${createHash("sha256").update(Buffer.from(zip, "base64")).digest("hex")}`,
+              },
+            ]),
+          };
+        }
         assert.equal(command, "unzip");
         assert.equal(options?.env?.GH_TOKEN, undefined);
         tempFile = args[1];

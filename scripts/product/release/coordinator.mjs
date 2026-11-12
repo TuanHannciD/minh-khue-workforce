@@ -1,7 +1,8 @@
 import {
   actionsId as id,
   isTrustedBuild,
-  validateReleaseSource,
+  resolveExactRelease,
+  resolveExactBackup,
 } from "./resolve-release.mjs";
 import {
   decideOrchestrationOutcome,
@@ -134,11 +135,17 @@ export async function coordinateRelease(input, api) {
     checkTotal();
     const run = await api.run(id(artifact.workflow_run?.id));
     if (!isTrustedBuild(run, { sha, repository })) continue;
-    await validateReleaseSource(
-      { sha, repository, artifactId: id(artifact.id) },
+    const resolved = await resolveExactRelease(
+      {
+        sha,
+        repository,
+        artifactId: id(artifact.id),
+        runId: id(run.id),
+        dispatchRef: "refs/heads/main",
+      },
       api,
     );
-    matches.push({ artifactId: id(artifact.id), runId: id(run.id) });
+    matches.push(resolved);
   }
   const release = single(matches, "successful source SHA release artifact");
 
@@ -308,6 +315,18 @@ export async function coordinateRelease(input, api) {
     "exact backup run/attempt artifact",
   );
   const backupId = id(backupArtifact.id);
+  const backupProvenance = await resolveExactBackup(
+    {
+      sha,
+      repository,
+      dispatchRef: "refs/heads/main",
+      kind,
+      runId: backup.runId,
+      runAttempt: backup.attempt,
+      artifactId: backupId,
+    },
+    api,
+  );
   const readiness = await api.jsonFromArtifact(backupId, "backup-ready.json");
   const gate = validateBackupReadyFreshness(readiness, {
     expectedSha: sha,
@@ -327,7 +346,7 @@ export async function coordinateRelease(input, api) {
     release_artifact_id: release.artifactId,
     backup_run_id: backup.runId,
     backup_artifact_id: backupId,
-    backup_artifact_name: backupName,
+    provenance: JSON.stringify({ release, backup: backupProvenance }),
     backup_kind: kind,
   });
   // The verifier records preflight-only for dry-run/bootstrap, where no release
@@ -337,6 +356,8 @@ export async function coordinateRelease(input, api) {
     release_sha: sha,
     release_run_id: release.runId,
     release_artifact_id: release.artifactId,
+    release_run_attempt: release.runAttempt,
+    release_artifact_digest: release.artifactDigest,
     rollback_on_failure: "true",
   });
   return {
@@ -344,7 +365,7 @@ export async function coordinateRelease(input, api) {
     releaseSha: sha,
     correlationId,
     release,
-    backup: { ...backup, artifactId: backupId },
+    backup: { ...backup, ...backupProvenance },
     deploy,
     verify,
     outputs: {
@@ -352,9 +373,12 @@ export async function coordinateRelease(input, api) {
       release_sha: sha,
       release_run_id: release.runId,
       release_artifact_id: release.artifactId,
+      release_run_attempt: release.runAttempt,
+      release_artifact_digest: release.artifactDigest,
       backup_run_id: backup.runId,
       backup_run_attempt: backup.attempt,
       backup_artifact_id: backupId,
+      backup_artifact_digest: backupProvenance.artifactDigest,
       deploy_run_id: deploy.runId,
       verify_run_id: verify.runId,
     },

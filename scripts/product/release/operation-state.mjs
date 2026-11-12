@@ -28,9 +28,15 @@ export function beginOperation({
   ownership,
   attestation,
   backup,
+  backupOwnership,
 }) {
   if (!/^[A-Za-z0-9._-]{1,160}$/.test(operationId ?? ""))
     throw new Error("invalid operation identity");
+  if (
+    backupOwnership !== undefined &&
+    !validOwnership({ ...backupOwnership, controlSha: manifest.releaseSha })
+  )
+    throw new Error("invalid backup producer identity");
   return {
     schemaVersion: 2,
     status: "deploying",
@@ -41,6 +47,7 @@ export function beginOperation({
     attestation,
     previousState,
     preReleaseBackupId: backup.backupId,
+    ...(backupOwnership && { preReleaseBackupOwnership: backupOwnership }),
     applicationAttempted: false,
     migrationOutcome: "unknown",
     // A release must earn a producer-backed data-operation receipt after the
@@ -127,11 +134,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       controlSha,
       mode,
       status,
+      backupOwnershipJson,
     ] = args;
     output = beginOperation({
       manifest: await read(manifest),
       previousState: await optional(previous),
       backup: await read(backup),
+      backupOwnership: backupOwnershipJson
+        ? parseJsonStrict(backupOwnershipJson)
+        : undefined,
       operationId,
       ownership: {
         runId,

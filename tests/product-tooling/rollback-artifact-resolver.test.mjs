@@ -29,8 +29,10 @@ function api(patch = {}) {
       assert.equal(id, "101");
       return {
         id: "101",
+        digest: `sha256:${"d".repeat(64)}`,
         name: `mkw-release-${sha}`,
         expired: false,
+        created_at: "2026-11-12T10:00:30Z",
         workflow_run: { id: "10" },
         ...patch.artifact,
       };
@@ -39,6 +41,9 @@ function api(patch = {}) {
       assert.equal(id, "10");
       return {
         id: "10",
+        run_attempt: "1",
+        run_started_at: "2026-11-12T10:00:00Z",
+        updated_at: "2026-11-12T10:59:59Z",
         path: ".github/workflows/build-release.yml",
         event: "workflow_run",
         head_branch: "main",
@@ -51,7 +56,12 @@ function api(patch = {}) {
       assert.equal(id, "101");
       return entry === "release-manifest.json"
         ? { ...manifest, ...patch.manifest }
-        : { sourceSha: sha, ...patch.metadata };
+        : {
+            sourceSha: sha,
+            producerRunId: "10",
+            producerRunAttempt: "1",
+            ...patch.metadata,
+          };
     },
   };
 }
@@ -59,6 +69,8 @@ test("I-01: exact rollback artifact from canonical successful producer resolves"
   assert.deepEqual(await resolveExactRelease(input, api()), {
     artifactId: "101",
     runId: "10",
+    runAttempt: "1",
+    artifactDigest: `sha256:${"d".repeat(64)}`,
   });
 });
 for (const patch of [

@@ -175,6 +175,7 @@ const apiBoundary = {
       id: r.id,
       workflow_run: { id: r.runId },
       expired: false,
+      created_at: "2026-11-12T10:00:30Z",
       name: `mkw-release-${r.sha}`,
       digest: r.digest,
     };
@@ -185,6 +186,8 @@ const apiBoundary = {
     return {
       id: r.runId,
       run_attempt: attempt ?? r.latestAttempt ?? "1",
+      run_started_at: "2026-11-12T10:00:00Z",
+      updated_at: "2026-11-12T10:59:59Z",
       repository: { full_name: "mkw-local/rehearsal" },
       head_repository: { full_name: "mkw-local/rehearsal" },
       path: ".github/workflows/main-release.yml",
@@ -367,6 +370,8 @@ async function buildRelease(label, previous = null) {
   await save(`${dir}/release-manifest.json`, manifest);
   await save(`${dir}/build-metadata.json`, {
     sourceSha: sha,
+    producerRunId: runId,
+    producerRunAttempt: "1",
     apiDigest: apiImage.split("@")[1],
     webDigest: webImage.split("@")[1],
   });

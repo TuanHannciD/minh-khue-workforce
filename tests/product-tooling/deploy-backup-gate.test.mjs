@@ -115,6 +115,15 @@ function bash(cwd, script, env = {}) {
       env: {
         ...process.env,
         MKW_AUTOMATIC_RELEASE: "true",
+        RELEASE_RUN_ID: "10",
+        RELEASE_RUN_ATTEMPT: "1",
+        RELEASE_ARTIFACT_ID: "101",
+        RELEASE_ARTIFACT_DIGEST: `sha256:${"d".repeat(64)}`,
+        BACKUP_RUN_ID: "20",
+        BACKUP_RUN_ATTEMPT: "1",
+        BACKUP_ARTIFACT_ID: "201",
+        BACKUP_ARTIFACT_DIGEST: `sha256:${"e".repeat(64)}`,
+        GITHUB_OUTPUT: shellPath(join(cwd, "output")),
         MKW_SSH_HOST: "fixture-db",
         MKW_BACKUP_EXPECTED_HOST: "fixture-db",
         MKW_BACKUP_EXPECTED_DATABASE: "mkw",
@@ -191,7 +200,7 @@ const original = child.execFile;
 const execute = async (command, args) => {
   if (command !== 'gh') throw new Error('unexpected external command');
   const route = args.at(-1);
-  const value = route.endsWith('/artifacts/101') ? {id:101, name:'mkw-release-${SHA}', expired:false, workflow_run:{id:10}}
+  const value = route.endsWith('/artifacts/101') ? {id:101, name:'mkw-release-${SHA}', expired:false, digest:"sha256:${"d".repeat(64)}", workflow_run:{id:10}}
     : route.endsWith('/runs/10') ? {id:10, workflow_id:100, event:'workflow_run', head_branch:'main', status:'completed', conclusion:'success'}
     : route.endsWith('/workflows/100') ? {id:100, path:'.github/workflows/noncanonical.yml'}
     : (() => { throw new Error('unexpected GitHub route'); })();

@@ -37,7 +37,7 @@ const SHA = "a".repeat(40);
 const freshBackup = {
   schemaVersion: "1",
   kind: "BACKUP",
-  backupId: "backup-123",
+  backupId: "mkw-20-1-release",
   releaseSha: SHA,
   createdAt: "2026-11-11T10:00:00Z",
   dumpSha256: "b".repeat(64),
@@ -115,11 +115,14 @@ function fakeApi({
     status: "completed",
     conclusion: "success",
     run_attempt: 1,
+    run_started_at: "2026-11-12T10:00:00Z",
+    updated_at: "2026-11-12T10:59:59Z",
   };
   const runs = new Map();
   const dispatches = [];
   const readiness = {
     ...structuredClone(freshBackup),
+    backupId: "mkw-20-1-release",
     ...(stale ? { createdAt: "2026-11-01T00:00:00Z" } : {}),
   };
   if (kind === "INITIAL_EMPTY_DEPLOYMENT") {
@@ -136,12 +139,21 @@ function fakeApi({
   }
   return {
     dispatches,
+    async artifact(id) {
+      const artifacts =
+        id === "101" || id === "102"
+          ? await this.listArtifacts()
+          : await this.runArtifacts("20");
+      return artifacts.find((a) => a.id === id);
+    },
     readiness,
     async listArtifacts() {
       const artifact = {
         id: "101",
+        digest: `sha256:${"d".repeat(64)}`,
         name: `mkw-release-${sha}`,
         expired: false,
+        created_at: "2026-11-12T10:00:30Z",
         workflow_run: { id: "10" },
       };
       return [
@@ -162,8 +174,10 @@ function fakeApi({
     async runArtifacts(id) {
       const artifact = {
         id: "201",
+        digest: `sha256:${"e".repeat(64)}`,
         name: "mkw-backup-20-1",
         expired: false,
+        created_at: "2026-11-12T10:00:30Z",
         workflow_run: { id },
       };
       return [
@@ -188,7 +202,11 @@ function fakeApi({
           },
         };
       if (["101", "102"].includes(id) && entry === "build-metadata.json")
-        return { sourceSha: metadataSha };
+        return {
+          sourceSha: metadataSha,
+          producerRunId: "10",
+          producerRunAttempt: "1",
+        };
       return readiness;
     },
     async runs(workflow) {
@@ -230,6 +248,8 @@ function fakeApi({
               : "success",
         mutation_started: false,
         run_attempt: 1,
+        run_started_at: "2026-11-12T10:00:00Z",
+        updated_at: "2026-11-12T10:59:59Z",
       });
     },
     async pause() {},
@@ -381,6 +401,7 @@ test("F5: a historical permissive validator cannot participate in trusted resolu
   assert.deepEqual(reads, [
     "release-manifest.json",
     "build-metadata.json",
+    "backup-ready.json",
     "backup-ready.json",
   ]);
   assert.equal(api.dispatches.length, 1);

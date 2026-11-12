@@ -86,6 +86,10 @@ on:
         required: false
         type: string
         default: "86400"
+      provenance:
+        description: Resolved release and backup producer tuples from coordinator
+        required: false
+        type: string
     secrets:
       MKW_SSH_PRIVATE_KEY:
         required: true
@@ -141,8 +145,8 @@ on:
         required: false
         type: string
         default: "86400"
-      backup_artifact_name:
-        description: Exact backup artifact name
+      provenance:
+        description: Optional JSON release and backup producer tuples; resolved from canonical artifacts when omitted
         required: false
         type: string
 
@@ -198,11 +202,11 @@ jobs:
           BACKUP_ARTIFACT_NAME: ${{ inputs.backup_artifact_name }}
           BACKUP_KIND: ${{ inputs.backup_kind }}
           RELEASE_RUN_ID: ${{ inputs.release_run_id }}
-          RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt }}
-          RELEASE_ARTIFACT_DIGEST: ${{ inputs.release_artifact_digest }}
+          RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt || fromJSON(inputs.provenance || '{}').release.runAttempt || '' }}
+          RELEASE_ARTIFACT_DIGEST: ${{ inputs.release_artifact_digest || fromJSON(inputs.provenance || '{}').release.artifactDigest || '' }}
           BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
-          BACKUP_RUN_ATTEMPT: ${{ inputs.backup_run_attempt }}
-          BACKUP_ARTIFACT_DIGEST: ${{ inputs.backup_artifact_digest }}
+          BACKUP_RUN_ATTEMPT: ${{ inputs.backup_run_attempt || fromJSON(inputs.provenance || '{}').backup.runAttempt || '' }}
+          BACKUP_ARTIFACT_DIGEST: ${{ inputs.backup_artifact_digest || fromJSON(inputs.provenance || '{}').backup.artifactDigest || '' }}
         run: |
           set -Eeuo pipefail
           case "$MODE" in
@@ -220,7 +224,7 @@ jobs:
           [[ "$BACKUP_RUN_ID" =~ ^[1-9][0-9]*$ ]] || { echo 'backup_run_id is required for release' >&2; exit 64; }
           if [[ -n "${BACKUP_RUN_ATTEMPT:-}" ]]; then [[ "$BACKUP_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]] || { echo 'backup_run_attempt is invalid' >&2; exit 64; }; fi
           if [[ -n "${BACKUP_ARTIFACT_DIGEST:-}" ]]; then [[ "$BACKUP_ARTIFACT_DIGEST" =~ ^(sha256:)?[0-9a-f]{64}$ ]] || { echo 'backup_artifact_digest is invalid' >&2; exit 64; }; fi
-          [[ "$BACKUP_ARTIFACT_NAME" =~ ^mkw-backup-[1-9][0-9]*-[1-9][0-9]*$ ]] || { echo 'backup_artifact_name is required for release' >&2; exit 64; }
+          [[ -z "$BACKUP_ARTIFACT_NAME" || "$BACKUP_ARTIFACT_NAME" =~ ^mkw-backup-[1-9][0-9]*-[1-9][0-9]*$ ]] || { echo 'backup_artifact_name is required for release' >&2; exit 64; }
           [[ "$BACKUP_KIND" == BACKUP || "$BACKUP_KIND" == INITIAL_EMPTY_DEPLOYMENT ]] || { echo 'backup_kind is required for release' >&2; exit 64; }
 
       - name: Validate active coordinator parent
@@ -254,14 +258,22 @@ jobs:
           run-id: ${{ inputs.backup_run_id }}
 
       - name: Validate artifact and release manifest
+        id: provenance
         if: inputs.mode == 'release'
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
           RELEASE_RUN_ID: ${{ inputs.release_run_id }}
           RELEASE_ARTIFACT_ID: ${{ inputs.release_artifact_id }}
+          RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt || fromJSON(inputs.provenance || '{}').release.runAttempt || '' }}
+          RELEASE_ARTIFACT_DIGEST: ${{ inputs.release_artifact_digest || fromJSON(inputs.provenance || '{}').release.artifactDigest || '' }}
+          BACKUP_RUN_ID: ${{ inputs.backup_run_id || '' }}
+          BACKUP_ARTIFACT_ID: ${{ inputs.backup_artifact_id || '' }}
+          BACKUP_RUN_ATTEMPT: ${{ inputs.backup_run_attempt || fromJSON(inputs.provenance || '{}').backup.runAttempt || '' }}
+          BACKUP_ARTIFACT_DIGEST: ${{ inputs.backup_artifact_digest || fromJSON(inputs.provenance || '{}').backup.artifactDigest || '' }}
           MKW_AUTOMATIC_RELEASE: ${{ inputs.control_sha != '' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROVENANCE_JSON: ${{ inputs.provenance }}
           BACKUP_KIND: ${{ inputs.backup_kind }}
           BACKUP_MAX_AGE_SECONDS: ${{ inputs.backup_max_age_seconds || '86400' }}
           MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
@@ -300,21 +312,7 @@ jobs:
           if (expectedPostgres && manifest.postgresImage !== expectedPostgres) throw new Error('manifest PostgreSQL image does not match build output');
           NODE
 
-          if [[ "$MKW_AUTOMATIC_RELEASE" != true ]]; then
-            # Manual dispatch must earn producer ownership independently of signing.
-            # Automatic deploy consumes its still-running parent's exact build outputs.
-            node --input-type=module <<'NODE'
-          import { resolveExactRelease } from './policy/scripts/product/release/resolve-release.mjs';
-          import { createGithubApi } from './policy/scripts/product/release/github-actions.mjs';
-          await resolveExactRelease({
-            sha: process.env.RELEASE_SHA,
-            runId: process.env.RELEASE_RUN_ID,
-            artifactId: process.env.RELEASE_ARTIFACT_ID,
-            repository: process.env.GITHUB_REPOSITORY,
-            dispatchRef: process.env.GITHUB_REF,
-          }, createGithubApi({ repository: process.env.GITHUB_REPOSITORY, token: process.env.GH_TOKEN }));
-          NODE
-          fi
+          node policy/scripts/product/release/resolve-dispatch-provenance.mjs
 
       - name: Verify release attestations when configured
         id: attestations
@@ -397,10 +395,11 @@ jobs:
           MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
           MKW_OPERATION_ID: ${{ inputs.operation_id || inputs.coordinator_id || github.run_id }}
           MKW_AUTOMATIC_RELEASE: ${{ inputs.control_sha != '' }}
-          MKW_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
-          MKW_RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt || '' }}
-          MKW_RELEASE_ARTIFACT_ID: ${{ inputs.release_artifact_id }}
-          MKW_RELEASE_ARTIFACT_DIGEST: ${{ inputs.release_artifact_digest || '' }}
+          MKW_RELEASE_RUN_ID: ${{ steps.provenance.outputs.release_run_id || inputs.release_run_id }}
+          MKW_RELEASE_RUN_ATTEMPT: ${{ steps.provenance.outputs.release_run_attempt || inputs.release_run_attempt }}
+          MKW_RELEASE_ARTIFACT_ID: ${{ steps.provenance.outputs.release_artifact_id || inputs.release_artifact_id }}
+          MKW_RELEASE_ARTIFACT_DIGEST: ${{ steps.provenance.outputs.release_artifact_digest || inputs.release_artifact_digest }}
+          MKW_BACKUP_PROVENANCE: ${{ steps.provenance.outputs.backup_provenance }}
           MKW_CONTROL_SHA: ${{ inputs.control_sha || github.sha }}
         run: |
           set -Eeuo pipefail
@@ -461,6 +460,7 @@ jobs:
           # deploy-entrypoint.sh enforces the forward migration gate (pnpm db:deploy / migrate deploy) before compose up and traffic smoke checks.
           printf -v remote_command '%s bash %q --release --manifest %q --compose %q --backup-ready %q' "$remote_env" "$remote_dir/scripts/product/deploy-entrypoint.sh" "$remote_dir/release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
           remote_command="MKW_AUTOMATIC_RELEASE=$(printf '%q' "$MKW_AUTOMATIC_RELEASE") $remote_command"
+          remote_command="MKW_BACKUP_PROVENANCE=$(printf '%q' "${MKW_BACKUP_PROVENANCE:-}") $remote_command"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command" | tee "$RUNNER_TEMP/mkw-deploy-output"
           if [[ "$MKW_AUTOMATIC_RELEASE" == true ]] && grep -Fqx "ORCHESTRATION_OUTCOME=already-deployed release_sha=$RELEASE_SHA operation_id=$MKW_OPERATION_ID" "$RUNNER_TEMP/mkw-deploy-output"; then
             echo 'release_status=already-deployed' >> "$GITHUB_OUTPUT"
