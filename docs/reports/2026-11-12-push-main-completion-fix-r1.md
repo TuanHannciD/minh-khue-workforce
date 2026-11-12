@@ -12,7 +12,7 @@ Resource/evidence: `.agent-runs/push-main-completion/fix-r1/`; local Docker rehe
 
 ## Kết quả và bằng chứng
 
-Implementation tip được kiểm chứng và commit: `c911766ac9066d465e64154c3d388365531870a2` (report-only follow-up ghi hash này; final report tip được trả trong handoff). Prior review focused29/tooling657/root10 và các finding đã PASS vẫn giữ nguyên lịch sử; R1 không lặp các suite web/API/root ngoài scope.
+Implementation commit được kiểm chứng: `c911766ac9066d465e64154c3d388365531870a2`; các commit sau chỉ cập nhật report. Exact final tip lấy bằng `git rev-parse HEAD` và ghi tại handoff, tránh self-reference hash trong chính commit. Prior review focused29/tooling657/root10 và các finding đã PASS vẫn giữ nguyên lịch sử; R1 không lặp các suite web/API/root ngoài scope.
 
 - RED trên isolated copy của exact base `5a5127a`: 31 adversarial tests fail (promotion accepted missing/forged/confused gateway state).
 - GREEN trên fix: focused R1 promotion/LKG/CLI tests **31/31 PASS**; focused release/manual/reuse suites **47/47 PASS**; full product tooling **690/690 PASS**.
