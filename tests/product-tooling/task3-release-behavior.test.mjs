@@ -198,6 +198,7 @@ test("entrypoint apply blocks reject DB mismatch before mutations and apply only
           host: "fixture",
           name: "mkw",
           engine: "postgresql",
+          targetIdentity: "fixture-target",
         },
       }),
     );

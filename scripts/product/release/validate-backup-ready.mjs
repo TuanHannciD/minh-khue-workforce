@@ -237,12 +237,22 @@ export function validateBackupReady(value, options = {}) {
     value.databaseIdentity?.name !== options.expectedDatabase
   )
     errors.push("databaseIdentity.name does not match expected target");
-  if (
-    value.kind === "INITIAL_EMPTY_DEPLOYMENT" &&
-    options.expectedTargetIdentity !== undefined &&
-    value.emptyEvidence?.targetIdentity !== options.expectedTargetIdentity
-  )
-    errors.push("emptyEvidence.targetIdentity does not match expected target");
+  if (options.expectedTargetIdentity !== undefined) {
+    if (
+      value.kind === "BACKUP" &&
+      value.databaseIdentity?.targetIdentity !== options.expectedTargetIdentity
+    )
+      errors.push(
+        "databaseIdentity.targetIdentity does not match expected target",
+      );
+    if (
+      value.kind === "INITIAL_EMPTY_DEPLOYMENT" &&
+      value.emptyEvidence?.targetIdentity !== options.expectedTargetIdentity
+    )
+      errors.push(
+        "emptyEvidence.targetIdentity does not match expected target",
+      );
+  }
   if (
     value.kind === "INITIAL_EMPTY_DEPLOYMENT" &&
     options.expectedDatabase !== undefined &&

@@ -258,6 +258,10 @@ jobs:
         shell: bash
         env:
           RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          RELEASE_ARTIFACT_ID: ${{ inputs.release_artifact_id }}
+          MKW_AUTOMATIC_RELEASE: ${{ inputs.control_sha != '' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BACKUP_KIND: ${{ inputs.backup_kind }}
           BACKUP_MAX_AGE_SECONDS: ${{ inputs.backup_max_age_seconds || '86400' }}
           MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
@@ -295,6 +299,22 @@ jobs:
           if (expectedWeb && !manifest.webImage.endsWith(`@${expectedWeb}`)) throw new Error('manifest web digest does not match build output');
           if (expectedPostgres && manifest.postgresImage !== expectedPostgres) throw new Error('manifest PostgreSQL image does not match build output');
           NODE
+
+          if [[ "$MKW_AUTOMATIC_RELEASE" != true ]]; then
+            # Manual dispatch must earn producer ownership independently of signing.
+            # Automatic deploy consumes its still-running parent's exact build outputs.
+            node --input-type=module <<'NODE'
+          import { resolveExactRelease } from './policy/scripts/product/release/resolve-release.mjs';
+          import { createGithubApi } from './policy/scripts/product/release/github-actions.mjs';
+          await resolveExactRelease({
+            sha: process.env.RELEASE_SHA,
+            runId: process.env.RELEASE_RUN_ID,
+            artifactId: process.env.RELEASE_ARTIFACT_ID,
+            repository: process.env.GITHUB_REPOSITORY,
+            dispatchRef: process.env.GITHUB_REF,
+          }, createGithubApi({ repository: process.env.GITHUB_REPOSITORY, token: process.env.GH_TOKEN }));
+          NODE
+          fi
 
       - name: Verify release attestations when configured
         id: attestations

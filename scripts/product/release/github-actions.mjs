@@ -63,8 +63,11 @@ export function createGithubApi({
         ]),
       );
     },
-    async run(id) {
-      const run = (await call([`/repos/${repository}/actions/runs/${id}`]))[0];
+    async run(id, attempt) {
+      if (attempt !== undefined && !/^[1-9][0-9]*$/.test(String(attempt)))
+        throw new Error("invalid Actions run attempt");
+      const route = `/repos/${repository}/actions/runs/${id}${attempt === undefined ? "" : `/attempts/${attempt}`}`;
+      const run = (await call([route]))[0];
       const workflow = (
         await call([
           `/repos/${repository}/actions/workflows/${run.workflow_id}`,

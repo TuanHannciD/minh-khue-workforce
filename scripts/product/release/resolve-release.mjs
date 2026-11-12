@@ -64,8 +64,18 @@ export async function resolveExactRelease(input, api) {
     actionsId(artifact.workflow_run?.id) !== runId
   )
     throw new Error("release artifact ownership/expiry mismatch");
-  const run = await api.run(runId);
-  if (actionsId(run.id) !== runId || !isTrustedBuild(run, { sha, repository }))
+  if (
+    input.artifactDigest !== undefined &&
+    input.artifactDigest !== artifact.digest
+  )
+    throw new Error("release artifact digest mismatch");
+  const run = await api.run(runId, input.runAttempt);
+  if (
+    actionsId(run.id) !== runId ||
+    (input.runAttempt !== undefined &&
+      String(run.run_attempt) !== String(input.runAttempt)) ||
+    !isTrustedBuild(run, { sha, repository })
+  )
     throw new Error(
       "release artifact producer is not a successful canonical build-release",
     );

@@ -112,6 +112,7 @@ jobs:
         env:
           PREVIOUS_STATE: ${{ inputs.previous_state }}
           GH_TOKEN: ${{ github.token }}
+          ATTESTATION_MODE: ${{ vars.MKW_ATTESTATION_MODE }}
         run: |
           set -Eeuo pipefail
           export POSTGRES_IMAGE="$(awk -F= '$1 == "MKW_POSTGRES_IMAGE" { print $2 }' deploy/postgres-image.env)"

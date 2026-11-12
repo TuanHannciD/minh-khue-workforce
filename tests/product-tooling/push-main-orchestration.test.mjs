@@ -45,7 +45,12 @@ const readiness = {
   restoreVerified: true,
   retentionUntil: "2026-12-11T10:00:00Z",
   storageLocation: "github-actions-artifact:mkw-backup",
-  databaseIdentity: { host: "prod", name: "mkw", engine: "postgresql" },
+  databaseIdentity: {
+    host: "prod",
+    name: "mkw",
+    engine: "postgresql",
+    targetIdentity: "prod/mkw",
+  },
 };
 const manifest = {
   schemaVersion: "1",

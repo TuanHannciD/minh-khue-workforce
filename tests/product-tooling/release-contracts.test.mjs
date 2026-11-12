@@ -11,6 +11,7 @@ import { validateBackupReady } from "../../scripts/product/release/validate-back
 import { verifyRelease } from "../../scripts/product/release/verify-release.mjs";
 import { createBackupReady } from "../../scripts/product/operations/create-backup-ready.mjs";
 import { verifyRestore } from "../../scripts/product/operations/verify-restore.mjs";
+import { validateBackupReadyFreshness } from "../../scripts/product/release/orchestration-policy.mjs";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const BACKUP_SCHEMA = JSON.parse(
@@ -134,6 +135,38 @@ test("rejects backup metadata linked to a different release SHA", () => {
   assert.equal(result.ok, false);
   assert.match(result.errors.join("\n"), /releaseSha.*expected/i);
 });
+for (const targetIdentity of [
+  undefined,
+  "production-db//home/deploy/other/other",
+])
+  test(`BACKUP target binding rejects ${targetIdentity ?? "missing identity"} in shared and coordinator gates`, () => {
+    const value = backup();
+    if (targetIdentity === undefined)
+      delete value.databaseIdentity.targetIdentity;
+    else value.databaseIdentity.targetIdentity = targetIdentity;
+    const policy = {
+      expectedTargetHost: "production-db",
+      expectedDatabase: "mkw",
+      expectedTargetIdentity: "production-db//home/deploy/mkw/mkw",
+    };
+    for (const result of [
+      validateBackupReady(value, { ...BACKUP_POLICY, ...policy }),
+      validateBackupReadyFreshness(value, {
+        ...policy,
+        expectedSha: SHA,
+        expectedKind: "BACKUP",
+        now: Date.parse(BACKUP_POLICY.now),
+      }),
+    ]) {
+      assert.equal(result.ok, false);
+      assert.match(result.errors.join("\n"), /targetIdentity.*expected target/);
+    }
+    value.databaseIdentity.targetIdentity = policy.expectedTargetIdentity;
+    assert.equal(
+      validateBackupReady(value, { ...BACKUP_POLICY, ...policy }).ok,
+      true,
+    );
+  });
 
 test("rejects backup metadata with a future creation timestamp", () => {
   const result = validateBackupReady(

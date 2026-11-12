@@ -45,7 +45,12 @@ const freshBackup = {
   restoreVerified: true,
   retentionUntil: "2026-12-11T10:00:00Z",
   storageLocation: "github-actions-artifact:mkw-backup",
-  databaseIdentity: { host: "prod", name: "mkw", engine: "postgresql" },
+  databaseIdentity: {
+    host: "prod",
+    name: "mkw",
+    engine: "postgresql",
+    targetIdentity: "vps/mkw",
+  },
 };
 
 test("freshness policy rejects stale, future, and expired readiness for both kinds", () => {
@@ -114,7 +119,7 @@ function fakeApi({
   const runs = new Map();
   const dispatches = [];
   const readiness = {
-    ...freshBackup,
+    ...structuredClone(freshBackup),
     ...(stale ? { createdAt: "2026-11-01T00:00:00Z" } : {}),
   };
   if (kind === "INITIAL_EMPTY_DEPLOYMENT") {
@@ -416,7 +421,14 @@ test("unreadable or missing exact backup artifact cannot fall back to another ru
   }
 });
 
-for (const mismatch of ["host", "database", "empty-target", "empty-database"]) {
+for (const mismatch of [
+  "host",
+  "database",
+  "backup-target",
+  "missing-backup-target",
+  "empty-target",
+  "empty-database",
+]) {
   test(`I-03: coordinator rejects wrong ${mismatch} before deploy`, async () => {
     const kind = mismatch.startsWith("empty")
       ? "INITIAL_EMPTY_DEPLOYMENT"
@@ -434,6 +446,10 @@ for (const mismatch of ["host", "database", "empty-target", "empty-database"]) {
       };
     if (mismatch === "empty-target")
       api.readiness.emptyEvidence.targetIdentity = "other-target";
+    if (mismatch === "backup-target")
+      api.readiness.databaseIdentity.targetIdentity = "other-target";
+    if (mismatch === "missing-backup-target")
+      delete api.readiness.databaseIdentity.targetIdentity;
     if (mismatch === "empty-database")
       api.readiness.emptyEvidence.databaseIdentity = "other-database";
     await assert.rejects(

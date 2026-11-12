@@ -130,7 +130,7 @@ jobs:
           NODE
           test -s backup-ready/backup-ready.json
           node scripts/product/release/validate-backup-ready.mjs backup-ready/backup-ready.json \
-            --expected-kind BACKUP --expected-target-host "$MKW_SSH_HOST" --expected-database "$TARGET_DATABASE" \
+            --expected-kind BACKUP --expected-target-host "$MKW_SSH_HOST" --expected-database "$TARGET_DATABASE" --expected-target-identity "$TARGET_IDENTITY" \
             --max-age-seconds 86400 --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';

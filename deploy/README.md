@@ -64,23 +64,34 @@ rejects a PostgreSQL digest mismatch before changing env or Compose state.
 No production deploy is performed by this repository task.
 
 Target policy đến từ trusted production vars: host là `MKW_SSH_HOST`, database
-`mkw` theo bootstrap/Compose, initial-empty identity chính xác
+`mkw` theo bootstrap/Compose, cả BACKUP và initial-empty có identity chính xác
 `${MKW_SSH_HOST}/${MKW_DEPLOY_PATH}/${MKW_PROJECT_NAME}` như backup producer.
 Workflow truyền policy vào remote; thiếu identity hoặc metadata khác target bị
 chặn ở runner và dưới deploy lock trước mutation. Không dùng dispatch input làm
 nguồn expected production target.
 
-## Auto rollback and activation limits
+## Auto rollback và giới hạn activation
 
-Auto rollback fails closed: at most one API/Web `--no-deps api gateway` recovery,
-with last-known-good ownership/attestation, fresh current-DB backup and unchanged
-PostgreSQL/schema/migration proof. It never migrates from the old image, restores
-or changes the database. Unknown data operations/startup side effects require an
-incident. There is currently no independent data-operation receipt producer;
-deploy journals remain unknown, so live automatic recovery eligibility is blocked.
+Producer hiện tạo policy được bind vào canonical manifest và remote runtime
+receipt cho gateway-only: source/provenance API đã kiểm, exact API/PG image và
+container giữ nguyên, không migrate/restart API/data/startup command. Recovery
+class này chỉ `up --no-deps gateway`; missing/unknown/forged/interleaved evidence
+phải incident. Policy không chứng minh business writes không xảy ra. API-changing
+release vẫn deploy/migrate bình thường và incident-only khi thiếu compatibility
+proof. Mọi auto recovery giữ ownership/attestation/backup/schema/PG guards, chỉ một
+lần, không restore/down-migrate/đổi PostgreSQL. Signing off/not-configured hoặc
+không verify được manifest thì chọn API build thường, không cấp gateway reuse.
 
-The existing Docker rehearsal script is restricted to a fresh GitHub-hosted runner;
-never spoof `GITHUB_ACTIONS`/`RUNNER_ENVIRONMENT` locally. Local fixtures do not prove
-GitHub/GHCR/SSH/VPS activation. Both manual and automatic workflows currently use
-`production`; separating recovery approvals is an unresolved activation gate.
-See [Task 5 evidence](../docs/reports/2026-11-11-push-main-cd-verification.md).
+Automatic dùng `production`; mọi manual dispatch dùng `production-recovery` và
+source guard `main`. Owner phải cấu hình reviewer/approved branch/secrets/vars
+theo [release checklist](../docs/operations/release-checklist.md); GitHub settings
+vẫn Not run. Direct manual deploy cũng phải resolve exact canonical artifact/run
+trước SSH, độc lập signing mode. Manual verifier giữ nguyên current-state/LKG,
+không tạo record verified thiếu binding; journal uncertain vẫn cần incident.
+
+`release-rehearsal.sh` chỉ dành cho fresh hosted runner, không spoof guards.
+Local entry `scripts/product/local-release-rehearsal.ps1` chạy Docker/DB thật
+trong engine task-owned, giữ evidence trước cleanup. Local GitHub ownership và
+signing boundary là giả lập; không chứng minh live GitHub/GHCR/SSH/VPS activation.
+Xem [completion evidence](../docs/reports/2026-11-12-push-main-completion.md) và
+[sửa integrated review](../docs/reports/2026-11-12-push-main-integrated-fix-r2.md).

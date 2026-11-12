@@ -109,11 +109,13 @@ export async function prepareAutomaticRollback(input, api) {
         dispatchRef: "refs/heads/main",
         artifactId: o.artifactId,
         runId: o.runId,
+        runAttempt: o.runAttempt,
+        artifactDigest: o.artifactDigest,
       },
       api,
     );
     const artifact = await api.artifact(o.artifactId);
-    const run = await api.run(o.runId);
+    const run = await api.run(o.runId, o.runAttempt);
     const m = await api.jsonFromArtifact(o.artifactId, "release-manifest.json");
     if (
       Number(run.run_attempt) !== Number(o.runAttempt) ||

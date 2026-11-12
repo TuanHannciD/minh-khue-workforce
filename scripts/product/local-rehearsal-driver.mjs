@@ -179,12 +179,12 @@ const apiBoundary = {
       digest: r.digest,
     };
   },
-  run: async (runId) => {
+  run: async (runId, attempt) => {
     const r = [...records.values()].find((v) => v.runId === String(runId));
     assert.ok(r);
     return {
       id: r.runId,
-      run_attempt: "1",
+      run_attempt: attempt ?? r.latestAttempt ?? "1",
       repository: { full_name: "mkw-local/rehearsal" },
       head_repository: { full_name: "mkw-local/rehearsal" },
       path: ".github/workflows/main-release.yml",
@@ -266,6 +266,7 @@ async function buildRelease(label, previous = null) {
       sha,
       repository: "mkw-local/rehearsal",
       postgresImage: pg,
+      attestationMode: "required",
       fingerprintAt: (ref) => apiSourceFingerprint(root, ref),
       verifyAttestation: async () => true,
       inspectApi: async (image) => {
@@ -698,6 +699,9 @@ await backup(a);
 await deploy(a);
 const verifiedA = await verify(a);
 await save(`${evidence}/A-verified.json`, verifiedA);
+// Simulate only GitHub's external run metadata advancing after a no-op rerun.
+// Artifact/state ownership remains bound to the successful producing attempt1.
+a.latestAttempt = "2";
 await mkdir("apps/web/public", { recursive: true });
 await writeFile("apps/web/public/local-release.txt", "B\n");
 git("add", ".");
@@ -709,6 +713,54 @@ await deploy(b);
 const verifiedB = await verify(b);
 assert.equal(same(verifiedA.runtimeServices, verifiedB.runtimeServices), true);
 await save(`${evidence}/B-verified.json`, verifiedB);
+const stateBeforeManual = await readFile(
+  `${target}/shared/current-state.json`,
+  "utf8",
+);
+const lkgBeforeManual = await readFile(
+  `${target}/shared/last-known-good.json`,
+  "utf8",
+);
+const manual = command(
+  "bash",
+  [`${root}/scripts/product/post-deploy-verify.sh`],
+  {
+    env: {
+      ...envFor(b),
+      MKW_AUTOMATIC_RELEASE: "false",
+      MKW_OPERATION_ID: "manual-runtime-recheck",
+    },
+  },
+);
+await writeFile(
+  `${evidence}/manual-verify.log`,
+  Buffer.concat([manual.stdout, manual.stderr]),
+);
+assert.equal(manual.status, 0, String(manual.stderr));
+assert.equal(
+  await readFile(`${target}/shared/current-state.json`, "utf8"),
+  stateBeforeManual,
+);
+assert.equal(
+  await readFile(`${target}/shared/last-known-good.json`, "utf8"),
+  lkgBeforeManual,
+);
+assert.equal(
+  run("node", [
+    `${root}/scripts/product/release/read-current-state.mjs`,
+    `${target}/shared/current-state.json`,
+    b.sha,
+  ])
+    .toString()
+    .trim(),
+  "already-deployed",
+);
+await save(`${evidence}/manual-verify-preservation.json`, {
+  currentStatePreserved: true,
+  lastKnownGoodPreserved: true,
+  nextPushPreflight: "already-deployed",
+});
+b.latestAttempt = "2";
 const nginx = await readFile("deploy/nginx.conf", "utf8");
 await writeFile(
   "deploy/nginx.conf",
@@ -797,6 +849,8 @@ await save(`${evidence}/result.json`, {
   unknownMigration: "incident-required",
   apiAndPgUnchangedDuringGateway: true,
   normalApiChangingDeploy: "verified",
+  manualVerifyThenPushMain: "already-deployed; v2 state and LKG preserved",
+  reusedProducingAttemptAfterRerun: "1; latest simulated GitHub attempt 2",
   encryptedBackupRestoreCount: backupSequence,
   originalFailureRetained: true,
   liveGithubSigningGhcrVps: "not-run",

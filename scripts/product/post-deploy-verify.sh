@@ -72,9 +72,8 @@ if [[ "${MKW_AUTOMATIC_RELEASE:-false}" == true ]]; then
   lkg_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.last-known-good.XXXXXX")"
   cp -p "$state_path" "$lkg_tmp"; mv -f "$lkg_tmp" "$MKW_DEPLOY_PATH/shared/last-known-good.json"
 else
-  state_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.current-state.XXXXXX")"
-  printf '{"status":"verified","releaseSha":"%s","operationId":"%s","verifiedAt":"%s"}\n' \
-    "$RELEASE_SHA" "$MKW_OPERATION_ID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state_tmp"
-  chmod 640 "$state_tmp"; mv -f "$state_tmp" "$MKW_DEPLOY_PATH/shared/current-state.json"
+  # A manual runtime recheck has no bound producer/operation promotion inputs.
+  # Preserve current-state and LKG, including any incident/uncertain journal.
+  echo 'MANUAL_RUNTIME_VERIFY_OK: current-state and last-known-good preserved'
 fi
 echo 'POST_DEPLOY_VERIFY_OK: receipt, image IDs/digests, schema, startup health and gateway smoke'

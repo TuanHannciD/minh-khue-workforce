@@ -19,6 +19,7 @@ export async function selectApiReuse(
     sha,
     repository,
     postgresImage,
+    attestationMode = "not-configured",
     fingerprintAt,
     verifyAttestation,
     inspectApi,
@@ -34,7 +35,8 @@ export async function selectApiReuse(
   if (
     !previous?.manifest?.buildInputs ||
     !validVerifiedState(previous) ||
-    !validServices(previous.runtimeServices, previous.manifest)
+    !validServices(previous.runtimeServices, previous.manifest) ||
+    !["best-effort", "required"].includes(attestationMode)
   )
     return normal;
   const inputs = previous.manifest.buildInputs;
@@ -52,11 +54,13 @@ export async function selectApiReuse(
       dispatchRef: "refs/heads/main",
       artifactId: o.artifactId,
       runId: o.runId,
+      runAttempt: o.runAttempt,
+      artifactDigest: o.artifactDigest,
     },
     api,
   );
   const artifact = await api.artifact(o.artifactId),
-    run = await api.run(o.runId);
+    run = await api.run(o.runId, o.runAttempt);
   const manifest = await api.jsonFromArtifact(
     o.artifactId,
     "release-manifest.json",
@@ -76,10 +80,7 @@ export async function selectApiReuse(
     fingerprintAt(inputs.apiSourceSha) !== currentFingerprint
   )
     throw new Error("API reuse provenance/source mismatch");
-  if (!(await verifyAttestation(manifest)))
-    throw new Error(
-      "API reuse requires verified canonical manifest attestation",
-    );
+  if (!(await verifyAttestation(manifest))) return normal;
   const identity = await inspectApi(manifest.apiImage);
   if (
     identity.image !== manifest.apiImage ||
@@ -109,6 +110,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         sha: process.env.GITHUB_SHA,
         repository: process.env.GITHUB_REPOSITORY,
         postgresImage: process.env.POSTGRES_IMAGE,
+        attestationMode: process.env.ATTESTATION_MODE || "not-configured",
         fingerprintAt: (ref) => apiSourceFingerprint(process.cwd(), ref),
         verifyAttestation: async (manifest) => {
           const path = join(dir, "release-manifest.json");

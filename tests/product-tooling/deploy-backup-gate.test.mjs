@@ -5,6 +5,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 
 const ROOT = join(import.meta.dirname, "../..");
 const shellPath = (path) =>
@@ -45,11 +46,32 @@ function backup(overrides = {}) {
     size: 4096,
     restoreVerified: true,
     storageLocation: "github-actions-artifact:fixture-backup",
-    databaseIdentity: { host: "fixture-db", name: "mkw", engine: "postgresql" },
+    databaseIdentity: {
+      host: "fixture-db",
+      name: "mkw",
+      engine: "postgresql",
+      targetIdentity: "fixture-db//home/deploy/mkw/mkw",
+    },
     ...overrides,
   };
 }
 const rejectedBackups = [
+  ...[undefined, "fixture-db//home/deploy/other/other"].map(
+    (targetIdentity) => [
+      targetIdentity === undefined
+        ? "missing target identity"
+        : "wrong target identity",
+      {
+        databaseIdentity: {
+          host: "fixture-db",
+          name: "mkw",
+          engine: "postgresql",
+          ...(targetIdentity === undefined ? {} : { targetIdentity }),
+        },
+      },
+      /targetIdentity.*expected target/i,
+    ],
+  ),
   [
     "wrong host",
     {
@@ -92,6 +114,7 @@ function bash(cwd, script, env = {}) {
       cwd,
       env: {
         ...process.env,
+        MKW_AUTOMATIC_RELEASE: "true",
         MKW_SSH_HOST: "fixture-db",
         MKW_BACKUP_EXPECTED_HOST: "fixture-db",
         MKW_BACKUP_EXPECTED_DATABASE: "mkw",
@@ -147,6 +170,62 @@ async function copyTooling(dir) {
   );
 }
 
+for (const attestationMode of ["off", "best-effort"])
+  test(`direct manual deploy rejects a valid archive with noncanonical producer before SSH (${attestationMode})`, async (t) => {
+    const dir = await fixture(t);
+    await copyTooling(join(dir, "policy"));
+    await writeFile(
+      join(dir, "backup-ready/backup-ready.json"),
+      JSON.stringify(backup()),
+    );
+    // Fake only the GitHub API process boundary; execute the real resolver,
+    // validators and workflow block. Rejection occurs before archive reads/SSH.
+    const preload = join(dir, "github-boundary.mjs");
+    await writeFile(
+      preload,
+      `
+import child from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
+import { promisify } from 'node:util';
+const original = child.execFile;
+const execute = async (command, args) => {
+  if (command !== 'gh') throw new Error('unexpected external command');
+  const route = args.at(-1);
+  const value = route.endsWith('/artifacts/101') ? {id:101, name:'mkw-release-${SHA}', expired:false, workflow_run:{id:10}}
+    : route.endsWith('/runs/10') ? {id:10, workflow_id:100, event:'workflow_run', head_branch:'main', status:'completed', conclusion:'success'}
+    : route.endsWith('/workflows/100') ? {id:100, path:'.github/workflows/noncanonical.yml'}
+    : (() => { throw new Error('unexpected GitHub route'); })();
+  return {stdout:JSON.stringify([value]), stderr:''};
+};
+child.execFile = function(command, args, options, callback) { if(command !== 'gh') return original(command,args,options,callback); execute(command,args).then(r=>callback(null,r.stdout,r.stderr),callback); };
+child.execFile[promisify.custom] = (command,args,options) => command === 'gh' ? execute(command,args) : promisify(original)(command,args,options);
+syncBuiltinESMExports();
+`,
+    );
+    const result = await bash(
+      dir,
+      `date() { printf '%s\\n' '${NOW}'; }\n` +
+        stepScript("Validate artifact and release manifest") +
+        "\necho SSH_MUTATION_REACHED\n",
+      {
+        RELEASE_SHA: SHA,
+        RELEASE_RUN_ID: "10",
+        RELEASE_ARTIFACT_ID: "101",
+        MKW_AUTOMATIC_RELEASE: "false",
+        GITHUB_REF: "refs/heads/main",
+        GITHUB_REPOSITORY: manifest.sourceRepository,
+        GH_TOKEN: "fixture-only",
+        NODE_OPTIONS: `--import=${pathToFileURL(preload).href}`,
+        BACKUP_KIND: "BACKUP",
+        BACKUP_MAX_AGE_SECONDS: "86400",
+        MKW_ATTESTATION_MODE: attestationMode,
+      },
+    );
+    assert.notEqual(result.code, 0, result.stdout + result.stderr);
+    assert.match(result.stderr, /producer.*canonical|canonical.*producer/);
+    assert.doesNotMatch(result.stdout, /SSH_MUTATION_REACHED/);
+  });
+
 test("old release artifacts cannot select an old permissive backup validator", async (t) => {
   const dir = await fixture(t);
   const checkout = workflow.match(
@@ -188,6 +267,8 @@ test("old release artifacts cannot select an old permissive backup validator", a
       {
         GITHUB_WORKSPACE: dir.replaceAll("\\", "/"),
         RELEASE_SHA: SHA,
+        RELEASE_RUN_ATTEMPT: "1",
+        RELEASE_ARTIFACT_DIGEST: "1".repeat(64),
         BACKUP_MAX_AGE_SECONDS: "86400",
         BACKUP_KIND: "BACKUP",
         MKW_BACKUP_MAX_AGE_SECONDS: "86400",
