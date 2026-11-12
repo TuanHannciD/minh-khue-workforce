@@ -283,6 +283,139 @@ test("behaviorally dispatches backup before deploy and verify with exact IDs and
   assert.equal(result.verify.runId, "40");
 });
 
+function mixedCandidates(latestConclusion = "success", options = {}) {
+  const api = fakeApi(options);
+  const list = api.listArtifacts;
+  const artifact = api.artifact;
+  const readRun = api.run;
+  const readJson = api.jsonFromArtifact;
+  const archiveReads = [];
+  const invalidRuns = [
+    { path: ".github/workflows/untrusted.yml" },
+    { event: "workflow_dispatch" },
+    { head_branch: "untrusted" },
+    {
+      path: ".github/workflows/main-release.yml",
+      event: "push",
+      head_sha: "f".repeat(40),
+    },
+    {
+      path: ".github/workflows/main-release.yml",
+      event: "push",
+      head_sha: SHA,
+      referenced_workflows: [
+        {
+          path: "org/repo/.github/workflows/build-release.yml@refs/heads/main",
+          sha: SHA,
+          ref: "refs/heads/untrusted",
+        },
+      ],
+    },
+  ];
+  const invalidArtifacts = (template) =>
+    invalidRuns.map((_, index) => ({
+      ...template,
+      id: String(110 + index),
+      workflow_run: { id: String(50 + index) },
+    }));
+  api.listArtifacts = async () => {
+    const artifacts = await list();
+    return [...invalidArtifacts(artifacts[0]), ...artifacts];
+  };
+  api.artifact = async (id) =>
+    (await api.listArtifacts()).find((item) => item.id === id) ??
+    artifact.call(api, id);
+  api.run = async (id, attempt) => {
+    if (Number(id) >= 50 && Number(id) < 50 + invalidRuns.length)
+      return { ...(await readRun("10")), id, ...invalidRuns[Number(id) - 50] };
+    const run = await readRun(id, attempt);
+    return id === "10" && attempt === undefined
+      ? {
+          ...run,
+          run_attempt: 2,
+          status:
+            latestConclusion === "in_progress" ? "in_progress" : "completed",
+          conclusion:
+            latestConclusion === "in_progress" ? null : latestConclusion,
+        }
+      : run;
+  };
+  api.jsonFromArtifact = async (id, entry) => {
+    archiveReads.push(id);
+    if (Number(id) >= 110 && Number(id) < 110 + invalidRuns.length) {
+      const value = await readJson("101", entry);
+      return entry === "build-metadata.json"
+        ? { ...value, producerRunId: String(Number(id) - 60) }
+        : value;
+    }
+    return readJson(id, entry);
+  };
+  return { api, archiveReads };
+}
+
+for (const latest of ["success", "failure", "in_progress"])
+  test(`discovery excludes noncanonical same-name candidates with latest canonical rerun ${latest}`, async () => {
+    const { api, archiveReads } = mixedCandidates(latest);
+    const result = await coordinateRelease(input(), api);
+    assert.equal(result.release.artifactId, "101");
+    assert.equal(result.release.runAttempt, "1");
+    assert.equal(
+      archiveReads.some((id) => Number(id) >= 110 && Number(id) < 115),
+      false,
+    );
+    assert.deepEqual(
+      api.dispatches.map((call) => call.workflow),
+      ["backup.yml", "deploy.yml", "post-deploy-verify.yml"],
+    );
+  });
+
+for (const mutation of [
+  "run-id",
+  "attempt",
+  "metadata",
+  "malformed",
+  "digest",
+  "ambiguous",
+])
+  test(`candidate filtering preserves rejection of canonical ${mutation}`, async () => {
+    const { api } = mixedCandidates("failure", {
+      ambiguousRelease: true,
+    });
+    const readRun = api.run;
+    const readJson = api.jsonFromArtifact;
+    api.run = async (id, attempt) => {
+      const run = await readRun(id, attempt);
+      if (id !== "10") return run;
+      return {
+        ...run,
+        ...(mutation === "run-id" ? { id: "11" } : {}),
+        ...(mutation === "attempt" && attempt !== undefined
+          ? { run_attempt: 2 }
+          : {}),
+      };
+    };
+    api.jsonFromArtifact = async (id, entry) => {
+      const value = await readJson(id, entry);
+      return id === "101" && entry === "build-metadata.json"
+        ? {
+            ...value,
+            ...(mutation === "metadata" ? { producerRunId: "11" } : {}),
+            ...(mutation === "malformed"
+              ? { producerRunAttempt: undefined }
+              : {}),
+            ...(mutation === "digest"
+              ? { artifactDigest: `sha256:${"f".repeat(64)}` }
+              : {}),
+          }
+        : value;
+    };
+    await assert.rejects(
+      () => coordinateRelease(input(), api),
+      /producer|provenance|digest|expected one match/,
+    );
+    assert.equal(api.dispatches.length, 0);
+  });
+
 test("backup failure or stale readiness prevents deploy and verification dispatch", async () => {
   for (const api of [
     fakeApi({ backupConclusion: "failure" }),

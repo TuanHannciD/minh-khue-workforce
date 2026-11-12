@@ -6,7 +6,8 @@ export const actionsId = (value) => {
     throw new Error("invalid Actions id");
   return String(value);
 };
-export function isTrustedBuild(run, { sha, repository } = {}) {
+// Source identity only; successful release proof still requires an exact attempt.
+export function isCanonicalBuild(run, { sha, repository } = {}) {
   const legacy =
     run.path === ".github/workflows/build-release.yml" &&
     run.event === "workflow_run";
@@ -21,9 +22,11 @@ export function isTrustedBuild(run, { sha, repository } = {}) {
         workflow.sha === sha &&
         workflow.ref === "refs/heads/main",
     );
+  return (legacy || automatic) && run.head_branch === "main";
+}
+export function isTrustedBuild(run, context = {}) {
   return (
-    (legacy || automatic) &&
-    run.head_branch === "main" &&
+    isCanonicalBuild(run, context) &&
     run.status === "completed" &&
     run.conclusion === "success"
   );

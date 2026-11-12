@@ -1,5 +1,6 @@
 import {
   actionsId as id,
+  isCanonicalBuild,
   resolveExactRelease,
   resolveExactBackup,
 } from "./resolve-release.mjs";
@@ -133,6 +134,10 @@ export async function coordinateRelease(input, api) {
   )) {
     checkTotal();
     const artifactRunId = id(artifact.workflow_run?.id);
+    // Filter source identity, not mutable latest-rerun status. The resolver
+    // must still validate the artifact's exact successful producing attempt.
+    const candidateRun = await api.run(artifactRunId);
+    if (!isCanonicalBuild(candidateRun, { sha, repository })) continue;
     const resolved = await resolveExactRelease(
       {
         sha,
