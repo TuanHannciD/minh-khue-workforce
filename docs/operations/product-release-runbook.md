@@ -18,7 +18,7 @@ Concurrency giữ một production transaction, push mới không cancel mutatio
 
 Giữ budget coordinator tổng 150 phút (job 180), backup/deploy 50 phút mỗi stage, verify 30, discovery tối đa 5 và API process timeout 30 giây. Timeout/cancel không chứng minh child stopped; giữ URL/correlation và kiểm current-state/mutation trước retry. Auto workflows dùng needs/stage timeouts, không API dispatch/poll. Không blind cancel migration hoặc retry vô hạn.
 
-Trước migration, public GHCR pull anonymous; private dùng VPS-only token mode 600, read-only `read:packages` qua registry vars/files trong checklist; build write token không xuống VPS. Pull denied/digest mismatch dừng trước migration. Environment hiện vẫn dùng chung `production` cho auto và manual; recovery approval environment riêng là gate activation chưa đạt. Không tự bỏ reviewer production để đạt happy path.
+Trước migration, public GHCR pull anonymous; private dùng VPS-only token mode 600, read-only `read:packages` qua registry vars/files trong checklist; build write token không xuống VPS. Pull denied/digest mismatch dừng trước migration. Manual coordinator/deploy/backup/verify/rollback dùng `production-recovery` và chỉ nhận source ref `refs/heads/main`; automatic/scheduled routes và automatic rollback dùng `production`. Actual GitHub environment `production-recovery` phải có required reviewer và approved branch `main`; `production` phải cho normal push và automatic rollback chạy không tương tác. YAML không tạo reviewers; settings vẫn Not run.
 
 ## Gate và bằng chứng
 
@@ -34,7 +34,7 @@ Giữ manifest, checksum, SBOM/provenance, backup-ready, deploy/post-deploy rece
 
 ## Rollback
 
-Auto rollback chỉ một lần sau application/verify failure và đủ LKG, exact ownership/attestation/artifacts, fresh current DB backup, unchanged PostgreSQL/schema/migration và producer-backed data-operation receipt. `--no-deps api gateway` giữ DB, không old-image migration/restore/down migration; recovery thành công vẫn giữ original pipeline Failed. Unknown/side-effect/missing data receipt là `incident-required`. Repo chưa có producer độc lập của receipt data operation/startup, journal hiện `unknown`; fixture healthy recovery không chứng minh live recovery sẵn sàng.
+Auto rollback chỉ một lần sau application/verify failure và đủ LKG, exact ownership/attestation/artifacts, fresh current DB backup, unchanged PostgreSQL/schema/migration và producer-backed data-operation receipt. Eligible producer class chỉ là gateway-only: exact API/PG image/runtime identity giữ nguyên, không migrate/API restart/startup/DB command, và chỉ `gateway-up-no-deps`; receipt đo runtime trước/sau dưới remote lock. `businessDataWrites` vẫn `not-assessed`, nên policy không chứng minh business compatibility. `--no-deps api gateway` giữ DB, không old-image migration/restore/down migration; recovery thành công vẫn giữ original pipeline Failed. Unknown/side-effect/missing/forged/stale receipt là `incident-required`; API-changing/migration releases không tự được nâng cấp thành eligible.
 
 Theo [rollback runbook](product-rollback-runbook.md): chọn manifest cũ đã biết, duyệt compatibility với schema hiện tại và tạo BACKUP mới của DB hiện tại trước redeploy exact API/Web digests. Snapshot SHA không phải old app SHA. Guard yêu cầu PostgreSQL runtime digest trùng old manifest và giữ DB container; không chạy down migration hoặc restore DB. Nếu schema không tương thích, restore sang DB mới, verify và chỉ cutover sau approval riêng.
 
@@ -42,4 +42,4 @@ Theo [rollback runbook](product-rollback-runbook.md): chọn manifest cũ đã b
 
 Controls hiện có GitHub artifact retention 30 ngày, freshness mặc định 24 giờ, path `/home/deploy/mkw`, project `mkw` và origin mặc định trong entrypoint; đó không phải bằng chứng cấu hình production đã được kiểm. Custody key/recovery, storage ACL, RPO/RTO, domain/TLS, credentials và approvals thực cần operator xác minh theo [checklist](release-checklist.md). G3/G4 sản phẩm còn theo [READINESS](../agent/READINESS.md); local CI/CD tests không đóng các gate đó.
 
-[Verification Task 5](../reports/2026-11-11-push-main-cd-verification.md) ghi local checks và limits. GitHub settings/GHCR/SSH/VPS/production/rehearsal external vẫn **Not run/Blocked**; chưa Activated/Released.
+[Verification Task 5](../reports/2026-11-11-push-main-cd-verification.md) giữ snapshot lịch sử; [completion report](../reports/2026-11-12-push-main-completion.md) ghi implementation, Docker evidence và finding responses. GitHub settings/GHCR/SSH/VPS/production vẫn **Not run/Blocked**; chưa Activated/Released.

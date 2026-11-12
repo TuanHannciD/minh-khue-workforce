@@ -2,6 +2,8 @@
 
 Ngày thực hiện: 12/11/2026; tên file giữ ngày của spec/plan 11/11. Nguồn: [spec đã duyệt](../superpowers/specs/2026-11-11-push-main-continuous-deployment-design.md), [Task 5 trong plan](../superpowers/plans/2026-11-11-push-main-continuous-deployment.md). Chỉ dẫn phiên xác nhận approval; nhãn chờ review cũ trong spec không được dùng để mở lại lựa chọn đã duyệt.
 
+> Snapshot lịch sử tại exact base `47db61f`; ba Important findings được xử lý tiếp trong [completion report](2026-11-12-push-main-completion.md). Các kết quả/giới hạn bên dưới giữ nguyên theo thời điểm Task 5, không mô tả source tip mới.
+
 ## Hồ sơ, base và snapshot
 
 - Base: `d8dd9fbb2b4394d612a582991de9005f5f898e52`, có Tasks 1–4. Worktree T3 được cấp ban đầu ở `9f89930`, sạch; đã fast-forward **nhánh Task 5** tới base trước sửa, không thay parent.
