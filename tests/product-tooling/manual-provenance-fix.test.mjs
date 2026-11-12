@@ -171,11 +171,18 @@ for (const [label, patch] of [
   });
 
 test("producer fields cannot override missing API evidence or an artifact created in another attempt", async () => {
-  for (const change of ["missing-digest", "missing-time", "forged-attempt"]) {
+  for (const change of [
+    "missing-digest",
+    "missing-time",
+    "forged-attempt",
+    "mismatched-digest",
+  ]) {
     const boundary = api(
       change === "forged-attempt"
         ? { metadata: { producerRunAttempt: "2" } }
-        : {},
+        : change === "mismatched-digest"
+          ? { metadata: { artifactDigest: `sha256:${"e".repeat(64)}` } }
+          : {},
     );
     const artifact = boundary.artifact;
     boundary.artifact = async () => ({

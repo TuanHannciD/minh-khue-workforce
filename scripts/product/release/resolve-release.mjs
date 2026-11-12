@@ -162,6 +162,11 @@ export async function resolveExactRelease(input, api) {
     { sha, repository, artifactId },
     api,
   );
+  if (
+    metadata.artifactDigest !== undefined &&
+    digest(metadata.artifactDigest) !== artifactDigest
+  )
+    throw new Error("release build metadata artifact digest linkage failed");
   const metadataRunId = metadata.producerRunId;
   const metadataAttempt = metadata.producerRunAttempt;
   if ((metadataRunId === undefined) !== (metadataAttempt === undefined))
