@@ -66,6 +66,10 @@ jobs:
           ref: main
           fetch-depth: 1
           persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
 
       - name: Resolve exact old release artifact through trusted policy
         shell: bash

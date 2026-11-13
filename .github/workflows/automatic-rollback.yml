@@ -58,6 +58,10 @@ jobs:
         with:
           ref: ${{ inputs.control_sha }}
           persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
       - name: Read failed transaction under target lock
         env:
           MKW_SSH_HOST: ${{ vars.MKW_SSH_HOST }}
@@ -114,6 +118,10 @@ jobs:
         with:
           ref: ${{ inputs.control_sha }}
           persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
       - name: Download exact previous verified release artifact
         if: needs.plan.outputs.action == 'eligible' && needs.fresh-backup.result == 'success'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
