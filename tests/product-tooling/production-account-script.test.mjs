@@ -14,6 +14,10 @@ test("production account manager is reusable and keeps credentials off argv", as
   assert.match(source, /add\|reset-password\|list/);
   assert.match(source, /read -r -s/);
   assert.match(source, /docker exec -i "\$container"/);
+  assert.match(
+    source,
+    /index \.Config\.Labels "com\.docker\.compose\.project"/,
+  );
   assert.match(program, /argon2id/i);
   assert.match(program, /passwordHash/);
   assert.match(program, /BEGIN|client\.query\(['"]BEGIN/);
