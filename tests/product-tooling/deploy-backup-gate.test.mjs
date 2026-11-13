@@ -178,6 +178,14 @@ async function copyTooling(dir) {
       await readFile(join(ROOT, "scripts/product/deploy-entrypoint.sh"), "utf8")
     ).replaceAll("\r\n", "\n"),
   );
+  await cp(
+    join(ROOT, "scripts/product/manage-production-account.sh"),
+    join(dir, "scripts/product/manage-production-account.sh"),
+  );
+  await cp(
+    join(ROOT, "scripts/product/manage-production-account.mjs"),
+    join(dir, "scripts/product/manage-production-account.mjs"),
+  );
 }
 
 for (const attestationMode of ["off", "best-effort"])

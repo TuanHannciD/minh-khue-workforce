@@ -455,7 +455,7 @@ jobs:
           remote_dir="${MKW_DEPLOY_PATH}/releases/${RELEASE_SHA}"
           (cd backup-ready && sha256sum backup-ready.json > backup-ready.json.sha256)
           (cd backup-ready && sha256sum --check backup-ready.json.sha256)
-          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 -C policy scripts/product/deploy-entrypoint.sh scripts/product/release -C "$GITHUB_WORKSPACE/release-source" deploy/compose.production.yml
+          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 -C policy scripts/product/deploy-entrypoint.sh scripts/product/release -C "$GITHUB_WORKSPACE/release-source" deploy/compose.production.yml scripts/product/manage-production-account.sh scripts/product/manage-production-account.mjs
           printf -v remote_command 'mkdir -p -- %q' "$remote_dir"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
 

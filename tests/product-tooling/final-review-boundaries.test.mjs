@@ -69,6 +69,13 @@ async function fixture(t) {
   await cp(join(root, "deploy"), join(dir, "release-source/deploy"), {
     recursive: true,
   });
+  await cp(
+    join(root, "scripts/product"),
+    join(dir, "release-source/scripts/product"),
+    {
+      recursive: true,
+    },
+  );
   for (const p of ["release-artifact", "old-release-artifact"]) {
     const text = JSON.stringify(manifest);
     await writeFile(join(dir, p, "release-manifest.json"), text);

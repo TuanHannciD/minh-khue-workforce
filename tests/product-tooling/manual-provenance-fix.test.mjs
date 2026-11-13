@@ -591,6 +591,13 @@ test("actual journal CLI consumes resolved release and backup provenance without
   await cp(join(ROOT, "deploy"), join(f.dir, "release-source/deploy"), {
     recursive: true,
   });
+  await cp(
+    join(ROOT, "scripts/product"),
+    join(f.dir, "release-source/scripts/product"),
+    {
+      recursive: true,
+    },
+  );
   const remote = runBlock(
     f,
     `
