@@ -22,8 +22,8 @@ program_b64="$(base64 -w0 "$script_dir/manage-production-account.mjs")"
 
 container="${MKW_API_CONTAINER:-mkw-api-1}"
 project="${MKW_PROJECT_NAME:-mkw}"
-docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}|{{.State.Health.Status}}' "$container" 2>/dev/null |
-  grep -Fx "$project|healthy" >/dev/null || {
+docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{.State.Health.Status}}' "$container" 2>/dev/null |
+  grep -Fx "$project|api|healthy" >/dev/null || {
     echo "API container is not the healthy $project production container" >&2
     exit 78
   }
