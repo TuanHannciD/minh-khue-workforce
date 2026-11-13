@@ -53,7 +53,7 @@ jobs:
       - name: Sandbox tests
         run: pnpm run product:test:sandbox
       - name: Web tests
-        run: pnpm --filter @mkw/web test --run
+        run: pnpm --filter @mkw/web test --run --maxWorkers=2
       - name: API tests
         run: pnpm --filter @mkw/api test
       - name: Contract check

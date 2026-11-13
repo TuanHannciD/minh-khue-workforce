@@ -17,7 +17,7 @@ const commands = [
   "pnpm run product:build",
   "pnpm run product:test:tooling",
   "pnpm run product:test:sandbox",
-  "pnpm --filter @mkw/web test --run",
+  "pnpm --filter @mkw/web test --run --maxWorkers=2",
   "pnpm --filter @mkw/api test",
   "pnpm run product:contract:check",
   "pnpm run product:boundaries",
