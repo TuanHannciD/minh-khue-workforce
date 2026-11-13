@@ -26,7 +26,8 @@
     "product:test": "pnpm run product:test:tooling && pnpm run product:test:sandbox && pnpm --filter @mkw/web test --run && pnpm --filter @mkw/api test",
     "product:check": "pnpm run product:lint && pnpm run product:format:check && pnpm run product:typecheck && pnpm run product:build && pnpm run product:test && pnpm run product:boundaries && pnpm run product:contract:check",
     "product:test:e2e": "node scripts/product/e2e.mjs --acceptance",
-    "product:benchmark": "node scripts/product/benchmark.mjs"
+    "product:benchmark": "node scripts/product/benchmark.mjs",
+    "ci:parity": "node scripts/ci/parity.mjs"
   },
   "packageManager": "pnpm@12.15.0",
   "devDependencies": {

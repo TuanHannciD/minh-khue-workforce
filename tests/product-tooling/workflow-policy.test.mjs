@@ -26,16 +26,19 @@ test("CI runs product checks for PRs and reusable push-release calls with read-o
     "pnpm run product:lint",
     "pnpm run product:format:check",
     "pnpm run product:typecheck",
-    "pnpm run product:test",
+    "pnpm run product:test:tooling",
+    "pnpm run product:test:sandbox",
+    "pnpm --filter @mkw/web test --run",
+    "pnpm --filter @mkw/api test",
     "pnpm run product:contract:check",
     "pnpm run product:build",
-    "pnpm run product:check",
   ])
     assert.match(
       ci,
       new RegExp(command.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")),
       command,
     );
+  assert.doesNotMatch(ci, /pnpm run product:check/);
 });
 
 test("release workflow is reusable and checks the full push SHA", async () => {

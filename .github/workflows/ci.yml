@@ -48,11 +48,15 @@ jobs:
         run: pnpm run product:typecheck
       - name: Build
         run: pnpm run product:build
-      - name: Unit and integration tests
-        run: pnpm run product:test
+      - name: Tooling tests
+        run: pnpm run product:test:tooling
+      - name: Sandbox tests
+        run: pnpm run product:test:sandbox
+      - name: Web tests
+        run: pnpm --filter @mkw/web test --run
+      - name: API tests
+        run: pnpm --filter @mkw/api test
       - name: Contract check
         run: pnpm run product:contract:check
       - name: Product boundaries
         run: pnpm run product:boundaries
-      - name: Product aggregate check
-        run: pnpm run product:check
