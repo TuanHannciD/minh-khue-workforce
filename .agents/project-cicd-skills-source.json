@@ -1,0 +1,47 @@
+{
+  "formatVersion": 1,
+  "verifiedAt": "2026-11-13",
+  "sources": [
+    {
+      "repository": "wshobson/agents",
+      "ref": "main",
+      "commit": "9c61ab243def98f72da12abd41cfcf5bcd91af9d",
+      "skills": [
+        "deployment-pipeline-design",
+        "github-actions-templates",
+        "secrets-management"
+      ]
+    },
+    {
+      "repository": "Jeffallan/claude-skills",
+      "ref": "main",
+      "commit": "078a25cc5bfd8011459be7b91d004e900c1d02d3",
+      "skills": [
+        "devops-engineer"
+      ]
+    }
+  ],
+  "skills": [
+    "deployment-pipeline-design",
+    "github-actions-templates",
+    "secrets-management",
+    "devops-engineer"
+  ],
+  "sha256": {
+    ".agents/skills/deployment-pipeline-design/SKILL.md": "9a56bd9401c1dc8ef5a15758d7234f211193097ddb3895d46d1ddcd730687b18",
+    ".agents/skills/deployment-pipeline-design/references/advanced-strategies.md": "d087f75554eed0e2b1beb9a2d7be98c19f0776285f21474806b9398e81dff6a7",
+    ".agents/skills/deployment-pipeline-design/references/details.md": "0de81a3e3d168fa301f9b49a6be321a247c3ef8be40c167a283df4a3ee0d5a3b",
+    ".agents/skills/github-actions-templates/SKILL.md": "fc3c06ddb2423804be275defbb8a2c35f1564ba28aaeb07dcf01ec9c4cc8f023",
+    ".agents/skills/secrets-management/SKILL.md": "293527164f627d889cebdf78a2b45455952cc402797236461644b376af8dfe53",
+    ".agents/skills/devops-engineer/SKILL.md": "552f6b0f31bc5d6cad3c692034407f22319424d2cdb94ade99ec108f760e4285",
+    ".agents/skills/devops-engineer/references/deployment-strategies.md": "d09fd909526bac88579c993b85294c210ca76959e38a0018f4d4181f48e2302b",
+    ".agents/skills/devops-engineer/references/docker-patterns.md": "09f2deadb4ff260b09e09c25ad2037ea90357e04e2ba2f3fe4711adf61bc59b2",
+    ".agents/skills/devops-engineer/references/github-actions.md": "04d2d1c339762948dd513c268482d3ffada30068bbea92f282bf753837cb5e4b",
+    ".agents/skills/devops-engineer/references/gitlab-ci.md": "8b4e6492a96ff5b94c07dcddca3a093121845a13bc4f2699844c06f42f3043e2",
+    ".agents/skills/devops-engineer/references/incident-response.md": "8410ae3e9c7295f4fda94d7fa85438292e675a4e10dc64a61aead4df162522a4",
+    ".agents/skills/devops-engineer/references/kubernetes.md": "658ddf774b90f5eef6a97c117bb41dbcab3b3a551e3888ed7d1c53b7ce02cf28",
+    ".agents/skills/devops-engineer/references/platform-engineering.md": "1256d7f015cb45c8e35ad708cf9a51ef429c95945d07705fb416bc89e3bc1bfd",
+    ".agents/skills/devops-engineer/references/release-automation.md": "bf546d38622d8f9185939d5d3bafea8859f44a7c60e85957afc39347052abc45",
+    ".agents/skills/devops-engineer/references/terraform-iac.md": "0d629d4b9826cbd97c1d5a6e826d701bacd3f057d4092cda0e5bb9da692e922b"
+  }
+}

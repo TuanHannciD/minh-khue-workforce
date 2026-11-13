@@ -52,3 +52,7 @@ Ghi Not installed/Blocked cho khả năng phụ thuộc. Công việc tài liệ
 ## Chuyên môn Minh Khuê
 
 Chuẩn bị requirement/planning/review/documentation trước; API/module/DB specialist cần nguồn sản phẩm/schema/contract thật khi có. Nội dung chưa biết giữ Pending thay vì chép module, tenant hoặc rule nghiệp vụ SellerFlow.
+
+## CI/CD specialist đã cài
+
+Ngày 13/11/2026, cài project-local 4 skill theo user request từ nguồn công khai, không cài global/plugin: `wshobson/agents` (deployment-pipeline-design, github-actions-templates, secrets-management) commit `9c61ab243def98f72da12abd41cfcf5bcd91af9d`; `Jeffallan/claude-skills` (devops-engineer) commit `078a25cc5bfd8011459be7b91d004e900c1d02d3`. Hash từng file tại `.agents/project-cicd-skills-source.json`; các nguồn được tham khảo, không phải bằng chứng release/production.

@@ -51,3 +51,14 @@ Skill này giữ ranh giới read-only, không dùng `sudo`, không đọc secre
 | Chẩn đoán server | debugging | Quyền target cụ thể; bổ sung khi có vận hành |
 
 Không cần tạo một skill cho từng vai trò nếu tài liệu và routing đã đủ. Tên package/số lượng specialist sẽ được xác định khi viết skill thật; không đặt nhiều lớp orchestration.
+
+## CI/CD và DevOps
+
+| Nhu cầu | Skill | Nguồn/pin | Khi dùng |
+| --- | --- | --- | --- |
+| Thiết kế pipeline nhiều bước, gate và rollback | `deployment-pipeline-design` | `wshobson/agents` commit `9c61ab2` | Rà kiến trúc push-main → build → backup → deploy → verify; không tự mở rộng scope |
+| Viết reusable GitHub Actions | `github-actions-templates` | `wshobson/agents` commit `9c61ab2` | Tạo/sửa workflow, permissions, artifact và container build |
+| Quản lý secrets CI/CD | `secrets-management` | `wshobson/agents` commit `9c61ab2` | Rà secrets, token scope, environment và không để secret trong log/code |
+| Vận hành Docker/Compose và release | `devops-engineer` | `Jeffallan/claude-skills` commit `078a25c` | Checklist Docker, release, health check, rollback; luôn theo quyền và runbook MKW |
+
+Các skill này là specialist bổ sung; Superpowers vẫn là phương pháp chính. Hash/source được ghi tại `.agents/project-cicd-skills-source.json`. Nội dung upstream là tham khảo có pin, không thay contract/permissions của MKW; không dùng số sao/lượt cài làm bằng chứng production.
