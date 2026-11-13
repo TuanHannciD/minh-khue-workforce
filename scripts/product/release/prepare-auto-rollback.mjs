@@ -51,8 +51,10 @@ async function resolveCurrentFailedRelease(input, api) {
     !["in_progress", "completed"].includes(run.status) ||
     !run.referenced_workflows?.some(
       (w) =>
-        w.path ===
-          `${repository}/.github/workflows/build-release.yml@refs/heads/main` &&
+        (w.path ===
+          `${repository}/.github/workflows/build-release.yml@${o.controlSha}` ||
+          w.path ===
+            `${repository}/.github/workflows/build-release.yml@refs/heads/main`) &&
         w.ref === "refs/heads/main" &&
         w.sha === o.controlSha,
     )

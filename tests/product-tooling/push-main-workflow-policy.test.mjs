@@ -221,7 +221,7 @@ const producer = {
   conclusion: "success",
   referenced_workflows: [
     {
-      path: "org/repo/.github/workflows/build-release.yml@refs/heads/main",
+      path: `org/repo/.github/workflows/build-release.yml@${sha}`,
       sha,
       ref: "refs/heads/main",
     },

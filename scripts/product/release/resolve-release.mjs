@@ -17,8 +17,10 @@ export function isCanonicalBuild(run, { sha, repository } = {}) {
     run.head_sha === sha &&
     run.referenced_workflows?.some(
       (workflow) =>
-        workflow.path ===
-          `${repository}/.github/workflows/build-release.yml@refs/heads/main` &&
+        (workflow.path ===
+          `${repository}/.github/workflows/build-release.yml@${sha}` ||
+          workflow.path ===
+            `${repository}/.github/workflows/build-release.yml@refs/heads/main`) &&
         workflow.sha === sha &&
         workflow.ref === "refs/heads/main",
     );
