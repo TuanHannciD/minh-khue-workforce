@@ -18,7 +18,7 @@
     "product:format:check": "prettier --check apps scripts/product tests/product-tooling tests/product-e2e contracts tsconfig.base.json pnpm-workspace.yaml playwright.product.config.ts",
     "product:typecheck": "pnpm --filter @mkw/web typecheck && pnpm --filter @mkw/api typecheck",
     "product:build": "pnpm --filter @mkw/web build && pnpm --filter @mkw/api build",
-    "product:test:tooling": "node --test tests/product-tooling/*.test.mjs",
+    "product:test:tooling": "node --test --test-concurrency=1 tests/product-tooling/*.test.mjs",
     "product:test:sandbox": "node --experimental-test-module-mocks --test tests/product-e2e/sandbox-cleanup.test.mjs tests/product-e2e/sandbox-callers.test.mjs",
     "product:boundaries": "node scripts/product/check-boundaries.mjs",
     "product:contract:generate": "pnpm --filter @mkw/api build && node scripts/product/generate-contract.mjs",
