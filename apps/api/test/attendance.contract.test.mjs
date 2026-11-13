@@ -142,10 +142,9 @@ async function typecheckConsumer(name, source) {
     `import type { components } from "${generated}";\n${source.replaceAll("__PARSED_TYPES__", parsedTypes)}\n`,
   );
   const result = await command(
-    process.platform === "win32" ? "pnpm.exe" : "pnpm",
+    process.execPath,
     [
-      "exec",
-      "tsc",
+      resolve(root, "node_modules/typescript/bin/tsc"),
       "--strict",
       "--skipLibCheck",
       "--noEmit",
