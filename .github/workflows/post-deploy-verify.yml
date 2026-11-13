@@ -182,7 +182,7 @@ jobs:
           RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt }}
           RELEASE_ARTIFACT_ID: ${{ inputs.release_artifact_id }}
           RELEASE_ARTIFACT_DIGEST: ${{ inputs.release_artifact_digest }}
-          MKW_AUTOMATIC_RELEASE: false
+          MKW_AUTOMATIC_RELEASE: ${{ inputs.control_sha != '' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXPECTED_API_DIGEST: ${{ inputs.api_digest }}
           EXPECTED_WEB_DIGEST: ${{ inputs.web_digest }}
