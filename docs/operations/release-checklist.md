@@ -9,6 +9,7 @@ Phạm vi: local đã review → merge → `git push origin main`. Đây là đ�
 - [ ] Secrets hiện có vẫn được dùng: `MKW_SSH_PRIVATE_KEY`, `MKW_BACKUP_ENCRYPTION_KEY`. SSH dùng fingerprint pinning; registry token trên VPS chỉ read-only, mode 600.
 - [ ] VPS đã bootstrap env/Compose một lần bằng route thủ công được bảo vệ. Giữ volume PostgreSQL và env secrets hiện có.
 - [ ] Backup encryption key được lưu riêng với VPS. Backup là `pg_dump` mã hóa, có checksum, restore verification, freshness và target identity; mã hóa bảo vệ dump khi artifact nằm ngoài máy chủ.
+- [ ] Operator biết `/home/deploy/mkw/current` chỉ là runtime directory; account manager phải chạy từ `/home/deploy/mkw/releases/<SHA>/scripts/product/` sau release thành công.
 
 ## Mỗi release
 
@@ -19,6 +20,8 @@ Phạm vi: local đã review → merge → `git push origin main`. Đây là đ�
 5. Deploy tải đúng artifact IDs/digests, kiểm lại source `main`, SSH fingerprint, GHCR pull/RepoDigest và remote `flock`. Legacy VPS không có current-state/LKG vẫn đi tiếp khi BACKUP hợp lệ.
 6. Entrypoint giữ `db.env`/`api.env`, chạy `prisma migrate deploy`, rồi `docker compose up --wait` với image digest cố định. Không `reset`, `down -v`, xóa volume hoặc tự restore database.
 7. Verify kiểm image IDs/digests, migration status, service health và HTTP smoke. Receipt ghi release SHA, digest, backup và stage result. Thành công là sau verify; thất bại dừng và chỉ dẫn manual recovery.
+
+Account management không nằm trong push-main mutation path. Dùng script trong release SHA để `list`, `add` hoặc `reset-password`; password nhập ẩn. Không đặt password trong argv/env/log và không sửa trực tiếp database.
 
 ## Khi thất bại hoặc chạy lại
 

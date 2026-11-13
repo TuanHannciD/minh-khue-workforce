@@ -13,6 +13,7 @@
 - [Browser testing](agent/BROWSER_TESTING.md): thao tác UI thật, Playwright và debug flow.
 - [Readiness](agent/READINESS.md): phần đã viết/cài/kiểm chứng và bước triển khai tiếp.
 - [Chạy local](agent/LOCAL_RUN.md): lệnh check, pilot và browser regression.
+- [Deploy và quản lý tài khoản](operations/user-deploy-and-account-guide.md): bootstrap lần đầu, release push-main và script tài khoản production.
 
 ## Nền tảng sản phẩm
 

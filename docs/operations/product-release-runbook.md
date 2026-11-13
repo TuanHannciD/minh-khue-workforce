@@ -12,6 +12,14 @@ Entrypoint dùng remote `flock`, pull/check RepoDigest các image exact, giữ e
 
 Verify kiểm image IDs/digests, migration status, health và `/` + `/api/health`, rồi upload receipt. Receipt và summary phải nêu stage, SHA, image digests, backup run/attempt/artifact digest và target. Không có automatic rollback; lỗi cần manual recovery theo runbook riêng.
 
+Account operations are separate from release deployment. The reusable account
+manager is packaged in each SHA-named release under
+`scripts/product/manage-production-account.sh`; `/home/deploy/mkw/current` is
+the runtime directory and does not contain operator scripts. See the
+[operator guide](user-deploy-and-account-guide.md) for add, list and
+reset-password commands. The current schema has no role field, so an `admin`
+username does not by itself grant elevated permissions.
+
 Các workflow/manual routes còn lại phục vụ bootstrap, backup theo lịch và recovery có approval. Thiết kế immutable CD cũ về current-state v2/LKG, schema fingerprint, gateway-only proofs, API reuse và automatic rollback được đánh dấu **superseded** cho normal path; báo cáo lịch sử không bị xóa.
 
 Nguồn chính thức được dùng cho lựa chọn này: [reusable workflows](https://docs.github.com/en/actions/sharing-automations/reusing-workflows), [concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency), [Docker GHA](https://docs.docker.com/guides/gha/), [Compose up](https://docs.docker.com/reference/cli/docker/compose/up/), và [PostgreSQL pg_dump](https://www.postgresql.org/docs/current/app-pgdump.html). Provenance ghi lại trong task ledger; pin action/version là pin đang có trong repository, không suy correctness từ stars.

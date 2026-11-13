@@ -8,6 +8,7 @@ Minh Khuê Workforce là sản phẩm chấm công đã được triển khai lo
 - Đọc đặc tả và kế hoạch tại [MKW-PRODUCT-001](docs/tasks/MKW-PRODUCT-001/INDEX.md).
 - Chạy local theo [hướng dẫn local](docs/agent/LOCAL_RUN.md).
 - Vận hành và khôi phục theo [product runbook](docs/operations/product-runbook.md) và [backup/restore](docs/operations/product-backup-restore.md).
+- Hướng dẫn deploy lần đầu, deploy các lần sau và quản lý tài khoản: [user deploy and account guide](docs/operations/user-deploy-and-account-guide.md).
 
 ## Nền tảng hiện hành
 
