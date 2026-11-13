@@ -132,6 +132,7 @@ function bash(cwd, script, env = {}) {
         TARGET_IDENTITY: "fixture-db//home/deploy/mkw/mkw",
         MKW_DEPLOY_PATH: "/home/deploy/mkw",
         MKW_PROJECT_NAME: "mkw",
+        GITHUB_REPOSITORY: manifest.sourceRepository,
         ...env,
       },
     });
