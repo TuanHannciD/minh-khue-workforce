@@ -19,6 +19,8 @@
     "product:typecheck": "pnpm --filter @mkw/web typecheck && pnpm --filter @mkw/api typecheck",
     "product:build": "pnpm --filter @mkw/web build && pnpm --filter @mkw/api build",
     "product:test:tooling": "node --test --test-concurrency=1 tests/product-tooling/*.test.mjs",
+    "product:test:tooling:ci": "node scripts/ci/run-product-tooling.mjs",
+    "product:test:tooling:release": "node scripts/ci/run-product-tooling.mjs --release",
     "product:test:deploy-account": "node tests/product-tooling/deploy-account-rehearsal.test.mjs --rehearsal",
     "product:test:sandbox": "node --experimental-test-module-mocks --test tests/product-e2e/sandbox-cleanup.test.mjs tests/product-e2e/sandbox-callers.test.mjs",
     "product:boundaries": "node scripts/product/check-boundaries.mjs",

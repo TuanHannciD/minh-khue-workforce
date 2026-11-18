@@ -37,8 +37,18 @@ const linux =
   process.platform === "win32" || spawnSync("flock", ["--version"]).status !== 0
     ? "Not run: requires real Linux flock; no lock substitute"
     : false;
+const realDockerPath =
+  process.platform === "win32"
+    ? "docker.exe"
+    : spawnSync("bash", ["-c", "command -v docker"], {
+        encoding: "utf8",
+      }).stdout.trim();
 
 async function fixture(t) {
+  assert.ok(
+    realDockerPath.startsWith("/"),
+    "Real Docker CLI must be available on PATH before installing the fixture double",
+  );
   const root = await makeDeployFixtureRoot("mkw-task8-");
   t.after(() => rm(root, { recursive: true, force: true }));
   const release = join(root, "releases", SHA),
@@ -154,7 +164,7 @@ const leak=JSON.stringify([a,process.env]).includes(marker);
 fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({args:a,env:JSON.stringify(process.env).replaceAll(secret,'[REDACTED]'),secretLeak:leak})+'\\n');
 const out=v=>console.log(v), exit=c=>process.exit(c);
 if(a[0]==='compose') {
- if(a.includes('config')) { const r=cp.spawnSync('/usr/local/bin/docker',a,{encoding:'utf8',env:process.env});process.stdout.write(r.stdout??'');process.stderr.write(r.stderr??'');exit(r.status??69); }
+ if(a.includes('config')) { const r=cp.spawnSync(${JSON.stringify(realDockerPath)},a,{encoding:'utf8',env:process.env});process.stdout.write(r.stdout??'');process.stderr.write(r.stderr??'');exit(r.status??69); }
  if(a.includes('ps')) { if(state.changeOnResolve){state.service='gateway';fs.writeFileSync(${JSON.stringify(stateFile)},JSON.stringify(state));}out(state.ids.join('\\n'));exit(0); }
 }
 if(a[0]==='inspect') {

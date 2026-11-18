@@ -1,0 +1,56 @@
+name: MKW release validation
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
+      - name: Set up pnpm
+        shell: bash
+        run: corepack enable
+      - name: Build pinned tooling environment
+        run: docker build --label mkw.owner=release-validation -t mkw-release-tooling:${{ github.run_id }}-${{ github.run_attempt }} scripts/ci
+      - name: Release tooling tests in isolated client environment
+        shell: bash
+        run: |
+          docker run --rm --init \
+            --name mkw-release-tooling-${{ github.run_id }}-${{ github.run_attempt }} \
+            --label mkw.owner=release-validation \
+            -v "$PWD:/source:ro" \
+            mkw-release-tooling:${{ github.run_id }}-${{ github.run_attempt }} \
+            bash -Eeuo pipefail -c 'corepack enable
+              mkdir /workspace
+              tar -C /source --exclude=.git --exclude=node_modules --exclude="*/node_modules" --exclude=.pnpm-store --exclude=.agent-runs --exclude=.superpowers -cf - . | tar -C /workspace -xf -
+              chown -R node:node /workspace
+              runuser -u node -- env HOME=/home/node bash -ceu "cd /workspace; pnpm install --frozen-lockfile; pnpm run product:test:tooling:release"'
+      - name: Owned account and release rehearsal
+        run: pnpm run product:test:deploy-account
+      - name: Remove owned tooling resources
+        if: always()
+        shell: bash
+        run: |
+          name=mkw-release-tooling-${{ github.run_id }}-${{ github.run_attempt }}
+          if docker container inspect "$name" >/dev/null 2>&1; then
+            test "$(docker inspect --format '{{ index .Config.Labels "mkw.owner" }}' "$name")" = release-validation
+            docker rm -f -v "$name"
+          fi
+          image=mkw-release-tooling:${{ github.run_id }}-${{ github.run_attempt }}
+          if docker image inspect "$image" >/dev/null 2>&1; then
+            test "$(docker image inspect --format '{{ index .Config.Labels "mkw.owner" }}' "$image")" = release-validation
+            docker image rm "$image"
+          fi

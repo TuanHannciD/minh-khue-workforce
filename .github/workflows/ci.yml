@@ -49,7 +49,7 @@ jobs:
       - name: Build
         run: pnpm run product:build
       - name: Tooling tests
-        run: pnpm run product:test:tooling
+        run: pnpm run product:test:tooling:ci
       - name: Sandbox tests
         run: pnpm run product:test:sandbox
       - name: Web tests
@@ -60,5 +60,3 @@ jobs:
         run: pnpm run product:contract:check
       - name: Product boundaries
         run: pnpm run product:boundaries
-      - name: Real local account and release rehearsal
-        run: pnpm run product:test:deploy-account

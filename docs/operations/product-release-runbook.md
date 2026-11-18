@@ -1,8 +1,8 @@
 # Runbook release push-main
 
-Mục tiêu là một luồng ngắn và có thể lặp lại: merge local → push `main` → quality → build API/Web → encrypted verified backup → Docker Compose deploy VPS → health/smoke check.
+Mục tiêu là một luồng ngắn và có thể lặp lại: merge local → push `main` → quality → release validation → build API/Web → encrypted verified backup → Docker Compose deploy VPS → health/smoke check.
 
-`main-release.yml` là workflow push-main duy nhất. Concurrency dùng `cancel-in-progress: false`; quality là reusable CI hiện có, build và backup chỉ mở sau quality, deploy cần cả hai, verify cần deploy thành công. Deploy kiểm lại SHA `main` ngay trước SSH mutation để push mới không ghi đè release đang chạy.
+`main-release.yml` là workflow push-main duy nhất. Concurrency dùng `cancel-in-progress: false`; quality là reusable CI hiện có. Build và backup chỉ mở sau khi cả quality và `release-validation.yml` đạt; deploy cần cả hai, verify cần deploy thành công. Deploy kiểm lại SHA `main` ngay trước SSH mutation để push mới không ghi đè release đang chạy.
 
 Build luôn build cả hai image bằng `docker/setup-buildx-action`, `docker/login-action` và `docker/build-push-action` đã pin SHA. Artifact manifest bind source SHA, API/Web digests và PostgreSQL digest; deploy tải đúng artifact ID và kiểm checksum/attestation theo mode đã cấu hình. Không có API reuse, current-state adoption hoặc LKG selection.
 
@@ -18,7 +18,16 @@ Quản lý account chạy riêng bằng shell tại `releases/<SHA>/scripts/prod
 
 Retry dùng operation ID mới. Cùng SHA với backup mới vẫn giữ nguyên release directory; inventory conflict/extra file dừng `78`, không merge/overwrite. Release legacy thiếu inventory phải có kế hoạch chuyển tiếp riêng trước live rollout, không tự adopt/xóa. Config/migration thất bại hoặc thiếu terminal cần [manual recovery](product-rollback-runbook.md); rollback ứng dụng và restore database là hai route riêng.
 
-Local gate `pnpm run product:test:deploy-account` tạo UUID Docker daemon riêng, build exact workspace tar, chạy PostgreSQL/HTTP/account và release lifecycle; evidence ở `.agent-runs/MKW-DEPLOY-ACCOUNT-001/<UUID>`. Default tooling tests chỉ kiểm ownership/prerequisite. CI gọi explicit real gate sau quality. Local gate không xác minh live GitHub/GHCR/SSH/VPS/settings; xem task validation cho kết quả và giới hạn thật.
+Local gate `pnpm run product:test:deploy-account` tạo UUID Docker daemon riêng, build exact workspace tar, chạy PostgreSQL/HTTP/account và release lifecycle; evidence ở `.agent-runs/MKW-DEPLOY-ACCOUNT-001/<UUID>`. Default discovery của file rehearsal chỉ kiểm ownership/prerequisite. Release validation gọi explicit real gate sau quality. Local gate không xác minh live GitHub/GHCR/SSH/VPS/settings; xem task validation cho kết quả và giới hạn thật.
+
+Pull request chạy `product:test:tooling:ci` cùng lint/format/typecheck/build,
+sandbox, web, API, contract và boundaries. Nhóm deploy/account chạy bằng
+`product:test:tooling:release` trong image từ `scripts/ci/Dockerfile` đã pin;
+không mount Docker socket. Rehearsal thật chạy riêng trên runner bằng engine
+sở hữu theo UUID. Có thể chạy workflow release validation thủ công để kiểm tra
+nhánh mà không deploy. `product:test:tooling` và `ci:parity` local vẫn giữ toàn
+bộ tooling tests. Remote preflight, backup, migration, health và smoke trên VPS
+vẫn là gate của quá trình triển khai.
 
 Các workflow/manual routes còn lại phục vụ bootstrap, backup theo lịch và recovery có approval. Thiết kế immutable CD cũ về current-state v2/LKG, schema fingerprint, gateway-only proofs, API reuse và automatic rollback được đánh dấu **superseded** cho normal path; báo cáo lịch sử không bị xóa.
 

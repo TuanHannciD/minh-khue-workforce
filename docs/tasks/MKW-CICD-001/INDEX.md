@@ -1,5 +1,16 @@
 # MKW-CICD-001 — Điều phối CI/CD
 
+## Amendment: CI nhanh và release validation (18/11/2026)
+
+Người dùng đã duyệt tách CI trên PR khỏi deploy/account rehearsal. Base
+`ca296b028e73e12bb222d6395557ddea022e0bc4`, worktree
+`fix/ci-release-validation-split`, phạm vi local implementation/test/review;
+không push/merge/deploy. Hồ sơ, acceptance và evidence ở
+[báo cáo CI/release validation](../../reports/2026-11-18-ci-release-validation-split.md).
+Release validation vẫn bắt buộc trước build/backup trong push-main. Independent
+review PASS trên snapshot cuối; implemented/reviewed local, chưa integrated hoặc
+released. Không thay kết quả lịch sử bên dưới.
+
 ## Amendment: simplified push-main release (2026-11-12)
 
 Base implementation tip: `f024b5b77b404796304395439a140f35ca3fdf56` (`origin/main`).

@@ -16,6 +16,29 @@ const read = async (name) =>
 const expr = (value) => `\u0024{{ ${value} }}`;
 const needs = (job) => [].concat(job.needs ?? []);
 
+test("release fixtures use pinned container tooling without the host socket and rehearsal remains required", async () => {
+  const workflow = await read("release-validation.yml");
+  assert.deepEqual(Object.keys(workflow.on).sort(), [
+    "workflow_call",
+    "workflow_dispatch",
+  ]);
+  assert.deepEqual(workflow.permissions, { contents: "read" });
+  const job = workflow.jobs["release-validation"];
+  const commands = job.steps.map((s) => s.run ?? "").join("\n");
+  assert.match(commands, /scripts\/ci\/Dockerfile|scripts\/ci/);
+  assert.match(commands, /docker run/);
+  assert.doesNotMatch(commands, /docker\.sock|--privileged|continue-on-error/);
+  assert.match(commands, /product:test:tooling:release/);
+  assert.match(commands, /product:test:deploy-account/);
+  assert.equal(job["continue-on-error"], undefined);
+  assert.equal(
+    job.steps.some(
+      (s) => s.run?.includes("product:test:deploy-account") && s.if,
+    ),
+    false,
+  );
+});
+
 test("one push-main release producer, no paths filter or manual IDs, PR quality retained", async () => {
   const entry = await read("main-release.yml");
   assert.deepEqual(entry.on, { push: { branches: ["main"] } });
@@ -48,11 +71,13 @@ test("backup coordinator parent validation can read Actions run state", async ()
 
 test("needs stop deployment after either failed producer and verification after failed deploy", async () => {
   const { jobs } = await read("main-release.yml");
-  assert.deepEqual(needs(jobs.build), ["quality"]);
-  assert.deepEqual(needs(jobs.backup), ["quality"]);
+  assert.deepEqual(needs(jobs["release-validation"]), ["quality"]);
+  assert.deepEqual(needs(jobs.build), ["quality", "release-validation"]);
+  assert.deepEqual(needs(jobs.backup), ["quality", "release-validation"]);
   assert.deepEqual(needs(jobs.deploy), ["build", "backup"]);
   assert.deepEqual(needs(jobs.verify), ["build", "deploy"]);
   assert.equal(jobs.quality.if, undefined);
+  assert.equal(jobs["release-validation"].if, undefined);
   assert.equal(
     jobs.verify.if,
     "needs.deploy.outputs.release_status == 'success'",
@@ -164,6 +189,7 @@ test("summary stays failed for every failed prerequisite and manual routes remai
   assert.equal(jobs.recovery, undefined);
   assert.deepEqual(needs(summary), [
     "quality",
+    "release-validation",
     "build",
     "backup",
     "deploy",

@@ -23,8 +23,14 @@ jobs:
     permissions:
       contents: read
 
-  build:
+  release-validation:
     needs: quality
+    uses: ./.github/workflows/release-validation.yml
+    permissions:
+      contents: read
+
+  build:
+    needs: [quality, release-validation]
     uses: ./.github/workflows/build-release.yml
     permissions:
       contents: read
@@ -34,7 +40,7 @@ jobs:
       attestations: write
 
   backup:
-    needs: quality
+    needs: [quality, release-validation]
     uses: ./.github/workflows/backup.yml
     permissions:
       contents: read
@@ -105,7 +111,7 @@ jobs:
 
   release-status:
     if: ${{ always() }}
-    needs: [quality, build, backup, deploy, verify]
+    needs: [quality, release-validation, build, backup, deploy, verify]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -129,6 +135,6 @@ jobs:
           {
             echo "release_sha=$RELEASE_SHA"
             echo "correlation_id=$CORRELATION_ID"
-            echo "quality=${{ needs.quality.result }} build=${{ needs.build.result }} backup=${{ needs.backup.result }} deploy=${{ needs.deploy.result }} verify=${{ needs.verify.result }}"
+            echo "quality=${{ needs.quality.result }} release-validation=${{ needs.release-validation.result }} build=${{ needs.build.result }} backup=${{ needs.backup.result }} deploy=${{ needs.deploy.result }} verify=${{ needs.verify.result }}"
             printf '%s\n' "$STAGES_JSON"
           } >> "$GITHUB_STEP_SUMMARY"

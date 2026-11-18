@@ -5,7 +5,10 @@ const source = (name) => readFile(name, "utf8");
 
 test("push-main is one linear release path without state adoption or automatic rollback", async () => {
   const text = await source(".github/workflows/main-release.yml");
-  assert.match(text, /jobs:\s+quality:[\s\S]*?\n[ ]{2}build:/);
+  assert.match(
+    text,
+    /jobs:\s+quality:[\s\S]*?\n[ ]{2}release-validation:[\s\S]*?\n[ ]{2}build:/,
+  );
   assert.doesNotMatch(text, /jobs:\s+preflight:|^[ ]{2}recovery:/m);
   assert.doesNotMatch(text, /previous_state:/);
   assert.match(text, /kind: BACKUP/);

@@ -22,7 +22,7 @@ Kết quả API hợp lệ là `mkw|api|healthy`. `/home/deploy/mkw/current` là
 kiểm tra local → commit/merge local → git push origin main → chờ main-release → kiểm tra verify receipt
 ```
 
-Workflow tự chạy quality, build image API/Web bất biến, backup PostgreSQL đã mã hoá và kiểm chứng restore, deploy rồi verify. Luồng push-main thông thường không cần nhập SHA, run ID hoặc artifact ID. Trước khi push, chạy [LOCAL_RUN](../agent/LOCAL_RUN.md) và để pre-commit hook hoàn tất. Khi fail, đọc stage/receipt trước khi retry; không retry mù khi remote lock còn giữ. Rollback và restore là thao tác manual riêng.
+Workflow tự chạy quality, release validation, build image API/Web bất biến, backup PostgreSQL đã mã hoá và kiểm chứng restore, deploy rồi verify. Pull request chạy CI nhanh; kiểm thử deploy/account và rehearsal chỉ là gate của release hoặc workflow validation thủ công, không chạy trên VPS production. Luồng push-main thông thường không cần nhập SHA, run ID hoặc artifact ID. Trước khi push, chạy [LOCAL_RUN](../agent/LOCAL_RUN.md) và để pre-commit hook hoàn tất. Khi fail, đọc stage/receipt trước khi retry; không retry mù khi remote lock còn giữ. Rollback và restore là thao tác manual riêng.
 
 ## Quản lý tài khoản trên VPS
 

@@ -16,7 +16,7 @@ Phạm vi: local đã review → merge → `git push origin main`. Đây là đ�
 ## Mỗi release
 
 1. Review và merge local code, sau đó `git push origin main`.
-2. `main-release.yml` chạy CI quality. Chỉ khi quality đạt mới mở full Docker build API/Web và backup `BACKUP`; hai stage có thể chạy song song.
+2. `main-release.yml` chạy CI quality rồi release validation (deploy/account tooling trong container đã pin và rehearsal thật trong Docker engine riêng). Chỉ khi cả hai đạt mới mở full Docker build API/Web và backup `BACKUP`; hai stage có thể chạy song song. Pull request chỉ chạy nhóm CI nhanh; không dùng kết quả local thay cho release gate.
 3. Build push image bằng Docker official actions, ghi manifest/checksum/SBOM/provenance và exact GHCR digests. Không reuse API image, không chọn latest.
 4. Backup SSH vào đúng VPS, dump database hiện hữu, mã hóa, restore verify và upload artifact. Backup lỗi, cũ, sai SHA, fingerprint hoặc target đều dừng trước deploy.
 5. Deploy tải đúng artifact IDs/digests, kiểm lại source `main`, SSH fingerprint, GHCR pull/RepoDigest; extract private staging rồi giữ một remote `flock` qua reserve/publish/config/apply/receipt. Legacy không có current-state/LKG vẫn đi tiếp khi BACKUP hợp lệ, nhưng release directory thiếu inventory hoặc có file thừa bị từ chối.

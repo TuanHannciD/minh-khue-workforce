@@ -26,8 +26,7 @@ test("CI runs product checks for PRs and reusable push-release calls with read-o
     "pnpm run product:lint",
     "pnpm run product:format:check",
     "pnpm run product:typecheck",
-    "pnpm run product:test:tooling",
-    "pnpm run product:test:deploy-account",
+    "pnpm run product:test:tooling:ci",
     "pnpm run product:test:sandbox",
     "pnpm --filter @mkw/web test --run",
     "pnpm --filter @mkw/api test",
@@ -40,6 +39,14 @@ test("CI runs product checks for PRs and reusable push-release calls with read-o
       command,
     );
   assert.doesNotMatch(ci, /pnpm run product:check/);
+});
+
+test("release-only tooling is removed from fast CI and retained in the release gate", async () => {
+  const ci = await read(".github/workflows/ci.yml");
+  const release = await read(".github/workflows/release-validation.yml");
+  assert.doesNotMatch(ci, /production-account-script|deploy-account-rehearsal/);
+  assert.match(release, /product:test:tooling:release/);
+  assert.match(release, /product:test:deploy-account/);
 });
 
 test("release workflow is reusable and checks the full push SHA", async () => {
