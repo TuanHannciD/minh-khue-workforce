@@ -6,7 +6,6 @@ import {
   chmod,
   cp,
   mkdir,
-  mkdtemp,
   readFile,
   readdir,
   rm,
@@ -17,6 +16,7 @@ import {
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { makeDeployFixtureRoot } from "./fixtures/deploy-root.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const linux =
@@ -36,7 +36,7 @@ const block = workflow
   .replace(/^ {10}/gm, "");
 
 async function fixture(t) {
-  const root = await mkdtemp("/home/mkw-bootstrap-");
+  const root = await makeDeployFixtureRoot("mkw-bootstrap-");
   t.after(() => rm(root, { recursive: true, force: true }));
   const runner = join(root, "runner"),
     remoteBin = join(root, "remote-bin");

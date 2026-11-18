@@ -4,7 +4,6 @@ import {
   chmod,
   cp,
   mkdir,
-  mkdtemp,
   readFile,
   rm,
   symlink,
@@ -15,6 +14,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { writeBundleInventory } from "../../scripts/product/release/release-bundle.mjs";
 import { writeOperationEvent } from "../../scripts/product/release/operation-receipts.mjs";
 import { runBash } from "./fixtures/deploy-account.mjs";
+import { makeDeployFixtureRoot } from "./fixtures/deploy-root.mjs";
 
 // File map: fixture owns actual release/control inventories and operation receipt;
 // Docker double replaces only the engine/CLI boundary, executes real Node helpers
@@ -39,7 +39,7 @@ const linux =
     : false;
 
 async function fixture(t) {
-  const root = await mkdtemp("/home/mkw-task8-");
+  const root = await makeDeployFixtureRoot("mkw-task8-");
   t.after(() => rm(root, { recursive: true, force: true }));
   const release = join(root, "releases", SHA),
     controls = join(root, "controls", CONTROL);

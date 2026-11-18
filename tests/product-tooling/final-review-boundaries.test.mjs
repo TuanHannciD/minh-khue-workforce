@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import { writeBundleInventory } from "../../scripts/product/release/release-bundle.mjs";
 import { canonicalRollbackFixture } from "./fixtures/rollback-workflow.mjs";
+import { makeDeployFixtureRoot } from "./fixtures/deploy-root.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const bash =
@@ -53,11 +53,7 @@ const manifest = {
 const hostPins = new Map();
 const canonicalFixtures = new Map();
 async function fixture(t) {
-  const dir = await mkdtemp(
-    process.platform === "win32"
-      ? join(tmpdir(), "mkw-final-boundary-")
-      : "/home/mkw-final-boundary-",
-  );
+  const dir = await makeDeployFixtureRoot("mkw-final-boundary-");
   t.after(() => rm(dir, { recursive: true, force: true }));
   t.after(() => hostPins.delete(dir));
   t.after(() => canonicalFixtures.delete(dir));

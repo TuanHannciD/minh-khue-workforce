@@ -4,7 +4,6 @@ import {
   chmod,
   cp,
   mkdir,
-  mkdtemp,
   readFile,
   readdir,
   rm,
@@ -14,6 +13,7 @@ import { resolve, join } from "node:path";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { runBash } from "./deploy-account.mjs";
+import { makeDeployFixtureRoot } from "./deploy-root.mjs";
 import { writeBundleInventory } from "../../../scripts/product/release/release-bundle.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../../..");
@@ -46,7 +46,7 @@ export const linuxOnly =
     : false;
 
 export async function entrypointFixture(t) {
-  const root = await mkdtemp("/home/mkw-task6-");
+  const root = await makeDeployFixtureRoot("mkw-task6-");
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const p of [
     "bin",
