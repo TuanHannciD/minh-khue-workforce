@@ -13,6 +13,14 @@ const compose = await readFile(
   "utf8",
 );
 const readme = await readFile(join(ROOT, "deploy/README.md"), "utf8");
+const configHelper = await readFile(
+  join(ROOT, "scripts/product/release/deploy-config.sh"),
+  "utf8",
+);
+const receiptHelper = await readFile(
+  join(ROOT, "scripts/product/release/operation-receipts.mjs"),
+  "utf8",
+);
 
 test("entrypoint validates JSON manifest and backup-ready before rendering", () => {
   assert.match(entrypoint, /validate-manifest\.mjs/);
@@ -37,7 +45,9 @@ test("entrypoint delegates registry auth/pull and requires exact immutable diges
   );
   assert.match(entrypoint, /sha256:\[0-9a-f\]\{64\}/i);
   assert.match(entrypoint, /releaseSha/);
-  assert.match(entrypoint, /verify-release\.mjs/);
+  assert.match(configHelper, /verify-release\.mjs/);
+  assert.match(configHelper, /parseResolvedCompose/);
+  assert.match(configHelper, /config --format json/);
 });
 
 test("forward migration gate is before compose up and traffic smoke checks follow health", () => {
@@ -59,12 +69,17 @@ test("forward migration gate is before compose up and traffic smoke checks follo
 });
 
 test("receipts are atomic and include release sha, image digests, status, and UTC", () => {
-  assert.match(entrypoint, /mktemp.*receipts/);
-  assert.match(entrypoint, /mv .*receipts/);
-  assert.match(entrypoint, /releaseSha/);
-  assert.match(entrypoint, /imageDigests/);
-  assert.match(entrypoint, /status/);
-  assert.match(entrypoint, /utc/);
+  assert.match(entrypoint, /record_operation_event/);
+  assert.match(receiptHelper, /await rename\(temp, destination\)/);
+  for (const key of [
+    "releaseSha",
+    "imageDigests",
+    "status",
+    "utc",
+    "operationId",
+    "phase",
+  ])
+    assert.ok(receiptHelper.includes(key));
   assert.match(entrypoint, /failed/);
 });
 

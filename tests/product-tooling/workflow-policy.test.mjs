@@ -20,13 +20,14 @@ test("CI runs product checks for PRs and reusable push-release calls with read-o
   assert.match(ci, /permissions:\s*\n\s+contents:\s*read/);
   assert.doesNotMatch(
     ci,
-    /packages:\s*write|docker\/login-action|docker\/build-push-action|deploy/i,
+    /packages:\s*write|docker\/login-action|docker\/build-push-action|deploy-entrypoint\.sh|backup-source\.sh|(?:^|\s)(?:ssh|scp|deploy)(?:\s|$)|gh\s+workflow\s+run|uses:[^\n]*deploy/im,
   );
   for (const command of [
     "pnpm run product:lint",
     "pnpm run product:format:check",
     "pnpm run product:typecheck",
     "pnpm run product:test:tooling",
+    "pnpm run product:test:deploy-account",
     "pnpm run product:test:sandbox",
     "pnpm --filter @mkw/web test --run",
     "pnpm --filter @mkw/api test",

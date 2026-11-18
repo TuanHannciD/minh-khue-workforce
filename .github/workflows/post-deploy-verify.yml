@@ -68,6 +68,10 @@ on:
         value: ${{ jobs.verify.outputs.release_status }}
   workflow_dispatch:
     inputs:
+      operation_id:
+        description: Exact operation ID of the deployment being verified; required in release mode
+        required: false
+        type: string
       coordinator_id:
         description: Unique coordinator dispatch correlation
         required: false
@@ -219,11 +223,17 @@ jobs:
           MKW_RELEASE_RUN_ATTEMPT: ${{ steps.provenance.outputs.release_run_attempt || inputs.release_run_attempt }}
           MKW_RELEASE_ARTIFACT_ID: ${{ steps.provenance.outputs.release_artifact_id || inputs.release_artifact_id }}
           MKW_RELEASE_ARTIFACT_DIGEST: ${{ steps.provenance.outputs.release_artifact_digest || inputs.release_artifact_digest }}
-          MKW_OPERATION_ID: ${{ inputs.operation_id || inputs.coordinator_id || github.run_id }}
+          MKW_OPERATION_ID: ${{ inputs.operation_id }}
           MKW_AUTOMATIC_RELEASE: false
           MKW_SIMPLE_RELEASE: ${{ inputs.control_sha != '' }}
         run: |
           set -Eeuo pipefail
+          [[ -n "${MKW_OPERATION_ID:-}" ]] || { echo 'operation_id of the deployment is required' >&2; exit 64; }
+          node policy/scripts/product/release/operation-id.mjs validate "$MKW_OPERATION_ID" >/dev/null
+          test -s policy/scripts/product/post-deploy-verify.sh
+          [[ "$MKW_DEPLOY_PATH" =~ ^/home/[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ ]] || { echo 'invalid deploy path' >&2; exit 78; }
+          [[ "$MKW_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo 'invalid project name' >&2; exit 78; }
+          [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo 'invalid gateway port' >&2; exit 78; }
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 64
           test -f release-artifact/release-manifest.json
           test -f release-artifact/release-manifest.sha256
@@ -252,12 +262,34 @@ jobs:
           install -m 600 "$RUNNER_TEMP/mkw_pinned_hosts" "$HOME/.ssh/known_hosts"
           test -n "$MKW_SSH_PRIVATE_KEY"
           printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"; chmod 600 "$RUNNER_TEMP/mkw_key"
-          MKW_OPERATION_ID="${MKW_OPERATION_ID:-$RELEASE_SHA}"
           remote_env="EXPECTED_API_IMAGE=$(printf '%q' "$EXPECTED_API_IMAGE") EXPECTED_WEB_IMAGE=$(printf '%q' "$EXPECTED_WEB_IMAGE") EXPECTED_POSTGRES_IMAGE=$(printf '%q' "$EXPECTED_POSTGRES_IMAGE") MKW_PROJECT_NAME=$(printf '%q' "$MKW_PROJECT_NAME") MKW_DEPLOY_PATH=$(printf '%q' "$MKW_DEPLOY_PATH") MKW_GATEWAY_PORT=$(printf '%q' "$MKW_GATEWAY_PORT") RELEASE_SHA=$(printf '%q' "$RELEASE_SHA") MKW_OPERATION_ID=$(printf '%q' "$MKW_OPERATION_ID")"
           remote_env="MKW_AUTOMATIC_RELEASE=$(printf '%q' "${MKW_AUTOMATIC_RELEASE:-false}") $remote_env"
           remote_env="MKW_SIMPLE_RELEASE=$(printf '%q' "${MKW_SIMPLE_RELEASE:-false}") $remote_env"
           remote_env="MKW_RELEASE_RUN_ID=$(printf '%q' "${MKW_RELEASE_RUN_ID:-}") MKW_RELEASE_RUN_ATTEMPT=$(printf '%q' "${MKW_RELEASE_RUN_ATTEMPT:-}") MKW_RELEASE_ARTIFACT_ID=$(printf '%q' "${MKW_RELEASE_ARTIFACT_ID:-}") MKW_RELEASE_ARTIFACT_DIGEST=$(printf '%q' "${MKW_RELEASE_ARTIFACT_DIGEST:-}") $remote_env"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < policy/scripts/product/post-deploy-verify.sh
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_env bash -s" < <(cat <<'REMOTE'
+          set -Eeuo pipefail
+          [[ "$MKW_DEPLOY_PATH" =~ ^/home/[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ ]] || exit 78
+          [[ "$(realpath -e -- "$MKW_DEPLOY_PATH")" == "$MKW_DEPLOY_PATH" ]] || exit 78
+          # API runtime is already independently pinned to the manifest digest.
+          pointer="$MKW_DEPLOY_PATH/shared/deploy-operation.json"
+          [[ -f "$pointer" && ! -L "$pointer" && "$(realpath -e -- "$pointer")" == "$pointer" ]] || exit 78
+          control_sha=$(docker run --rm -i --pull=never --user "$(id -u):$(id -g)" -v "$pointer:/pointer.json:ro" --entrypoint node "$EXPECTED_API_IMAGE" --input-type=module - "$MKW_OPERATION_ID" "$RELEASE_SHA" <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          try {
+            const text=await readFile('/pointer.json','utf8'), p=JSON.parse(text);
+            if (Object.keys(p).sort().join(',') !== 'controlSha,operationId,releaseSha' || p.operationId !== process.argv[2] || p.releaseSha !== process.argv[3] || !/^[a-f0-9]{40}$/.test(p.controlSha)) throw new Error();
+            console.log(p.controlSha);
+          } catch { process.exitCode=78; }
+          NODE
+          ) || exit 78
+          [[ "$control_sha" =~ ^[a-f0-9]{40}$ ]] || exit 78
+          export MKW_CONTROL_SHA="$control_sha" MKW_CONTROL_ROOT="$MKW_DEPLOY_PATH/controls/$control_sha"
+          [[ "$(realpath -e -- "$MKW_CONTROL_ROOT")" == "$MKW_CONTROL_ROOT" ]] || exit 78
+          # Execute the runner's trusted current verifier; its helpers come from
+          # the exact published controls selected by the verified pointer.
+          REMOTE
+          cat policy/scripts/product/post-deploy-verify.sh
+          )
 
       - name: Record verification receipt
         if: always()

@@ -8,17 +8,17 @@ Build luôn build cả hai image bằng `docker/setup-buildx-action`, `docker/lo
 
 Backup chạy `pg_dump` trên database hiện hữu trong VPS qua SSH fingerprint pinning. Dump được mã hóa bằng secret hiện có, hash, restore vào database kiểm tra và ghi `backup-ready.json` với `BACKUP`, SHA, freshness, database identity và target identity. Backup fail trước mọi migration; normal push-main không dùng `INITIAL_EMPTY_DEPLOYMENT` hoặc empty fallback.
 
-Entrypoint dùng remote `flock`, pull/check RepoDigest các image exact, giữ env và PostgreSQL volume, chạy `prisma migrate deploy`, sau đó `docker compose up --wait` và HTTP smoke. Lỗi migration dừng trước Compose traffic; lỗi health/smoke dừng release. Không reset database, down/remove volume, down-migrate hoặc auto restore.
+Transport pack artifact + exact release Compose/operator + trusted current controls thành archive có inventory/checksums. Upload/extract vào private `staging/<operation-id>-<uuid>`; không chép trực tiếp vào releases/shared. Entrypoint lấy một remote `flock`, reserve `operations/<operation-id>` no-clobber, recheck SHA/target/backup/inventory, rồi rename release và controls. Release đã tồn tại chỉ reuse khi toàn bộ bytes/inventory khớp và không file thừa. Backup mới thuộc operation, không sửa release bất biến.
 
-Verify kiểm image IDs/digests, migration status, health và `/` + `/api/health`, rồi upload receipt. Receipt và summary phải nêu stage, SHA, image digests, backup run/attempt/artifact digest và target. Không có automatic rollback; lỗi cần manual recovery theo runbook riêng.
+Entrypoint pull/check RepoDigest các image exact, stage và parse Compose bằng Docker Compose JSON với mapping `api→apiImage`, `gateway→webImage`, `db→postgresImage`. Invalid/duplicate YAML hoặc sai mapping dừng trước migration/app apply. Sau đó publish API env/Compose và `shared/deploy-operation.json` dưới lock, giữ DB credentials và volume, chạy forward `prisma migrate deploy`, rồi apply/health/HTTP smoke. Lỗi migration dừng app apply; không hứa DB chưa đổi. Hai lần rename config không là transaction: đọc phase receipt để biết config nào đã publish. Không reset/down/remove volume/down-migrate/auto restore.
 
-Account operations are separate from release deployment. The reusable account
-manager is packaged in each SHA-named release under
-`scripts/product/manage-production-account.sh`; `/home/deploy/mkw/current` is
-the runtime directory and does not contain operator scripts. See the
-[operator guide](user-deploy-and-account-guide.md) for add, list and
-reset-password commands. The current schema has no role field, so an `admin`
-username does not by itself grant elevated permissions.
+Verify kiểm image IDs/digests, migration status, health và `/` + `/api/health`, cùng successful receipt/pointer **đúng operation ID**, SHA và control SHA. Manual `post-deploy-verify.yml` phải nhập `operation_id` của deploy đã chạy, không tự chọn receipt gần nhất. Receipt events có event UUID/sequence trong operation riêng; receipt của operation khác mới hơn không thay kết quả. Giữ stage/SHA/digests/backup tuple/target trong summary. SIGKILL hoặc mất host/transport có thể thiếu terminal receipt: trạng thái uncertain, phải inspect runtime; không suy thành success hoặc xóa operation.
+
+Quản lý account chạy riêng bằng shell tại `releases/<SHA>/scripts/product/`, dùng compiled CLI trong API image đang healthy và giữ cùng target lock. `/current` chỉ chứa runtime Compose. Xem [operator guide](user-deploy-and-account-guide.md) cho policy/password/exit codes; username `admin` không tự có quyền quản trị khi schema chưa có role.
+
+Retry dùng operation ID mới. Cùng SHA với backup mới vẫn giữ nguyên release directory; inventory conflict/extra file dừng `78`, không merge/overwrite. Release legacy thiếu inventory phải có kế hoạch chuyển tiếp riêng trước live rollout, không tự adopt/xóa. Config/migration thất bại hoặc thiếu terminal cần [manual recovery](product-rollback-runbook.md); rollback ứng dụng và restore database là hai route riêng.
+
+Local gate `pnpm run product:test:deploy-account` tạo UUID Docker daemon riêng, build exact workspace tar, chạy PostgreSQL/HTTP/account và release lifecycle; evidence ở `.agent-runs/MKW-DEPLOY-ACCOUNT-001/<UUID>`. Default tooling tests chỉ kiểm ownership/prerequisite. CI gọi explicit real gate sau quality. Local gate không xác minh live GitHub/GHCR/SSH/VPS/settings; xem task validation cho kết quả và giới hạn thật.
 
 Các workflow/manual routes còn lại phục vụ bootstrap, backup theo lịch và recovery có approval. Thiết kế immutable CD cũ về current-state v2/LKG, schema fingerprint, gateway-only proofs, API reuse và automatic rollback được đánh dấu **superseded** cho normal path; báo cáo lịch sử không bị xóa.
 

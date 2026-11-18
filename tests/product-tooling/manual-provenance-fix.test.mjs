@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { cp, readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
@@ -383,7 +384,8 @@ function block(workflow, name) {
     .replace(/^ {10}/gm, "");
 }
 function runBlock(f, script, extra = {}) {
-  return spawnSync(BASH, ["--noprofile", "--norc", "-c", script], {
+  return spawnSync(BASH, ["--noprofile", "--norc", "-s"], {
+    input: script,
     cwd: f.dir,
     env: { ...process.env, ...f.env, ...extra },
     encoding: "utf8",
@@ -598,6 +600,21 @@ test("actual journal CLI consumes resolved release and backup provenance without
       recursive: true,
     },
   );
+  const checks = [];
+  for (const name of [
+    "release-manifest.json",
+    "release-manifest.sha256",
+    "build-metadata.json",
+  ])
+    checks.push(
+      `${createHash("sha256")
+        .update(await readFile(join(f.dir, "release-artifact", name)))
+        .digest("hex")}  ${name}\n`,
+    );
+  await writeFile(
+    join(f.dir, "release-artifact/release-checksums.sha256"),
+    checks.join(""),
+  );
   const remote = runBlock(
     f,
     `
@@ -617,6 +634,10 @@ ssh() {
 ${block(yaml, "Run remote deploy entrypoint with verified artifact")}`,
     {
       MODE: "release",
+      GITHUB_RUN_ID: "30",
+      GITHUB_RUN_ATTEMPT: "1",
+      MKW_OPERATION_ID: "manual-provenance",
+      MKW_CONTROL_SHA: SHA,
       GITHUB_WORKSPACE: posix(f.dir),
       RUNNER_TEMP: posix(f.dir),
       MKW_SSH_HOST: "fixture.invalid",

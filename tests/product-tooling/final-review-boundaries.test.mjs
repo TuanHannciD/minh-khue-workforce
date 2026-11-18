@@ -5,6 +5,8 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { writeBundleInventory } from "../../scripts/product/release/release-bundle.mjs";
+import { canonicalRollbackFixture } from "./fixtures/rollback-workflow.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const bash =
@@ -25,7 +27,8 @@ function block(yaml, name) {
   return section.split("        run: |\n")[1].replace(/^ {10}/gm, "");
 }
 function run(script, cwd, env = {}) {
-  return spawnSync(bash, ["-Eeuo", "pipefail", "-c", script], {
+  return spawnSync(bash, ["-Eeuo", "pipefail", "-s"], {
+    input: script,
     cwd,
     encoding: "utf8",
     timeout: 20000,
@@ -48,10 +51,16 @@ const manifest = {
   },
 };
 const hostPins = new Map();
+const canonicalFixtures = new Map();
 async function fixture(t) {
-  const dir = await mkdtemp(join(tmpdir(), "mkw-final-boundary-"));
+  const dir = await mkdtemp(
+    process.platform === "win32"
+      ? join(tmpdir(), "mkw-final-boundary-")
+      : "/home/mkw-final-boundary-",
+  );
   t.after(() => rm(dir, { recursive: true, force: true }));
   t.after(() => hostPins.delete(dir));
+  t.after(() => canonicalFixtures.delete(dir));
   for (const p of [
     "release-artifact",
     "backup-ready",
@@ -105,13 +114,29 @@ async function fixture(t) {
     fingerprint: fingerprints.stdout.trim().split(/\s+/)[1],
     trustedLine,
   });
+  const c = await canonicalRollbackFixture(t, root);
+  const resolved = run(
+    block(await source("rollback"), "Resolve canonical rollback snapshot"),
+    c.dir,
+    c.env,
+  );
+  assert.equal(resolved.status, 0, resolved.stderr);
+  for (const p of ["release-artifact", "old-release-artifact"])
+    await cp(join(c.dir, "old-release-artifact"), join(dir, p), {
+      recursive: true,
+    });
+  await cp(join(c.dir, "backup-ready"), join(dir, "backup-ready"), {
+    recursive: true,
+  });
+  canonicalFixtures.set(dir, c);
   return dir;
 }
 const envFor = (dir) => ({
+  ...canonicalFixtures.get(dir).env,
   RELEASE_SHA: sha,
   OLD_RELEASE_SHA: sha,
   MODE: "release",
-  MKW_SSH_HOST: "fixture.invalid",
+  MKW_SSH_HOST: "fixture-db",
   MKW_SSH_PORT: "22",
   MKW_SSH_HOST_FINGERPRINT: hostPins.get(dir).fingerprint,
   HOST_SCAN_FIXTURE: posix(join(dir, "host-scan")),
@@ -123,11 +148,11 @@ const envFor = (dir) => ({
   MKW_ATTESTATION_STATUS: "not-configured",
   MKW_BACKUP_MAX_AGE_SECONDS: "86400",
   MKW_BACKUP_EXPECTED_KIND: "BACKUP",
-  MKW_BACKUP_EXPECTED_HOST: "fixture.invalid",
+  MKW_BACKUP_EXPECTED_HOST: "fixture-db",
   MKW_BACKUP_EXPECTED_DATABASE: "mkw",
-  MKW_BACKUP_EXPECTED_TARGET_IDENTITY: "fixture.invalid//home/deploy/mkw/mkw",
+  MKW_BACKUP_EXPECTED_TARGET_IDENTITY: "fixture-db//home/deploy/mkw/mkw",
   HOME: posix(join(dir, "home")),
-  RUNNER_TEMP: posix(dir),
+  RUNNER_TEMP: posix(canonicalFixtures.get(dir).temp),
   GITHUB_WORKSPACE: posix(dir),
 });
 const scan = `
@@ -143,7 +168,7 @@ test("verified remote rerun is surfaced as already-deployed rather than a fresh 
     scan +
       `
 ssh() {
-  if [[ "\${!#}" == *'--release --manifest'* ]]; then
+  if [[ "\${!#}" == *'--release --staging'* ]]; then
     printf 'ORCHESTRATION_OUTCOME=already-deployed release_sha=%s operation_id=%s\\n' "$RELEASE_SHA" "$MKW_OPERATION_ID"
   fi
 }
@@ -168,30 +193,62 @@ scp() { :; }
   );
 });
 
-test("I-02: historical bypass verifier stays data and trusted verifier rejects failing runtime", async (t) => {
-  const dir = await fixture(t);
-  const result = run(
-    scan +
-      `
+test(
+  "I-02: historical bypass verifier stays data and trusted verifier rejects failing runtime",
+  {
+    skip:
+      process.platform === "win32"
+        ? "Not run: canonical /home remote pointer fixture requires Linux"
+        : false,
+  },
+  async (t) => {
+    const dir = await fixture(t);
+    const controlSha = "c".repeat(40);
+    const controlRoot = join(dir, "controls", controlSha);
+    await mkdir(join(controlRoot, "scripts/product"), { recursive: true });
+    await cp(
+      join(dir, "policy/scripts/product/release"),
+      join(controlRoot, "scripts/product/release"),
+      { recursive: true },
+    );
+    await writeBundleInventory(controlRoot);
+    await mkdir(join(dir, "shared"));
+    await writeFile(
+      join(dir, "shared/deploy-operation.json"),
+      JSON.stringify({
+        releaseSha: sha,
+        operationId: "verify-fixture-1",
+        controlSha,
+      }),
+    );
+    const result = run(
+      scan +
+        `
 docker() { echo TRUSTED_RUNTIME_FAILED >&2; return 77; }; export -f docker
-flock() { :; }; export -f flock
 ssh() { eval "\${!#}"; }
 ` +
-      block(
-        await source("post-deploy-verify"),
-        "Verify running image digests, migration status, health, and smoke",
-      ),
-    dir,
-    { ...envFor(dir), MKW_DEPLOY_PATH: posix(dir) },
-  );
-  assert.notEqual(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stderr, /TRUSTED_RUNTIME_FAILED/);
-  assert.doesNotMatch(result.stdout, /HISTORICAL_BYPASS/);
-  assert.equal(
-    await readFile(join(dir, "historical-sentinel")).catch(() => null),
-    null,
-  );
-});
+        block(
+          await source("post-deploy-verify"),
+          "Verify running image digests, migration status, health, and smoke",
+        ),
+      dir,
+      {
+        ...envFor(dir),
+        MKW_DEPLOY_PATH: posix(dir),
+        MKW_CONTROL_ROOT: posix(controlRoot),
+        MKW_CONTROL_SHA: controlSha,
+        MKW_OPERATION_ID: "verify-fixture-1",
+      },
+    );
+    assert.notEqual(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stderr, /TRUSTED_RUNTIME_FAILED/);
+    assert.doesNotMatch(result.stdout, /HISTORICAL_BYPASS/);
+    assert.equal(
+      await readFile(join(dir, "historical-sentinel")).catch(() => null),
+      null,
+    );
+  },
+);
 
 for (const [workflow, name] of [
   ["deploy", "Run remote deploy entrypoint with verified artifact"],

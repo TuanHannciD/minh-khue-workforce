@@ -10,6 +10,8 @@ Phạm vi: local đã review → merge → `git push origin main`. Đây là đ�
 - [ ] VPS đã bootstrap env/Compose một lần bằng route thủ công được bảo vệ. Giữ volume PostgreSQL và env secrets hiện có.
 - [ ] Backup encryption key được lưu riêng với VPS. Backup là `pg_dump` mã hóa, có checksum, restore verification, freshness và target identity; mã hóa bảo vệ dump khi artifact nằm ngoài máy chủ.
 - [ ] Operator biết `/home/deploy/mkw/current` chỉ là runtime directory; account manager phải chạy từ `/home/deploy/mkw/releases/<SHA>/scripts/product/` sau release thành công.
+- [ ] API image đã có compiled CLI/ESM/native dependencies và user `node`; legacy release không có capability hoặc inventory cần chuyển tiếp riêng, không upload/eval fallback hoặc tự adopt directory.
+- [ ] `pnpm run product:test:deploy-account` và independent Task9/whole-branch review có evidence đúng snapshot; local PASS không thay settings/target/live gates.
 
 ## Mỗi release
 
@@ -17,15 +19,17 @@ Phạm vi: local đã review → merge → `git push origin main`. Đây là đ�
 2. `main-release.yml` chạy CI quality. Chỉ khi quality đạt mới mở full Docker build API/Web và backup `BACKUP`; hai stage có thể chạy song song.
 3. Build push image bằng Docker official actions, ghi manifest/checksum/SBOM/provenance và exact GHCR digests. Không reuse API image, không chọn latest.
 4. Backup SSH vào đúng VPS, dump database hiện hữu, mã hóa, restore verify và upload artifact. Backup lỗi, cũ, sai SHA, fingerprint hoặc target đều dừng trước deploy.
-5. Deploy tải đúng artifact IDs/digests, kiểm lại source `main`, SSH fingerprint, GHCR pull/RepoDigest và remote `flock`. Legacy VPS không có current-state/LKG vẫn đi tiếp khi BACKUP hợp lệ.
+5. Deploy tải đúng artifact IDs/digests, kiểm lại source `main`, SSH fingerprint, GHCR pull/RepoDigest; extract private staging rồi giữ một remote `flock` qua reserve/publish/config/apply/receipt. Legacy không có current-state/LKG vẫn đi tiếp khi BACKUP hợp lệ, nhưng release directory thiếu inventory hoặc có file thừa bị từ chối.
 6. Entrypoint giữ `db.env`/`api.env`, chạy `prisma migrate deploy`, rồi `docker compose up --wait` với image digest cố định. Không `reset`, `down -v`, xóa volume hoặc tự restore database.
-7. Verify kiểm image IDs/digests, migration status, service health và HTTP smoke. Receipt ghi release SHA, digest, backup và stage result. Thành công là sau verify; thất bại dừng và chỉ dẫn manual recovery.
+7. Verify kiểm exact operation ID/pointer/successful receipt, control SHA, image IDs/digests, migration status, service health và HTTP smoke. Manual verify nhập exact `operation_id` của deploy. Receipt ghi SHA/digest/backup/phase; operation khác mới hơn không thay kết quả.
 
 Account management không nằm trong push-main mutation path. Dùng script trong release SHA để `list`, `add` hoặc `reset-password`; password nhập ẩn. Không đặt password trong argv/env/log và không sửa trực tiếp database.
 
 ## Khi thất bại hoặc chạy lại
 
-Giữ correlation `<run_id>-<attempt>`, SHA, stage, exact artifact/archive digest và backup identity trong summary. Không retry mù khi remote lock còn giữ; chờ lock giải phóng hoặc kiểm operator. Rerun cùng SHA dùng migration tiến về trước và Compose idempotent; không dựa vào timestamp receipt lịch sử.
+Giữ operation ID, SHA, phase, exact artifact/archive digest và backup identity trong summary. Retry phải có operation ID mới; ID đã reserve không reuse. Không retry mù khi remote lock còn giữ. Cùng SHA chỉ reuse directory có toàn bộ inventory/bytes giống hệt; backup mới nằm ngoài release. Không overwrite/merge/xóa immutable conflict để retry đạt.
+
+Config publish nhiều file không là transaction; lỗi sau rename đầu có thể để API env mới/Compose cũ. Migration lỗi dừng app apply nhưng không bảo đảm DB chưa đổi. Missing terminal do interruption/mất transport là uncertain; giữ evidence, inspect runtime và chọn recovery được bảo vệ. Không xóa receipt/operation hoặc tự restore config/DB để che failure.
 
 Không có automatic application rollback hoặc automatic database restore. Nếu cần quay lui, operator dùng [manual rollback runbook](product-rollback-runbook.md), xác nhận compatibility và backup DB hiện tại; route đó không down-migrate, không đổi PostgreSQL và không restore đè volume đang chạy.
 

@@ -40,5 +40,19 @@ recovery remains operator-controlled and does not auto-restore or down-migrate;
 see [release checklist](../docs/operations/release-checklist.md) and [rollback
 runbook](../docs/operations/product-rollback-runbook.md).
 
-`local-release-rehearsal.ps1` is the disposable Docker rehearsal entrypoint. Its
-local evidence does not prove live GitHub, GHCR, SSH, VPS or production settings.
+Gate local hiện hành: `pnpm run product:test:deploy-account`. Windows gọi thin
+`scripts/product/local-release-rehearsal.ps1 [-EvidencePath <new-path>] [-TaskId <UUID>]`;
+Linux dùng cùng `runOwnedRehearsal` trong `local-rehearsal-engine.mjs`. Mỗi lần tạo
+daemon riêng `mkw-deploy-account-<UUID>`, kiểm name/ID/labels/marker/actual daemon
+trước copy hoặc cleanup. Không dùng host socket, mount host source/secrets hoặc
+reuse engine cũ. Cần Node24.22.1, Linux Docker, đủ dung lượng host (headroom12GiB);
+thiếu prerequisite trả nonzero/Blocked, không ghi passed.
+
+Source tar giữ exact cached+untracked current bytes, loại ignored secrets/dist;
+manifest hashes và tar lưu ở `.agent-runs/MKW-DEPLOY-ACCOUNT-001/<UUID>`. Real
+API/Web images, TLS registry và PostgreSQL chạy trong daemon đó; canonical
+GitHub/provenance chỉ fixture tại test owner. Entry chạy artifact→pack→archive→
+private staging→locked entrypoint→verify. Failed engine/data retained; success
+chỉ cleanup exact owned resources sau export evidence và kiểm hậu điều kiện.
+Local evidence không chứng minh live GitHub/GHCR/SSH/VPS/settings; xem task
+validation trước khi kết luận gate đã chạy đạt.

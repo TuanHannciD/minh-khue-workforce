@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+set +x
+# Lifecycle map: run_node validates trusted inputs; validate_backup_gate owns
+# snapshot policy; one fd9 admission precedes publish_release and config helpers;
+# on_exit preserves failure/cleanup; the final block owns migration/apply/smoke.
+# Bundle, config and receipt mechanics live in release/ helpers; keep this file
+# as the single lock/trap owner, including the existing non-simple journal path.
 mode=""
+staging=""
 manifest="${MKW_RELEASE_MANIFEST:-}"
 compose="${MKW_COMPOSE_FILE:-}"
 backup_ready="${MKW_BACKUP_READY:-}"
@@ -15,6 +22,7 @@ while (($#)); do
     --manifest) shift; manifest="${1:-}" ;;
     --compose) shift; compose="${1:-}" ;;
     --backup-ready) shift; backup_ready="${1:-}" ;;
+    --staging) shift; staging="${1:-}" ;;
     *) echo "unknown argument: $1" >&2; exit 64 ;;
   esac
   shift
@@ -28,10 +36,9 @@ done
 : "${MKW_ATTESTATION_MODE:=not-configured}"
 : "${MKW_ATTESTATION_STATUS:=not-applicable}"
 : "${MKW_OPERATION_KIND:=release}"
-: "${MKW_OPERATION_ID:=${MKW_RELEASE_SHA:-unknown}}"
+: "${MKW_OPERATION_ID:=}"
 : "${MKW_AUTOMATIC_RELEASE:=false}"
 : "${MKW_SIMPLE_RELEASE:=false}"
-[[ "$MKW_OPERATION_ID" =~ ^[A-Za-z0-9._-]{1,160}$ ]] || { echo "invalid operation id" >&2; exit 78; }
 case "$MKW_SIMPLE_RELEASE" in true|false) ;; *) echo "invalid simple release mode" >&2; exit 78 ;; esac
 [[ "$MKW_SIMPLE_RELEASE" != true || "$MKW_OPERATION_KIND" == release ]] || { echo "simple release only supports forward release" >&2; exit 78; }
 : "${MKW_REGISTRY_HOST:=ghcr.io}"
@@ -48,6 +55,11 @@ if [[ -n "$script_source" && "$script_source" != bash && "$script_source" != /de
 else
   script_root="${MKW_SCRIPT_ROOT:-$PWD}"
 fi
+: "${MKW_CONTROL_ROOT:=$script_root}"
+[[ "$(realpath -e -- "$MKW_CONTROL_ROOT")" == "$(realpath -ms -- "$MKW_CONTROL_ROOT")" && "$(realpath -e -- "$MKW_CONTROL_ROOT")" == "$(realpath -e -- "$script_root")" ]] || { echo 'invalid control root' >&2; exit 78; }
+script_root="$(realpath -e -- "$MKW_CONTROL_ROOT")"
+MKW_CONTROL_ROOT="$script_root"
+validator_image_ready=false
 run_node() {
   if [[ "${MKW_VALIDATOR_RUNTIME:-auto}" != container ]] && command -v node >/dev/null 2>&1; then
     node "$@"
@@ -57,12 +69,16 @@ run_node() {
       bash "$script_root/scripts/product/release/pull-exact-images.sh" "$MKW_API_IMAGE" || { echo "validator image registry gate failed" >&2; exit 77; }
       validator_image_ready=true
     fi
-    docker run --rm -i --pull=never --user "$(id -u):$(id -g)" -e MKW_RESOLVED_COMPOSE \
-      -v "$script_root:$script_root:ro" \
-      -v "$MKW_DEPLOY_PATH/shared:$MKW_DEPLOY_PATH/shared:ro" \
+    local mounts=(-v "$script_root:$script_root:ro")
+    if [[ -d "$MKW_DEPLOY_PATH" ]]; then mounts+=(-v "$MKW_DEPLOY_PATH:$MKW_DEPLOY_PATH:${MKW_NODE_ACCESS:-ro}"); fi
+    docker run --rm -i --pull=never --user "$(id -u):$(id -g)" \
+      "${mounts[@]}" \
       --workdir "$script_root" --entrypoint node "$MKW_API_IMAGE" "$@"
   fi
 }
+if [[ "$mode" != dry-run ]]; then
+  run_node "$script_root/scripts/product/release/operation-id.mjs" validate "$MKW_OPERATION_ID" >/dev/null
+fi
 [[ "$MKW_DEPLOY_PATH" =~ ^/home/[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ ]] || { echo "invalid deploy path" >&2; exit 78; }
 [[ "$MKW_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "invalid project name" >&2; exit 78; }
 [[ "$MKW_GATEWAY_PORT" =~ ^[0-9]+$ ]] && ((MKW_GATEWAY_PORT >= 1024 && MKW_GATEWAY_PORT <= 65535)) || { echo "invalid gateway port" >&2; exit 78; }
@@ -93,24 +109,28 @@ fi
 release_sha="${MKW_RELEASE_SHA:-unknown}"
 if [[ "$mode" == release ]]; then
   cd "$script_root"
+  if [[ -n "$staging" ]]; then
+    [[ "$(realpath -e -- "$staging")" == "$(realpath -ms -- "$staging")" && "$(dirname -- "$(realpath -e -- "$staging")")" == "$MKW_DEPLOY_PATH/staging" && "$(basename -- "$staging")" == "$MKW_OPERATION_ID-"* ]] || { echo 'invalid operation staging path' >&2; exit 78; }
+    manifest="$staging/release/release-manifest.json"
+    compose="$staging/release/deploy/compose.production.yml"
+    backup_ready="$staging/operation/backup-ready.json"
+  fi
   [[ -f "$manifest" && -f "$compose" ]] || { echo "release manifest and compose are required" >&2; exit 78; }
   [[ "$MKW_RELEASE_SHA" =~ ^[a-fA-F0-9]{40}([a-fA-F0-9]{24})?$ ]] || { echo "full release SHA is required" >&2; exit 78; }
   [[ "${MKW_API_IMAGE:-}" =~ ^[^[:space:]@]+@sha256:[0-9a-fA-F]{64}$ ]] || { echo "validated API image digest is required" >&2; exit 78; }
   run_node "$script_root/scripts/product/release/validate-manifest.mjs" "$manifest" >/dev/null || { echo "release manifest validation failed" >&2; exit 78; }
-  mapfile -t fields < <(run_node --input-type=module - "$manifest" "$compose" "$MKW_RELEASE_SHA" <<'NODE'
+  fields_text=$(run_node --input-type=module - "$manifest" "$MKW_RELEASE_SHA" <<'NODE'
 import { readFile } from 'node:fs/promises';
-import { parseJsonStrict } from './scripts/product/release/validate-manifest.mjs';
-import { verifyRelease } from './scripts/product/release/verify-release.mjs';
-const [manifestPath, composePath, expectedSha] = process.argv.slice(2);
-const manifest = parseJsonStrict(await readFile(manifestPath, 'utf8'));
-const template = await readFile(composePath, 'utf8');
-const images = { MKW_API_IMAGE: manifest.apiImage, MKW_WEB_IMAGE: manifest.webImage, MKW_POSTGRES_IMAGE: manifest.postgresImage };
-const composeText = template.replace(/\$\{(MKW_API_IMAGE|MKW_WEB_IMAGE|MKW_POSTGRES_IMAGE)(?::\?[^}]*)?\}/g, (_, key) => images[key]);
-const result = verifyRelease({ manifest, expectedSha, composeText });
-if (!result.ok) { console.error(result.errors.join('; ')); process.exit(78); }
-for (const key of ['releaseSha', 'apiImage', 'webImage', 'postgresImage']) console.log(manifest[key]);
+import { parseJsonStrict, validateManifest } from './scripts/product/release/validate-manifest.mjs';
+try {
+  const [manifestPath, expectedSha] = process.argv.slice(2);
+  const manifest = parseJsonStrict(await readFile(manifestPath, 'utf8'));
+  if (!validateManifest(manifest).ok || manifest.releaseSha !== expectedSha) throw new Error();
+  for (const key of ['releaseSha', 'apiImage', 'webImage', 'postgresImage']) console.log(manifest[key]);
+} catch { console.error('release verification failed'); process.exitCode = 78; }
 NODE
 ) || { echo "release verification failed" >&2; exit 78; }
+  mapfile -t fields <<< "$fields_text"
   [[ "${#fields[@]}" -eq 4 ]] || { echo "release manifest fields are incomplete" >&2; exit 78; }
   [[ "$MKW_API_IMAGE" == "${fields[1]}" ]] || { echo "validator API image does not match manifest" >&2; exit 78; }
   release_sha="${fields[0]}"; MKW_API_IMAGE="${fields[1]}"; MKW_WEB_IMAGE="${fields[2]}"; MKW_POSTGRES_IMAGE="${fields[3]}"
@@ -132,6 +152,21 @@ validate_backup_gate() {
     # Snapshot provenance need not equal the application version being restored.
     # Empty-deployment evidence cannot protect an existing database rollback.
     args+=(--expected-kind BACKUP)
+    local resolved_backup
+    resolved_backup="$(dirname -- "$backup_ready")/rollback-backup-resolved.json"
+    [[ -f "$resolved_backup" && ! -L "$resolved_backup" && "$(realpath -e -- "$resolved_backup")" == "$(realpath -ms -- "$resolved_backup")" ]] || { echo 'canonical rollback snapshot is required' >&2; exit 78; }
+    run_node --input-type=module - "$script_root" "$resolved_backup" "$backup_ready" "$now" "$backup_max_age_seconds" "$backup_expected_host" "$backup_expected_database" "$backup_expected_target_identity" <<'NODE'
+import { readFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
+try {
+  const [root, resolvedPath, downloadedPath, now, age, host, database, targetIdentity] = process.argv.slice(2);
+  const { parseJsonStrict } = await import(pathToFileURL(`${root}/scripts/product/release/validate-manifest.mjs`).href);
+  const { verifyDownloadedRollbackBackup } = await import(pathToFileURL(`${root}/scripts/product/release/resolve-rollback-backup.mjs`).href);
+  const resolved = parseJsonStrict(await readFile(resolvedPath, 'utf8'));
+  if (resolved.target?.host !== host || resolved.target?.database !== database || resolved.target?.targetIdentity !== targetIdentity) throw new Error();
+  verifyDownloadedRollbackBackup(resolved, parseJsonStrict(await readFile(downloadedPath, 'utf8')), {now, maxAgeSeconds:Number(age)});
+} catch { console.error('canonical rollback backup gate failed'); process.exitCode=78; }
+NODE
   else
     if [[ "${MKW_SIMPLE_RELEASE:-false}" == true ]]; then
       [[ "$backup_expected_kind" == BACKUP ]] || { echo "simple release requires a BACKUP snapshot" >&2; exit 78; }
@@ -145,30 +180,140 @@ validate_backup_gate() {
 }
 if [[ "$mode" == release ]]; then validate_backup_gate; fi
 
-install -d -m 0750 "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/releases" "$MKW_DEPLOY_PATH/current" "$MKW_DEPLOY_PATH/shared" "$MKW_DEPLOY_PATH/backups" "$MKW_DEPLOY_PATH/receipts"
+source "$script_root/scripts/product/release/deploy-config.sh"
+# Only the trusted deploy root and lockfile precede admission. All operation,
+# release/control/shared/config changes belong to the single holder below.
+existing_ancestor="$MKW_DEPLOY_PATH"
+while [[ ! -e "$existing_ancestor" && ! -L "$existing_ancestor" ]]; do existing_ancestor=$(dirname -- "$existing_ancestor"); done
+validate_deploy_directory "$existing_ancestor"
+install -d -m 0750 "$MKW_DEPLOY_PATH"
+command -v flock >/dev/null || { echo 'flock is required' >&2; exit 69; }
+[[ ! -L "$MKW_DEPLOY_PATH/.deploy.lock" && ( ! -e "$MKW_DEPLOY_PATH/.deploy.lock" || -f "$MKW_DEPLOY_PATH/.deploy.lock" ) ]] || exit 78
 exec 9>"$MKW_DEPLOY_PATH/.deploy.lock"; flock -n 9 || { echo "another deploy is running" >&2; exit 75; }
 registry_auth_status="not-run"; registry_pull_status="not-run"; mutation_started="false"
-receipt_written=0
-write_receipt() {
-  local status="$1" op_id="${MKW_OPERATION_ID:-unknown}" tmp="$(mktemp "$MKW_DEPLOY_PATH/receipts/.receipt.XXXXXX")"
-  printf '{"operation":"%s","operationId":"%s","releaseSha":"%s","imageDigests":{"api":"%s","web":"%s","postgres":"%s"},"registry":{"host":"%s","auth":"%s","pull":"%s"},"mutationStarted":%s,"attestationVerification":"%s","rollbackScope":"application-only","databaseRecovery":false,"status":"%s","utc":"%s"}\n' \
-    "$MKW_OPERATION_KIND" "$op_id" "$release_sha" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE" "$MKW_REGISTRY_HOST" "$registry_auth_status" "$registry_pull_status" "$mutation_started" "$MKW_ATTESTATION_STATUS" "$status" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp"
-  chmod 640 "$tmp"; mv -f "$tmp" "$MKW_DEPLOY_PATH/receipts/$(date -u +%Y%m%dT%H%M%SZ)-$status.json"; receipt_written=1
+operation_dir=$(MKW_NODE_ACCESS=rw run_node "$script_root/scripts/product/release/operation-id.mjs" reserve "$MKW_DEPLOY_PATH" "$MKW_OPERATION_ID") || exit 78
+# Normalize the runtime path (Node on Windows emits a native path in fixtures).
+operation_dir="$MKW_DEPLOY_PATH/operations/$MKW_OPERATION_ID"
+MKW_NODE_ACCESS=rw
+phase=validated; terminal_written=false; receipt_ready=false
+primary_error=""; db_tmp=""; api_tmp=""; backup_tmp=""; state_tmp=""; state_path=""; operation_event_sequence=0
+source "$script_root/scripts/product/release/operation-receipts.sh"
+on_exit() {
+  local code=${primary_error:-$?}
+  trap - EXIT ERR INT TERM
+  set +e
+  if (( code != 0 )); then
+    if [[ "${MKW_SIMPLE_RELEASE:-false}" != true && -n "${state_path:-}" && -s "$state_path" ]]; then write_state update "$state_path" failed; fi
+    if [[ "$receipt_ready" == true && "$terminal_written" != true ]]; then
+      if record_operation_event failed "$phase" && [[ "$mutation_started" == false ]]; then printf 'ok\n' > "$operation_dir/pre-mutation-failure"; fi
+    fi
+  fi
+  rm -f -- "$operation_dir/api.env" "$operation_dir/compose.rendered.yml" "$operation_dir/compose.resolved.json"
+  [[ -z "${db_tmp:-}" ]] || rm -f -- "$db_tmp"
+  [[ -z "${api_tmp:-}" ]] || rm -f -- "$api_tmp"
+  [[ -z "${backup_tmp:-}" ]] || rm -f -- "$backup_tmp"
+  [[ -z "${state_tmp:-}" ]] || rm -f -- "$state_tmp"
+  exit "$code"
 }
+trap on_exit EXIT
+trap 'primary_error=$?' ERR
+trap 'exit 130' INT
+trap 'exit 143' TERM
+for directory in releases controls current shared backups; do
+  if [[ -e "$MKW_DEPLOY_PATH/$directory" || -L "$MKW_DEPLOY_PATH/$directory" ]]; then validate_deploy_directory "$MKW_DEPLOY_PATH/$directory" "$MKW_DEPLOY_PATH"; fi
+  install -d -m 0750 "$MKW_DEPLOY_PATH/$directory"
+done
 if [[ "$mode" == bootstrap ]]; then
+  [[ ! -L "$MKW_DEPLOY_PATH/shared/secrets" ]] || exit 78
   install -d -m 0700 "$MKW_DEPLOY_PATH/shared/secrets"
   db_env="$MKW_DEPLOY_PATH/shared/db.env"; api_env="$MKW_DEPLOY_PATH/shared/api.env"
   if [[ -e "$db_env" || -e "$api_env" ]]; then
-    [[ -f "$db_env" && -f "$api_env" ]] || { echo "bootstrap requires both env files" >&2; exit 78; }; chmod 600 "$db_env" "$api_env"
+    [[ -f "$db_env" && ! -L "$db_env" && -f "$api_env" && ! -L "$api_env" ]] || { echo "bootstrap requires both regular env files" >&2; exit 78; }; chmod 600 "$db_env" "$api_env"
   else
     umask 077; password="$(openssl rand -hex 32)"; auth_secret="$(openssl rand -hex 32)"
-    db_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.db.env.XXXXXX")"; api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api.env.XXXXXX")"; trap 'rm -f "$db_tmp" "$api_tmp"' EXIT
+    db_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.db.env.XXXXXX")"; api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api.env.XXXXXX")"
     printf 'POSTGRES_DB=mkw\nPOSTGRES_USER=mkw\nPOSTGRES_PASSWORD=%s\n' "$password" > "$db_tmp"
     printf 'DATABASE_URL=postgresql://mkw:%s@db:5432/mkw\nAUTH_THROTTLE_SECRET=%s\nWEB_ORIGIN=%s\nTLS_TERMINATED=true\n' "$password" "$auth_secret" "$MKW_WEB_ORIGIN" > "$api_tmp"
-    chmod 600 "$db_tmp" "$api_tmp"; mv -n "$db_tmp" "$db_env"; mv -n "$api_tmp" "$api_env"; trap - EXIT
+    chmod 600 "$db_tmp" "$api_tmp"; mv -n "$db_tmp" "$db_env"; mv -n "$api_tmp" "$api_env"
   fi
+  printf 'ok\n' > "$operation_dir/bootstrap-complete"
   echo "BOOTSTRAP_OK path=$MKW_DEPLOY_PATH project=$MKW_PROJECT_NAME"; exit 0
 fi
+
+[[ "${MKW_CONTROL_SHA:-}" =~ ^[a-fA-F0-9]{40}([a-fA-F0-9]{24})?$ ]] || { echo 'full control SHA is required' >&2; exit 78; }
+validate_deploy_directory "$MKW_CONTROL_ROOT"
+run_node "$script_root/scripts/product/release/release-bundle.mjs" verify "$MKW_CONTROL_ROOT" || exit 78
+release_candidate=$(dirname -- "$manifest")
+[[ "$(basename -- "$manifest")" == release-manifest.json ]] || exit 78
+validate_deploy_directory "$release_candidate" "$MKW_DEPLOY_PATH"
+[[ "$release_candidate/" != "$MKW_CONTROL_ROOT/"* && "$MKW_CONTROL_ROOT/" != "$release_candidate/"* ]] || { echo 'release and trusted controls must be separate trees' >&2; exit 78; }
+[[ "$(realpath -e -- "$compose")" == "$release_candidate/deploy/compose.production.yml" ]] || { echo 'exact inventoried release Compose is required' >&2; exit 78; }
+[[ ! -L "$backup_ready" ]] || exit 78
+validate_deploy_directory "$(dirname -- "$backup_ready")" "$MKW_DEPLOY_PATH"
+if [[ -n "$staging" ]]; then
+  validate_deploy_directory "$staging" "$MKW_DEPLOY_PATH/staging"
+  [[ "$(dirname -- "$staging")" == "$MKW_DEPLOY_PATH/staging" && "$(basename -- "$staging")" == "$MKW_OPERATION_ID-"* ]] || exit 78
+  run_node "$script_root/scripts/product/release/release-bundle.mjs" verify "$staging/controls" || exit 78
+  run_node "$script_root/scripts/product/release/release-bundle.mjs" compare "$MKW_CONTROL_ROOT" "$staging/controls" || exit 78
+  run_node "$script_root/scripts/product/release/release-bundle.mjs" verify "$staging/operation" || exit 78
+fi
+run_node "$script_root/scripts/product/release/release-bundle.mjs" verify "$release_candidate" || exit 78
+# Re-read manifest and backup after acquiring the lock, not only before it.
+run_node --input-type=module - "$manifest" "$MKW_RELEASE_SHA" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" "$MKW_POSTGRES_IMAGE" <<'NODE'
+import { readFile } from 'node:fs/promises';
+import { parseJsonStrict, validateManifest } from './scripts/product/release/validate-manifest.mjs';
+try {
+  const [path,...expected]=process.argv.slice(2), value=parseJsonStrict(await readFile(path,'utf8'));
+  if(!validateManifest(value).ok || ['releaseSha','apiImage','webImage','postgresImage'].some((k,i)=>value[k]!==expected[i])) throw new Error();
+} catch { console.error('release changed before locked admission'); process.exitCode=78; }
+NODE
+validate_backup_gate
+backup_id=$(run_node --input-type=module - "$backup_ready" <<'NODE'
+import { readFile } from 'node:fs/promises';
+import { parseJsonStrict } from './scripts/product/release/validate-manifest.mjs';
+console.log(parseJsonStrict(await readFile(process.argv[2],'utf8')).backupId);
+NODE
+)
+# Freeze this attempt's backup independently of immutable release bytes.
+cp -- "$backup_ready" "$operation_dir/backup-ready.json"
+if [[ "$MKW_OPERATION_KIND" == application-rollback ]]; then
+  cp -- "$(dirname -- "$backup_ready")/rollback-backup-resolved.json" "$operation_dir/rollback-backup-resolved.json"
+  if [[ -f "$(dirname -- "$backup_ready")/rollback-operation.json" ]]; then
+    cp -- "$(dirname -- "$backup_ready")/rollback-operation.json" "$operation_dir/rollback-operation.json"
+  fi
+fi
+backup_ready="$operation_dir/backup-ready.json"
+receipt_ready=true
+record_operation_event in-progress "$phase"
+inspect_previous_operation
+source "$script_root/scripts/product/release/publish-release.sh"
+# Compare both immutable destinations before publishing either tree.
+for pair in release controls; do
+  if [[ "$pair" == release ]]; then candidate="$release_candidate"; destination="$MKW_DEPLOY_PATH/releases/$release_sha";
+  else candidate="${staging:+$staging/controls}"; candidate="${candidate:-$MKW_CONTROL_ROOT}"; destination="$MKW_DEPLOY_PATH/controls/$MKW_CONTROL_SHA"; fi
+  if [[ -e "$destination" || -L "$destination" ]]; then run_node "$script_root/scripts/product/release/release-bundle.mjs" compare "$destination" "$candidate" || exit 78; fi
+done
+MKW_NODE_ACCESS=rw publish_release "$release_candidate" "$MKW_DEPLOY_PATH/releases/$release_sha"
+control_candidate="${staging:+$staging/controls}"; control_candidate="${control_candidate:-$MKW_CONTROL_ROOT}"
+# Current controls may be executed from a stable trusted bootstrap tree. Publish
+# only the uploaded copy; never rename the tree executing this lifecycle.
+if [[ "$control_candidate" == "$MKW_CONTROL_ROOT" && "$control_candidate" != "$MKW_DEPLOY_PATH/controls/$MKW_CONTROL_SHA" ]]; then
+  cp -R -- "$control_candidate" "$operation_dir/controls-candidate"
+  control_candidate="$operation_dir/controls-candidate"
+fi
+MKW_NODE_ACCESS=rw publish_release "$control_candidate" "$MKW_DEPLOY_PATH/controls/$MKW_CONTROL_SHA"
+# The executing trusted tree may itself have been the uploaded controls source.
+# Rebind functions whose BASH_SOURCE owns relative helper paths after its rename.
+script_root="$MKW_DEPLOY_PATH/controls/$MKW_CONTROL_SHA"
+MKW_CONTROL_ROOT="$script_root"
+cd "$script_root"
+source "$script_root/scripts/product/release/operation-receipts.sh"
+source "$script_root/scripts/product/release/deploy-config.sh"
+manifest="$MKW_DEPLOY_PATH/releases/$release_sha/release-manifest.json"
+# Direct callers must also supply the exact inventoried production Compose.
+compose="$MKW_DEPLOY_PATH/releases/$release_sha/deploy/compose.production.yml"
+phase=published
+record_operation_event in-progress "$phase"
 
 if [[ "$mode" == release ]]; then
   if [[ -z "$MKW_REGISTRY_VISIBILITY" ]]; then
@@ -178,7 +323,10 @@ if [[ "$mode" == release ]]; then
   if ! MKW_REGISTRY_HOST="$MKW_REGISTRY_HOST" MKW_REGISTRY_VISIBILITY="$MKW_REGISTRY_VISIBILITY" MKW_REGISTRY_PULL_USERNAME="$MKW_REGISTRY_PULL_USERNAME" MKW_REGISTRY_PULL_TOKEN_FILE="$MKW_REGISTRY_PULL_TOKEN_FILE" \
     bash "$script_root/scripts/product/release/pull-exact-images.sh"; then
     registry_pull_status="failed"
-    write_receipt registry-pull-failed || true
+    if record_operation_event registry-pull-failed "$phase"; then
+      terminal_written=true
+      printf 'ok\n' > "$operation_dir/pre-mutation-failure" || true
+    fi
     echo "registry pull/identity gate failed before migration or Compose mutation" >&2
     exit 77
   fi
@@ -221,36 +369,18 @@ if [[ "${MKW_SIMPLE_RELEASE:-false}" != true ]]; then
     write_state update "$state_path" gateway-policy "$gateway_policy_file" "$MKW_DEPLOY_PATH/shared/runtime-before.json"
   fi
 fi
-# Revalidate the encrypted BACKUP under the deployment lock immediately before
-# any environment, migration, or Compose mutation.
+# Render privately and validate the Task3 exact service map before publishing
+# pointer, backup alias or config. No resolved config is passed through env/logs.
+stage_deploy_config "$compose" "$operation_dir"
 validate_backup_gate
-api_env="$MKW_DEPLOY_PATH/shared/api.env"
-[[ -f "$api_env" ]] || { echo "bootstrap API env is required" >&2; exit 78; }
-if [[ "$operation_class" != gateway-only ]]; then
-api_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.api-origin.XXXXXX")"
-trap 'rm -f "$api_tmp"' EXIT
-awk '!/^WEB_ORIGIN=/ && !/^TLS_TERMINATED=/' "$api_env" > "$api_tmp"
-printf 'WEB_ORIGIN=%s\nTLS_TERMINATED=true\n' "$MKW_WEB_ORIGIN" >> "$api_tmp"
-chmod 600 "$api_tmp"; mv -f "$api_tmp" "$api_env"; trap - EXIT
-fi
-
+write_deploy_pointer
+backup_tmp=$(mktemp "$MKW_DEPLOY_PATH/shared/.backup-ready.XXXXXX")
+cp -- "$backup_ready" "$backup_tmp"; chmod 640 "$backup_tmp"
+rename_deploy_file "$backup_tmp" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
+publish_deploy_config "$operation_dir"
 rendered="$MKW_DEPLOY_PATH/current/compose.rendered.yml"
-sed "s#\./shared/#$MKW_DEPLOY_PATH/shared/#g" "$compose" > "$rendered"
-grep -Eq 'env_file:[[:space:]]*\./' "$rendered" && { echo "relative env_file path remains after render" >&2; exit 78; } || true
-resolved_compose="$(docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" config)"
-MKW_RESOLVED_COMPOSE="$resolved_compose" run_node --input-type=module - "$manifest" "$MKW_RELEASE_SHA" <<'NODE'
-import { readFile } from 'node:fs/promises';
-import { parseJsonStrict } from './scripts/product/release/validate-manifest.mjs';
-import { verifyRelease } from './scripts/product/release/verify-release.mjs';
-const [manifestPath, expectedSha] = process.argv.slice(2);
-const manifest = parseJsonStrict(await readFile(manifestPath, 'utf8'));
-const result = verifyRelease({ manifest, expectedSha, composeText: process.env.MKW_RESOLVED_COMPOSE ?? '' });
-if (!result.ok) { console.error(result.errors.join('; ')); process.exit(78); }
-NODE
 echo "RELEASE_CONFIG_OK project=$MKW_PROJECT_NAME"
 
-on_error() { local code=$?; if [[ "${MKW_SIMPLE_RELEASE:-false}" != true && -n "${state_path:-}" && -s "$state_path" ]]; then write_state update "$state_path" failed || true; fi; if (( receipt_written == 0 )); then write_receipt failed || true; fi; exit "$code"; }
-trap on_error ERR
 validate_backup_gate
 # Approved forward migration (migrate deploy) and the JSON backup gate are
 # required before traffic; INITIAL_EMPTY_DEPLOYMENT is validated by JSON.
@@ -265,9 +395,13 @@ if [[ "$MKW_OPERATION_KIND" != application-rollback && "$operation_class" != gat
   # Prepare only PostgreSQL. This Compose operation has no API or gateway
   # dependency and cannot expose application traffic before migration.
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --no-deps db
+  phase=db-prepared
+  record_operation_event in-progress "$phase"
   # The forward migration is the gate for the later application Compose apply.
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
   migration_complete=true
+  phase=migration-complete
+  record_operation_event in-progress "$phase"
   if [[ "${MKW_SIMPLE_RELEASE:-false}" != true ]]; then
     capture_database "$MKW_DEPLOY_PATH/shared/database-after.json"
     write_state update "$state_path" after "$MKW_DEPLOY_PATH/shared/database-after.json"
@@ -282,23 +416,32 @@ elif [[ "$operation_class" == gateway-only ]]; then
   gateway_status=0
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --no-deps gateway || gateway_status=$?
   # Receipt is produced even when gateway health failed; API/PG checks must pass.
-  capture_database "$MKW_DEPLOY_PATH/shared/database-after.json"
-  bash "$script_root/scripts/product/release/runtime-evidence.sh" "$rendered" > "$MKW_DEPLOY_PATH/shared/runtime-after.json"
-  write_state update "$state_path" gateway-db "$MKW_DEPLOY_PATH/shared/database-after.json"
-  state_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.gateway-evidence.XXXXXX")"
-  run_node "$script_root/scripts/product/release/gateway-policy.mjs" receipt "$state_path" "$gateway_policy_file" "$MKW_DEPLOY_PATH/shared/runtime-before.json" "$MKW_DEPLOY_PATH/shared/runtime-after.json" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state_tmp"
-  chmod 640 "$state_tmp"; mv -f "$state_tmp" "$state_path"
+  record_gateway_evidence() {
+    capture_database "$MKW_DEPLOY_PATH/shared/database-after.json" || return "$?"
+    bash "$script_root/scripts/product/release/runtime-evidence.sh" "$rendered" > "$MKW_DEPLOY_PATH/shared/runtime-after.json" || return "$?"
+    write_state update "$state_path" gateway-db "$MKW_DEPLOY_PATH/shared/database-after.json" || return "$?"
+    state_tmp="$(mktemp "$MKW_DEPLOY_PATH/shared/.gateway-evidence.XXXXXX")" || return "$?"
+    run_node "$script_root/scripts/product/release/gateway-policy.mjs" receipt "$state_path" "$gateway_policy_file" "$MKW_DEPLOY_PATH/shared/runtime-before.json" "$MKW_DEPLOY_PATH/shared/runtime-after.json" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state_tmp" || return "$?"
+    chmod 640 "$state_tmp" || return "$?"
+    mv -f "$state_tmp" "$state_path" || return "$?"
+  }
   if (( gateway_status != 0 )); then
-    write_state update "$state_path" failed
-    write_receipt failed
+    record_gateway_evidence || true
+    write_state update "$state_path" failed || true
+    if record_operation_event failed "$phase"; then terminal_written=true; fi
     exit "$gateway_status"
   fi
+  record_gateway_evidence
 else
   [[ "$MKW_OPERATION_KIND" == application-rollback || "$migration_complete" == true ]] || { echo "migration gate did not complete" >&2; exit 78; }
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --remove-orphans
 fi
+phase=app-applied
+record_operation_event in-progress "$phase"
 docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" ps
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${MKW_GATEWAY_PORT}/" >/dev/null
 curl --fail --silent --show-error --max-time 10 "http://127.0.0.1:${MKW_GATEWAY_PORT}/api/health" >/dev/null
-write_receipt ok
+phase=smoke-complete
+record_operation_event ok "$phase"
+terminal_written=true
 echo "RELEASE_APPLY_OK project=$MKW_PROJECT_NAME"

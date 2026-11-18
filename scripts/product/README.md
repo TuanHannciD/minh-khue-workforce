@@ -1,5 +1,26 @@
 # Tooling sản phẩm — Task2–11
 
+Deploy/account rehearsal: `pnpm run product:test:deploy-account` là explicit real
+gate; `deploy-account-rehearsal.test.mjs` mặc định chỉ chạy node:test ownership và
+prerequisite an toàn. `local-release-rehearsal.ps1` là thin Windows caller;
+`local-rehearsal-engine.mjs/runOwnedRehearsal` sở hữu UUID daemon, storage/Linux
+preflight, exact source tar/hash, copy/export và exact-owner cleanup cho cả hai OS.
+`local-rehearsal-driver.mjs` chỉ chạy trong owned Linux engine có marker/hostname/
+actual daemon khớp; giữ setup/build/backup và lifecycle adapters cùng một owner.
+Fixture `tests/product-tooling/fixtures/deploy-account.mjs` sở hữu canonical inputs,
+SQL/HTTP assertions và task-only faults; không thêm bypass flag vào production.
+File map driver: admission/journal → registry/images/backup → bundle/staging →
+account adapters → release/recovery; fixture: bundle unit → account assertions →
+artifact/faults → release recovery. Lifecycle và assertions giữ cùng transport
+contract; các file dài cần fresh independent review theo SOURCE_NAVIGATION.
+
+Output mới ở `.agent-runs/MKW-DEPLOY-ACCOUNT-001/<UUID>`; path đã tồn tại bị từ chối.
+Headroom host12GiB cần trước acquisition; Docker virtual disk free không thay
+host capacity. Failed engine giữ dữ liệu để chẩn đoán, không claim cleanup. Không
+reuse/delete engine cũ `mkw-cd-completion-engine-8849e8d4` hoặc unknown resources.
+Xem [operator guide](../../docs/operations/user-deploy-and-account-guide.md) và
+[task validation](../../docs/tasks/MKW-DEPLOY-ACCOUNT-001/validation.md) cho status thật.
+
 Post-D2 focused browser gate: `node scripts/product/e2e.mjs --attendance-race-clamp`
 chỉ chạy `pagination-race-clamp.spec.ts` trên **một** fresh Task10 UUID DB,
 hai fixture accounts, hai temporary loopback probes và hai built Nest/Vite origins;

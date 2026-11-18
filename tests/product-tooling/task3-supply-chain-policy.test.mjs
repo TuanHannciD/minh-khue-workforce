@@ -7,6 +7,10 @@ const entrypoint = await readFile(
   "scripts/product/deploy-entrypoint.sh",
   "utf8",
 );
+const receiptAdapter = await readFile(
+  "scripts/product/release/operation-receipts.sh",
+  "utf8",
+);
 
 test("touched release workflows pin third-party actions immutably", async () => {
   for (const name of [
@@ -46,6 +50,7 @@ test("rollback sanitizes reason and receipt declares application-only scope", as
   assert.match(workflow, /databaseRecovery.*false|database-recovery.*false/i);
   assert.match(workflow, /control character/);
   assert.doesNotMatch(workflow, /reason="\$\{\{\s*inputs\.reason/);
-  assert.match(entrypoint, /attestationVerification/);
-  assert.match(entrypoint, /application-only/);
+  assert.match(entrypoint, /record_operation_event/);
+  assert.match(receiptAdapter, /attestationVerification/);
+  assert.match(receiptAdapter, /application-only/);
 });

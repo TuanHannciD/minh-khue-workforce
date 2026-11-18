@@ -6,11 +6,10 @@ Tài liệu này dành cho người vận hành Minh Khuê Workforce. Có hai vi
 
 1. Tạo hoặc kiểm tra GitHub Environment `production`. Cấu hình SSH host/port/fingerprint, `MKW_DEPLOY_PATH=/home/deploy/mkw`, project `mkw`, gateway port, registry settings, SSH private key và backup encryption key theo [release checklist](release-checklist.md).
 2. VPS phải có user `deploy`, Docker Compose và quyền chạy Docker. Chạy workflow [`deploy.yml`](../../.github/workflows/deploy.yml) thủ công với mode `bootstrap` qua environment được bảo vệ.
-3. Sau bootstrap, kiểm tra container:
+3. Bootstrap chỉ chuẩn bị cấu hình. Sau release đầu đã thành công, kiểm tra container đã pin theo Compose:
 
 ```bash
-docker ps --filter label=com.docker.compose.project=mkw
-docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{.State.Health.Status}}' mkw-api-1
+docker compose -p mkw -f /home/deploy/mkw/current/compose.rendered.yml ps
 ```
 
 Kết quả API hợp lệ là `mkw|api|healthy`. `/home/deploy/mkw/current` là thư mục runtime chứa Compose rendered file; script vận hành nằm trong thư mục release có SHA.
@@ -36,8 +35,25 @@ bash "$release/scripts/product/manage-production-account.sh" add
 bash "$release/scripts/product/manage-production-account.sh" reset-password
 ```
 
-`add` hỏi username, password và nhập lại password. `reset-password` tăng `authVersion` và thu hồi session hiện có. `list` chỉ in username. Password không hiện trên màn hình và không truyền qua argv/env.
+`add` và `reset-password` đều hỏi username, password ẩn và nhập lại password. Username dài 1–64 Unicode characters, không chứa whitespace; không trim/normalize. Password tối thiểu 8 Unicode characters và tối đa 1024 UTF-8 bytes, giữ nguyên khoảng trắng, dấu và ký tự đặc biệt. Không đưa password vào lệnh, biến môi trường, log hoặc file evidence. `list` chỉ in username theo thứ tự.
+
+API image phải chứa compiled ESM CLI `dist/ops/account-cli.js` và native dependencies. Shell gửi JSON UTF-8 qua stdin đến đúng một API container ID đã pin tại `/app`, chạy bằng user `node`; không cần host Node/pnpm/jq. Release cũ thiếu CLI bị từ chối; không có fallback upload source/eval hoặc tạo container account khác khi API dừng.
+
+Shell suy target từ real path của script và giữ `.deploy.lock` suốt preflight, prompt và CLI. Default project là `mkw`; nếu đặt `MKW_DEPLOY_PATH`/`MKW_PROJECT_NAME`, chúng phải khớp target. Shell kiểm inventory, manifest, Compose, API digest/image ID/health, `shared/deploy-operation.json` và successful receipt đúng operation/SHA/control SHA trước khi hỏi password. Container name hoặc cwd không là identity. Deploy/account đồng thời trả `75`; chờ và kiểm target trước khi chạy lại.
+
+`add` từ chối duplicate bằng `ACCOUNT_EXISTS`; `reset-password` yêu cầu user đã tồn tại (`ACCOUNT_NOT_FOUND` nếu thiếu), đổi hash, tăng `authVersion` và revoke tất cả sessions trong cùng transaction. Success chỉ sau COMMIT; lỗi không in thông báo success. Hai phiên cũ sẽ nhận `401`; đăng nhập lại bằng password mới.
+
+| Exit | Cách xử lý |
+| --- | --- |
+| `0` | Thao tác đã hoàn tất |
+| `64` | Kiểm usage, input và password policy; không thử nới policy |
+| `69` | Thiếu runtime/dependency/compiled CLI; dùng release có capability đã kiểm |
+| `75` | Deploy/account đang giữ lock; không xóa lockfile để bypass |
+| `78` | Sai target/identity/config/schema/receipt; kiểm release và operation trước retry |
+| `1` | DB/internal error đã lọc; giữ mã lỗi/correlation, kiểm DB bằng runbook |
+
+Nếu API restart sau khi pin ID, shell trả lỗi exec và không tự chọn container khác để retry mutation. Kiểm kết quả trước khi chạy lại.
 
 Schema hiện tại chưa có role/permission. Vì vậy username `admin` chưa tự động có quyền cao nhất; muốn có role quản trị cần task riêng về schema và authorization.
 
-Nếu gặp `API container is not the healthy mkw production container`, kiểm tra `mkw-api-1` có label `mkw|api|healthy`; không bỏ qua guard bằng cách sửa script trực tiếp trên VPS.
+Nếu preflight từ chối, đối chiếu Compose, API ID/digest/health và exact operation receipt; không sửa guard hoặc dùng container-name override trên VPS. Thư mục release legacy thiếu inventory hoặc có file thừa cần kế hoạch chuyển tiếp riêng trước live rollout; không tự adopt, ghi đè hoặc xóa thư mục cũ.

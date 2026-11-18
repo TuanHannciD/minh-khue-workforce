@@ -110,6 +110,10 @@ on:
         value: ${{ jobs.deploy.outputs.release_status }}
   workflow_dispatch:
     inputs:
+      operation_id:
+        description: Unique deploy operation ID; omitted generates run-attempt-release SHA
+        required: false
+        type: string
       coordinator_id:
         description: Unique coordinator dispatch correlation
         required: false
@@ -182,6 +186,7 @@ jobs:
             [[ "${GITHUB_REF:-}" == refs/heads/main ]] || { echo 'manual recovery must be dispatched from canonical main' >&2; exit 78; }
           fi
       - name: Checkout trusted current policy
+        id: controls
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ inputs.control_sha || 'main' }}
@@ -404,7 +409,7 @@ jobs:
           MKW_REGISTRY_PULL_USERNAME: ${{ vars.MKW_REGISTRY_PULL_USERNAME || '' }}
           MKW_REGISTRY_PULL_TOKEN_FILE: ${{ vars.MKW_REGISTRY_PULL_TOKEN_FILE || '' }}
           MKW_SSH_PRIVATE_KEY: ${{ secrets.MKW_SSH_PRIVATE_KEY }}
-          MKW_OPERATION_ID: ${{ inputs.operation_id || inputs.coordinator_id || github.run_id }}
+          MKW_OPERATION_ID: ${{ inputs.operation_id || format('{0}-{1}-{2}', github.run_id, github.run_attempt, inputs.release_sha) }}
           MKW_AUTOMATIC_RELEASE: false
           MKW_SIMPLE_RELEASE: ${{ inputs.simple_release }}
           MKW_RELEASE_RUN_ID: ${{ steps.provenance.outputs.release_run_id || inputs.release_run_id }}
@@ -412,7 +417,7 @@ jobs:
           MKW_RELEASE_ARTIFACT_ID: ${{ steps.provenance.outputs.release_artifact_id || inputs.release_artifact_id }}
           MKW_RELEASE_ARTIFACT_DIGEST: ${{ steps.provenance.outputs.release_artifact_digest || inputs.release_artifact_digest }}
           MKW_BACKUP_PROVENANCE: ${{ steps.provenance.outputs.backup_provenance }}
-          MKW_CONTROL_SHA: ${{ inputs.control_sha || github.sha }}
+          MKW_CONTROL_SHA: ${{ steps.controls.outputs.commit }}
         run: |
           set -Eeuo pipefail
           : "${MKW_SSH_HOST:?Set production variable MKW_SSH_HOST}"
@@ -428,6 +433,22 @@ jobs:
           if [[ "$MODE" == release ]]; then
             [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'invalid release SHA' >&2; exit 64; }
             [[ "$MKW_BACKUP_MAX_AGE_SECONDS" =~ ^[0-9]+$ ]] || { echo 'invalid backup freshness policy' >&2; exit 78; }
+          fi
+          MKW_OPERATION_ID="${MKW_OPERATION_ID:-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${RELEASE_SHA}}"
+          node policy/scripts/product/release/operation-id.mjs validate "$MKW_OPERATION_ID" >/dev/null
+          if [[ "$MODE" == release ]]; then
+          node policy/scripts/product/release/operation-id.mjs validate "$MKW_OPERATION_ID" >/dev/null
+          [[ "$MKW_CONTROL_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'invalid control SHA' >&2; exit 78; }
+          operation_input="$(mktemp -d "$RUNNER_TEMP/mkw-operation.XXXXXX")"
+          cp -- backup-ready/backup-ready.json "$operation_input/backup-ready.json"
+          (cd "$operation_input" && sha256sum backup-ready.json > backup-ready.sha256)
+          bundle="$RUNNER_TEMP/mkw-release-bundle"
+          legacy=()
+          # Explicit compatibility adapter, only after canonical archive/source gates.
+          # Inventory records transport bytes; it does not attest legacy output or add CLI capability.
+          if [[ ! -f release-artifact/bundle-inventory.json ]]; then legacy=(--legacy); fi
+          node policy/scripts/product/release/release-bundle.mjs pack --release-artifact release-artifact --release-source release-source --controls policy --operation "$operation_input" --output "$bundle" "${legacy[@]}"
+          rm -rf -- "$operation_input"
           fi
           MKW_REGISTRY_PULL_TOKEN_FILE="${MKW_REGISTRY_PULL_TOKEN_FILE:-$MKW_DEPLOY_PATH/shared/secrets/ghcr-pull-token}"
           install -m 700 -d "$HOME/.ssh"
@@ -445,6 +466,40 @@ jobs:
           test -n "$MKW_SSH_PRIVATE_KEY"
           printf '%s\n' "$MKW_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/mkw_key"
           chmod 600 "$RUNNER_TEMP/mkw_key"
+          if [[ "$MODE" == bootstrap ]]; then
+            control_upload="$RUNNER_TEMP/mkw-bootstrap-controls"
+            mkdir -p "$control_upload/scripts/product"
+            cp -R policy/scripts/product/release "$control_upload/scripts/product/release"
+            cp policy/scripts/product/deploy-entrypoint.sh policy/scripts/product/post-deploy-verify.sh "$control_upload/scripts/product/"
+            node policy/scripts/product/release/release-bundle.mjs inventory "$control_upload"
+            # Bootstrap has no release manifest/API image yet. Supply a task-local
+            # official Node runtime instead of requiring Node installed on the VPS.
+            host_arch="$(ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" 'uname -m')"
+            case "$host_arch" in x86_64) node_arch=x64 ;; aarch64|arm64) node_arch=arm64 ;; *) echo 'unsupported bootstrap Node architecture' >&2; exit 69 ;; esac
+            runtime_upload="$(mktemp -d "$RUNNER_TEMP/mkw-bootstrap-runtime.XXXXXX")"
+            node_dist="node-v24.22.1-linux-$node_arch"
+            node_archive="$node_dist.tar.xz"
+            curl --fail --silent --show-error --location "https://nodejs.org/dist/v24.22.1/SHASUMS256.txt" --output "$runtime_upload/SHASUMS256.txt"
+            curl --fail --silent --show-error --location "https://nodejs.org/dist/v24.22.1/$node_archive" --output "$runtime_upload/$node_archive"
+            (
+              cd "$runtime_upload"
+              awk -v name="$node_archive" '$2 == name {print}' SHASUMS256.txt > archive.sha256
+              test -s archive.sha256
+              sha256sum --check --strict archive.sha256
+              tar -xJf "$node_archive" --strip-components=1 "$node_dist/bin/node"
+              sha256sum bin/node > node.sha256
+              rm -- "$node_archive" SHASUMS256.txt archive.sha256
+            )
+            bootstrap_dir="$MKW_DEPLOY_PATH/staging/$MKW_OPERATION_ID-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-bootstrap"
+            printf -v remote_command 'set -Eeuo pipefail; [[ "$(realpath -m -- %q)" == %q ]] || exit 78; mkdir -p -- %q; [[ "$(realpath -m -- %q)" == %q ]] || exit 78; mkdir -p -- %q; mkdir -m 700 -- %q' "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/staging" "$MKW_DEPLOY_PATH/staging" "$MKW_DEPLOY_PATH/staging" "$bootstrap_dir"
+            ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
+            scp -q -r -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "$control_upload" "deploy@$MKW_SSH_HOST:$bootstrap_dir/controls"
+            scp -q -r -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "$runtime_upload" "deploy@$MKW_SSH_HOST:$bootstrap_dir/runtime"
+            # Verify the transferred executable before putting it on process PATH.
+            printf -v remote_command 'set -Eeuo pipefail; cd -- %q; sha256sum --check --strict node.sha256 >/dev/null; export PATH=%q/bin:"$PATH"; MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_OPERATION_ID=%q MKW_CONTROL_ROOT=%q bash %q --bootstrap' "$bootstrap_dir/runtime" "$bootstrap_dir/runtime" "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$MKW_OPERATION_ID" "$bootstrap_dir/controls" "$bootstrap_dir/controls/scripts/product/deploy-entrypoint.sh"
+            ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
+            exit 0
+          fi
           if [[ "$MODE" != release ]]; then
             ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" \
               "deploy@$MKW_SSH_HOST" \
@@ -452,25 +507,27 @@ jobs:
               < policy/scripts/product/deploy-entrypoint.sh
             exit 0
           fi
-          remote_dir="${MKW_DEPLOY_PATH}/releases/${RELEASE_SHA}"
-          (cd backup-ready && sha256sum backup-ready.json > backup-ready.json.sha256)
-          (cd backup-ready && sha256sum --check backup-ready.json.sha256)
-          tar -czf "$RUNNER_TEMP/mkw-release.tgz" release-artifact backup-ready/backup-ready.json backup-ready/backup-ready.json.sha256 -C policy scripts/product/deploy-entrypoint.sh scripts/product/release -C "$GITHUB_WORKSPACE/release-source" deploy/compose.production.yml scripts/product/manage-production-account.sh scripts/product/manage-production-account.mjs
-          printf -v remote_command 'mkdir -p -- %q' "$remote_dir"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
-
-          scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "$RUNNER_TEMP/mkw-release.tgz" "deploy@$MKW_SSH_HOST:$remote_dir/release.tgz"
-          printf -v remote_command 'tar -xzf %q -C %q && (cd %q && sha256sum --check backup-ready.json.sha256) && install -m 640 %q %q && rm -rf -- %q %q' \
-            "$remote_dir/release.tgz" "$remote_dir" "$remote_dir/backup-ready" "$remote_dir/backup-ready/backup-ready.json" "$MKW_DEPLOY_PATH/shared/backup-ready.json" "$remote_dir/backup-ready" "$remote_dir/release.tgz"
-          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
           api_image="$(node --input-type=module -e "import fs from 'node:fs'; console.log(JSON.parse(fs.readFileSync('release-artifact/release-manifest.json','utf8')).apiImage)")"
           [[ "$api_image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]
-          MKW_OPERATION_ID="${MKW_OPERATION_ID:-$RELEASE_SHA}"
           MKW_AUTOMATIC_RELEASE="${MKW_AUTOMATIC_RELEASE:-false}"
           printf -v remote_env 'MKW_DEPLOY_PATH=%q MKW_PROJECT_NAME=%q MKW_GATEWAY_PORT=%q MKW_RELEASE_SHA=%q MKW_OPERATION_ID=%q MKW_API_IMAGE=%q MKW_RELEASE_RUN_ID=%q MKW_RELEASE_RUN_ATTEMPT=%q MKW_RELEASE_ARTIFACT_ID=%q MKW_RELEASE_ARTIFACT_DIGEST=%q MKW_CONTROL_SHA=%q MKW_REGISTRY_HOST=%q MKW_REGISTRY_VISIBILITY=%q MKW_REGISTRY_PULL_USERNAME=%q MKW_REGISTRY_PULL_TOKEN_FILE=%q MKW_ATTESTATION_MODE=%q MKW_ATTESTATION_STATUS=%q MKW_BACKUP_MAX_AGE_SECONDS=%q MKW_BACKUP_EXPECTED_KIND=%q MKW_BACKUP_EXPECTED_HOST=%q MKW_BACKUP_EXPECTED_DATABASE=%q MKW_BACKUP_EXPECTED_TARGET_IDENTITY=%q' \
-            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$MKW_OPERATION_ID" "$api_image" "${MKW_RELEASE_RUN_ID:-}" "${MKW_RELEASE_RUN_ATTEMPT:-}" "${MKW_RELEASE_ARTIFACT_ID:-}" "${MKW_RELEASE_ARTIFACT_DIGEST:-}" "${MKW_CONTROL_SHA:-$RELEASE_SHA}" "${MKW_REGISTRY_HOST:-ghcr.io}" "${MKW_REGISTRY_VISIBILITY:-}" "${MKW_REGISTRY_PULL_USERNAME:-}" "${MKW_REGISTRY_PULL_TOKEN_FILE:-}" "${MKW_ATTESTATION_MODE:-not-configured}" "${MKW_ATTESTATION_STATUS:-not-verified}" "${MKW_BACKUP_MAX_AGE_SECONDS:-86400}" "${MKW_BACKUP_EXPECTED_KIND:-BACKUP}" "${MKW_BACKUP_EXPECTED_HOST:-}" "${MKW_BACKUP_EXPECTED_DATABASE:-mkw}" "${MKW_BACKUP_EXPECTED_TARGET_IDENTITY:-}"
+            "$MKW_DEPLOY_PATH" "$MKW_PROJECT_NAME" "$MKW_GATEWAY_PORT" "$RELEASE_SHA" "$MKW_OPERATION_ID" "$api_image" "${MKW_RELEASE_RUN_ID:-}" "${MKW_RELEASE_RUN_ATTEMPT:-}" "${MKW_RELEASE_ARTIFACT_ID:-}" "${MKW_RELEASE_ARTIFACT_DIGEST:-}" "${MKW_CONTROL_SHA}" "${MKW_REGISTRY_HOST:-ghcr.io}" "${MKW_REGISTRY_VISIBILITY:-}" "${MKW_REGISTRY_PULL_USERNAME:-}" "${MKW_REGISTRY_PULL_TOKEN_FILE:-}" "${MKW_ATTESTATION_MODE:-not-configured}" "${MKW_ATTESTATION_STATUS:-not-verified}" "${MKW_BACKUP_MAX_AGE_SECONDS:-86400}" "${MKW_BACKUP_EXPECTED_KIND:-BACKUP}" "${MKW_BACKUP_EXPECTED_HOST:-}" "${MKW_BACKUP_EXPECTED_DATABASE:-mkw}" "${MKW_BACKUP_EXPECTED_TARGET_IDENTITY:-}"
+          remote_dir="${MKW_DEPLOY_PATH}/staging/${MKW_OPERATION_ID}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          upload_dir="$remote_dir-upload"
+          # Directories must be canonical; mkdir without -p reserves this upload attempt.
+          printf -v remote_command 'set -Eeuo pipefail; [[ "$(realpath -e -- %q)" == %q ]] || exit 78; if [[ -e %q || -L %q ]]; then [[ "$(realpath -e -- %q)" == %q ]] || exit 78; else mkdir -m 750 -- %q; fi; mkdir -m 700 -- %q; mkdir -m 700 -- %q' \
+            "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH" "$MKW_DEPLOY_PATH/staging" "$MKW_DEPLOY_PATH/staging" "$MKW_DEPLOY_PATH/staging" "$MKW_DEPLOY_PATH/staging" "$MKW_DEPLOY_PATH/staging" "$upload_dir" "$remote_dir"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
+          scp -q -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "$bundle/deployment-bundle.tar" "deploy@$MKW_SSH_HOST:$upload_dir/deployment-bundle.tar"
+          # Bootstrap comes directly from trusted current controls, never the unverified archive.
+          scp -q -r -i "$RUNNER_TEMP/mkw_key" -P "$MKW_SSH_PORT" -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "$bundle/controls" "deploy@$MKW_SSH_HOST:$upload_dir/bootstrap"
+          # Host Node is optional: use the same validated immutable API runtime
+          # for the trusted extractor's inventory checks, with read-only inputs.
+          extractor='set -Eeuo pipefail; bootstrap=$1; archive=$2; stage=$3; api=$4; export bootstrap stage api; if ! command -v node >/dev/null 2>&1; then bash "$bootstrap/scripts/product/release/pull-exact-images.sh" "$api" || exit 77; run_node(){ docker run --rm -i --pull=never --user "$(id -u):$(id -g)" -v "$bootstrap:$bootstrap:ro" -v "$stage:$stage:ro" --entrypoint node "$api" "$@"; }; export -f run_node; fi; bash "$bootstrap/scripts/product/release/extract-release-bundle.sh" "$archive" "$stage"'
+          printf -v remote_command '%s bash -c %q -- %q %q %q %q' "$remote_env" "$extractor" "$upload_dir/bootstrap" "$upload_dir/deployment-bundle.tar" "$remote_dir" "$api_image"
+          ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command"
           # deploy-entrypoint.sh enforces the forward migration gate (pnpm db:deploy / migrate deploy) before compose up and traffic smoke checks.
-          printf -v remote_command '%s bash %q --release --manifest %q --compose %q --backup-ready %q' "$remote_env" "$remote_dir/scripts/product/deploy-entrypoint.sh" "$remote_dir/release-artifact/release-manifest.json" "$remote_dir/deploy/compose.production.yml" "$MKW_DEPLOY_PATH/shared/backup-ready.json"
+          printf -v remote_command '%s MKW_CONTROL_ROOT=%q bash %q --release --staging %q --manifest %q --compose %q --backup-ready %q' "$remote_env" "$upload_dir/bootstrap" "$upload_dir/bootstrap/scripts/product/deploy-entrypoint.sh" "$remote_dir" "$remote_dir/release/release-manifest.json" "$remote_dir/release/deploy/compose.production.yml" "$remote_dir/operation/backup-ready.json"
           remote_command="MKW_AUTOMATIC_RELEASE=$(printf '%q' "$MKW_AUTOMATIC_RELEASE") MKW_SIMPLE_RELEASE=$(printf '%q' "${MKW_SIMPLE_RELEASE:-false}") $remote_command"
           remote_command="MKW_BACKUP_PROVENANCE=$(printf '%q' "${MKW_BACKUP_PROVENANCE:-}") $remote_command"
           ssh -i "$RUNNER_TEMP/mkw_key" -p "$MKW_SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile="$RUNNER_TEMP/mkw_pinned_hosts" "deploy@$MKW_SSH_HOST" "$remote_command" | tee "$RUNNER_TEMP/mkw-deploy-output"

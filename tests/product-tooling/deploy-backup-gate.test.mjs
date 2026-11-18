@@ -6,6 +6,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
+// File map: stepScript/bash/fixture cover normal deploy gates and transport;
+// rollbackStep covers current controls and snapshot policy. canonicalRollbackFixture
+// runs actual GitHub adapter/archive/resolver plus workflow blocks at the end.
+import { canonicalRollbackFixture } from "./fixtures/rollback-workflow.mjs";
+import { resolveRollbackBackup } from "../../scripts/product/release/resolve-rollback-backup.mjs";
 
 const ROOT = join(import.meta.dirname, "../..");
 const shellPath = (path) =>
@@ -54,6 +59,51 @@ function backup(overrides = {}) {
     },
     ...overrides,
   };
+}
+async function canonicalBackup(dir, value) {
+  value.backupId = "mkw-10-2-release";
+  await writeFile(
+    join(dir, "backup-ready/backup-ready.json"),
+    JSON.stringify(value),
+  );
+  const result = await resolveRollbackBackup(
+    {
+      repository: "org/repo",
+      dispatchRef: "refs/heads/main",
+      runId: "10",
+      artifactId: "101",
+      target: {
+        host: "fixture-db",
+        database: "mkw",
+        targetIdentity: "fixture-db//home/deploy/mkw/mkw",
+      },
+      now: NOW,
+      maxAgeSeconds: 86400,
+    },
+    {
+      artifact: async () => ({
+        id: 101,
+        name: "mkw-backup-10-2",
+        workflow_run: { id: 10 },
+        expired: false,
+        digest: `sha256:${"d".repeat(64)}`,
+      }),
+      run: async () => ({
+        id: 10,
+        run_attempt: 2,
+        path: ".github/workflows/backup.yml",
+        event: "workflow_dispatch",
+        head_branch: "main",
+        status: "completed",
+        conclusion: "success",
+      }),
+      jsonFromArtifact: async () => value,
+    },
+  );
+  await writeFile(
+    join(dir, "backup-ready/rollback-backup-resolved.json"),
+    JSON.stringify(result),
+  );
 }
 const rejectedBackups = [
   ...[undefined, "fixture-db//home/deploy/other/other"].map(
@@ -110,7 +160,7 @@ function stepScript(name) {
 }
 function bash(cwd, script, env = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(BASH, ["--noprofile", "--norc", "-c", script], {
+    const child = spawn(BASH, ["--noprofile", "--norc", "-s"], {
       cwd,
       env: {
         ...process.env,
@@ -132,7 +182,11 @@ function bash(cwd, script, env = {}) {
         TARGET_IDENTITY: "fixture-db//home/deploy/mkw/mkw",
         MKW_DEPLOY_PATH: "/home/deploy/mkw",
         MKW_PROJECT_NAME: "mkw",
+        MKW_OPERATION_ID: "backup-gate-fixture-1",
         GITHUB_REPOSITORY: manifest.sourceRepository,
+        GITHUB_RUN_ID: "30",
+        GITHUB_RUN_ATTEMPT: "1",
+        MKW_CONTROL_SHA: "c".repeat(40),
         ...env,
       },
     });
@@ -146,6 +200,7 @@ function bash(cwd, script, env = {}) {
     });
     child.on("error", reject);
     child.on("close", (code) => resolve({ code, stdout, stderr }));
+    child.stdin.end(script);
   });
 }
 async function fixture(t) {
@@ -158,6 +213,30 @@ async function fixture(t) {
   await writeFile(
     join(dir, "release-artifact/release-manifest.sha256"),
     `${createHash("sha256").update(text).digest("hex")}  release-manifest.json\n`,
+  );
+  await writeFile(
+    join(dir, "release-artifact/build-metadata.json"),
+    JSON.stringify({
+      sourceSha: SHA,
+      producerRunId: "10",
+      producerRunAttempt: "1",
+    }),
+  );
+  const checks = [];
+  for (const name of [
+    "release-manifest.json",
+    "release-manifest.sha256",
+    "build-metadata.json",
+  ]) {
+    checks.push(
+      `${createHash("sha256")
+        .update(await readFile(join(dir, "release-artifact", name)))
+        .digest("hex")}  ${name}\n`,
+    );
+  }
+  await writeFile(
+    join(dir, "release-artifact/release-checksums.sha256"),
+    checks.join(""),
   );
   return dir;
 }
@@ -179,12 +258,12 @@ async function copyTooling(dir) {
     ).replaceAll("\r\n", "\n"),
   );
   await cp(
-    join(ROOT, "scripts/product/manage-production-account.sh"),
-    join(dir, "scripts/product/manage-production-account.sh"),
+    join(ROOT, "scripts/product/post-deploy-verify.sh"),
+    join(dir, "scripts/product/post-deploy-verify.sh"),
   );
   await cp(
-    join(ROOT, "scripts/product/manage-production-account.mjs"),
-    join(dir, "scripts/product/manage-production-account.mjs"),
+    join(ROOT, "scripts/product/manage-production-account.sh"),
+    join(dir, "scripts/product/manage-production-account.sh"),
   );
 }
 
@@ -341,15 +420,37 @@ test("safe paths preserve remote command arguments, trusted tooling and backup p
     join(dir, "backup-ready/backup-ready.json"),
     JSON.stringify(backup()),
   );
+  // Keep this argument-capture fixture offline. Runtime integrity/execution is
+  // exercised with real checksums and Node in bootstrap-runtime.test.mjs.
+  const runtime = join(dir, "runtime-source");
+  await mkdir(join(runtime, "node-v24.22.1-linux-x64/bin"), {
+    recursive: true,
+  });
+  await writeFile(join(runtime, "node-v24.22.1-linux-x64/bin/node"), "fixture");
+  const packed = await bash(
+    dir,
+    'tar -cJf "$FIXTURE_BOOTSTRAP_DOWNLOAD/node-v24.22.1-linux-x64.tar.xz" -C "$FIXTURE_BOOTSTRAP_DOWNLOAD" node-v24.22.1-linux-x64',
+    { FIXTURE_BOOTSTRAP_DOWNLOAD: shellPath(runtime) },
+  );
+  assert.equal(packed.code, 0, packed.stderr);
+  await writeFile(
+    join(runtime, "SHASUMS256.txt"),
+    `${createHash("sha256")
+      .update(await readFile(join(runtime, "node-v24.22.1-linux-x64.tar.xz")))
+      .digest("hex")}  node-v24.22.1-linux-x64.tar.xz\n`,
+  );
   const captureTransport =
     transport +
     `
 ssh() {
   local command_text="\${!#}"
+  if [[ "$command_text" == 'uname -m' ]]; then echo x86_64;return;fi
+  if [[ "$command_text" == 'set -Eeuo pipefail;'* && "$command_text" != *' --bootstrap' ]]; then printf 'REMOTE_STAGE [%s]\\n' "$command_text";return;fi
   (
     mkdir() { printf 'REMOTE_MKDIR'; printf ' [%s]' "$@"; echo; }
     tar() { printf 'REMOTE_TAR'; printf ' [%s]' "$@"; echo; }
     cd() { builtin cd "$GITHUB_WORKSPACE/backup-ready"; }
+    sha256sum() { :; }
     install() { printf 'REMOTE_INSTALL'; printf ' [%s]' "$@"; echo; }
     rm() { printf 'REMOTE_REMOVE'; printf ' [%s]' "$@"; echo; }
     bash() {
@@ -360,6 +461,14 @@ ssh() {
   )
 }
 scp() { echo SCP_TRANSFER_REACHED; }
+curl() {
+  local url out
+  while (($#)); do case "$1" in --output) shift;out=$1 ;; https:*) url=$1 ;; esac;shift;done
+  case "$url" in
+    https://nodejs.org/dist/v24.22.1/SHASUMS256.txt|https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-x64.tar.xz) cp -- "$FIXTURE_BOOTSTRAP_DOWNLOAD/\${url##*/}" "$out" ;;
+    *) return 99 ;;
+  esac
+}
 `;
   for (const mode of ["dry-run", "bootstrap", "release"]) {
     const result = await bash(
@@ -378,6 +487,7 @@ scp() { echo SCP_TRANSFER_REACHED; }
 
         GITHUB_WORKSPACE: shellPath(dir),
         RUNNER_TEMP: shellPath(dir),
+        FIXTURE_BOOTSTRAP_DOWNLOAD: shellPath(runtime),
         MKW_SSH_HOST: "fixture.invalid",
         MKW_SSH_PORT: "22",
         MKW_SSH_HOST_FINGERPRINT: "fixture-fingerprint",
@@ -394,25 +504,21 @@ scp() { echo SCP_TRANSFER_REACHED; }
     );
     if (mode === "release") {
       assert.ok(
-        result.stdout.includes(
-          `REMOTE_MKDIR [-p] [--] [/home/deploy/mkw-test_1.2/releases/${SHA}]`,
-        ),
+        result.stdout.includes(`/staging/backup-gate-fixture-1-`),
         result.stdout,
       );
       assert.ok(
         result.stdout.includes(`REMOTE_POLICY [] [86400] [${SHA}]`),
         result.stdout,
       );
-      assert.ok(
-        result.stdout.includes(
-          `REMOTE_BASH [/home/deploy/mkw-test_1.2/releases/${SHA}/scripts/product/deploy-entrypoint.sh] [--release] [--manifest] [/home/deploy/mkw-test_1.2/releases/${SHA}/release-artifact/release-manifest.json]`,
-        ),
+      assert.ok(result.stdout.includes(`[--staging]`), result.stdout);
+      assert.doesNotMatch(
         result.stdout,
+        /REMOTE_INSTALL|REMOTE_TAR|\/releases\//,
       );
-      assert.match(result.stdout, /REMOTE_INSTALL \[-m\] \[640\]/);
       const archive = await bash(
         dir,
-        'tar -tzf "$RUNNER_TEMP/mkw-release.tgz"',
+        'tar -tf "$RUNNER_TEMP/mkw-release-bundle/deployment-bundle.tar"',
         { RUNNER_TEMP: shellPath(dir) },
       );
       assert.equal(archive.code, 0, archive.stderr);
@@ -420,11 +526,12 @@ scp() { echo SCP_TRANSFER_REACHED; }
         archive.stdout,
         /scripts\/product\/release\/validate-backup-ready\.mjs/,
       );
-    } else
+    } else if (mode === "dry-run")
       assert.ok(
         result.stdout.includes(`REMOTE_BASH [-s] [--] [--${mode}]`),
         result.stdout,
       );
+    else assert.match(result.stdout, /\[--bootstrap\]/);
   }
 });
 
@@ -572,6 +679,58 @@ test("remote gate fails closed for missing or malformed explicit freshness polic
 const rollbackWorkflow = (
   await readFile(join(ROOT, ".github/workflows/rollback.yml"), "utf8")
 ).replaceAll("\r\n", "\n");
+test("manual verifier requires the deployment operation ID before SSH", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(join(dir, "policy"));
+  const yaml = (
+    await readFile(
+      join(ROOT, ".github/workflows/post-deploy-verify.yml"),
+      "utf8",
+    )
+  ).replaceAll("\r\n", "\n");
+  const section = yaml.split(
+    "      - name: Verify running image digests, migration status, health, and smoke\n",
+  )[1];
+  const script = section
+    .split("        run: |\n")[1]
+    .split(/\n {6}- /)[0]
+    .replace(/^ {10}/gm, "");
+  const result = await bash(dir, transport + script, {
+    RELEASE_SHA: SHA,
+    MKW_OPERATION_ID: "",
+    RUNNER_TEMP: shellPath(dir),
+  });
+  assert.equal(result.code, 64, result.stdout + result.stderr);
+  assert.doesNotMatch(result.stdout, /KEYSCAN_REACHED|SSH_MUTATION_REACHED/);
+});
+test("operation admission rejects hostile IDs before any SSH/key handling", async (t) => {
+  const dir = await fixture(t);
+  await copyTooling(join(dir, "policy"));
+  await copyTooling(dir);
+  for (const id of [".", "..", "bad/id", "$(touch payload)", "a\nb"]) {
+    for (const script of [
+      stepScript("Run remote deploy entrypoint with verified artifact"),
+      rollbackStep(),
+    ]) {
+      const result = await bash(dir, transport + script, {
+        MODE: "release",
+        RELEASE_SHA: SHA,
+        OLD_RELEASE_SHA: SHA,
+        MKW_OPERATION_ID: id,
+        MKW_SSH_PORT: "22",
+        MKW_GATEWAY_PORT: "3200",
+        MKW_SSH_HOST_FINGERPRINT: "fixture",
+        MKW_BACKUP_MAX_AGE_SECONDS: "86400",
+        RUNNER_TEMP: shellPath(dir),
+      });
+      assert.equal(result.code, 78, result.stdout + result.stderr);
+      assert.doesNotMatch(
+        result.stdout,
+        /KEYSCAN_REACHED|SSH_MUTATION_REACHED/,
+      );
+    }
+  }
+});
 function rollbackStep(
   name = "Redeploy exact old digests through deploy-entrypoint.sh",
 ) {
@@ -581,6 +740,240 @@ function rollbackStep(
     .split(/\n {6}- /)[0]
     .replace(/^ {10}/gm, "");
 }
+
+// Recompute every self-owned integrity record: these must never substitute for
+// the resolver's separately trusted canonical release record.
+const refreshRollbackArtifact = `
+node --input-type=module <<'NODE'
+import {readFile,writeFile,readdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {writeBundleInventory} from './scripts/product/release/release-bundle.mjs';
+const root='old-release-artifact', hash=b=>createHash('sha256').update(b).digest('hex');
+await writeFile(root+'/release-manifest.sha256',hash(await readFile(root+'/release-manifest.json'))+'  release-manifest.json\\n');
+const paths=[];async function walk(p=''){for(const n of await readdir(root+(p?'/'+p:''))){const f=p?p+'/'+n:n;if(['release-checksums.sha256','bundle-inventory.json'].includes(f))continue;const {stat}=await import('node:fs/promises');if((await stat(root+'/'+f)).isDirectory())await walk(f);else paths.push(f);}}await walk();
+await writeFile(root+'/release-checksums.sha256',(await Promise.all(paths.sort().map(async p=>hash(await readFile(root+'/'+p))+'  '+p+'\\n'))).join(''));
+if(process.env.MODERN_ARTIFACT==='1')await writeBundleInventory(root);
+NODE
+`;
+
+for (const modern of [false, true]) {
+  for (const [label, mutation] of [
+    ["valid", ""],
+    [
+      "api image",
+      "m.apiImage='ghcr.io/org/substituted@sha256:'+'f'.repeat(64)",
+    ],
+    ["manifest metadata", "m.createdAt='2026-01-01T00:00:00Z'"],
+    ["build metadata", "b.sourceSha='f'.repeat(40)"],
+    ["metadata producer", "b.producerRunAttempt='2'"],
+    ["run tuple", "export MKW_RELEASE_RUN_ID=21"],
+    ["attempt tuple", "export MKW_RELEASE_RUN_ATTEMPT=2"],
+    ["artifact tuple", "export MKW_RELEASE_ARTIFACT_ID=202"],
+    [
+      "digest tuple",
+      `export MKW_RELEASE_ARTIFACT_DIGEST=sha256:${"e".repeat(64)}`,
+    ],
+  ]) {
+    test(`rollback canonical binding rejects recalculated ${label} (${modern ? "modern" : "legacy"})`, async (t) => {
+      const f = await canonicalRollbackFixture(t, ROOT);
+      f.env.MODERN_ARTIFACT = modern ? "1" : "0";
+      if (modern) {
+        await cp(
+          join(f.dir, "release-source/deploy"),
+          join(f.dir, "old-release-artifact/deploy"),
+          { recursive: true },
+        );
+        await mkdir(join(f.dir, "old-release-artifact/scripts/product"), {
+          recursive: true,
+        });
+        await mkdir(join(f.dir, "release-source/scripts/product"), {
+          recursive: true,
+        });
+        for (const base of ["old-release-artifact", "release-source"])
+          await writeFile(
+            join(f.dir, base, "scripts/product/manage-production-account.sh"),
+            "# exact old operator\n",
+          );
+        for (const name of ["api-attestations.json", "web-attestations.json"])
+          await writeFile(join(f.dir, "old-release-artifact", name), "{}");
+      }
+      const mutate = mutation.startsWith("export ")
+        ? `${mutation}\n`
+        : `node -e "const fs=require('fs');let m=JSON.parse(fs.readFileSync('old-release-artifact/release-manifest.json')),b=JSON.parse(fs.readFileSync('old-release-artifact/build-metadata.json'));${mutation};fs.writeFileSync('old-release-artifact/release-manifest.json',JSON.stringify(m));fs.writeFileSync('old-release-artifact/build-metadata.json',JSON.stringify(b))"\n`;
+      const result = await bash(
+        f.dir,
+        f.prelude +
+          `\nchmod(){ if [[ "$*" == *mkw_key* ]]; then echo KEYWRITE >> "$RUNNER_TEMP/transport.log"; fi; }\ndocker(){ echo MIGRATION_APPLY >> "$RUNNER_TEMP/transport.log"; return 91; }\n` +
+          refreshRollbackArtifact +
+          rollbackStep("Resolve canonical rollback snapshot") +
+          "\n" +
+          rollbackStep("Verify old manifest and backup-ready gate") +
+          "\n" +
+          mutate +
+          refreshRollbackArtifact +
+          rollbackStep(),
+        f.env,
+      );
+      assert.equal(
+        result.code,
+        label === "valid" ? 0 : 78,
+        `${label}: ${result.stdout}\n${result.stderr}`,
+      );
+      const counters = await readFile(
+        join(f.temp, "transport.log"),
+        "utf8",
+      ).catch(() => "");
+      if (label !== "valid") {
+        assert.equal(
+          counters,
+          "",
+          "zero keyscan/keywrite/SSH/SCP/migration/apply",
+        );
+        assert.equal(
+          await readFile(join(f.temp, "mkw_key")).catch(() => null),
+          null,
+        );
+      } else {
+        assert.match(counters, /KEYWRITE/);
+        const archive = await bash(
+          f.dir,
+          'tar -xOf "$RUNNER_TEMP/mkw-rollback-bundle/deployment-bundle.tar" release/release-manifest.json',
+          f.env,
+        );
+        assert.equal(archive.code, 0, archive.stderr);
+        const canonical = JSON.parse(
+          await readFile(
+            join(f.temp, "rollback-release-resolved.json"),
+            "utf8",
+          ),
+        );
+        assert.deepEqual(JSON.parse(archive.stdout), canonical.manifest);
+        const metadata = await bash(
+          f.dir,
+          'tar -xOf "$RUNNER_TEMP/mkw-rollback-bundle/deployment-bundle.tar" release/build-metadata.json',
+          f.env,
+        );
+        assert.equal(metadata.code, 0, metadata.stderr);
+        assert.deepEqual(JSON.parse(metadata.stdout), canonical.metadata);
+      }
+    });
+  }
+}
+
+test("rollback transport keeps canonical image after downloaded source changes following packing", async (t) => {
+  const f = await canonicalRollbackFixture(t, ROOT);
+  const afterPack = `
+node(){
+  command node "$@"; local status=$?
+  if [[ "$1" == scripts/product/release/release-bundle.mjs && "$2" == pack ]]; then
+    command node -e "const fs=require('fs'),p='old-release-artifact/release-manifest.json',m=JSON.parse(fs.readFileSync(p));m.apiImage='ghcr.io/org/substituted@sha256:'+'f'.repeat(64);m.postgresImage='postgres@sha256:'+'e'.repeat(64);fs.writeFileSync(p,JSON.stringify(m))"
+  fi
+  return "$status"
+}
+`;
+  const result = await bash(
+    f.dir,
+    f.prelude +
+      afterPack +
+      rollbackStep("Resolve canonical rollback snapshot") +
+      "\n" +
+      rollbackStep("Verify old manifest and backup-ready gate") +
+      "\n" +
+      rollbackStep(),
+    f.env,
+  );
+  assert.equal(result.code, 0, result.stdout + result.stderr);
+  const counters = await readFile(join(f.temp, "transport.log"), "utf8");
+  assert.match(counters, /KEYSCAN/);
+  assert.ok(counters.includes(`ghcr.io/org/api@sha256:${"1".repeat(64)}`));
+  assert.ok(counters.includes(`postgres@sha256:${"3".repeat(64)}`));
+  assert.doesNotMatch(counters, /substituted/);
+});
+
+test("canonical rollback workflow executes real resolver/archive/gate/transport and rejects substitutions before SSH", async (t) => {
+  for (const variant of [
+    "happy",
+    "workflow",
+    "producer",
+    "attempt",
+    "backupId",
+    "digest",
+    "archive",
+    "metadata",
+    "transport-tamper",
+    "old-transport-tamper",
+    "stale",
+    "future",
+    "target",
+    "empty",
+    "required-attestation",
+  ]) {
+    const f = await canonicalRollbackFixture(t, ROOT, variant);
+    const tamper =
+      variant === "old-transport-tamper"
+        ? "node -e \"const fs=require('fs');const p='old-release-artifact/build-metadata.json';const b=JSON.parse(fs.readFileSync(p));b.sourceSha='f'.repeat(40);fs.writeFileSync(p,JSON.stringify(b))\"\n"
+        : variant === "transport-tamper"
+          ? "node -e \"const fs=require('fs');const p='backup-ready/backup-ready.json';const b=JSON.parse(fs.readFileSync(p));b.size++;fs.writeFileSync(p,JSON.stringify(b))\"\n"
+          : "";
+    const result = await bash(
+      f.dir,
+      f.prelude +
+        rollbackStep("Resolve canonical rollback snapshot") +
+        "\n" +
+        rollbackStep("Verify old manifest and backup-ready gate") +
+        "\n" +
+        tamper +
+        rollbackStep(),
+      f.env,
+    );
+    assert.equal(
+      result.code,
+      variant === "happy" ? 0 : 78,
+      `${variant}: ${result.stdout}\n${result.stderr}`,
+    );
+    const counters = await readFile(
+      join(f.temp, "transport.log"),
+      "utf8",
+    ).catch(() => "");
+    if (variant === "happy") {
+      assert.match(counters, /KEYSCAN/);
+      assert.match(counters, /SCP/);
+      assert.match(counters, /staging\/rollback-fixture-/);
+      assert.doesNotMatch(
+        counters,
+        /\/releases\/|shared\/backup-ready|tar -x|install -m 640/,
+      );
+      const resolved = JSON.parse(
+        await readFile(join(f.temp, "rollback-backup-resolved.json"), "utf8"),
+      );
+      assert.equal(resolved.snapshotSha, "b".repeat(40));
+      assert.equal(resolved.runAttempt, "2");
+      assert.equal(resolved.artifactId, "101");
+      const bytes = await readFile(
+        join(
+          f.temp,
+          "mkw-rollback-bundle/release/deploy/compose.production.yml",
+        ),
+        "utf8",
+      );
+      assert.match(bytes, /# OLD_RELEASE_COMPOSE_DATA/);
+      const controls = await readFile(
+        join(
+          f.temp,
+          "mkw-rollback-bundle/controls/scripts/product/release/validate-backup-ready.mjs",
+        ),
+        "utf8",
+      );
+      assert.doesNotMatch(controls, /OLD_VALIDATOR_BYPASS/);
+    } else {
+      assert.equal(counters, "");
+      assert.equal(
+        await readFile(join(f.temp, "mkw_key")).catch(() => null),
+        null,
+      );
+    }
+  }
+});
 test("rollback rejects hostile paths before any SSH or secret handling", async (t) => {
   const dir = await fixture(t);
   await copyTooling(dir);
@@ -612,6 +1005,7 @@ test("rollback rejects hostile paths before any SSH or secret handling", async (
 test("rollback accepts fresh current-state backup with another release SHA and rejects empty/stale snapshots", async (t) => {
   const dir = await fixture(t);
   await copyTooling(dir);
+  await canonicalBackup(dir, backup({ releaseSha: "b".repeat(40) }));
   for (const [overrides, accepted] of [
     [{ releaseSha: "b".repeat(40) }, true],
     [{ releaseSha: "b".repeat(40), createdAt: "2026-11-07T10:00:00Z" }, false],
@@ -633,7 +1027,7 @@ test("rollback accepts fresh current-state backup with another release SHA and r
   ]) {
     await writeFile(
       join(dir, "backup-ready/backup-ready.json"),
-      JSON.stringify(backup(overrides)),
+      JSON.stringify(backup({ ...overrides, backupId: "mkw-10-2-release" })),
     );
     const result = await bash(dir, entryPrelude, {
       MKW_DEPLOY_PATH: "/home/deploy/mkw",
@@ -674,20 +1068,20 @@ test("remote clock refresh rejects a backup that ages out after runner validatio
 });
 
 test("rollback transports explicit current-snapshot policy and safely quoted current controls", async (t) => {
-  const dir = await fixture(t);
-  await copyTooling(dir);
-  await writeFile(
-    join(dir, "backup-ready/backup-ready.json"),
-    JSON.stringify(backup({ releaseSha: "b".repeat(40) })),
+  const f = await canonicalRollbackFixture(t, ROOT);
+  const dir = f.dir;
+  const resolved = await bash(
+    dir,
+    rollbackStep("Resolve canonical rollback snapshot"),
+    f.env,
   );
-  await cp(join(dir, "release-artifact"), join(dir, "old-release-artifact"), {
-    recursive: true,
-  });
+  assert.equal(resolved.code, 0, resolved.stderr);
   const capture =
     transport +
     `
 ssh() {
   local command_text="\${!#}"
+  if [[ "$command_text" == 'set -Eeuo pipefail;'* ]];then return 0;fi
   (
     mkdir() { :; }; tar() { :; }; rm() { :; }; cd() { :; }; sha256sum() { :; }
     test() { :; }
@@ -702,7 +1096,7 @@ ssh() {
 scp() { :; }
 `;
   const result = await bash(dir, capture + rollbackStep(), {
-    OLD_RELEASE_SHA: SHA,
+    ...f.env,
     MKW_DEPLOY_PATH: "/home/deploy/mkw-test_1.2",
     MKW_PROJECT_NAME: "mkw",
     MKW_GATEWAY_PORT: "3200",
@@ -710,7 +1104,6 @@ scp() { :; }
     MKW_SSH_PORT: "22",
     MKW_SSH_HOST_FINGERPRINT: "fixture-fingerprint",
     MKW_SSH_PRIVATE_KEY: "fixture'key\n$(echo SECRET_MUST_STAY_LITERAL)",
-    RUNNER_TEMP: shellPath(dir),
     MKW_BACKUP_MAX_AGE_SECONDS: "86400",
     MKW_BACKUP_EXPECTED_KIND: "BACKUP",
     MKW_ATTESTATION_MODE: "off",
@@ -728,7 +1121,7 @@ scp() { :; }
   );
   assert.ok(
     result.stdout.includes(
-      `[/home/deploy/mkw-test_1.2/releases/${SHA}/scripts/product/deploy-entrypoint.sh]`,
+      `/staging/rollback-fixture-30-1-upload/bootstrap/scripts/product/deploy-entrypoint.sh`,
     ),
     result.stdout,
   );
@@ -739,11 +1132,6 @@ scp() { :; }
 });
 
 test("actual rollback preflight accepts current snapshot provenance and fails closed for stale, empty or unattested metadata", async (t) => {
-  const dir = await fixture(t);
-  await copyTooling(dir);
-  await cp(join(dir, "release-artifact"), join(dir, "old-release-artifact"), {
-    recursive: true,
-  });
   for (const [overrides, attestationMode, accepted] of [
     [{ releaseSha: "b".repeat(40) }, "off", true],
     [
@@ -765,16 +1153,24 @@ test("actual rollback preflight accepts current snapshot provenance and fails cl
     [{ kind: "INITIAL_EMPTY_DEPLOYMENT" }, "off", false],
     [{ releaseSha: "b".repeat(40) }, "required", false],
   ]) {
+    const f = await canonicalRollbackFixture(t, ROOT);
+    const dir = f.dir;
+    const resolve = await bash(
+      dir,
+      rollbackStep("Resolve canonical rollback snapshot"),
+      f.env,
+    );
+    assert.equal(resolve.code, 0, resolve.stderr);
     await writeFile(
       join(dir, "backup-ready/backup-ready.json"),
-      JSON.stringify(backup(overrides)),
+      JSON.stringify({ ...f.readiness, ...overrides }),
     );
     const result = await bash(
       dir,
       `date() { echo ${NOW}; }\ngh() { return 1; }\n` +
         rollbackStep("Verify old manifest and backup-ready gate"),
       {
-        OLD_RELEASE_SHA: SHA,
+        ...f.env,
         MKW_SSH_HOST: "fixture-db",
         ROLLBACK_REASON: "incident-approved-current-schema",
         ATTESTATION_MODE: attestationMode,

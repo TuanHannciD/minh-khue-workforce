@@ -56,5 +56,8 @@ test("simple remote release never writes current-state or LKG files", async () =
   assert.match(verifier, /MKW_SIMPLE_RELEASE/);
   assert.match(verifier, /migrate status/);
   assert.doesNotMatch(verifier, /\/state\/current-state\.json/);
-  assert.match(verifier, /latest\.operationId.*process\.argv\[3\]/);
+  assert.match(verifier, /readOperationReceipt/);
+  assert.match(verifier, /resolveOperationDirectory\(deploy, operationId\)/);
+  assert.match(verifier, /pointer\.operationId !== operationId/);
+  assert.doesNotMatch(verifier, /receipts\.at\(-1\)|latest\.operationId/);
 });

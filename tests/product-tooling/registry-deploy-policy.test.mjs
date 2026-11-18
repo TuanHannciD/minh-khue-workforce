@@ -88,7 +88,7 @@ if [[ "$1 $2 $3" == "image inspect --format" ]]; then
 fi
 if [[ "$1" == compose ]]; then
   case "$6" in
-    config) printf 'services:\\n  db:\\n    image: %s\\n  api:\\n    image: %s\\n  gateway:\\n    image: %s\\n' "$MKW_POSTGRES_IMAGE" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" ;;
+    config) printf '{"services":{"db":{"image":"%s"},"api":{"image":"%s"},"gateway":{"image":"%s"}}}\\n' "$MKW_POSTGRES_IMAGE" "$MKW_API_IMAGE" "$MKW_WEB_IMAGE" ;;
     up|run) [[ "\${FAIL_MUTATION:-false}" != true ]] || exit 97 ;;
     ps) ;;
     *) exit 95 ;;
@@ -220,7 +220,10 @@ test("rollback remote environment authenticates private GHCR with a non-default 
   ).replaceAll("\r\n", "\n");
   const handoff = rollback.slice(
     rollback.indexOf("          printf -v remote_env "),
-    rollback.indexOf("          printf -v remote_command '%s bash %q"),
+    rollback.indexOf(
+      "          remote_dir=",
+      rollback.indexOf("          printf -v remote_env "),
+    ),
   );
   assert.ok(handoff, "missing rollback remote environment builder");
   const result = await run(

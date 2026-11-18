@@ -1,23 +1,56 @@
+import { parseJsonStrict, validateManifest } from "./validate-manifest.mjs";
+
 const digest = /^[^@\s]+@sha256:[a-f0-9]{64}$/i;
-export function verifyRelease({ manifest, expectedSha, composeText }) {
-  const errors = [];
-  if (!manifest || typeof manifest !== "object")
-    errors.push("manifest is required");
+const serviceImages = {
+  api: "apiImage",
+  gateway: "webImage",
+  db: "postgresImage",
+};
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export function parseResolvedCompose(jsonText) {
+  if (typeof jsonText !== "string")
+    throw new Error("resolved compose JSON must be a string");
+  return parseJsonStrict(jsonText);
+}
+
+export function verifyResolvedRelease({
+  manifest,
+  expectedSha,
+  composeConfig,
+}) {
+  const { errors } = validateManifest(manifest);
   if (typeof expectedSha !== "string" || manifest?.releaseSha !== expectedSha)
     errors.push("release SHA does not match expected SHA");
-  for (const field of ["apiImage", "webImage", "postgresImage"]) {
-    if (!digest.test(manifest?.[field] ?? ""))
-      errors.push(`${field} is not an immutable digest reference`);
-    else if (
-      typeof composeText !== "string" ||
-      !composeText.includes(manifest[field])
-    )
-      errors.push(`${field} digest is absent from compose text`);
+  if (!isObject(composeConfig) || !isObject(composeConfig.services)) {
+    errors.push("resolved compose services must be an object");
+    return { ok: false, errors };
   }
-  if (
-    typeof composeText === "string" &&
-    /(?:^|\s)image\s*:\s*[^\s@]+(?::[^\s]+)?(?:\s|$)/im.test(composeText)
-  )
-    errors.push("compose contains mutable image reference");
+  const { services } = composeConfig;
+  for (const name of Object.keys(services))
+    if (!Object.hasOwn(serviceImages, name))
+      errors.push(`resolved compose service ${name} is unexpected`);
+  for (const [name, field] of Object.entries(serviceImages)) {
+    if (!Object.hasOwn(services, name)) {
+      errors.push(`resolved compose service ${name} is required`);
+      continue;
+    }
+    const service = services[name];
+    if (!isObject(service)) {
+      errors.push(`resolved compose service ${name} must be an object`);
+      continue;
+    }
+    if (typeof service.image !== "string" || !digest.test(service.image))
+      errors.push(
+        `resolved compose service ${name} requires an immutable digest reference`,
+      );
+    else if (service.image !== manifest?.[field])
+      errors.push(
+        `resolved compose service ${name} image does not match ${field}`,
+      );
+  }
   return { ok: errors.length === 0, errors };
 }

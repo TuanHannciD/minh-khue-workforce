@@ -240,7 +240,6 @@ jobs:
           NODE
           node scripts/product/release/validate-manifest.mjs release-manifest.json
           sha256sum release-manifest.json > release-manifest.sha256
-          sha256sum release-manifest.json api-attestations.json web-attestations.json > release-checksums.sha256
 
       - name: Attest release manifest provenance
         if: vars.MKW_ATTESTATION_MODE == 'best-effort' || vars.MKW_ATTESTATION_MODE == 'required'
@@ -250,6 +249,21 @@ jobs:
           subject-path: release-manifest.json
           show-summary: false
 
+      - name: Package inventoried release artifact
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p release-artifact/deploy release-artifact/scripts/product
+          cp release-manifest.json release-manifest.sha256 build-metadata.json api-attestations.json web-attestations.json release-artifact/
+          cp deploy/compose.production.yml release-artifact/deploy/
+          cp scripts/product/manage-production-account.sh release-artifact/scripts/product/
+          (
+            cd release-artifact
+            sha256sum release-manifest.json release-manifest.sha256 build-metadata.json api-attestations.json web-attestations.json deploy/compose.production.yml scripts/product/manage-production-account.sh > release-checksums.sha256
+          )
+          node scripts/product/release/release-bundle.mjs inventory release-artifact
+          node scripts/product/release/release-bundle.mjs verify release-artifact
+
       - name: Upload immutable release artifact
         id: upload-release
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -257,10 +271,4 @@ jobs:
           name: mkw-release-${{ github.sha }}
           if-no-files-found: error
           retention-days: 30
-          path: |
-            release-manifest.json
-            release-manifest.sha256
-            release-checksums.sha256
-            api-attestations.json
-            web-attestations.json
-            build-metadata.json
+          path: release-artifact/

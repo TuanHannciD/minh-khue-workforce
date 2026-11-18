@@ -8,6 +8,7 @@ import {
   decideOrchestrationOutcome,
   validateBackupReadyFreshness,
 } from "./orchestration-policy.mjs";
+import { validateOperationId } from "./operation-id.mjs";
 
 export const CANONICAL_REF = "main";
 export function validateCoordinatorParent(run, parentId, correlation) {
@@ -87,6 +88,7 @@ export async function coordinateRelease(input, api) {
     throw new Error("invalid backup age policy");
   if (!target.host || !target.database || !target.identity)
     throw new Error("trusted production target configuration is required");
+  const operationId = validateOperationId(`${correlationId}-${sha}`);
 
   const outcome = (status, extra = {}) => ({
     status,
@@ -343,6 +345,7 @@ export async function coordinateRelease(input, api) {
   if (!gate.ok) throw new Error(gate.errors.join("; "));
 
   const deploy = await dispatchAndWait("deploy.yml", {
+    operation_id: operationId,
     mode,
     release_sha: sha,
     release_run_id: release.runId,
@@ -355,13 +358,13 @@ export async function coordinateRelease(input, api) {
   // The verifier records preflight-only for dry-run/bootstrap, where no release
   // was installed. Release mode must pass the runtime checks.
   const verify = await dispatchAndWait("post-deploy-verify.yml", {
+    operation_id: operationId,
     mode,
     release_sha: sha,
     release_run_id: release.runId,
     release_artifact_id: release.artifactId,
     release_run_attempt: release.runAttempt,
     release_artifact_digest: release.artifactDigest,
-    rollback_on_failure: "true",
   });
   return {
     status: "success",

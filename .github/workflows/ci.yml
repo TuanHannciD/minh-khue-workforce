@@ -60,3 +60,5 @@ jobs:
         run: pnpm run product:contract:check
       - name: Product boundaries
         run: pnpm run product:boundaries
+      - name: Real local account and release rehearsal
+        run: pnpm run product:test:deploy-account

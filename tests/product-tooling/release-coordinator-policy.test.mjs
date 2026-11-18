@@ -280,6 +280,12 @@ test("behaviorally dispatches backup before deploy and verify with exact IDs and
   assert.equal(api.dispatches[0].ref, "main");
   assert.equal(api.dispatches[1].fields.release_artifact_id, "101");
   assert.equal(api.dispatches[1].fields.backup_artifact_id, "201");
+  assert.equal(api.dispatches[1].fields.operation_id, `coord-1-${SHA}`);
+  assert.equal(
+    api.dispatches[2].fields.operation_id,
+    api.dispatches[1].fields.operation_id,
+  );
+  assert.equal("rollback_on_failure" in api.dispatches[2].fields, false);
   assert.equal(result.verify.runId, "40");
 });
 

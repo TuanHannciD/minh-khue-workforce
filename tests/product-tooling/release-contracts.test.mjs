@@ -8,12 +8,13 @@ import { spawn } from "node:child_process";
 
 import { validateManifest } from "../../scripts/product/release/validate-manifest.mjs";
 import { validateBackupReady } from "../../scripts/product/release/validate-backup-ready.mjs";
-import { verifyRelease } from "../../scripts/product/release/verify-release.mjs";
+import * as releaseVerifier from "../../scripts/product/release/verify-release.mjs";
 import { createBackupReady } from "../../scripts/product/operations/create-backup-ready.mjs";
 import { verifyRestore } from "../../scripts/product/operations/verify-restore.mjs";
 import { validateBackupReadyFreshness } from "../../scripts/product/release/orchestration-policy.mjs";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
+const { verifyResolvedRelease } = releaseVerifier;
 const BACKUP_SCHEMA = JSON.parse(
   await readFile(join(ROOT, "deploy/backup-ready.schema.json"), "utf8"),
 );
@@ -433,19 +434,53 @@ test("backup schema declares kind-specific conditional invariants", () => {
 });
 
 test("verifies exact release SHA and image digests in rendered compose", () => {
-  const ok = verifyRelease({
+  const ok = verifyResolvedRelease({
     manifest: manifest(),
     expectedSha: SHA,
-    composeText: `services:\n  api:\n    image: ${API}\n  web:\n    image: ${WEB}\n  db:\n    image: ${PG}\n`,
+    composeConfig: {
+      services: {
+        api: { image: API },
+        gateway: { image: WEB },
+        db: { image: PG },
+      },
+    },
   });
   assert.deepEqual(ok, { ok: true, errors: [] });
-  const bad = verifyRelease({
+  const bad = verifyResolvedRelease({
     manifest: manifest(),
     expectedSha: "b".repeat(40),
-    composeText: "image: ghcr.io/minh-khue/api:latest",
+    composeConfig: {
+      services: { api: { image: "ghcr.io/minh-khue/api:latest" } },
+    },
   });
   assert.equal(bad.ok, false);
   assert.match(bad.errors.join("\n"), /SHA|digest|mutable/i);
+});
+
+test("resolved compose verifier binds production services with no text fallback", () => {
+  assert.equal(typeof releaseVerifier.verifyResolvedRelease, "function");
+  const services = {
+    api: { image: API },
+    gateway: { image: WEB },
+    db: { image: PG },
+  };
+  assert.deepEqual(
+    releaseVerifier.verifyResolvedRelease({
+      manifest: manifest(),
+      expectedSha: SHA,
+      composeConfig: { services },
+    }),
+    { ok: true, errors: [] },
+  );
+  const swapped = { ...services, api: { image: WEB }, gateway: { image: API } };
+  assert.equal(
+    releaseVerifier.verifyResolvedRelease({
+      manifest: manifest(),
+      expectedSha: SHA,
+      composeConfig: { services: swapped },
+    }).ok,
+    false,
+  );
 });
 
 test("creates backup-ready atomically only after validation", async () => {
