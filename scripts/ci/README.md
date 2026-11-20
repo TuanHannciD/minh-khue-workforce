@@ -62,6 +62,19 @@ thật. Không tăng deadline, retry hoặc bỏ assertion để xanh. Giữ fir
 exact source/runtime/error.code/errno/status/signal/elapsed và report đã validate.
 Primary giữ lỗi gốc; secondaryErrors ghi export/cleanup/report failure riêng.
 
+Diagnostics release dùng step cố định `release-assemble`, `release-extract`,
+`entrypoint-<site>` và `release-verify` (phase recovery). Entry site là lifecycle
+hint đã allowlist; `entrypoint-unknown` nghĩa là thiếu marker hợp lệ, không suy
+nguyên nhân. Nonce riêng từng command không được lưu/xuất hoặc truyền cho dependency.
+Driver chỉ nhận một dòng bounded khớp nonce, site và observed status; signal/timeout
+luôn giữ process failure. Marker không chứng minh receipt hoặc deploy thành công.
+Trong same-SHA scenario, các site `release-inode-mtime-bytes`,
+`release-operation-backup`, `release-shared-backup`, `release-backup-absence`
+chỉ định nhóm invariant hiện hành. Assertion sau command0 có exit null, không
+mang status expected-negative cũ. Public vẫn đúng một validated JSON, không raw
+exception/actual/expected/stdout/stderr. Vocabulary mới là contract delta cần review;
+không đổi schemaVersion hoặc nới validation.
+
 Collector `node scripts/ci/collect-evidence.mjs UUID ABS_EVIDENCE_ROOT
 ABS_NEW_OUTPUT_DIR` chỉ xuất đúng **check-report.json** đã schema-validate;
 incomplete/malformed/missing report tạo Failed/REPORT_INCOMPLETE và exit nonzero.

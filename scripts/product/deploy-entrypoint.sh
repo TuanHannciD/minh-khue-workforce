@@ -6,6 +6,24 @@ set +x
 # on_exit preserves failure/cleanup; the final block owns migration/apply/smoke.
 # Bundle, config and receipt mechanics live in release/ helpers; keep this file
 # as the single lock/trap owner, including the existing non-simple journal path.
+# Opt-in rehearsal diagnostics only. Keep the nonce out of descendants so a
+# dependency cannot forge a correlated terminal marker through its environment.
+readonly rehearsal_diagnostic_nonce="${MKW_REHEARSAL_DIAGNOSTIC_NONCE:-}"
+unset MKW_REHEARSAL_DIAGNOSTIC_NONCE
+phase=admission
+emit_rehearsal_site() {
+  local code=$1 site=unknown
+  if [[ "$rehearsal_diagnostic_nonce" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$ ]]; then
+    case "$phase" in
+      admission|validated|published|config-staged|api-config-published|compose-config-published|db-prepared|migration-complete|app-applied|smoke-complete) site=$phase ;;
+    esac
+    printf 'MKW_REHEARSAL_SITE_V1:%s:%s:%s\n' "$rehearsal_diagnostic_nonce" "$site" "$code" >&2 || true
+  fi
+  return 0
+}
+# Before lock/reservation there are no lifecycle resources to clean up. Preserve
+# the original exit; the existing on_exit takes over at its original boundary.
+trap 'emit_rehearsal_site "$?"' EXIT
 mode=""
 staging=""
 manifest="${MKW_RELEASE_MANIFEST:-}"
@@ -202,6 +220,7 @@ on_exit() {
   local code=${primary_error:-$?}
   trap - EXIT ERR INT TERM
   set +e
+  emit_rehearsal_site "$code"
   if (( code != 0 )); then
     if [[ "${MKW_SIMPLE_RELEASE:-false}" != true && -n "${state_path:-}" && -s "$state_path" ]]; then write_state update "$state_path" failed; fi
     if [[ "$receipt_ready" == true && "$terminal_written" != true ]]; then

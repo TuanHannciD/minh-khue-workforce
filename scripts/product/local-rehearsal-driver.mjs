@@ -1,6 +1,7 @@
 // Inner engine only. File map:
 // - enter/publicReport/command/scenario: stage, safe terminal and private journal.
 // - acquire/build/backup: owned registry/images and restore lifetime.
+// - entrypointStep/releaseInvariant: fixed diagnostic hints, no raw output.
 // - stage/deploy/verify: artifact -> pack -> extract -> real entrypoint.
 // - main: admission, snapshot proof, account adapters and recovery scenarios.
 // Kept together because these adapters share one admitted daemon and journal.
@@ -23,6 +24,9 @@ import {
   publicRuntimeVersion,
   safeReportSummary,
   scenarioIds,
+  entrypointSites,
+  releaseInvariantSites,
+  runIdPattern,
 } from "../ci/evidence.mjs";
 import {
   writeRehearsalEvidence as save,
@@ -65,6 +69,7 @@ let phase = "prerequisite",
   primaryFailure;
 const started = Date.now();
 function enter(nextPhase, nextStep, scenarioId = null) {
+  primaryFailure = undefined;
   phase = nextPhase;
   stepId = nextStep;
   currentCase = scenarioId;
@@ -91,9 +96,45 @@ function publicReport(result, code = "REPORT_INCOMPLETE") {
   });
 }
 
+// This is a diagnostic hint, never process success or receipt admission. A
+// nonce is unique per invocation and removed from descendant environments by
+// the entrypoint. Missing/duplicate/forged/unbounded text stays fixed unknown.
+function entrypointStep(stderr, nonce, result) {
+  const unknown = "entrypoint-unknown";
+  if (
+    !runIdPattern.test(nonce) ||
+    stderr.length > 65536 ||
+    result.signal ||
+    result.processCode
+  )
+    return unknown;
+  const lines = stderr
+    .split("\n")
+    .filter((line) => line.includes("MKW_REHEARSAL_SITE_V1:"));
+  if (lines.length !== 1 || lines[0].length > 160) return unknown;
+  const parts = lines[0].match(
+    /^MKW_REHEARSAL_SITE_V1:([a-f0-9-]{36}):([a-z-]{1,32}):([0-9]{1,3})$/,
+  );
+  if (
+    !parts ||
+    parts[1] !== nonce ||
+    !entrypointSites.includes(parts[2]) ||
+    parts[3] !== String(result.status)
+  )
+    return unknown;
+  return `entrypoint-${parts[2]}`;
+}
+function releaseInvariant(site) {
+  assert.ok(releaseInvariantSites.includes(site));
+  enter("deploy", site, currentCase);
+}
+
 async function command(bin, args, options = {}) {
   const start = Date.now();
+  const { diagnosticNonce, ...processOptions } = options;
+  const context = { phase, stepId, scenarioId: currentCase };
   const entry = {
+    ...context,
     bin,
     args,
     cwd: options.cwd ?? root,
@@ -106,7 +147,7 @@ async function command(bin, args, options = {}) {
   const outcome = await executeRehearsalProcess(bin, args, {
     cwd: root,
     timeout: 900000,
-    ...options,
+    ...processOptions,
   });
   const result = {
     ...outcome,
@@ -122,10 +163,14 @@ async function command(bin, args, options = {}) {
   if (result.cleanupUnverified)
     secondaryErrors.push("PROCESS_CLEANUP_UNVERIFIED");
   if (result.status !== 0 || result.signal || result.processCode) {
+    if (diagnosticNonce)
+      context.stepId = entrypointStep(result.stderr, diagnosticNonce, result);
+    entry.stepId = context.stepId;
     entry.diagnosticCode = classifyRehearsalFailure(result.stderr);
     // May be an expected negative command; only consume this context if the
     // caller actually throws, and reset it when another boundary succeeds.
     primaryFailure = {
+      ...context,
       code:
         result.processCode ??
         (entry.diagnosticCode === "UNCLASSIFIED"
@@ -372,7 +417,7 @@ async function backup(record) {
   }
 }
 async function stage(record, metadata, { composeText, rollback } = {}) {
-  enter("deploy", "deploy", currentCase);
+  enter("deploy", "release-assemble", currentCase);
   const id = record.operationId;
   const operation = `/local-only/inputs/${id}`;
   await mkdir(operation, { recursive: true });
@@ -441,6 +486,7 @@ async function stage(record, metadata, { composeText, rollback } = {}) {
   });
   const staging = `${target}/staging/${id}-${randomUUID()}`;
   await mkdir(staging, { recursive: true, mode: 0o700 });
+  enter("deploy", "release-extract", currentCase);
   await run("bash", [
     "scripts/product/release/extract-release-bundle.sh",
     bundle.archivePath,
@@ -449,7 +495,8 @@ async function stage(record, metadata, { composeText, rollback } = {}) {
   return staging;
 }
 async function deploy(record, staging, extra = {}, prefix = []) {
-  enter("deploy", "deploy", currentCase);
+  enter("deploy", "entrypoint-unknown", currentCase);
+  const diagnosticNonce = randomUUID();
   // Trusted current controls bootstrap executes from the extracted verified tree.
   const controls = `${staging}/controls`;
   return command(
@@ -469,12 +516,17 @@ async function deploy(record, staging, extra = {}, prefix = []) {
     ],
     {
       cwd: controls,
-      env: envFor(record, { MKW_CONTROL_ROOT: controls, ...extra }),
+      diagnosticNonce,
+      env: envFor(record, {
+        MKW_CONTROL_ROOT: controls,
+        ...extra,
+        MKW_REHEARSAL_DIAGNOSTIC_NONCE: diagnosticNonce,
+      }),
     },
   );
 }
 async function verify(record) {
-  enter("recovery", "recovery", currentCase);
+  enter("recovery", "release-verify", currentCase);
   const controls = `${target}/controls/${snapshot.sourceSha256}`;
   return command(
     "bash",
@@ -767,6 +819,7 @@ async function main() {
     apiId,
     envFor,
     stage,
+    releaseInvariant,
     deploy,
     verify,
     backup,

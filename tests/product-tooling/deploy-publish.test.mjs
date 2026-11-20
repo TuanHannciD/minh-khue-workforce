@@ -1,7 +1,8 @@
 import test from "node:test";
 // Map: fixture owns complete trusted/staging trees and external Docker doubles;
 // hashes/barrier own preservation and synchronization; tests execute full scripts
-// under real fd9 flock. Linux-only tests are explicitly Not run on Windows.
+// under real fd9 flock. Diagnostic marker cases keep status/receipt/TERM unchanged.
+// Linux-only tests are explicitly Not run on Windows.
 import assert from "node:assert/strict";
 import { resolve, join } from "node:path";
 import {
@@ -567,5 +568,155 @@ test(
         .operationId,
       "op-a",
     );
+  },
+);
+
+const diagnosticNonce = "00112233-4455-4677-8899-aabbccddeeff";
+for (const fault of ["admission", "config", "migration", "success"])
+  test(
+    `diagnostic marker preserves actual ${fault} status and receipt lifecycle`,
+    { skip: linuxOnly },
+    async (t) => {
+      const f = await fixture(t),
+        id = "diagnostic-a",
+        stage = await f.stage(id);
+      if (fault === "config")
+        await writeFile(join(f.root, "resolved.json"), '{"services":{}}');
+      if (fault === "migration") {
+        const docker = join(f.root, "bin/docker");
+        await writeFile(
+          docker,
+          (await readFile(docker, "utf8")).replace("exit 97", "exit 1"),
+        );
+      }
+      const r = await f.start(id, stage, {
+        MKW_REHEARSAL_DIAGNOSTIC_NONCE: diagnosticNonce,
+        ...(fault === "admission" ? { MKW_SIMPLE_RELEASE: "invalid" } : {}),
+        ...(fault === "migration" ? { FAIL_MIGRATION: "true" } : {}),
+      }).result;
+      const code = fault === "migration" ? 1 : fault === "success" ? 0 : 78;
+      const site = {
+        admission: "admission",
+        config: "config-staged",
+        migration: "db-prepared",
+        success: "smoke-complete",
+      }[fault];
+      assert.equal(r.code, code, r.stderr);
+      assert.equal(r.signal, null);
+      assert.equal(
+        r.stderr
+          .split("\n")
+          .filter((line) => line.startsWith("MKW_REHEARSAL_SITE_V1:"))
+          .join("\n"),
+        `MKW_REHEARSAL_SITE_V1:${diagnosticNonce}:${site}:${code}`,
+      );
+      if (fault === "admission") {
+        assert.equal(
+          await readFile(join(f.root, "mutations")).catch(() => null),
+          null,
+        );
+      } else {
+        const terminal = (await f.events(id)).filter(
+          (e) => e.status !== "in-progress",
+        );
+        assert.equal(terminal.length, 1);
+        assert.equal(terminal[0].status, fault === "success" ? "ok" : "failed");
+        assert.equal(terminal[0].phase, site);
+        const names = await readdir(join(f.root, "operations", id));
+        for (const name of [
+          "api.env",
+          "compose.rendered.yml",
+          "compose.resolved.json",
+        ])
+          assert.equal(names.includes(name), false);
+        if (fault === "config")
+          assert.equal(
+            await readFile(join(f.root, "mutations")).catch(() => null),
+            null,
+          );
+        if (fault === "migration")
+          assert.doesNotMatch(
+            await readFile(join(f.root, "mutations"), "utf8"),
+            /--remove-orphans/,
+          );
+      }
+    },
+  );
+
+for (const nonce of [undefined, "hostile-raw-marker", "x".repeat(100000)])
+  test(
+    `diagnostic emission is opt-in and bounded (${nonce === undefined ? "absent" : nonce.length})`,
+    { skip: linuxOnly },
+    async (t) => {
+      const f = await fixture(t),
+        stage = await f.stage("nonce-a");
+      const r = await f.start("nonce-a", stage, {
+        MKW_SIMPLE_RELEASE: "invalid",
+        MKW_REHEARSAL_DIAGNOSTIC_NONCE: nonce,
+      }).result;
+      assert.equal(r.code, 78, r.stderr);
+      assert.doesNotMatch(r.stderr, /MKW_REHEARSAL_SITE_V1/);
+      assert.equal(
+        await readFile(join(f.root, "mutations")).catch(() => null),
+        null,
+      );
+    },
+  );
+
+test(
+  "diagnostic nonce is absent from descendants and TERM preserves failed db-prepared receipt",
+  { skip: linuxOnly },
+  async (t) => {
+    const f = await fixture(t),
+      id = "signal-a",
+      stage = await f.stage(id),
+      fifo = join(f.root, "signal.fifo"),
+      reached = join(f.root, "signal-reached");
+    assert.equal(
+      (await runBash("-c", ['mkfifo "$1"', "fixture", fifo])).code,
+      0,
+    );
+    const path = join(f.root, "bin/docker");
+    const source = await readFile(path, "utf8");
+    await writeFile(
+      path,
+      source.replace(
+        "set -Eeuo pipefail",
+        `set -Eeuo pipefail
+[[ -z "\${MKW_REHEARSAL_DIAGNOSTIC_NONCE+x}" ]] || exit 98
+if [[ " $* " == *' migrate deploy '* ]]; then
+  touch "$SIGNAL_REACHED"; IFS= read -r ignored < "$SIGNAL_FIFO"
+fi`,
+      ),
+    );
+    const ready = barrier(reached),
+      a = f.start(id, stage, {
+        MKW_REHEARSAL_DIAGNOSTIC_NONCE: diagnosticNonce,
+        SIGNAL_FIFO: fifo,
+        SIGNAL_REACHED: reached,
+      });
+    await ready;
+    process.kill(-a.child.pid, "SIGTERM");
+    const r = await a.result;
+    assert.equal(r.code, 143, r.stderr);
+    assert.match(
+      r.stderr,
+      new RegExp(`MKW_REHEARSAL_SITE_V1:${diagnosticNonce}:db-prepared:143`),
+    );
+    const terminal = (await f.events(id)).filter(
+      (e) => e.status !== "in-progress",
+    );
+    assert.equal(terminal.length, 1);
+    assert.equal(terminal[0].status, "failed");
+    assert.equal(terminal[0].phase, "db-prepared");
+    for (const name of [
+      "api.env",
+      "compose.rendered.yml",
+      "compose.resolved.json",
+    ])
+      assert.equal(
+        (await readdir(join(f.root, "operations", id))).includes(name),
+        false,
+      );
   },
 );

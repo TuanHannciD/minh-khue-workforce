@@ -57,7 +57,33 @@ const phases = [
   "cleanup",
   "complete",
 ];
+// Diagnostic vocabulary is shared with the bounded driver parser. No raw site
+// or lifecycle message may become a public enum.
+export const entrypointSites = Object.freeze([
+  "admission",
+  "validated",
+  "published",
+  "config-staged",
+  "api-config-published",
+  "compose-config-published",
+  "db-prepared",
+  "migration-complete",
+  "app-applied",
+  "smoke-complete",
+]);
+export const releaseInvariantSites = Object.freeze([
+  "release-inode-mtime-bytes",
+  "release-operation-backup",
+  "release-shared-backup",
+  "release-backup-absence",
+]);
 const steps = [
+  "release-assemble",
+  "release-extract",
+  "release-verify",
+  "entrypoint-unknown",
+  ...entrypointSites.map((site) => `entrypoint-${site}`),
+  ...releaseInvariantSites,
   "prerequisite",
   "source-snapshot",
   "engine-setup",

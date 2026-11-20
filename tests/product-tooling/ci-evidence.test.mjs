@@ -18,7 +18,8 @@ import { validatePublicReport } from "../../scripts/ci/evidence.mjs";
 
 // File map: projection/collector tests; driverProbe and its failure cases;
 // engineProbe (including watchdog diagnostics) and outer lifecycle cases;
-// workflow transport regression. Keep probe setup/settlement together so the
+// workflow transport regression; diagnostics cases cover fixed command/site status.
+// Keep probe setup/settlement together so the
 // same boundary doubles exercise all primary/secondary process assertions.
 
 const runId = "00112233-4455-4677-8899-aabbccddeeff";
@@ -228,6 +229,7 @@ function driverProbe(directory, fault = "build") {
     const directory=${JSON.stringify(directory)}, runId=${JSON.stringify(runId)};
     const fault=${JSON.stringify(fault)};
     let pendingBuild=false;
+    const diagnostic=fault.startsWith('diagnostic-');
     const actualSetTimeout=globalThis.setTimeout;
     const deadlineFault=['deadline','deadline-zero','ignore-term','ignore-all','stdin-deadline-first'].includes(fault);
     globalThis.setTimeout=(callback,ms,...args)=>deadlineFault&&pendingBuild&&ms===900000?actualSetTimeout(callback,0,...args):actualSetTimeout(callback,ms,...args);
@@ -256,7 +258,7 @@ function driverProbe(directory, fault = "build") {
     await fs.writeFile(join(directory,'source.tar'),archive);
     await fs.writeFile(join(directory,'source-snapshot.json'),JSON.stringify(snapshot));
     const map=p=>typeof p==='string'&&p.startsWith('/')?join(directory,p):p;
-    const readFile=async(p,...args)=>p==='/mkw-local-owned.json'?JSON.stringify({owner:'MKW-DEPLOY-ACCOUNT-001',taskId:runId,name,id:'a'.repeat(64)}):p==='deploy/postgres-image.env'?'MKW_POSTGRES_IMAGE=postgres@sha256:'+ 'a'.repeat(64):fs.readFile(map(p),...args);
+    const readFile=async(p,...args)=>p==='/mkw-local-owned.json'?JSON.stringify({owner:'MKW-DEPLOY-ACCOUNT-001',taskId:runId,name,id:'a'.repeat(64)}):diagnostic&&String(p).startsWith('/local-only/backup-')&&String(p).endsWith('.enc')?Buffer.from('encrypted-fixture'):diagnostic&&String(p).endsWith('/build-metadata.json')?'{}':p==='deploy/postgres-image.env'?'MKW_POSTGRES_IMAGE=postgres@sha256:'+ 'a'.repeat(64):fs.readFile(map(p),...args);
     mock.module('node:fs/promises',{namedExports:{...named(fs),readFile,
       mkdir:(p,o)=>fs.mkdir(map(p),o),writeFile:(p,...a)=>fs.writeFile(map(p),...a),
       lstat:async p=>{const s=await fs.lstat(map(p));if(p==='/workspace/fixture.txt')Object.defineProperty(s,'mode',{value:(s.mode&~0o777)|0o644});return s;},readdir:p=>fs.readdir(map(p)),realpath:async p=>{await fs.realpath(map(p));return p;},
@@ -267,8 +269,28 @@ function driverProbe(directory, fault = "build") {
     mock.module('node:path',{namedExports:{...path.posix},defaultExport:path.posix});
     mock.module(${JSON.stringify(new URL("./fixtures/deploy-account.mjs", import.meta.url).href)}, {namedExports:{
       installRehearsalAudit:async()=>{},runRealRestoreReadinessScenario:async f=>f.scenario('restore_waits_for_final_postgres_server',async()=>{}),
-      runRealAccountScenarios:async()=>{},makeRehearsalArtifact:async()=>({sha:'b'.repeat(64),manifest:{apiImage:'fixture-api',webImage:'fixture-web',postgresImage:'fixture-pg'},operationId:'fixture',runId:'123',id:'123',digest:'fixture'}),runRealReleaseScenarios:async()=>{}}});
-    mock.module('node:child_process',{namedExports:{...named(childProcess),spawn:(bin,args)=>{
+      runRealAccountScenarios:async()=>{},makeRehearsalArtifact:async()=>({sha:'b'.repeat(64),manifest:{apiImage:'fixture-api',webImage:'fixture-web',postgresImage:'fixture-pg'},directory:'/fixture-artifact',operationId:'fixture',runId:'123',id:'123',digest:'fixture'}),runRealReleaseScenarios:async f=>{
+        if(!diagnostic)return;
+        await f.scenario('same_sha_new_backup_preserves_release_inode_bytes',async()=>{
+          const record={sha:'b'.repeat(64),operationId:'fixture',manifest:{}};
+          // A prior expected negative must not become the invariant's status.
+          if(fault==='diagnostic-verify-zero') {await f.command('fixture-negative',[]);await f.verify(record);throw new Error(${JSON.stringify(canary)});}
+          else {
+            await f.deploy(record,'/fixture');
+            await f.command('fixture-negative',[]);
+            const site=fault.slice('diagnostic-'.length);
+            f.releaseInvariant(site);
+            throw Object.assign(new Error(${JSON.stringify(canary)}),{actual:${JSON.stringify(canary)},expected:${JSON.stringify(canary)}});
+          }
+        });
+      }}});
+    if(diagnostic)mock.module(${JSON.stringify(new URL("../../scripts/product/release/release-bundle.mjs", import.meta.url).href)},{namedExports:{
+      writeBundleInventory:async()=>{},assembleDeploymentBundle:async()=>{
+        if(fault==='diagnostic-assemble')throw Object.assign(new Error(${JSON.stringify(canary)}),{actual:${JSON.stringify(canary)},expected:${JSON.stringify(canary)}});
+        return {archivePath:'/fixture.tar'};
+      }
+    }});
+    mock.module('node:child_process',{namedExports:{...named(childProcess),spawn:(bin,args,options={})=>{
       const c=new EventEmitter();c.stdout=new PassThrough();c.stderr=new PassThrough();c.stdin=new PassThrough();
       pendingBuild=args[0]==='build';
       let finished=false;
@@ -292,13 +314,31 @@ function driverProbe(directory, fault = "build") {
         if(build&&${JSON.stringify(fault)}==='timeout'){c.emit('error',Object.assign(new Error(${JSON.stringify(canary)}),{code:'ETIMEDOUT'}));c.emit('close',null,'SIGTERM');return;}
         let out='';if(args[0]==='info')out=name;
         if(args[0]==='version')out='29.0.0';if(args[0]==='compose')out='2.40.0';
-        if(args[0]==='image')out=JSON.stringify([{Id:'b'.repeat(64),Config:{Labels:{}},RepoDigests:[args.at(-1).split(':')[0]+'@sha256:'+'b'.repeat(64)]}]);
+        if(args[0]==='image')out=JSON.stringify([{Id:'b'.repeat(64),Config:{Labels:{},User:'node'},RepoDigests:[args.at(-1).split(':')[0]+'@sha256:'+'b'.repeat(64)]}]);
         if(args[0]==='inspect')out=JSON.stringify([{Config:{Labels:{'com.mkw.task':runId}}}]);
-        if(args[0]==='run')out='b'.repeat(64);
+        if(args[0]==='run')out=diagnostic&&args.includes('--read-only')?'native-esm-readonly-ok':'b'.repeat(64);
+        if(diagnostic&&args.includes('SELECT value FROM local_rehearsal_probe WHERE id=1;'))out=runId;
+        const extract=args.includes('scripts/product/release/extract-release-bundle.sh');
+        const entry=args.some(a=>a.endsWith('/deploy-entrypoint.sh'))&&args.includes('--release');
+        const verify=args.some(a=>a.endsWith('/post-deploy-verify.sh'));
+        if(diagnostic&&entry&&fault==='diagnostic-entrypoint-timeout') {c.emit('error',Object.assign(new Error(${JSON.stringify(canary)}),{code:'ETIMEDOUT'}));return;}
+        if(diagnostic&&entry&&fault==='diagnostic-entrypoint-signal') {c.stderr.end(${JSON.stringify(canary)});c.emit('close',null,'SIGKILL');return;}
+        let marker='';
+        if(diagnostic&&entry){
+          const nonce=options.env.MKW_REHEARSAL_DIAGNOSTIC_NONCE;
+          const fixed='MKW_REHEARSAL_SITE_V1:'+nonce+':db-prepared:1\\n';
+          marker=fault==='diagnostic-entrypoint'?fixed:
+            fault==='diagnostic-marker-forged'?fixed.replace(nonce,'10112233-4455-4677-8899-aabbccddeeff'):
+            fault==='diagnostic-marker-unknown'?fixed.replace('db-prepared','raw-secret'):
+            fault==='diagnostic-marker-oversized'?fixed.trimEnd()+'x'.repeat(200000)+'\\n':
+            fault==='diagnostic-marker-duplicate'?fixed+fixed:
+            fault==='diagnostic-marker-status'?fixed.replace(':1',':78'):
+            fault==='diagnostic-marker-raw'?${JSON.stringify(canary)}+' '+fixed:'';
+        }
         const restoreFault=fault==='backup-cleanup'&&args.includes('SELECT value FROM local_rehearsal_probe WHERE id=1;');
         const cleanupFault=fault==='backup-cleanup'&&args[0]==='rm';
-        const status=restoreFault?2:cleanupFault?1:build&&fault!=='backup-cleanup'&&!fault.startsWith('stdin-')?1:0;
-        c.stdout.end(out);c.stderr.end(restoreFault?'database "'+${JSON.stringify(canary)}+'" does not exist':status?${JSON.stringify(canary)}:'');c.emit('close',status,build&&${JSON.stringify(fault)}==='signal'?'SIGKILL':null);
+        const status=diagnostic?(bin==='fixture-negative'?78:extract&&fault==='diagnostic-extract'||entry&&/^diagnostic-(entrypoint|marker-)/.test(fault)||verify&&fault==='diagnostic-verify'?1:0):restoreFault?2:cleanupFault?1:build&&fault!=='backup-cleanup'&&!fault.startsWith('stdin-')?1:0;
+        c.stdout.end(out);c.stderr.end(diagnostic?marker:restoreFault?'database "'+${JSON.stringify(canary)}+'" does not exist':status?${JSON.stringify(canary)}:'');c.emit('close',status,build&&${JSON.stringify(fault)}==='signal'?'SIGKILL':null);
         if(build&&fault==='stdin-after-close')actualSetTimeout(()=>c.stdin.emit('error',Object.assign(new Error(${JSON.stringify(canary)}),{code:'EPIPE'})),1);
       });return c;}}});
     Object.defineProperty(process,'platform',{value:'linux'});process.cwd=()=>'/workspace';
@@ -384,7 +424,98 @@ test("actual driver keeps restore primary when its owned restore cleanup also fa
   );
 });
 
-function engineProbe(directory, fault, handoff = false) {
+// Diagnostic REDs reproduce ambiguity only; these are not the remote cause.
+for (const [fault, step, exit, scenario, phase] of [
+  [
+    "assemble",
+    "release-assemble",
+    null,
+    "artifact_archive_staging_deploy_verify",
+    "deploy",
+  ],
+  [
+    "extract",
+    "release-extract",
+    1,
+    "artifact_archive_staging_deploy_verify",
+    "deploy",
+  ],
+  [
+    "entrypoint",
+    "entrypoint-db-prepared",
+    1,
+    "artifact_archive_staging_deploy_verify",
+    "deploy",
+  ],
+  ...[
+    "missing",
+    "forged",
+    "unknown",
+    "oversized",
+    "duplicate",
+    "status",
+    "raw",
+  ].map((kind) => [
+    `marker-${kind}`,
+    "entrypoint-unknown",
+    1,
+    "artifact_archive_staging_deploy_verify",
+    "deploy",
+  ]),
+  ...[
+    "release-inode-mtime-bytes",
+    "release-operation-backup",
+    "release-shared-backup",
+    "release-backup-absence",
+  ].map((site) => [
+    site,
+    site,
+    null,
+    "same_sha_new_backup_preserves_release_inode_bytes",
+    "deploy",
+  ]),
+  [
+    "verify",
+    "release-verify",
+    1,
+    "artifact_archive_staging_deploy_verify",
+    "recovery",
+  ],
+]) {
+  test(`diagnostics distinguish ${fault} with safe original status`, async (t) => {
+    const f = await fixture(t),
+      result = driverProbe(f.directory, `diagnostic-${fault}`);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /CHECK_REPORT/, result.stderr);
+    const report = validatePublicReport(
+      JSON.parse(
+        await readFile(
+          join(f.directory, "local-evidence/check-report.json"),
+          "utf8",
+        ),
+      ),
+    );
+    assert.deepEqual(report.primary, {
+      phase,
+      stepId: step,
+      scenarioId: scenario,
+      code: "REHEARSAL_ASSERTION",
+      exitCode: exit,
+      signal: null,
+    });
+    assert.equal(
+      (JSON.stringify(report) + result.stdout + result.stderr).includes(canary),
+      false,
+    );
+  });
+}
+
+function engineProbe(
+  directory,
+  fault,
+  handoff = false,
+  diagnosticStep = "build-api-a",
+) {
   const started = performance.now();
   const result = spawnSync(
     process.execPath,
@@ -425,11 +556,11 @@ function engineProbe(directory, fault, handoff = false) {
     const fixtureExecFile=(bin,args,options,callback)=>childProcess.execFile(bin,args,{...options,cwd:snapshotGit},callback);
     fixtureExecFile[Symbol.for('nodejs.util.promisify.custom')]=async(bin,args,options)=>{boundary('snapshot-git-start');const result=await promisify(childProcess.execFile)(bin,args,{...options,cwd:snapshotGit});boundary('snapshot-git-complete');return result;};
     mock.module('node:fs/promises',{namedExports:{...named(fs),statfs:async()=>({bavail:20*1024**3,bsize:1}),
-      rename:async(a,b)=>{if(String(b).endsWith('public/check-report.json')&&++publicWrites>1&&driverSeen&&fault==='write')throw new Error(${JSON.stringify(canary)});return fs.rename(a,b);}}});
+      rename:async(a,b)=>{if(String(b).split(String.fromCharCode(92)).join('/').endsWith('public/check-report.json')&&++publicWrites>1&&driverSeen&&fault==='write')throw new Error(${JSON.stringify(canary)});return fs.rename(a,b);}}});
     const {projectPublicReport}=await import(${JSON.stringify(new URL("../../scripts/ci/evidence.mjs", import.meta.url).href)});
     const passed=fault==='cleanup'||fault==='false-pass'||fault==='passed-export'||fault==='abort-terminal'||fault.startsWith('images-')&&fault!=='images-primary';
     const terminal=projectPublicReport({runId,sourceSha256:hash('[]'),baseSha:null, result:passed?'Passed':'Failed',
-      primary:passed?{phase:'complete',stepId:'complete',code:'OK',exitCode:0}:{phase:'build',stepId:'build-api-a',code:'REHEARSAL_ASSERTION',exitCode:1},counts:{assertions:7,commands:93},runtime:{node:'v24.22.1',docker:'29.7.4',compose:'2.44.3',platform:'linux',arch:'x64',uid:1000}});
+      primary:passed?{phase:'complete',stepId:'complete',code:'OK',exitCode:0}:{phase:'build',stepId:${JSON.stringify(diagnosticStep)},code:'REHEARSAL_ASSERTION',exitCode:1},counts:{assertions:7,commands:93},runtime:{node:'v24.22.1',docker:'29.7.4',compose:'2.44.3',platform:'linux',arch:'x64',uid:1000}});
     mock.module('node:child_process',{namedExports:{...named(childProcess),execFile:fixtureExecFile,spawn:(bin,args,options={})=>{
       const abortTarget=fault==='abort-driver'&&args.includes('scripts/product/local-rehearsal-driver.mjs')||fault==='abort-readiness'&&args[0]==='exec'&&args.includes('{{.Name}}')||fault==='abort-terminal'&&args.includes('/local-evidence/check-report.json');
       if(abortTarget){
@@ -1151,4 +1282,171 @@ test("workflow always collects only public evidence and upload success cannot ma
     );
     assert.equal(text.includes(canary), false);
   }
+});
+
+for (const fault of ["export", "write", "ownership"])
+  test(`new diagnostic step survives actual engine ${fault} secondary`, async (t) => {
+    const f = await fixture(t),
+      r = engineProbe(f.directory, fault, false, "entrypoint-db-prepared");
+    assert.equal(r.status, 1, r.stderr);
+    if (fault === "write") {
+      assert.match(
+        r.stdout,
+        /step=entrypoint-db-prepared.*code=REHEARSAL_ASSERTION.*exit=1/,
+      );
+      assert.match(r.stderr, /REPORT_WRITE/);
+      assert.equal((r.stdout + r.stderr).includes(canary), false);
+      return;
+    }
+    const report = validatePublicReport(
+      JSON.parse(
+        await readFile(
+          join(f.directory, "run/public/check-report.json"),
+          "utf8",
+        ),
+      ),
+    );
+    assert.equal(report.primary.stepId, "entrypoint-db-prepared");
+    assert.equal(report.primary.exitCode, 1);
+    assert.equal(report.primary.code, "REHEARSAL_ASSERTION");
+    assert.ok(report.secondaryErrors.includes("REHEARSAL_EVIDENCE_EXPORT"));
+    assert.equal(
+      (JSON.stringify(report) + r.stdout + r.stderr).includes(canary),
+      false,
+    );
+  });
+
+test("new closed diagnostic vocabulary crosses projector/admission/collector without private fields", async (t) => {
+  const {
+    projectPublicReport,
+    admitInnerReport,
+    admitParityTerminal,
+    entrypointSites,
+    releaseInvariantSites,
+  } = await api();
+  const { readEnvironmentLock } =
+    await import("../../scripts/ci/environment.mjs");
+  const { collectPublicReports } =
+    await import("../../scripts/ci/collect-evidence.mjs");
+  const lock = await readEnvironmentLock(
+      join(root, "scripts/ci/environment-lock.json"),
+    ),
+    f = await fixture(t);
+  const sites = [
+    "release-assemble",
+    "release-extract",
+    "release-verify",
+    "entrypoint-unknown",
+    ...entrypointSites.map((s) => `entrypoint-${s}`),
+    ...releaseInvariantSites,
+  ];
+  for (const [n, stepId] of sites.entries()) {
+    const primary = {
+      ...facts().primary,
+      stepId,
+      actual: canary,
+      expected: canary,
+    };
+    const report = projectPublicReport({
+      ...facts(),
+      primary,
+      argv: canary,
+      env: canary,
+      sourceSha256: "a".repeat(64),
+      baseSha: "b".repeat(40),
+      environmentLockSha256: "c".repeat(64),
+    });
+    const expected = {
+      runId,
+      profile: "rehearsal",
+      sourceSha256: report.sourceSha256,
+      baseSha: report.baseSha,
+      environmentLockSha256: report.environmentLockSha256,
+      lock,
+    };
+    admitInnerReport(report, {
+      ...expected,
+      status: 1,
+      signal: null,
+      processCode: null,
+    });
+    admitParityTerminal(report, expected, {
+      status: 1,
+      engineCode: "REHEARSAL_ASSERTION",
+    });
+    await writeFile(
+      join(f.evidenceRoot, runId, "public/check-report.json"),
+      JSON.stringify(report),
+    );
+    const result = await collectPublicReports({
+      ...f,
+      runId,
+      outputRoot: join(f.directory, `out-${n}`),
+    });
+    assert.equal(result.status, "Failed");
+    const exported = JSON.parse(await readFile(result.files[0], "utf8"));
+    assert.equal(exported.primary.stepId, stepId);
+    assert.equal(JSON.stringify(exported).includes(canary), false);
+    for (const bad of [stepId + "-raw", canary])
+      assert.throws(
+        () =>
+          validatePublicReport({
+            ...report,
+            primary: { ...report.primary, stepId: bad },
+          }),
+        { code: "REPORT_INVALID" },
+      );
+  }
+});
+
+for (const [fault, code, signal] of [
+  ["timeout", "PROCESS_TIMEOUT", "SIGTERM"],
+  ["signal", "PROCESS_SIGNAL", "SIGKILL"],
+])
+  test(`entrypoint diagnostics preserve ${fault} as primary without trusting a marker`, async (t) => {
+    const f = await fixture(t),
+      r = driverProbe(f.directory, `diagnostic-entrypoint-${fault}`);
+    assert.equal(r.status, 1, r.stderr);
+    const report = validatePublicReport(
+      JSON.parse(
+        await readFile(
+          join(f.directory, "local-evidence/check-report.json"),
+          "utf8",
+        ),
+      ),
+    );
+    assert.deepEqual(report.primary, {
+      phase: "deploy",
+      stepId: "entrypoint-unknown",
+      scenarioId: "artifact_archive_staging_deploy_verify",
+      code,
+      exitCode: null,
+      signal,
+    });
+    assert.equal(
+      (JSON.stringify(report) + r.stderr + r.stdout).includes(canary),
+      false,
+    );
+  });
+
+test("verify invariant after command0 clears earlier expected negative", async (t) => {
+  const f = await fixture(t),
+    r = driverProbe(f.directory, "diagnostic-verify-zero");
+  assert.equal(r.status, 1, r.stderr);
+  const report = validatePublicReport(
+    JSON.parse(
+      await readFile(
+        join(f.directory, "local-evidence/check-report.json"),
+        "utf8",
+      ),
+    ),
+  );
+  assert.deepEqual(report.primary, {
+    phase: "recovery",
+    stepId: "release-verify",
+    scenarioId: "same_sha_new_backup_preserves_release_inode_bytes",
+    code: "REHEARSAL_ASSERTION",
+    exitCode: null,
+    signal: null,
+  });
 });

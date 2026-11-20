@@ -25,7 +25,8 @@ actual daemon khớp; giữ setup/build/backup và lifecycle adapters cùng mộ
 Fixture `tests/product-tooling/fixtures/deploy-account.mjs` sở hữu canonical inputs,
 SQL/HTTP assertions và task-only faults; không thêm bypass flag vào production.
 File map driver: admission/journal → registry/images/backup → bundle/staging →
-account adapters → release/recovery; fixture: bundle unit → account assertions →
+account adapters → release/recovery; `entrypointStep` chỉ admit marker cố định,
+`releaseInvariant` đặt site và xóa stale command status; fixture: bundle unit → account assertions →
 artifact/faults → release recovery. Lifecycle và assertions giữ cùng transport
 contract; các file dài cần fresh independent review theo SOURCE_NAVIGATION.
 

@@ -861,7 +861,9 @@ export async function runRealReleaseScenarios(f, a) {
         (await f.deploy(retry, await f.stage(retry, metadata))).status,
         0,
       );
+      f.releaseInvariant("release-inode-mtime-bytes");
       assert.deepEqual(await releaseBytes(directory), before);
+      f.releaseInvariant("release-operation-backup");
       assert.equal(
         JSON.parse(
           await readFile(
@@ -871,12 +873,14 @@ export async function runRealReleaseScenarios(f, a) {
         ).backupId,
         metadata.backupId,
       );
+      f.releaseInvariant("release-shared-backup");
       assert.equal(
         JSON.parse(
           await readFile(`${f.target}/shared/backup-ready.json`, "utf8"),
         ).backupId,
         metadata.backupId,
       );
+      f.releaseInvariant("release-backup-absence");
       assert.equal(
         (await allFiles(directory)).includes("backup-ready.json"),
         false,
