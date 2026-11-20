@@ -11,12 +11,28 @@ set +x
 readonly rehearsal_diagnostic_nonce="${MKW_REHEARSAL_DIAGNOSTIC_NONCE:-}"
 unset MKW_REHEARSAL_DIAGNOSTIC_NONCE
 phase=admission
+rehearsal_diagnostic_role=none
 emit_rehearsal_site() {
-  local code=$1 site=unknown
+  local code=$1 site=unknown category=unavailable sample_status=1
   if [[ "$rehearsal_diagnostic_nonce" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$ ]]; then
-    case "$phase" in
-      admission|validated|published|config-staged|api-config-published|compose-config-published|db-prepared|migration-complete|app-applied|smoke-complete) site=$phase ;;
+    case "${rehearsal_emit_phase:-$phase}" in
+      admission|validated|published|config-staged|api-config-published|compose-config-published|db-prepared|migration-complete|app-applied|smoke-complete) site=${rehearsal_emit_phase:-$phase} ;;
     esac
+    if (( code != 0 )); then
+      case "${rehearsal_emit_role:-$rehearsal_diagnostic_role}" in
+        receipt-after-migration) site=receipt-after-migration ;;
+        app-apply)
+          if command -v node >/dev/null && command -v timeout >/dev/null && command -v setsid >/dev/null && [[ -f "$script_root/scripts/product/release/rehearsal-service-sample.mjs" ]]; then
+            # The capture subshell closes the deployment lock before O launches.
+            # S and T have separate sessions; only the entrypoint retains fd9.
+            category="$(exec 9>&-; exec timeout --signal=KILL 4s setsid --wait node "$script_root/scripts/product/release/rehearsal-service-sample.mjs" --supervise "$MKW_PROJECT_NAME" "$rendered" </dev/null 2>/dev/null)"
+            sample_status=$?
+          fi
+          if (( sample_status != 0 || ${#category} > 15 )); then category=unavailable; fi
+          case "$category" in healthy|db-bad|api-bad|gateway-bad|multiple-bad|unknown|unavailable) ;; *) category=unavailable ;; esac
+          site="app-apply-$category" ;;
+      esac
+    fi
     printf 'MKW_REHEARSAL_SITE_V1:%s:%s:%s\n' "$rehearsal_diagnostic_nonce" "$site" "$code" >&2 || true
   fi
   return 0
@@ -218,6 +234,7 @@ primary_error=""; db_tmp=""; api_tmp=""; backup_tmp=""; state_tmp=""; state_path
 source "$script_root/scripts/product/release/operation-receipts.sh"
 on_exit() {
   local code=${primary_error:-$?}
+  local rehearsal_emit_role=$rehearsal_diagnostic_role rehearsal_emit_phase=$phase
   trap - EXIT ERR INT TERM
   set +e
   emit_rehearsal_site "$code"
@@ -420,7 +437,9 @@ if [[ "$MKW_OPERATION_KIND" != application-rollback && "$operation_class" != gat
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" run --rm --no-deps api node node_modules/prisma/build/index.js migrate deploy
   migration_complete=true
   phase=migration-complete
+  rehearsal_diagnostic_role=receipt-after-migration
   record_operation_event in-progress "$phase"
+  rehearsal_diagnostic_role=none
   if [[ "${MKW_SIMPLE_RELEASE:-false}" != true ]]; then
     capture_database "$MKW_DEPLOY_PATH/shared/database-after.json"
     write_state update "$state_path" after "$MKW_DEPLOY_PATH/shared/database-after.json"
@@ -453,7 +472,9 @@ elif [[ "$operation_class" == gateway-only ]]; then
   record_gateway_evidence
 else
   [[ "$MKW_OPERATION_KIND" == application-rollback || "$migration_complete" == true ]] || { echo "migration gate did not complete" >&2; exit 78; }
+  rehearsal_diagnostic_role=app-apply
   docker compose -p "$MKW_PROJECT_NAME" -f "$rendered" up -d --wait --remove-orphans
+  rehearsal_diagnostic_role=none
 fi
 phase=app-applied
 record_operation_event in-progress "$phase"

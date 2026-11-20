@@ -2,6 +2,8 @@ import test from "node:test";
 // Map: fixture owns complete trusted/staging trees and external Docker doubles;
 // hashes/barrier own preservation and synchronization; tests execute full scripts
 // under real fd9 flock. Diagnostic marker cases keep status/receipt/TERM unchanged.
+// sampleRecords/sampleDead + rehearsal-sample-process own active sampling loss;
+// receipt/apply tables retain first primary through diagnostics and cleanup.
 // Linux-only tests are explicitly Not run on Windows.
 import assert from "node:assert/strict";
 import { resolve, join } from "node:path";
@@ -572,6 +574,393 @@ test(
 );
 
 const diagnosticNonce = "00112233-4455-4677-8899-aabbccddeeff";
+const sampleModel = join(
+  ROOT,
+  "tests/product-tooling/fixtures/rehearsal-sample-process.mjs",
+);
+const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+async function sampleRecords(path) {
+  return (await readFile(path, "utf8").catch(() => ""))
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map(JSON.parse);
+}
+async function sampleDead(record) {
+  const text = await readFile(`/proc/${record.pid}/stat`, "utf8").catch(
+    () => "",
+  );
+  if (!text) return true;
+  const f = text.slice(text.lastIndexOf(")") + 2).split(" ");
+  return f[19] !== record.start || ["Z", "X"].includes(f[0]);
+}
+for (const mode of [
+  "healthy",
+  "worker-death",
+  "SIGTERM",
+  "SIGINT",
+  "SIGKILL",
+]) {
+  test(
+    `diagnostic active sampler grandchild/lock/owner-loss: ${mode}`,
+    { skip: linuxOnly },
+    async (t) => {
+      const f = await fixture(t),
+        id = "sampling-active",
+        path = join(f.root, "sample-processes");
+      const ready = barrier(path);
+      const e = f.start(id, await f.stage(id), {
+        MKW_REHEARSAL_DIAGNOSTIC_NONCE: diagnosticNonce,
+        FAIL_APP_APPLY: "true",
+        SAMPLE_PROCESS_MODEL: sampleModel,
+        SAMPLE_PROCESS_LOG: path,
+        SAMPLE_PROCESS_MODE: mode.startsWith("SIG") ? "hang" : mode,
+      });
+      await ready;
+      // Require the private grandchild READY record, not just direct CLI launch.
+      let records;
+      for (let pass = 0; pass < 100; pass++) {
+        records = await sampleRecords(path);
+        if (records.some((p) => p.role === "grandchild")) break;
+        await sleep(10);
+      }
+      assert.ok(records.some((p) => p.role === "grandchild"));
+      const group = records[0].pgid;
+      assert.notEqual(group, e.child.pid);
+      assert.equal(
+        (
+          await runBash("-c", [
+            'flock -n "$1" true',
+            "fixture",
+            join(f.root, ".deploy.lock"),
+          ])
+        ).code,
+        1,
+      );
+      if (mode.startsWith("SIG")) process.kill(-e.child.pid, mode);
+      const r = await e.result;
+      if (mode.startsWith("SIG")) {
+        assert.equal(r.code, null);
+        assert.equal(r.signal, mode);
+        assert.doesNotMatch(r.stderr, /MKW_REHEARSAL_SITE_V1/);
+      } else {
+        assert.equal(r.code, 1, r.stderr);
+        assert.equal(r.signal, null);
+        assert.match(
+          r.stderr,
+          new RegExp(
+            `:app-apply-${mode === "healthy" ? "healthy" : "unavailable"}:1\\n`,
+          ),
+        );
+      }
+      const deadline = performance.now() + 3800;
+      let live = [];
+      do {
+        live = [];
+        for (const pid of await readdir("/proc"))
+          if (/^\d+$/.test(pid)) {
+            const text = await readFile(`/proc/${pid}/stat`, "utf8").catch(
+              () => "",
+            );
+            if (!text) continue;
+            const fields = text.slice(text.lastIndexOf(")") + 2).split(" ");
+            if (
+              (+fields[2] === group || +fields[3] === group) &&
+              !["Z", "X"].includes(fields[0])
+            )
+              live.push(+pid);
+          }
+        if (live.length) await sleep(20);
+      } while (live.length && performance.now() < deadline);
+      assert.deepEqual(
+        live,
+        [],
+        "independent T settles group after actual E death",
+      );
+      for (const record of await sampleRecords(path))
+        assert.equal(await sampleDead(record), true);
+      assert.equal(
+        (
+          await runBash("-c", [
+            'flock -n "$1" true',
+            "fixture",
+            join(f.root, ".deploy.lock"),
+          ])
+        ).code,
+        0,
+      );
+    },
+  );
+}
+for (const nonce of [
+  "",
+  "invalid",
+  diagnosticNonce.toUpperCase(),
+  "a".repeat(200),
+]) {
+  test(
+    `diagnostic invalid nonce cannot sample failed apply: ${nonce.length}`,
+    { skip: linuxOnly },
+    async (t) => {
+      const f = await fixture(t),
+        id = "invalid-nonce";
+      const r = await f.start(id, await f.stage(id), {
+        MKW_REHEARSAL_DIAGNOSTIC_NONCE: nonce,
+        FAIL_APP_APPLY: "true",
+      }).result;
+      assert.equal(r.code, 1);
+      assert.doesNotMatch(r.stderr, /MKW_REHEARSAL_SITE_V1/);
+      assert.equal(
+        await readFile(join(f.root, "sample-queries")).catch(() => null),
+        null,
+      );
+    },
+  );
+}
+for (const fault of ["cleanup", "missing-helper", "timeout"]) {
+  test(
+    `diagnostic_exit_secondary_cannot_replace_primary: ${fault}`,
+    { skip: linuxOnly },
+    async (t) => {
+      const f = await fixture(t),
+        id = "secondary-failure",
+        staged = await f.stage(id);
+      if (fault === "cleanup") {
+        await writeFile(
+          join(f.root, "bin/rm"),
+          '#!/usr/bin/env bash\nif [[ "$*" == *"/operations/secondary-failure/api.env"* ]]; then exit 96; fi\nexec /bin/rm "$@"\n',
+        );
+        await chmod(join(f.root, "bin/rm"), 0o755);
+      } else {
+        const path = join(f.root, "bin/node");
+        assert.ok(
+          (await readFile(path, "utf8")).includes(
+            `exec "\${FIXTURE_NODE:-${process.execPath}}" "$@"`,
+          ),
+          "fault adapter must bind the current wrapper",
+        );
+        await writeFile(
+          path,
+          (await readFile(path, "utf8")).replace(
+            `exec "\${FIXTURE_NODE:-${process.execPath}}" "$@"`,
+            `if [[ "$1" == *'/rehearsal-service-sample.mjs' ]]; then ${fault === "timeout" ? 'exec "$FIXTURE_NODE" -e "setInterval(()=>{},1000)"' : "exit 127"}; fi\nexec "$FIXTURE_NODE" "$@"`,
+          ),
+        );
+      }
+      const r = await f.start(id, staged, {
+        MKW_REHEARSAL_DIAGNOSTIC_NONCE: diagnosticNonce,
+        FAIL_APP_APPLY: "true",
+        FAIL_RECEIPT_TERMINAL: "true",
+      }).result;
+      assert.equal(r.code, 1, r.stderr);
+      assert.match(
+        r.stderr,
+        new RegExp(
+          `:app-apply-${fault === "cleanup" ? "healthy" : "unavailable"}:1\\n`,
+        ),
+      );
+      assert.match(
+        await readFile(join(f.root, "receipt-attempts"), "utf8"),
+        /8 failed migration-complete/,
+      );
+    },
+  );
+}
+for (const kind of [
+  "receipt",
+  "apply",
+  "apply-sample-error",
+  "apply-terminal-error",
+]) {
+  test(
+    `diagnostic_receipt78_vs_normal_apply1: ${kind}`,
+    { skip: linuxOnly },
+    async (t) => {
+      const f = await fixture(t),
+        id = "amendment-a";
+      const r = await f.start(id, await f.stage(id), {
+        MKW_REHEARSAL_DIAGNOSTIC_NONCE: diagnosticNonce,
+        FAIL_RECEIPT_MIGRATION: String(kind === "receipt"),
+        FAIL_APP_APPLY: String(kind !== "receipt"),
+        FAIL_SAMPLE: String(kind === "apply-sample-error"),
+        FAIL_RECEIPT_TERMINAL: String(kind === "apply-terminal-error"),
+        CHECK_DIAGNOSTIC_LOCK: "true",
+      }).result;
+      const receipt = kind === "receipt",
+        code = receipt ? 78 : 1;
+      const site = receipt
+        ? "receipt-after-migration"
+        : kind === "apply-sample-error"
+          ? "app-apply-unavailable"
+          : "app-apply-healthy";
+      assert.equal(r.code, code, r.stderr);
+      assert.equal(r.signal, null);
+      assert.equal(
+        r.stderr
+          .split("\n")
+          .filter((s) => s.includes("MKW_REHEARSAL_SITE_V1:"))
+          .join("\n"),
+        `MKW_REHEARSAL_SITE_V1:${diagnosticNonce}:${site}:${code}`,
+      );
+      const mutations = await readFile(join(f.root, "mutations"), "utf8");
+      assert.equal(
+        mutations.split("\n").filter((s) => s.includes("migrate deploy"))
+          .length,
+        1,
+      );
+      assert.equal(mutations.includes("--remove-orphans"), !receipt);
+      const queries = await readFile(
+        join(f.root, "sample-queries"),
+        "utf8",
+      ).catch(() => "");
+      assert.equal(
+        queries.split("\n").filter(Boolean).length,
+        receipt || kind === "apply-sample-error" ? 0 : 6,
+      );
+      const attempts = await readFile(join(f.root, "receipt-attempts"), "utf8");
+      assert.match(attempts, /7 in-progress migration-complete/);
+      assert.match(
+        attempts,
+        new RegExp(`${receipt ? 7 : 8} failed migration-complete`),
+      );
+      if (kind !== "apply-terminal-error") {
+        const terminal = (await f.events(id)).filter(
+          (e) => e.status !== "in-progress",
+        );
+        assert.equal(terminal.length, 1);
+        assert.equal(terminal[0].phase, "migration-complete");
+        assert.equal(terminal[0].sequence, receipt ? 7 : 8);
+      }
+      const names = await readdir(join(f.root, "operations", id));
+      for (const name of [
+        "api.env",
+        "compose.rendered.yml",
+        "compose.resolved.json",
+      ])
+        assert.equal(names.includes(name), false);
+    },
+  );
+}
+
+test(
+  "diagnostic sampler closes lock target throughout capture/O/S/T/A/W/CLI",
+  { skip: linuxOnly },
+  async (t) => {
+    const { readlink } = await import("node:fs/promises");
+    const f = await fixture(t),
+      id = "fd9-a";
+    const ready = barrier(join(f.root, "sample-queries"));
+    const e = f.start(id, await f.stage(id), {
+      MKW_REHEARSAL_DIAGNOSTIC_NONCE: diagnosticNonce,
+      FAIL_APP_APPLY: "true",
+      CHECK_DIAGNOSTIC_LOCK: "true",
+    });
+    await ready;
+    assert.equal(
+      (
+        await runBash("-c", [
+          'flock -n "$1" true',
+          "fixture",
+          join(f.root, ".deploy.lock"),
+        ])
+      ).code,
+      1,
+    );
+    const processes = [];
+    for (const pid of await readdir("/proc"))
+      if (/^\d+$/.test(pid)) {
+        const text = await readFile(`/proc/${pid}/stat`, "utf8").catch(
+          () => "",
+        );
+        if (!text) continue;
+        const fields = text.slice(text.lastIndexOf(")") + 2).split(" ");
+        processes.push({
+          pid: +pid,
+          ppid: +fields[1],
+          pgid: +fields[2],
+          sid: +fields[3],
+        });
+      }
+    const owned = new Set([e.child.pid]);
+    for (let pass = 0; pass < 8; pass++)
+      for (const p of processes) if (owned.has(p.ppid)) owned.add(p.pid);
+    assert.ok(owned.size >= 5, "observe E/O/S/T/A, including capture launcher");
+    let entrypointHolds = false;
+    for (const pid of owned) {
+      for (const fd of await readdir(`/proc/${pid}/fd`).catch(() => [])) {
+        const target = await readlink(`/proc/${pid}/fd/${fd}`).catch(
+          () => null,
+        );
+        if (target === join(f.root, ".deploy.lock")) {
+          assert.equal(
+            pid,
+            e.child.pid,
+            "only original E owns deployment lock target",
+          );
+          entrypointHolds = true;
+        }
+      }
+    }
+    assert.equal(entrypointHolds, true);
+    const r = await e.result;
+    assert.equal(r.code, 1, r.stderr);
+    assert.match(r.stderr, /:app-apply-healthy:1\n/);
+    assert.equal(
+      (
+        await runBash("-c", [
+          'flock -n "$1" true',
+          "fixture",
+          join(f.root, ".deploy.lock"),
+        ])
+      ).code,
+      0,
+    );
+  },
+);
+
+for (const signal of ["SIGTERM", "SIGINT", "SIGKILL"]) {
+  test(
+    `diagnostic_real_term_and_kill_unknown: normal apply ${signal}`,
+    { skip: linuxOnly },
+    async (t) => {
+      const f = await fixture(t),
+        id = "apply-signal",
+        fifo = join(f.root, "app.fifo"),
+        reached = join(f.root, "app-reached");
+      assert.equal(
+        (await runBash("-c", ['mkfifo "$1"', "fixture", fifo])).code,
+        0,
+      );
+      const ready = barrier(reached),
+        e = f.start(id, await f.stage(id), {
+          MKW_REHEARSAL_DIAGNOSTIC_NONCE: diagnosticNonce,
+          APP_BARRIER_FIFO: fifo,
+          APP_BARRIER_REACHED: reached,
+        });
+      await ready;
+      process.kill(-e.child.pid, signal);
+      const r = await e.result;
+      if (signal === "SIGKILL") {
+        assert.equal(r.code, null);
+        assert.equal(r.signal, "SIGKILL");
+        assert.doesNotMatch(r.stderr, /MKW_REHEARSAL_SITE_V1/);
+        assert.equal(
+          (await f.events(id)).some((e) => e.status === "failed"),
+          false,
+        );
+      } else {
+        const code = signal === "SIGTERM" ? 143 : 130;
+        assert.equal(r.code, code, r.stderr);
+        assert.equal(r.signal, null);
+        assert.match(r.stderr, new RegExp(`:app-apply-healthy:${code}\\n`));
+        const terminal = (await f.events(id)).find(
+          (e) => e.status === "failed",
+        );
+        assert.equal(terminal.phase, "migration-complete");
+      }
+    },
+  );
+}
 for (const fault of ["admission", "config", "migration", "success"])
   test(
     `diagnostic marker preserves actual ${fault} status and receipt lifecycle`,

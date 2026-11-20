@@ -103,23 +103,36 @@ function entrypointStep(stderr, nonce, result) {
   const unknown = "entrypoint-unknown";
   if (
     !runIdPattern.test(nonce) ||
-    stderr.length > 65536 ||
-    result.signal ||
-    result.processCode
+    Buffer.byteLength(stderr, "utf8") > 65536 ||
+    result.closeObserved !== true ||
+    !Number.isInteger(result.status) ||
+    result.status < 0 ||
+    result.status > 255 ||
+    result.signal !== null ||
+    result.processCode !== null
   )
     return unknown;
-  const lines = stderr
-    .split("\n")
-    .filter((line) => line.includes("MKW_REHEARSAL_SITE_V1:"));
-  if (lines.length !== 1 || lines[0].length > 160) return unknown;
+  const allLines = stderr.split("\n");
+  const lines = allLines.filter((line) =>
+    line.includes("MKW_REHEARSAL_SITE_V1:"),
+  );
+  if (
+    lines.length !== 1 ||
+    Buffer.byteLength(lines[0], "utf8") + 1 > 160 ||
+    allLines.at(-1) === lines[0]
+  )
+    return unknown;
   const parts = lines[0].match(
-    /^MKW_REHEARSAL_SITE_V1:([a-f0-9-]{36}):([a-z-]{1,32}):([0-9]{1,3})$/,
+    /^MKW_REHEARSAL_SITE_V1:([a-f0-9-]{36}):([a-z-]{1,32}):(0|[1-9][0-9]{0,2})$/,
   );
   if (
     !parts ||
     parts[1] !== nonce ||
     !entrypointSites.includes(parts[2]) ||
-    parts[3] !== String(result.status)
+    parts[3] !== String(result.status) ||
+    (result.status === 0 &&
+      (parts[2] === "receipt-after-migration" ||
+        parts[2].startsWith("app-apply-")))
   )
     return unknown;
   return `entrypoint-${parts[2]}`;

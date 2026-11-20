@@ -7,6 +7,7 @@ import {
   readFile,
   rm,
   symlink,
+  readdir,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -19,6 +20,8 @@ import { validatePublicReport } from "../../scripts/ci/evidence.mjs";
 // File map: projection/collector tests; driverProbe and its failure cases;
 // engineProbe (including watchdog diagnostics) and outer lifecycle cases;
 // workflow transport regression; diagnostics cases cover fixed command/site status.
+// amendmentSites covers eight IDs through real engine/parity/collector/summary;
+// bounded marker tables exercise byte, close, status and correlation admission.
 // Keep probe setup/settlement together so the
 // same boundary doubles exercise all primary/secondary process assertions.
 
@@ -209,7 +212,7 @@ test("collector rejects path traversal and symlink report ancestry", async (t) =
 
 // Run the actual driver with only OS/filesystem/process boundaries doubled.
 // No Docker, listener, database, or production-only fault flag is acquired.
-function driverProbe(directory, fault = "build") {
+function driverProbe(directory, fault = "build", amendment = {}) {
   return spawnSync(
     process.execPath,
     [
@@ -228,6 +231,7 @@ function driverProbe(directory, fault = "build") {
     import { join } from 'node:path';
     const directory=${JSON.stringify(directory)}, runId=${JSON.stringify(runId)};
     const fault=${JSON.stringify(fault)};
+    const amendment=${JSON.stringify(amendment)};
     let pendingBuild=false;
     const diagnostic=fault.startsWith('diagnostic-');
     const actualSetTimeout=globalThis.setTimeout;
@@ -275,6 +279,10 @@ function driverProbe(directory, fault = "build") {
           const record={sha:'b'.repeat(64),operationId:'fixture',manifest:{}};
           // A prior expected negative must not become the invariant's status.
           if(fault==='diagnostic-verify-zero') {await f.command('fixture-negative',[]);await f.verify(record);throw new Error(${JSON.stringify(canary)});}
+          else if(fault==='diagnostic-marker-amendment'&&amendment.status===0) {
+            await f.command('fixture-negative',[]);await f.deploy(record,'/fixture');
+            f.releaseInvariant('release-inode-mtime-bytes');throw new Error(${JSON.stringify(canary)});
+          }
           else {
             await f.deploy(record,'/fixture');
             await f.command('fixture-negative',[]);
@@ -326,8 +334,13 @@ function driverProbe(directory, fault = "build") {
         let marker='';
         if(diagnostic&&entry){
           const nonce=options.env.MKW_REHEARSAL_DIAGNOSTIC_NONCE;
-          const fixed='MKW_REHEARSAL_SITE_V1:'+nonce+':db-prepared:1\\n';
+          const fixed='MKW_REHEARSAL_SITE_V1:'+nonce+':'+(amendment.site??'db-prepared')+':'+(amendment.status??1)+'\\n';
           marker=fault==='diagnostic-entrypoint'?fixed:
+            fault==='diagnostic-marker-amendment'?amendment.kind==='foreign-duplicate'?fixed+fixed.replace(nonce,'10112233-4455-4677-8899-aabbccddeeff'):
+              amendment.kind==='multibyte'?'é'.repeat(33000)+'\\n'+fixed:
+              amendment.kind==='leading-zero'?fixed.replace(/:([0-9]+)\\n$/,':01\\n'):
+              amendment.kind==='no-lf'?fixed.trimEnd():
+              amendment.kind==='suffix'?fixed.trimEnd()+' private SQL argv env password cookie key health-output\\n':fixed:
             fault==='diagnostic-marker-forged'?fixed.replace(nonce,'10112233-4455-4677-8899-aabbccddeeff'):
             fault==='diagnostic-marker-unknown'?fixed.replace('db-prepared','raw-secret'):
             fault==='diagnostic-marker-oversized'?fixed.trimEnd()+'x'.repeat(200000)+'\\n':
@@ -337,11 +350,19 @@ function driverProbe(directory, fault = "build") {
         }
         const restoreFault=fault==='backup-cleanup'&&args.includes('SELECT value FROM local_rehearsal_probe WHERE id=1;');
         const cleanupFault=fault==='backup-cleanup'&&args[0]==='rm';
-        const status=diagnostic?(bin==='fixture-negative'?78:extract&&fault==='diagnostic-extract'||entry&&/^diagnostic-(entrypoint|marker-)/.test(fault)||verify&&fault==='diagnostic-verify'?1:0):restoreFault?2:cleanupFault?1:build&&fault!=='backup-cleanup'&&!fault.startsWith('stdin-')?1:0;
+        const status=diagnostic?(bin==='fixture-negative'?(amendment.negativeStatus??78):entry&&fault==='diagnostic-marker-amendment'?(amendment.status??1):extract&&fault==='diagnostic-extract'||entry&&/^diagnostic-(entrypoint|marker-)/.test(fault)||verify&&fault==='diagnostic-verify'?1:0):restoreFault?2:cleanupFault?1:build&&fault!=='backup-cleanup'&&!fault.startsWith('stdin-')?1:0;
         c.stdout.end(out);c.stderr.end(diagnostic?marker:restoreFault?'database "'+${JSON.stringify(canary)}+'" does not exist':status?${JSON.stringify(canary)}:'');c.emit('close',status,build&&${JSON.stringify(fault)}==='signal'?'SIGKILL':null);
         if(build&&fault==='stdin-after-close')actualSetTimeout(()=>c.stdin.emit('error',Object.assign(new Error(${JSON.stringify(canary)}),{code:'EPIPE'})),1);
       });return c;}}});
     Object.defineProperty(process,'platform',{value:'linux'});process.cwd=()=>'/workspace';
+    if(amendment.kind==='missing-close') {
+      const url=${JSON.stringify(new URL("../../scripts/product/local-rehearsal-engine.mjs", import.meta.url).href)};
+      const engine=await import(url);
+      mock.module(url,{namedExports:{...named(engine),executeRehearsalProcess:async(...args)=>{
+        const outcome=await engine.executeRehearsalProcess(...args);
+        return args[1].some(a=>a.endsWith('/deploy-entrypoint.sh'))?{...outcome,closeObserved:false}:outcome;
+      }}});
+    }
     delete process.env.DOCKER_HOST;delete process.env.DOCKER_CONTEXT;
     await import(${JSON.stringify(new URL("../../scripts/product/local-rehearsal-driver.mjs", import.meta.url).href)});
   `,
@@ -515,6 +536,7 @@ function engineProbe(
   fault,
   handoff = false,
   diagnosticStep = "build-api-a",
+  diagnosticPrimary = {},
 ) {
   const started = performance.now();
   const result = spawnSync(
@@ -560,7 +582,7 @@ function engineProbe(
     const {projectPublicReport}=await import(${JSON.stringify(new URL("../../scripts/ci/evidence.mjs", import.meta.url).href)});
     const passed=fault==='cleanup'||fault==='false-pass'||fault==='passed-export'||fault==='abort-terminal'||fault.startsWith('images-')&&fault!=='images-primary';
     const terminal=projectPublicReport({runId,sourceSha256:hash('[]'),baseSha:null, result:passed?'Passed':'Failed',
-      primary:passed?{phase:'complete',stepId:'complete',code:'OK',exitCode:0}:{phase:'build',stepId:${JSON.stringify(diagnosticStep)},code:'REHEARSAL_ASSERTION',exitCode:1},counts:{assertions:7,commands:93},runtime:{node:'v24.22.1',docker:'29.7.4',compose:'2.44.3',platform:'linux',arch:'x64',uid:1000}});
+      primary:passed?{phase:'complete',stepId:'complete',code:'OK',exitCode:0}:{phase:'build',stepId:${JSON.stringify(diagnosticStep)},code:'REHEARSAL_ASSERTION',exitCode:1,...${JSON.stringify(diagnosticPrimary)}},counts:{assertions:7,commands:93},runtime:{node:'v24.22.1',docker:'29.7.4',compose:'2.44.3',platform:'linux',arch:'x64',uid:1000}});
     mock.module('node:child_process',{namedExports:{...named(childProcess),execFile:fixtureExecFile,spawn:(bin,args,options={})=>{
       const abortTarget=fault==='abort-driver'&&args.includes('scripts/product/local-rehearsal-driver.mjs')||fault==='abort-readiness'&&args[0]==='exec'&&args.includes('{{.Name}}')||fault==='abort-terminal'&&args.includes('/local-evidence/check-report.json');
       if(abortTarget){
@@ -1428,6 +1450,262 @@ for (const [fault, code, signal] of [
       false,
     );
   });
+
+const amendmentSites = [
+  "receipt-after-migration",
+  "app-apply-healthy",
+  "app-apply-db-bad",
+  "app-apply-api-bad",
+  "app-apply-gateway-bad",
+  "app-apply-multiple-bad",
+  "app-apply-unknown",
+  "app-apply-unavailable",
+];
+test("amendment_primary_survives_engine_parity_collector", async (t) => {
+  const { fixture: parityFixture } =
+    await import("./fixtures/parity-boundary.mjs");
+  const { runParity } = await import("../../scripts/ci/parity.mjs");
+  const { projectPublicReport, admitInnerReport, safeReportSummary } =
+    await api();
+  for (const [i, site] of amendmentSites.entries()) {
+    const f = await fixture(t),
+      primary = {
+        phase: "deploy",
+        stepId: `entrypoint-${site}`,
+        scenarioId: "same_sha_new_backup_preserves_release_inode_bytes",
+        code: "REHEARSAL_ASSERTION",
+        exitCode: i === 0 ? 78 : 1,
+        signal: null,
+      };
+    const engine = engineProbe(
+      f.directory,
+      i % 2 ? "export" : "ownership",
+      false,
+      primary.stepId,
+      primary,
+    );
+    assert.equal(engine.status, 1, engine.stderr);
+    const engineReport = validatePublicReport(
+      JSON.parse(
+        await readFile(
+          join(f.directory, "run/public/check-report.json"),
+          "utf8",
+        ),
+      ),
+    );
+    assert.deepEqual(engineReport.primary, primary);
+    assert.ok(
+      engineReport.secondaryErrors.includes("REHEARSAL_EVIDENCE_EXPORT"),
+    );
+    const p = await parityFixture(t),
+      realRehearse = p.adapters.rehearse;
+    p.adapters.rehearse = async (options) => {
+      await realRehearse(options);
+      const path = join(options.evidencePath, "public/check-report.json");
+      const identity = JSON.parse(await readFile(path, "utf8"));
+      const inner = projectPublicReport({
+        ...identity,
+        result: "Failed",
+        primary: { ...primary, sql: canary, healthOutput: canary },
+        counts: engineReport.counts,
+        secondaryErrors: engineReport.secondaryErrors,
+        argv: canary,
+        env: canary,
+      });
+      admitInnerReport(inner, {
+        runId: p.runId,
+        sourceSha256: identity.sourceSha256,
+        baseSha: identity.baseSha,
+        status: primary.exitCode,
+        signal: null,
+        processCode: null,
+      });
+      await writeFile(path, JSON.stringify(inner));
+      throw Object.assign(new Error(canary), { code: primary.code });
+    };
+    assert.equal(
+      await runParity({ ...p, mode: "release" }, p.adapters),
+      primary.exitCode,
+    );
+    assert.deepEqual(
+      p.profiles.map((p) => p.profile),
+      ["release-tooling"],
+    );
+    const report = await p.report();
+    assert.deepEqual(report.primary, primary);
+    assert.equal(report.profile, "release");
+    assert.match(report.sourceSha256, /^[a-f0-9]{64}$/);
+    assert.equal(Object.keys(report).length, 13);
+    assert.equal(Object.keys(report.primary).length, 6);
+    const output = join(f.directory, "amendment-public");
+    await writeFile(
+      join(p.evidenceRoot, p.runId, "public/private-sibling"),
+      canary,
+    );
+    const collected = spawnSync(
+      process.execPath,
+      [
+        join(root, "scripts/ci/collect-evidence.mjs"),
+        p.runId,
+        p.evidenceRoot,
+        output,
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(collected.status, 1, collected.stderr);
+    assert.deepEqual(await readdir(output), ["check-report.json"]);
+    const exported = validatePublicReport(
+      JSON.parse(await readFile(join(output, "check-report.json"), "utf8")),
+    );
+    assert.deepEqual(exported, report);
+    assert.match(
+      safeReportSummary(exported),
+      new RegExp(`step=entrypoint-${site}.*exit=${primary.exitCode}`),
+    );
+    const require = createRequire(import.meta.url);
+    const { load, JSON_SCHEMA } = createRequire(
+      require.resolve("eslint/package.json"),
+    )("js-yaml");
+    const workflow = load(
+      await readFile(
+        join(root, ".github/workflows/release-validation.yml"),
+        "utf8",
+      ),
+      { schema: JSON_SCHEMA },
+    );
+    const summary = workflow.jobs["release-validation"].steps.find(
+      (step) => step.id === "evidence-summary",
+    );
+    const summaryFile = join(f.directory, "amendment-summary.txt");
+    const summarized = spawnSync(
+      process.platform === "win32"
+        ? "C:/Program Files/Git/bin/bash.exe"
+        : "bash",
+      ["-ceu", summary.run],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          MKW_PUBLIC_EVIDENCE: output.replaceAll("\\", "/"),
+          GITHUB_STEP_SUMMARY: summaryFile.replaceAll("\\", "/"),
+          REHEARSAL_OUTCOME: "failure",
+          COLLECT_OUTCOME: "failure",
+          UPLOAD_OUTCOME: "success",
+        },
+      },
+    );
+    assert.equal(summarized.status, 0, summarized.stderr);
+    const summaryText = await readFile(summaryFile, "utf8");
+    assert.match(
+      summaryText,
+      new RegExp(`step=entrypoint-${site}.*exit=${primary.exitCode}`),
+    );
+    assert.equal(summaryText.includes(canary), false);
+    assert.equal(
+      (
+        JSON.stringify(exported) +
+        p.output.join("\n") +
+        collected.stdout +
+        collected.stderr
+      ).includes(canary),
+      false,
+    );
+  }
+});
+for (const site of amendmentSites) {
+  test(`driver_accepts_eight_sites_only_on_closed_correlated_nonzero: ${site}`, async (t) => {
+    const f = await fixture(t),
+      status = site === "receipt-after-migration" ? 78 : 1;
+    const r = driverProbe(f.directory, "diagnostic-marker-amendment", {
+      site,
+      status,
+    });
+    assert.equal(r.status, 1, r.stderr);
+    const report = JSON.parse(
+      await readFile(
+        join(f.directory, "local-evidence/check-report.json"),
+        "utf8",
+      ),
+    );
+    assert.deepEqual(report.primary, {
+      phase: "deploy",
+      stepId: `entrypoint-${site}`,
+      scenarioId: "artifact_archive_staging_deploy_verify",
+      code: "REHEARSAL_ASSERTION",
+      exitCode: status,
+      signal: null,
+    });
+    validatePublicReport(report);
+    assert.equal(Object.keys(report).length, 13);
+    assert.equal(Object.keys(report.primary).length, 6);
+    assert.equal(
+      (r.stdout + r.stderr + JSON.stringify(report)).includes(canary),
+      false,
+    );
+  });
+}
+for (const [i, site] of amendmentSites.entries()) {
+  test(`driver_success_and_expected_readiness_clear_hint: ${site}`, async (t) => {
+    const f = await fixture(t),
+      r = driverProbe(f.directory, "diagnostic-marker-amendment", {
+        site,
+        status: 0,
+        negativeStatus: i % 2 ? 2 : 78,
+      });
+    assert.equal(r.status, 1, r.stderr);
+    const report = validatePublicReport(
+      JSON.parse(
+        await readFile(
+          join(f.directory, "local-evidence/check-report.json"),
+          "utf8",
+        ),
+      ),
+    );
+    assert.deepEqual(report.primary, {
+      phase: "deploy",
+      stepId: "release-inode-mtime-bytes",
+      scenarioId: "same_sha_new_backup_preserves_release_inode_bytes",
+      code: "REHEARSAL_ASSERTION",
+      exitCode: null,
+      signal: null,
+    });
+    assert.equal(
+      (JSON.stringify(report) + r.stdout + r.stderr).includes(canary),
+      false,
+    );
+  });
+}
+for (const kind of [
+  "foreign-duplicate",
+  "multibyte",
+  "leading-zero",
+  "no-lf",
+  "suffix",
+  "missing-close",
+]) {
+  test(`driver bounded byte/status/close parser rejects ${kind}`, async (t) => {
+    const f = await fixture(t),
+      r = driverProbe(f.directory, "diagnostic-marker-amendment", {
+        site: "db-prepared",
+        kind,
+      });
+    assert.equal(r.status, 1, r.stderr);
+    const report = JSON.parse(
+      await readFile(
+        join(f.directory, "local-evidence/check-report.json"),
+        "utf8",
+      ),
+    );
+    assert.equal(report.primary.stepId, "entrypoint-unknown");
+    assert.equal(report.primary.exitCode, 1);
+    assert.equal(report.primary.signal, null);
+    assert.equal(
+      (r.stdout + r.stderr + JSON.stringify(report)).includes(canary),
+      false,
+    );
+  });
+}
 
 test("verify invariant after command0 clears earlier expected negative", async (t) => {
   const f = await fixture(t),

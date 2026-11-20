@@ -70,6 +70,14 @@ export const entrypointSites = Object.freeze([
   "migration-complete",
   "app-applied",
   "smoke-complete",
+  "receipt-after-migration",
+  "app-apply-healthy",
+  "app-apply-db-bad",
+  "app-apply-api-bad",
+  "app-apply-gateway-bad",
+  "app-apply-multiple-bad",
+  "app-apply-unknown",
+  "app-apply-unavailable",
 ]);
 export const releaseInvariantSites = Object.freeze([
   "release-inode-mtime-bytes",

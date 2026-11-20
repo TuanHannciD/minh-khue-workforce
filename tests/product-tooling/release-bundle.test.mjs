@@ -33,6 +33,8 @@ import { canonicalRollbackFixture } from "./fixtures/rollback-workflow.mjs";
 // File map: inventory policy; compare/publish and rename failure preservation;
 // opt-in real Linux EXDEV; real tar admission; assembly/legacy policy; execution
 // of the workflow's actual packaging block.
+// bundle_includes_rehearsal_sampler_without_ci_dependency checks delivery/hash
+// admission and independent loading from the assembled controls inventory.
 // Each case uses task-owned roots from the shared fixture owner.
 const ROOT = resolve(import.meta.dirname, "../..");
 const helper = (name) => bashPath(join(ROOT, "scripts/product/release", name));
@@ -613,6 +615,47 @@ test("assembler separates exact release bytes, current trusted controls and oper
   );
   await assert.rejects(assembleDeploymentBundle(f.input));
   assert.equal(cli("pack", "--unknown", "value").status, 64);
+});
+
+test("bundle_includes_rehearsal_sampler_without_ci_dependency", async (t) => {
+  const f = await packagingInput(t);
+  await cp(
+    join(ROOT, "scripts/product/release"),
+    join(f.current, "scripts/product/release"),
+    { recursive: true },
+  );
+  const { archivePath } = await assembleDeploymentBundle(f.input);
+  const stage = join(f.root, "sampler-delivery");
+  await mkdir(stage);
+  const extracted = await runBash(
+    helper("extract-release-bundle.sh"),
+    [bashPath(archivePath), bashPath(stage)],
+    { cwd: f.root },
+  );
+  assert.equal(extracted.code, 0, extracted.stderr);
+  const path = "scripts/product/release/rehearsal-service-sample.mjs";
+  const delivered = join(stage, "controls", path),
+    bytes = await readFile(delivered);
+  assert.deepEqual(bytes, await readFile(join(ROOT, path)));
+  const inventory = JSON.parse(
+    await readFile(join(stage, "controls/bundle-inventory.json"), "utf8"),
+  );
+  assert.deepEqual(
+    inventory.files.find((f) => f.path === path),
+    { path, size: bytes.length, sha256: hash(bytes) },
+  );
+  await assert.rejects(access(join(stage, "controls/scripts/ci")));
+  const sampler = await import(pathToFileURL(delivered));
+  assert.equal(sampler.classifyServiceSample([]), "unknown");
+  await writeFile(
+    delivered,
+    Buffer.concat([bytes, Buffer.from("\n// tamper\n")]),
+  );
+  assert.equal(
+    (await verifyBundleInventory(join(stage, "controls"))).ok,
+    false,
+  );
+  assert.equal(cli("verify", join(stage, "controls")).status, 78);
 });
 
 test("modern invalid inventory cannot downgrade; legacy adapter requires explicit missing inventory", async (t) => {

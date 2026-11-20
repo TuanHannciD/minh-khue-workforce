@@ -87,6 +87,20 @@ export async function entrypointFixture(t) {
     join(root, "bin/docker"),
     `#!/usr/bin/env bash
 set -Eeuo pipefail
+[[ -z "\${MKW_REHEARSAL_DIAGNOSTIC_NONCE+x}" ]] || exit 98
+if [[ "$1 $2" == 'container inspect' ]]; then
+  if [[ -n "\${SAMPLE_PROCESS_MODEL:-}" ]]; then exec "$FIXTURE_NODE" "$SAMPLE_PROCESS_MODEL" "$@"; fi
+  if [[ -n "\${CHECK_DIAGNOSTIC_LOCK:-}" ]]; then
+    for descriptor in /proc/$$/fd/* /proc/$PPID/fd/*; do
+      [[ "$(readlink "$descriptor" 2>/dev/null || true)" != "$MKW_DEPLOY_PATH/.deploy.lock" ]] || exit 98
+    done
+  fi
+  printf 'inspect\\n' >> "$SAMPLE_QUERIES"
+  id="\${@: -1}"; service=db
+  case "$id" in 2*) service=api ;; 3*) service=gateway ;; esac
+  printf '%s|fixture|%s|running|%s\\n' "$id" "$service" "\${SAMPLE_HEALTH:-healthy}"
+  exit 0
+fi
 if [[ "$1 $2" == 'compose version' ]]; then exit 0; fi
 if [[ "$1" == pull ]]; then [[ "\${PULL_FAIL:-false}" != true ]]; exit; fi
 if [[ "$1 $2" == 'image inspect' ]]; then
@@ -111,6 +125,17 @@ if [[ "$1" == run ]]; then
   exec node "$@"
 fi
 if [[ "$1" == compose ]]; then
+  if [[ " $* " == *' ps --all --quiet '* ]]; then
+    if [[ -n "\${SAMPLE_PROCESS_MODEL:-}" ]]; then exec "$FIXTURE_NODE" "$SAMPLE_PROCESS_MODEL" "$@"; fi
+    if [[ -n "\${CHECK_DIAGNOSTIC_LOCK:-}" ]]; then
+      for descriptor in /proc/$$/fd/* /proc/$PPID/fd/*; do
+        [[ "$(readlink "$descriptor" 2>/dev/null || true)" != "$MKW_DEPLOY_PATH/.deploy.lock" ]] || exit 98
+      done
+    fi
+    printf 'ps\\n' >> "$SAMPLE_QUERIES"
+    case "\${@: -1}" in db) printf '1%.0s' {1..64} ;; api) printf '2%.0s' {1..64} ;; gateway) printf '3%.0s' {1..64} ;; *) exit 99 ;; esac
+    printf '\\n'; exit 0
+  fi
   if [[ " $* " == *' config '* ]]; then cat "$FIXTURE_RESOLVED"; exit 0; fi
   if [[ " $* " == *' ps -q '* ]]; then echo "id-\${@: -1}"; exit 0; fi
   if [[ " $* " == *' up '* || " $* " == *' run '* ]]; then
@@ -118,7 +143,11 @@ if [[ "$1" == compose ]]; then
     if [[ " $* " == *' up -d --wait --no-deps db '* && -n "\${BARRIER_FIFO:-}" ]]; then
       touch "$BARRIER_REACHED"; IFS= read -r ignored < "$BARRIER_FIFO"
     fi
+    if [[ " $* " == *' up -d --wait --remove-orphans '* && -n "\${APP_BARRIER_FIFO:-}" ]]; then
+      touch "$APP_BARRIER_REACHED"; IFS= read -r ignored < "$APP_BARRIER_FIFO"
+    fi
     if [[ " $* " == *' migrate deploy '* && "\${FAIL_MIGRATION:-false}" == true ]]; then exit 97; fi
+    if [[ " $* " == *' up -d --wait --remove-orphans '* && "\${FAIL_APP_APPLY:-false}" == true ]]; then exit 1; fi
   fi
   exit 0
 fi
@@ -126,6 +155,24 @@ exit 99
 `,
   );
   await chmod(join(root, "bin/docker"), 0o755);
+  await writeFile(
+    join(root, "bin/node"),
+    `#!/usr/bin/env bash
+if [[ "$1 $2" == '--input-type=module -' && "$3" == *'/operation-receipts.mjs' ]]; then
+  printf '%s %s %s\\n' "$6" "$7" "$8" >> "\${RECEIPT_ATTEMPTS:-${root}/receipt-attempts}"
+  if [[ "\${FAIL_RECEIPT_MIGRATION:-false}" == true && "$7 $8" == 'in-progress migration-complete' ]]; then exit 78; fi
+  if [[ "\${FAIL_RECEIPT_TERMINAL:-false}" == true && "$7" == failed ]]; then exit 78; fi
+fi
+if [[ "$1" == *'/rehearsal-service-sample.mjs' && "\${FAIL_SAMPLE:-false}" == true ]]; then exit 79; fi
+if [[ "$1" == *'/rehearsal-service-sample.mjs' && -n "\${CHECK_DIAGNOSTIC_LOCK:-}" ]]; then
+  for descriptor in /proc/$$/fd/* /proc/$PPID/fd/*; do
+    [[ "$(readlink "$descriptor" 2>/dev/null || true)" != "$MKW_DEPLOY_PATH/.deploy.lock" ]] || exit 98
+  done
+fi
+exec "\${FIXTURE_NODE:-${process.execPath}}" "$@"
+`,
+  );
+  await chmod(join(root, "bin/node"), 0o755);
   await writeFile(join(root, "bin/curl"), "#!/usr/bin/env bash\nexit 0\n");
   await chmod(join(root, "bin/curl"), 0o755);
   const stage = async (id, backupId = randomUUID()) => {
@@ -189,6 +236,9 @@ exit 99
     MKW_REGISTRY_VISIBILITY: "public",
     FIXTURE_RESOLVED: join(root, "resolved.json"),
     MUTATIONS: join(root, "mutations"),
+    SAMPLE_QUERIES: join(root, "sample-queries"),
+    RECEIPT_ATTEMPTS: join(root, "receipt-attempts"),
+    FIXTURE_NODE: process.execPath,
   };
   const start = (
     id,
