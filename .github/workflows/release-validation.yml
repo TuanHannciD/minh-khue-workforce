@@ -12,6 +12,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
+      - name: Initialize public evidence identity
+        shell: bash
+        run: |
+          run_id=$(cat /proc/sys/kernel/random/uuid)
+          echo "MKW_REHEARSAL_RUN_ID=$run_id" >> "$GITHUB_ENV"
+          echo "MKW_PARITY_EVIDENCE_ROOT=$RUNNER_TEMP/mkw-parity-evidence" >> "$GITHUB_ENV"
+          echo "MKW_PUBLIC_EVIDENCE=$RUNNER_TEMP/mkw-public-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$GITHUB_JOB-$run_id" >> "$GITHUB_ENV"
       - name: Checkout source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -20,37 +27,37 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.22.1
-      - name: Set up pnpm
+      - name: Release tooling and owned rehearsal through shared runner
+        id: rehearsal
         shell: bash
-        run: corepack enable
-      - name: Build pinned tooling environment
-        run: docker build --label mkw.owner=release-validation -t mkw-release-tooling:${{ github.run_id }}-${{ github.run_attempt }} scripts/ci
-      - name: Release tooling tests in isolated client environment
-        shell: bash
-        run: |
-          docker run --rm --init \
-            --name mkw-release-tooling-${{ github.run_id }}-${{ github.run_attempt }} \
-            --label mkw.owner=release-validation \
-            -v "$PWD:/source:ro" \
-            mkw-release-tooling:${{ github.run_id }}-${{ github.run_attempt }} \
-            bash -Eeuo pipefail -c 'corepack enable
-              mkdir /workspace
-              tar -C /source --exclude=.git --exclude=node_modules --exclude="*/node_modules" --exclude=.pnpm-store --exclude=.agent-runs --exclude=.superpowers -cf - . | tar -C /workspace -xf -
-              chown -R node:node /workspace
-              runuser -u node -- env HOME=/home/node bash -ceu "cd /workspace; pnpm install --frozen-lockfile; pnpm run product:test:tooling:release"'
-      - name: Owned account and release rehearsal
-        run: pnpm run product:test:deploy-account
-      - name: Remove owned tooling resources
+        run: node scripts/ci/parity.mjs --release --evidence-root "$MKW_PARITY_EVIDENCE_ROOT" --run-id "$MKW_REHEARSAL_RUN_ID"
+      - name: Collect validated public rehearsal evidence
+        id: collect-evidence
         if: always()
         shell: bash
+        run: node scripts/ci/collect-evidence.mjs "$MKW_REHEARSAL_RUN_ID" "$MKW_PARITY_EVIDENCE_ROOT" "$MKW_PUBLIC_EVIDENCE"
+      - name: Upload public rehearsal evidence
+        id: upload-evidence
+        if: always()
+        # Official actions/upload-artifact v4.6.2, git ls-remote verified 2026-11-19.
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mkw-public-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ env.MKW_REHEARSAL_RUN_ID }}
+          path: ${{ env.MKW_PUBLIC_EVIDENCE }}/check-report.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Summarize rehearsal and artifact availability
+        id: evidence-summary
+        if: always()
+        shell: bash
+        env:
+          REHEARSAL_OUTCOME: ${{ steps.rehearsal.outcome }}
+          COLLECT_OUTCOME: ${{ steps.collect-evidence.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.upload-evidence.outcome }}
         run: |
-          name=mkw-release-tooling-${{ github.run_id }}-${{ github.run_attempt }}
-          if docker container inspect "$name" >/dev/null 2>&1; then
-            test "$(docker inspect --format '{{ index .Config.Labels "mkw.owner" }}' "$name")" = release-validation
-            docker rm -f -v "$name"
-          fi
-          image=mkw-release-tooling:${{ github.run_id }}-${{ github.run_attempt }}
-          if docker image inspect "$image" >/dev/null 2>&1; then
-            test "$(docker image inspect --format '{{ index .Config.Labels "mkw.owner" }}' "$image")" = release-validation
-            docker image rm "$image"
+          printf 'Rehearsal gate: %s\nPublic evidence collector: %s\nArtifact upload: %s\n' "$REHEARSAL_OUTCOME" "$COLLECT_OUTCOME" "$UPLOAD_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$MKW_PUBLIC_EVIDENCE/check-report.json" ]; then
+            node --input-type=module -e 'import { readFileSync, appendFileSync } from "node:fs"; import { validatePublicReport, safeReportSummary } from "./scripts/ci/evidence.mjs"; const report = validatePublicReport(JSON.parse(readFileSync(process.env.MKW_PUBLIC_EVIDENCE + "/check-report.json", "utf8"))); appendFileSync(process.env.GITHUB_STEP_SUMMARY, safeReportSummary(report) + "\n");'
+          else
+            printf 'Public artifact unavailable; no valid report collected.\n' >> "$GITHUB_STEP_SUMMARY"
           fi

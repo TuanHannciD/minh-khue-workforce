@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
+import { createRequire } from "node:module";
+import { getCheckPlan } from "../../scripts/ci/check-plan.mjs";
+
+const require = createRequire(import.meta.url);
+const { load, JSON_SCHEMA } = createRequire(
+  require.resolve("eslint/package.json"),
+)("js-yaml");
 
 const read = (path) => readFile(path, "utf8");
 const exists = async (path) => {
@@ -22,22 +29,25 @@ test("CI runs product checks for PRs and reusable push-release calls with read-o
     ci,
     /packages:\s*write|docker\/login-action|docker\/build-push-action|deploy-entrypoint\.sh|backup-source\.sh|(?:^|\s)(?:ssh|scp|deploy)(?:\s|$)|gh\s+workflow\s+run|uses:[^\n]*deploy/im,
   );
-  for (const command of [
-    "pnpm run product:lint",
-    "pnpm run product:format:check",
-    "pnpm run product:typecheck",
-    "pnpm run product:test:tooling:ci",
-    "pnpm run product:test:sandbox",
-    "pnpm --filter @mkw/web test --run",
-    "pnpm --filter @mkw/api test",
-    "pnpm run product:contract:check",
-    "pnpm run product:build",
-  ])
-    assert.match(
-      ci,
-      new RegExp(command.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")),
-      command,
-    );
+  const workflow = load(ci, { schema: JSON_SCHEMA });
+  assert.equal(workflow.jobs.checks["runs-on"], "ubuntu-24.04");
+  assert.match(ci, /node scripts\/ci\/parity.mjs --quality/);
+  assert.deepEqual(
+    getCheckPlan("quality").map((s) => s.id),
+    [
+      "lint",
+      "format",
+      "typecheck",
+      "build",
+      "tooling-fast",
+      "sandbox",
+      "web",
+      "api",
+      "contract",
+      "boundaries",
+    ],
+  );
+  assert.doesNotMatch(ci, /run: (?:corepack|pnpm)/);
   assert.doesNotMatch(ci, /pnpm run product:check/);
 });
 
@@ -45,8 +55,31 @@ test("release-only tooling is removed from fast CI and retained in the release g
   const ci = await read(".github/workflows/ci.yml");
   const release = await read(".github/workflows/release-validation.yml");
   assert.doesNotMatch(ci, /production-account-script|deploy-account-rehearsal/);
-  assert.match(release, /product:test:tooling:release/);
-  assert.match(release, /product:test:deploy-account/);
+  assert.match(release, /node scripts\/ci\/parity.mjs --release/);
+  assert.deepEqual(getCheckPlan("release-tooling"), [
+    {
+      id: "tooling-release",
+      executable: "pnpm",
+      args: ["run", "product:test:tooling:release"],
+    },
+  ]);
+});
+
+test("release tooling delegates worker preparation and gates to the shared runner", async () => {
+  const release = load(await read(".github/workflows/release-validation.yml"), {
+    schema: JSON_SCHEMA,
+  });
+  const step = release.jobs["release-validation"].steps.find(
+    (candidate) => candidate.id === "rehearsal",
+  );
+  assert.ok(step);
+  assert.match(step.run, /node scripts\/ci\/parity.mjs --release/);
+  assert.equal(step.if, undefined);
+  assert.equal(step["continue-on-error"], undefined);
+  assert.doesNotMatch(
+    release.jobs["release-validation"].steps.map((s) => s.run ?? "").join("\n"),
+    /docker\.sock|--privileged|\bssh\b|\bscp\b|docker login/,
+  );
 });
 
 test("release workflow is reusable and checks the full push SHA", async () => {

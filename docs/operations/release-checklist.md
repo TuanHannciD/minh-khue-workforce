@@ -15,6 +15,17 @@ Phạm vi: local đã review → merge → `git push origin main`. Đây là đ�
 
 ## Mỗi release
 
+Trước activation, chạy native feedback cần thiết rồi `pnpm run ci:parity -- --all`
+trên source đã review; no-flag hook chỉ quality + release tooling, rehearsal Not run.
+Ghi source inventory/lock/runtime/ordered scenario IDs và UUID evidence mới; cold
+và repeatability phải dùng namespaces mới trên frozen source, không host deps/dist
+hoặc result cache. Kiểm host evidence headroom12GiB, Docker Linux/amd64 và mạng.
+Đọc `public/check-report.json`/secondaryErrors, giữ raw private và kiểm exact owner
+cleanup/retained resources theo [CI map](../../scripts/ci/README.md).
+Local green không miễn gate remote, independent review hoặc B1/H1 đang mở tại
+[validation CI parity](../tasks/MKW-CI-PARITY-001/validation.md); checklist không tự
+cấp quyền push/merge/workflow dispatch/deploy.
+
 1. Review và merge local code, sau đó `git push origin main`.
 2. `main-release.yml` chạy CI quality rồi release validation (deploy/account tooling trong container đã pin và rehearsal thật trong Docker engine riêng). Chỉ khi cả hai đạt mới mở full Docker build API/Web và backup `BACKUP`; hai stage có thể chạy song song. Pull request chỉ chạy nhóm CI nhanh; không dùng kết quả local thay cho release gate.
 3. Build push image bằng Docker official actions, ghi manifest/checksum/SBOM/provenance và exact GHCR digests. Không reuse API image, không chọn latest.

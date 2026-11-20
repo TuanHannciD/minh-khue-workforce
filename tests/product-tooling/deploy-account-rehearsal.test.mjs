@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { randomUUID, createHash } from "node:crypto";
+import { snapshotTar } from "./fixtures/snapshot-tar.mjs";
 
 // Default discovery is safe: no Docker acquisition or acceptance workload.
 if (process.argv.includes("--rehearsal")) {
@@ -214,9 +215,11 @@ if (process.argv.includes("--rehearsal")) {
       await readFile(join(output, "source/current.txt"), "utf8"),
       "dirty Unicode: Khuê\n",
     );
-    const listing = spawnSync("tar", ["-tf", join(output, "source.tar")], {
-      encoding: "utf8",
-    });
+    const listing = spawnSync(
+      snapshotTar.command,
+      [...snapshotTar.options, "-tf", join(output, "source.tar")],
+      { encoding: "utf8" },
+    );
     assert.equal(listing.status, 0);
     assert.doesNotMatch(listing.stdout, /secret|dist|\.git\//);
   });

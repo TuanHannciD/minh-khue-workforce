@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "platform": "linux/amd64",
+  "node": "24.22.1",
+  "pnpm": "12.15.0",
+  "images": {
+    "worker": {
+      "source": "node:24.22.1-bookworm",
+      "reference": "node:24.22.1-bookworm@sha256:d862bb5d082c5ae0210ac07e8c0344cb8cf7bef6d78e9b8c50c179da923108ea",
+      "digest": "sha256:d862bb5d082c5ae0210ac07e8c0344cb8cf7bef6d78e9b8c50c179da923108ea",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:0925478b811e8890f5508ad2a75135933310effd45492696ecf7c111c8339d02",
+      "configDigest": "sha256:8279a176db0ac2d89d4d3ef16063c1990ee00ea98d81e0937ed38117feab7fed",
+      "provenance": "https://registry-1.docker.io/v2/library/node/manifests/sha256:d862bb5d082c5ae0210ac07e8c0344cb8cf7bef6d78e9b8c50c179da923108ea"
+    },
+    "cli": {
+      "source": "docker:29.9.3-cli",
+      "reference": "docker:29.9.3-cli@sha256:5a7af0dcb0e46c803efe9b45371dd21cb500e5b4453250394ac6f06d49b6e6f1",
+      "digest": "sha256:5a7af0dcb0e46c803efe9b45371dd21cb500e5b4453250394ac6f06d49b6e6f1",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:48678dab48932d2b9189040748f321d4eb09c90193bbf4f4b9b86d72cffd6e25",
+      "configDigest": "sha256:d60219d862fe550a2d0757c73b6b1a7cdc6d02f1f8d01feb05e16dc9b6a70db3",
+      "provenance": "https://registry-1.docker.io/v2/library/docker/manifests/sha256:5a7af0dcb0e46c803efe9b45371dd21cb500e5b4453250394ac6f06d49b6e6f1"
+    },
+    "dind": {
+      "source": "docker:29.9.3-dind",
+      "reference": "docker:29.9.3-dind@sha256:7bf70dcb85c822e3fa6f2d332143e474b99147b9d7b39102b0cfe8b04a7dd61b",
+      "digest": "sha256:7bf70dcb85c822e3fa6f2d332143e474b99147b9d7b39102b0cfe8b04a7dd61b",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:9d337aaf171682751be04d67c15d880d6a95c6fd44cb8e12043f605012e5e654",
+      "configDigest": "sha256:2874e9600b01dfd3058420967f0b5db845cb4ee91aa40235119525a3ca70c290",
+      "provenance": "https://registry-1.docker.io/v2/library/docker/manifests/sha256:7bf70dcb85c822e3fa6f2d332143e474b99147b9d7b39102b0cfe8b04a7dd61b"
+    },
+    "nodeAlpine": {
+      "source": "node:24.22.1-alpine",
+      "reference": "node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53",
+      "digest": "sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:1200d815de24f8dcca745fbf7651d166034a35adbcad8860a8538ffff44f1420",
+      "configDigest": "sha256:fecf2188af16d8979528abb79909513c78971103c52f677d69584e93c3a0ffcf",
+      "provenance": "https://registry-1.docker.io/v2/library/node/manifests/sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53"
+    },
+    "registry": {
+      "source": "registry:2",
+      "reference": "registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373",
+      "digest": "sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:46faa9a1ae6813194b53921a370f2f4f8c5e1aae228a89bceafef5847a6a3278",
+      "configDigest": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "provenance": "https://registry-1.docker.io/v2/library/registry/manifests/sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373"
+    },
+    "apiBuildBase": {
+      "source": "node:24.22.1-bookworm-slim",
+      "reference": "node:24.22.1-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c",
+      "digest": "sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d",
+      "configDigest": "sha256:4d4657ef82b5cf8fd56373dbf8b145cdc6d1d7aabbaca1e6a361efedae04e052",
+      "provenance": "https://registry-1.docker.io/v2/library/node/manifests/sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c"
+    },
+    "webRuntimeBase": {
+      "source": "nginx:1.29-alpine",
+      "reference": "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+      "digest": "sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:3bcf852aed06467cf075c6105892e4d5a6ebbbafa0ce22d35062db9e90ddef4c",
+      "configDigest": "sha256:812d47f806db497c53f9b47e76bdab38bcf5d724c69d3986df5ee4336c210559",
+      "provenance": "https://registry-1.docker.io/v2/library/nginx/manifests/sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de"
+    },
+    "postgres": {
+      "source": "postgres",
+      "reference": "postgres@sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac",
+      "digest": "sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac",
+      "platform": "linux/amd64",
+      "platformDigest": "sha256:4717f90960a225c2d1c5dac50508c401230f693ff626e06e84e6db0a68ded508",
+      "configDigest": "sha256:aac5ed9e090c8b3e134bf1dcf3f9fe0787a29cecdf7867de8b53b5d8abc3eef2",
+      "provenance": "https://registry-1.docker.io/v2/library/postgres/manifests/sha256:3540c0362c809df084ffac0ae69fe794515f9de92692f02178bcdce0ef0302ac"
+    }
+  },
+  "packages": {
+    "bash": "5.3.9-r1",
+    "coreutils": "9.11-r0",
+    "util-linux": "2.42.3-r1",
+    "curl": "8.23.0-r0",
+    "openssl": "3.5.9-r1",
+    "git": "2.54.1-r0",
+    "jq": "1.8.2-r0",
+    "tar": "1.35-r5",
+    "libstdc++": "15.2.0-r5",
+    "procps": "4.0.6-r0",
+    "procps-package": "procps-ng"
+  },
+  "executables": {
+    "node": "v24.22.1",
+    "pnpm": "12.15.0",
+    "docker": "29.9.3",
+    "compose": "v5.7.1",
+    "flock": "2.42.3",
+    "ps": "4.0.6",
+    "bash": "5.3.9",
+    "openssl": "3.5.9",
+    "jq": "1.8.2",
+    "git": "2.54.1",
+    "tar": "1.35"
+  },
+  "uid": 1000,
+  "provenance": {
+    "images": "task-2-image-research.json; official Docker Registry V2 metadata queried 2026-11-19",
+    "packages": "task-2-image-research.json; Alpine v3.24 x86_64 APKINDEX queried 2026-11-19"
+  }
+}

@@ -52,7 +52,7 @@ if [[ "$MKW_REGISTRY_VISIBILITY" == private ]]; then
   }
 fi
 for image in "${images[@]}"; do
-  docker pull --quiet "$image" >/dev/null 2>&1 || { echo "registry pull failed for immutable image" >&2; exit 77; }
+  docker pull --platform linux/amd64 --quiet "$image" >/dev/null 2>&1 || { echo "registry pull failed for immutable image" >&2; exit 77; }
   repo_digests="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image" 2>/dev/null)" || {
     echo "registry local image inspection failed" >&2; exit 78
   }

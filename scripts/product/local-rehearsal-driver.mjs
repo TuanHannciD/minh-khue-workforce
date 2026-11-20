@@ -1,5 +1,9 @@
-// Inner engine only. Map: admission/recording, real registry/images/backup,
-// artifact->pack->extract->entrypoint, account adapters, recovery scenarios.
+// Inner engine only. File map:
+// - enter/publicReport/command/scenario: stage, safe terminal and private journal.
+// - acquire/build/backup: owned registry/images and restore lifetime.
+// - stage/deploy/verify: artifact -> pack -> extract -> real entrypoint.
+// - main: admission, snapshot proof, account adapters and recovery scenarios.
+// Kept together because these adapters share one admitted daemon and journal.
 // Test faults and fake canonical/provenance inputs live in the test fixture.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -13,10 +17,18 @@ import {
 } from "node:fs/promises";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
+import { verifySourceSnapshot } from "../ci/source-snapshot.mjs";
+import {
+  projectPublicReport,
+  publicRuntimeVersion,
+  safeReportSummary,
+  scenarioIds,
+} from "../ci/evidence.mjs";
 import {
   writeRehearsalEvidence as save,
   classifyRehearsalFailure,
   waitForRehearsalPostgres,
+  executeRehearsalProcess,
 } from "./local-rehearsal-engine.mjs";
 import {
   assembleDeploymentBundle,
@@ -35,12 +47,49 @@ const root = "/workspace",
   evidence = "/local-evidence";
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const pause = (ms) => new Promise((done) => setTimeout(done, ms));
-let currentCase = "ownership",
+let currentCase = null,
   assertions = 0;
 const scenarios = [],
   commands = [],
   acquisitions = [];
 let owner, snapshot, pg, currentRelease;
+const secondaryErrors = [];
+const runtime = {
+  node: process.version,
+  platform: process.platform,
+  arch: process.arch,
+  uid: process.getuid?.(),
+};
+let phase = "prerequisite",
+  stepId = "prerequisite",
+  primaryFailure;
+const started = Date.now();
+function enter(nextPhase, nextStep, scenarioId = null) {
+  phase = nextPhase;
+  stepId = nextStep;
+  currentCase = scenarioId;
+}
+function publicReport(result, code = "REPORT_INCOMPLETE") {
+  return projectPublicReport({
+    runId: owner.taskId,
+    sourceSha256: snapshot?.sourceSha256,
+    baseSha: snapshot?.base,
+    result,
+    durationMs: Date.now() - started,
+    primary: {
+      phase,
+      stepId,
+      scenarioId: currentCase,
+      code,
+      exitCode: result === "Passed" ? 0 : null,
+      signal: null,
+      ...primaryFailure,
+    },
+    counts: { assertions, commands: commands.length },
+    secondaryErrors,
+    runtime,
+  });
+}
 
 async function command(bin, args, options = {}) {
   const start = Date.now();
@@ -54,34 +103,45 @@ async function command(bin, args, options = {}) {
   };
   commands.push(entry);
   await save(`${evidence}/commands.json`, commands);
-  const result = await new Promise((done) => {
-    const child = spawn(bin, args, {
-      cwd: root,
-      stdio: "pipe",
-      timeout: 900000,
-      ...options,
-    });
-    const stdout = [],
-      stderr = [];
-    child.stdout.on("data", (b) => stdout.push(b));
-    child.stderr.on("data", (b) => stderr.push(b));
-    child.on("error", () =>
-      done({ status: 69, stdout: "", stderr: "runtime unavailable" }),
-    );
-    child.on("close", (status) =>
-      done({
-        status,
-        stdout: Buffer.concat(stdout).toString(),
-        stderr: Buffer.concat(stderr).toString(),
-      }),
-    );
-    child.stdin.end(options.input);
+  const outcome = await executeRehearsalProcess(bin, args, {
+    cwd: root,
+    timeout: 900000,
+    ...options,
   });
+  const result = {
+    ...outcome,
+    stdout: outcome.stdout.toString(),
+    stderr: outcome.stderr.toString(),
+  };
   // Never record input, env, resolved config, SQL output, cookies or driver errors.
-  Object.assign(entry, { exit: result.status, durationMs: Date.now() - start });
-  if (result.status !== 0)
+  Object.assign(entry, {
+    exit: result.status,
+    closeObserved: result.closeObserved,
+    durationMs: Date.now() - start,
+  });
+  if (result.cleanupUnverified)
+    secondaryErrors.push("PROCESS_CLEANUP_UNVERIFIED");
+  if (result.status !== 0 || result.signal || result.processCode) {
     entry.diagnosticCode = classifyRehearsalFailure(result.stderr);
+    // May be an expected negative command; only consume this context if the
+    // caller actually throws, and reset it when another boundary succeeds.
+    primaryFailure = {
+      code:
+        result.processCode ??
+        (entry.diagnosticCode === "UNCLASSIFIED"
+          ? "REHEARSAL_ASSERTION"
+          : entry.diagnosticCode),
+      exitCode: result.status,
+      signal: result.signal ?? null,
+    };
+  } else primaryFailure = undefined;
   await save(`${evidence}/commands.json`, commands);
+  // Process/stream/deadline failures are never an expected negative assertion.
+  // Stop even when the observed process exit was zero.
+  if (result.processCode)
+    throw Object.assign(new Error(result.processCode), {
+      code: result.processCode,
+    });
   return result;
 }
 async function run(bin, args, options) {
@@ -91,12 +151,32 @@ async function run(bin, args, options) {
 }
 const docker = (...args) => run("docker", args);
 async function scenario(id, body) {
-  currentCase = id;
+  assert.ok(scenarioIds.includes(id));
+  enter(
+    id.startsWith("account_") ||
+      [
+        "list_empty_then_sorted_users",
+        "add_duplicate_concurrent",
+        "reset_commits_and_revokes",
+        "reset_failure_rolls_back",
+        "add_deferred_commit_failure",
+        "reset_missing",
+        "invalid_private_input_preserves_sql",
+        "credential_scan_evidence_and_runtime",
+      ].includes(id)
+      ? "account"
+      : "assertions",
+    "scenario",
+    id,
+  );
+  primaryFailure = undefined;
   const start = Date.now();
   await body();
   assertions++;
   scenarios.push({ id, result: "passed", durationMs: Date.now() - start });
   await save(`${evidence}/assertions.json`, scenarios);
+  currentCase = null;
+  primaryFailure = undefined;
 }
 async function acquire(kind, name, image, args) {
   acquisitions.push({
@@ -191,72 +271,108 @@ function envFor(record, extra = {}) {
   };
 }
 async function backup(record) {
-  const n = acquisitions.filter((a) => a.kind === "restore").length + 1;
-  const id = await dbId();
-  // Binary dump stays inside owned daemon; no credential or dump in exported evidence.
-  await run("bash", [
-    "-ceu",
-    'docker exec "$1" sh -ceu \'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc\' | openssl enc -aes-256-cbc -pbkdf2 -pass file:/local-only/backup-key -out "$2"',
-    "backup",
-    id,
-    `/local-only/backup-${n}.enc`,
-  ]);
-  const restored = await acquire("restore", `task9-restore-${n}`, pg, [
-    "--env-file",
-    `${target}/shared/db.env`,
-  ]);
+  const context = { phase, stepId, currentCase };
+  let succeeded = false;
+  enter("backup", "backup", currentCase);
   try {
-    await waitForRehearsalPostgres(command, restored);
+    const n = acquisitions.filter((a) => a.kind === "restore").length + 1;
+    const id = await dbId();
+    // Binary dump stays inside owned daemon; no credential or dump in exported evidence.
     await run("bash", [
       "-ceu",
-      'openssl enc -d -aes-256-cbc -pbkdf2 -pass file:/local-only/backup-key -in "$1" | docker exec -i "$2" pg_restore --exit-on-error --no-owner -U mkw -d mkw',
-      "restore",
+      'docker exec "$1" sh -ceu \'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc\' | openssl enc -aes-256-cbc -pbkdf2 -pass file:/local-only/backup-key -out "$2"',
+      "backup",
+      id,
       `/local-only/backup-${n}.enc`,
-      restored,
     ]);
-    const probe = await run("docker", [
-      "exec",
-      restored,
-      "psql",
-      "-X",
-      "-At",
-      "-U",
-      "mkw",
-      "-d",
-      "mkw",
-      "-c",
-      "SELECT value FROM local_rehearsal_probe WHERE id=1;",
+    const restored = await acquire("restore", `task9-restore-${n}`, pg, [
+      "--env-file",
+      `${target}/shared/db.env`,
     ]);
-    assert.equal(probe, owner.taskId);
+    let restoreFailure, cleanupFailure;
+    try {
+      await waitForRehearsalPostgres(command, restored);
+      await run("bash", [
+        "-ceu",
+        'openssl enc -d -aes-256-cbc -pbkdf2 -pass file:/local-only/backup-key -in "$1" | docker exec -i "$2" pg_restore --exit-on-error --no-owner -U mkw -d mkw',
+        "restore",
+        `/local-only/backup-${n}.enc`,
+        restored,
+      ]);
+      const probe = await run("docker", [
+        "exec",
+        restored,
+        "psql",
+        "-X",
+        "-At",
+        "-U",
+        "mkw",
+        "-d",
+        "mkw",
+        "-c",
+        "SELECT value FROM local_rehearsal_probe WHERE id=1;",
+      ]);
+      assert.equal(probe, owner.taskId);
+    } catch (error) {
+      restoreFailure = {
+        error,
+        primary: primaryFailure ?? {
+          code:
+            error.code === "REHEARSAL_POSTGRES_READINESS"
+              ? error.code
+              : "REHEARSAL_ASSERTION",
+          exitCode: null,
+          signal: null,
+        },
+      };
+    } finally {
+      try {
+        const info = JSON.parse(await docker("inspect", restored))[0];
+        assert.equal(info.Config.Labels["com.mkw.task"], owner.taskId);
+        await docker("rm", "-f", "-v", restored);
+      } catch (cleanupError) {
+        cleanupFailure = cleanupError;
+        if (restoreFailure) secondaryErrors.push("REHEARSAL_CLEANUP");
+      } finally {
+        if (restoreFailure) primaryFailure = restoreFailure.primary;
+      }
+    }
+    if (restoreFailure) throw restoreFailure.error;
+    if (cleanupFailure) throw cleanupFailure;
+    const bytes = await readFile(`/local-only/backup-${n}.enc`),
+      now = Date.now();
+    const metadata = {
+      schemaVersion: "1",
+      kind: "BACKUP",
+      backupId: `mkw-${1000 + n}-1-release`,
+      releaseSha: record.sha,
+      createdAt: new Date(Math.floor(now / 1000) * 1000).toISOString(),
+      restoreVerified: true,
+      retentionUntil: new Date(now + 86400000).toISOString(),
+      dumpSha256: hash(bytes),
+      size: bytes.length,
+      storageLocation: `owned-engine:backup-${n}.enc`,
+      databaseIdentity: {
+        host: "local-only",
+        name: "mkw",
+        engine: "postgresql",
+        targetIdentity: baseEnv().MKW_BACKUP_EXPECTED_TARGET_IDENTITY,
+      },
+    };
+    await save(`${evidence}/backup-${n}.json`, metadata);
+    succeeded = true;
+    return metadata;
   } finally {
-    const info = JSON.parse(await docker("inspect", restored))[0];
-    assert.equal(info.Config.Labels["com.mkw.task"], owner.taskId);
-    await docker("rm", "-f", "-v", restored);
+    // Preserve a throwing backup's stage, restore its caller only on success.
+    if (succeeded) {
+      phase = context.phase;
+      stepId = context.stepId;
+      currentCase = context.currentCase;
+    }
   }
-  const bytes = await readFile(`/local-only/backup-${n}.enc`),
-    now = Date.now();
-  const metadata = {
-    schemaVersion: "1",
-    kind: "BACKUP",
-    backupId: `mkw-${1000 + n}-1-release`,
-    releaseSha: record.sha,
-    createdAt: new Date(Math.floor(now / 1000) * 1000).toISOString(),
-    restoreVerified: true,
-    retentionUntil: new Date(now + 86400000).toISOString(),
-    dumpSha256: hash(bytes),
-    size: bytes.length,
-    storageLocation: `owned-engine:backup-${n}.enc`,
-    databaseIdentity: {
-      host: "local-only",
-      name: "mkw",
-      engine: "postgresql",
-      targetIdentity: baseEnv().MKW_BACKUP_EXPECTED_TARGET_IDENTITY,
-    },
-  };
-  await save(`${evidence}/backup-${n}.json`, metadata);
-  return metadata;
 }
 async function stage(record, metadata, { composeText, rollback } = {}) {
+  enter("deploy", "deploy", currentCase);
   const id = record.operationId;
   const operation = `/local-only/inputs/${id}`;
   await mkdir(operation, { recursive: true });
@@ -333,6 +449,7 @@ async function stage(record, metadata, { composeText, rollback } = {}) {
   return staging;
 }
 async function deploy(record, staging, extra = {}, prefix = []) {
+  enter("deploy", "deploy", currentCase);
   // Trusted current controls bootstrap executes from the extracted verified tree.
   const controls = `${staging}/controls`;
   return command(
@@ -357,6 +474,7 @@ async function deploy(record, staging, extra = {}, prefix = []) {
   );
 }
 async function verify(record) {
+  enter("recovery", "recovery", currentCase);
   const controls = `${target}/controls/${snapshot.sourceSha256}`;
   return command(
     "bash",
@@ -371,6 +489,7 @@ async function build(label) {
       : hash(`${snapshot.sourceSha256}:fixture-${label}`);
   const images = {};
   for (const service of ["api", "web"]) {
+    enter("build", `build-${service}-${label.toLowerCase()}`);
     const tag = `ghcr.io/mkw-local/mkw-${service}:${sha}`;
     await save(`${evidence}/build-request-${label}-${service}.json`, {
       owner,
@@ -451,6 +570,8 @@ async function main() {
   });
   assert.equal(probe, owner.name);
   await mkdir(evidence, { mode: 0o700 });
+  await save(`${evidence}/check-report.json`, publicReport("Not run"));
+  enter("snapshot", "source-snapshot");
   snapshot = JSON.parse(await readFile("/source-snapshot.json", "utf8"));
   await save(`${evidence}/scope.json`, {
     owner,
@@ -460,20 +581,28 @@ async function main() {
     canonicalProvenance: "fixture only; no live GitHub/GHCR/SSH/VPS proof",
   });
   await scenario("exact_snapshot_and_empty_daemon", async () => {
-    assert.equal(hash(await readFile("/source.tar")), snapshot.archiveSha256);
-    assert.equal(hash(JSON.stringify(snapshot.files)), snapshot.sourceSha256);
-    for (const f of snapshot.files)
-      assert.equal(hash(await readFile(`${root}/${f.path}`)), f.sha256);
+    // Shared v2 admission checks actual archive members and extracted type/mode/bytes.
+    snapshot = await verifySourceSnapshot("/", { sourceRoot: root });
     assert.equal(await docker("ps", "-aq"), "");
     assert.equal(await docker("volume", "ls", "-q"), "");
     assert.match(process.version, /^v24\./);
+    const dockerVersion = await docker(
+      "version",
+      "--format",
+      "{{.Server.Version}}",
+    );
+    const composeVersion = await docker("compose", "version", "--short");
+    runtime.docker = publicRuntimeVersion(dockerVersion);
+    runtime.compose = publicRuntimeVersion(composeVersion);
     await save(`${evidence}/versions.json`, {
       node: process.version,
-      docker: await docker("version", "--format", "{{.Server.Version}}"),
-      compose: await docker("compose", "version", "--short"),
+      docker: dockerVersion,
+      compose: composeVersion,
       sourceFiles: snapshot.files.length,
     });
   });
+  enter("registry", "registry-setup");
+  await save(`${evidence}/check-report.json`, publicReport("Not run"));
   await mkdir("/local-only/registry", { recursive: true, mode: 0o700 });
   await mkdir("/local-only/bundles", { recursive: true });
   await installRehearsalAudit();
@@ -500,9 +629,11 @@ async function main() {
     "/etc/docker/certs.d/ghcr.io/ca.crt",
   );
   await appendFile("/etc/hosts", "\n127.0.0.1 ghcr.io\n");
-  await docker("pull", "registry:2");
+  const registryImage =
+    "registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373";
+  await docker("pull", registryImage);
   const registry = JSON.parse(
-    await docker("image", "inspect", "registry:2"),
+    await docker("image", "inspect", registryImage),
   )[0];
   await acquire("registry", "task9-registry", registry.RepoDigests[0], [
     "-p",
@@ -514,6 +645,7 @@ async function main() {
     "-e",
     "REGISTRY_HTTP_TLS_KEY=/certs/key.pem",
   ]);
+  enter("setup", "postgres-setup");
   pg = (await readFile("deploy/postgres-image.env", "utf8"))
     .match(/^MKW_POSTGRES_IMAGE=(.+)$/m)[1]
     .trim();
@@ -745,6 +877,9 @@ async function main() {
   f.accountFault = (fault, input) => accountFaults(f, fault, input);
   await runRealAccountScenarios(f);
   await runRealReleaseScenarios(f, a);
+  enter("complete", "complete");
+  primaryFailure = undefined;
+  await save(`${evidence}/check-report.json`, publicReport("Passed", "OK"));
   await save(`${evidence}/result.json`, {
     result: "passed",
     assertions,
@@ -758,9 +893,17 @@ async function main() {
   console.log(`LOCAL_REHEARSAL_ASSERTIONS_OK count=${assertions}`);
 }
 
-main().catch(async () => {
+main().catch(async (error) => {
   // Never serialize an assertion's actual/expected or a raw dependency error.
-  if (owner && currentCase !== "ownership")
+  if (owner) {
+    const report = publicReport(
+      "Failed",
+      error.code === "REHEARSAL_POSTGRES_READINESS"
+        ? error.code
+        : "REHEARSAL_ASSERTION",
+    );
+    await save(`${evidence}/check-report.json`, report).catch(() => {});
+    console.error(safeReportSummary(report));
     await save(`${evidence}/result.json`, {
       result: "Failed",
       failedScenario: currentCase,
@@ -768,8 +911,9 @@ main().catch(async () => {
       assertionCountUnit: "completed scenario groups",
       commands: commands.length,
     }).catch(() => {});
+  }
   console.error(
-    currentCase === "ownership"
+    !owner
       ? "owned Linux engine required"
       : `REHEARSAL_FAILED scenario=${currentCase} command=${commands.length}`,
   );

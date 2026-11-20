@@ -26,15 +26,12 @@ test("release fixtures use pinned container tooling without the host socket and 
   const job = workflow.jobs["release-validation"];
   const commands = job.steps.map((s) => s.run ?? "").join("\n");
   assert.match(commands, /scripts\/ci\/Dockerfile|scripts\/ci/);
-  assert.match(commands, /docker run/);
+  assert.match(commands, /node scripts\/ci\/parity.mjs --release/);
   assert.doesNotMatch(commands, /docker\.sock|--privileged|continue-on-error/);
-  assert.match(commands, /product:test:tooling:release/);
-  assert.match(commands, /product:test:deploy-account/);
+  assert.doesNotMatch(commands, /pnpm |docker (?:run|build)|\bssh\b|\bscp\b/);
   assert.equal(job["continue-on-error"], undefined);
   assert.equal(
-    job.steps.some(
-      (s) => s.run?.includes("product:test:deploy-account") && s.if,
-    ),
+    job.steps.some((s) => s.run?.includes("parity.mjs --release") && s.if),
     false,
   );
 });

@@ -136,7 +136,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           }
         },
         inspectApi: async (image) => {
-          execFileSync("docker", ["pull", "--quiet", image], { stdio: "pipe" });
+          execFileSync(
+            "docker",
+            ["pull", "--platform", "linux/amd64", "--quiet", image],
+            { stdio: "pipe" },
+          );
           const [info] = JSON.parse(
             execFileSync("docker", ["image", "inspect", image], {
               encoding: "utf8",

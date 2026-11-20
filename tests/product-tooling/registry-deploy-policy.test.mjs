@@ -74,9 +74,10 @@ if [[ "$1 $2" == "login ghcr.io" ]]; then
   echo fixture-login > "$DOCKER_CONFIG/config.json"
   exit ${pull}
 fi
-if [[ "$1 $2" == "pull --quiet" ]]; then
+if [[ "$1 $2 $3 $4" == "pull --platform linux/amd64 --quiet" ]]; then
+  [[ "$5" == *"@sha256:"* ]] || exit 93
   if [[ "${requireAuth}" == true && ! -f "$AUTH_CONFIG_PATH" ]]; then exit 77; fi
-  if [[ "$3" == "\${DENY_IMAGE:-}" ]]; then echo fixture-read-only-token >&2; exit 77; fi
+  if [[ "$5" == "\${DENY_IMAGE:-}" ]]; then echo fixture-read-only-token >&2; exit 77; fi
   exit ${pull}
 fi
 if [[ "$1 $2 $3" == "image inspect --format" ]]; then
@@ -133,8 +134,14 @@ test("public registry pulls both exact digests and rejects mutable latest", asyn
   assert.equal(ok.code, 0, ok.stderr);
   assert.match(ok.stdout, /REGISTRY_PULL_OK images=2 auth=public/);
   const log = await readFile(f.log, "utf8");
-  assert.match(log, /pull --quiet ghcr\.io\/minh-khue\/api@sha256:/);
-  assert.match(log, /pull --quiet ghcr\.io\/minh-khue\/web@sha256:/);
+  assert.match(
+    log,
+    /pull --platform linux\/amd64 --quiet ghcr\.io\/minh-khue\/api@sha256:/,
+  );
+  assert.match(
+    log,
+    /pull --platform linux\/amd64 --quiet ghcr\.io\/minh-khue\/web@sha256:/,
+  );
   const latest = await run(f.dir, {
     PATH: f.path,
     DOCKER_LOG: f.log,
@@ -263,8 +270,11 @@ test("rollback remote environment authenticates private GHCR with a non-default 
   assert.match(result.stdout, /REGISTRY_PULL_OK images=2 auth=private/);
   const log = await readFile(f.log, "utf8");
   assert.match(log, /login ghcr\.io --username mkw-pull --password-stdin/);
-  assert.ok(log.indexOf("login ghcr.io") < log.indexOf(`pull --quiet ${API}`));
-  assert.ok(log.includes(`pull --quiet ${WEB}`));
+  assert.ok(
+    log.indexOf("login ghcr.io") <
+      log.indexOf(`pull --platform linux/amd64 --quiet ${API}`),
+  );
+  assert.ok(log.includes(`pull --platform linux/amd64 --quiet ${WEB}`));
   assert.doesNotMatch(
     result.stdout + result.stderr + log,
     /fixture-read-only-token/,

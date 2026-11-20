@@ -1,0 +1,39 @@
+# Rehearsal engine inputs are immutable and must stay aligned with environment-lock.json.
+FROM docker:29.9.3-dind@sha256:7bf70dcb85c822e3fa6f2d332143e474b99147b9d7b39102b0cfe8b04a7dd61b AS dind
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS node
+FROM dind
+ENV COREPACK_HOME=/opt/corepack COREPACK_DEFAULT_TO_LATEST=0
+
+RUN apk add --no-cache \
+      bash=5.3.9-r1 \
+      coreutils=9.11-r0 \
+      util-linux=2.42.3-r1 \
+      curl=8.23.0-r0 \
+      openssl=3.5.9-r1 \
+      git=2.54.1-r0 \
+      jq=1.8.2-r0 \
+      tar=1.35-r5 \
+      libstdc++=15.2.0-r5 \
+      procps-ng=4.0.6-r0
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/bin/corepack /usr/local/bin/corepack
+COPY --from=node /usr/local/lib/node_modules/corepack /usr/local/lib/node_modules/corepack
+
+# Keep probes in the image so a package mirror or ABI drift fails at build/admission.
+RUN set -eux; \
+    mkdir -p "$COREPACK_HOME"; \
+    rm -f /usr/local/bin/corepack; \
+    ln -s ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack; \
+    corepack enable; \
+    corepack install --global pnpm@12.15.0; \
+    chmod -R a+rX "$COREPACK_HOME"; \
+    node --version | grep -Fx 'v24.22.1'; \
+    pnpm --version | grep -Fx '12.15.0'; \
+    ps -eo pid,args >/dev/null; \
+    bash --version | head -n 1 | grep -F '5.3'; \
+    openssl version | grep -F '3.5'; \
+    jq --version | grep -F 'jq-1.8.2'; \
+    git --version | grep -F '2.54.1'; \
+    tar --version | head -n 1 | grep -F '1.35'; \
+    flock --version | head -n 1 | grep -F '2.42.3'; \
+    test "$(id -u)" = 0

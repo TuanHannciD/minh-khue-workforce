@@ -23,9 +23,16 @@ jobs:
     outputs:
       quality_sha: ${{ github.sha }}
       quality_status: ${{ job.status }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
+      - name: Initialize public evidence identity
+        shell: bash
+        run: |
+          run_id=$(cat /proc/sys/kernel/random/uuid)
+          echo "MKW_REHEARSAL_RUN_ID=$run_id" >> "$GITHUB_ENV"
+          echo "MKW_PARITY_EVIDENCE_ROOT=$RUNNER_TEMP/mkw-parity-evidence" >> "$GITHUB_ENV"
+          echo "MKW_PUBLIC_EVIDENCE=$RUNNER_TEMP/mkw-public-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$GITHUB_JOB-$run_id" >> "$GITHUB_ENV"
       - name: Checkout source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -34,29 +41,37 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.22.1
-      - name: Set up pnpm
+      - name: Quality through shared runner
+        id: rehearsal
         shell: bash
-        run: corepack enable
-      - name: Install dependencies
+        run: node scripts/ci/parity.mjs --quality --evidence-root "$MKW_PARITY_EVIDENCE_ROOT" --run-id "$MKW_REHEARSAL_RUN_ID"
+      - name: Collect validated public rehearsal evidence
+        id: collect-evidence
+        if: always()
         shell: bash
-        run: pnpm install --frozen-lockfile
-      - name: Lint
-        run: pnpm run product:lint
-      - name: Format check
-        run: pnpm run product:format:check
-      - name: Typecheck
-        run: pnpm run product:typecheck
-      - name: Build
-        run: pnpm run product:build
-      - name: Tooling tests
-        run: pnpm run product:test:tooling:ci
-      - name: Sandbox tests
-        run: pnpm run product:test:sandbox
-      - name: Web tests
-        run: pnpm --filter @mkw/web test --run --maxWorkers=2
-      - name: API tests
-        run: pnpm --filter @mkw/api test
-      - name: Contract check
-        run: pnpm run product:contract:check
-      - name: Product boundaries
-        run: pnpm run product:boundaries
+        run: node scripts/ci/collect-evidence.mjs "$MKW_REHEARSAL_RUN_ID" "$MKW_PARITY_EVIDENCE_ROOT" "$MKW_PUBLIC_EVIDENCE"
+      - name: Upload public rehearsal evidence
+        id: upload-evidence
+        if: always()
+        # Official actions/upload-artifact v4.6.2, git ls-remote verified 2026-11-19.
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mkw-public-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ env.MKW_REHEARSAL_RUN_ID }}
+          path: ${{ env.MKW_PUBLIC_EVIDENCE }}/check-report.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Summarize rehearsal and artifact availability
+        id: evidence-summary
+        if: always()
+        shell: bash
+        env:
+          REHEARSAL_OUTCOME: ${{ steps.rehearsal.outcome }}
+          COLLECT_OUTCOME: ${{ steps.collect-evidence.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.upload-evidence.outcome }}
+        run: |
+          printf 'Quality gate: %s\nPublic evidence collector: %s\nArtifact upload: %s\n' "$REHEARSAL_OUTCOME" "$COLLECT_OUTCOME" "$UPLOAD_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$MKW_PUBLIC_EVIDENCE/check-report.json" ]; then
+            node --input-type=module -e 'import { readFileSync, appendFileSync } from "node:fs"; import { validatePublicReport, safeReportSummary } from "./scripts/ci/evidence.mjs"; const report = validatePublicReport(JSON.parse(readFileSync(process.env.MKW_PUBLIC_EVIDENCE + "/check-report.json", "utf8"))); appendFileSync(process.env.GITHUB_STEP_SUMMARY, safeReportSummary(report) + "\n");'
+          else
+            printf 'Public artifact unavailable; no valid report collected.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi

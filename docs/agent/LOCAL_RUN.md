@@ -1,5 +1,34 @@
 # Chạy tooling và pilot local
 
+## CI parity — kiểm trước push
+
+Dùng shell product **Node24.22.1/pnpm12.15.0** theo mục runtime bên dưới. Native
+`pnpm run product:lint`, `pnpm run product:typecheck` cho feedback nhanh sau frozen
+install; `pnpm run product:check` giữ full native tooling nhưng không thay Linux
+parity hoặc real rehearsal. Không chạy application gate bằng host Node24.12.
+
+```powershell
+pnpm run ci:parity -- --quality
+# Legacy/hook: quality + release tooling, rehearsal Not run:
+pnpm run ci:parity
+# Full local release scope trước push:
+pnpm run ci:parity -- --all
+```
+
+Docker client trong PATH, daemon Linux/amd64 và Git là prerequisites. `--all` cần
+privileged disposable dind, mạng registry/package repositories và ít nhất12GiB
+trống trên filesystem evidence. Worker install/check bằng1000:1000 với pinned
+Node24.22.1/pnpm12.15.0, private Linux tree/store, không bind source/deps host.
+Driver real rehearsal chạy trong daemon riêng; không dùng PostgreSQL sản phẩm
+hoặc cluster Task10. UUID/output mới bắt buộc; không purge cache global để cold.
+
+Xem [CI module map](../../scripts/ci/README.md) cho exact step order, `--release`,
+`--list`, source snapshot/exclusions, codes, private/public artifacts và owner
+cleanup. Public allowlist chỉ `check-report.json`; giữ raw source/logs/DB private.
+Failed engine có thể retained, phải xác minh ID/labels/marker/mount/daemon trước
+cleanup; không prune hoặc xóa evidence. [Validation CI parity](../tasks/MKW-CI-PARITY-001/validation.md)
+phân biệt local checks với remote Ubuntu/artifact transport và B1/H1 còn mở.
+
 ## Acceptance và benchmark Task10
 
 Scoped drag instrumentation (02/11/2026): `pnpm run product:benchmark -- --drag-only --sizes=20,200,1000` dùng cùng Task10 owner/runtime và DB UUID mới, chỉ đo5×5s trusted Ctrl mouse selection mỗi cấu hình page25/50/hai kinds. Mỗi run phải có activation/preview/expected targets/committed targets, plain mouse bị từ chối; refresh chờ delivery ID mới trước run. Scope-only result không clear full performance (`overallPerformance=NOT_RUN`); không replay full cold/search/heap để sửa riêng drag. Focused cleanup/observer unit: `node --test apps/api/test/attendance-page-observer.test.mjs apps/api/test/attendance-page-race-cleanup.test.mjs`. Live failure-path regression nằm trong `node --test --test-timeout=60000 apps/api/test/attendance-page.integration.test.mjs`, cần đúng cluster đã reacquire/identity verified; độc lập kiểm connections0 sau observer fault. Owner release/identity/data retention bên dưới giữ nguyên.
@@ -134,7 +163,6 @@ pnpm --filter @mkw/api auth:reset-password -- --target <target-record> --alias t
 CLI đọc mật khẩu TTY ẩn; automation dùng `--secret-stdin` qua private pipe JSON (`accounts` gồm đúng hai username/password cho provision; `password` cho reset). Không đặt password trong argv/env, shell history hoặc log; không dùng echo với secret literal. Provision chỉ DB chưa có User; reset chỉ User tồn tại và revoke mọi session trong cùng transaction. Không signup/reset HTTP, không role quản trị. CLI hiện từ chối target thật; xác minh danh tính vận hành và enrollment production chưa được cấp quyền/kiểm.
 
 Evidence Task3 tại `.agent-runs/MKW-PRODUCT-001/task3-auth/`: integration, native Windows Argon2, browser login lỗi/đúng/logout/expiry và readback. Guard tháng/write/export chỉ qua route test-owned; Task4/5/9 phải kiểm lại endpoint thật. Sandbox HTTP không chứng minh TLS production; Linux native, thiết bị thật và quy trình reset thật Not run.
-
 
 ### Sandbox employees Task4
 

@@ -1,10 +1,25 @@
 # Tooling sản phẩm — Task2–11
 
+CI parity dùng [shared runner/map](../ci/README.md): `pnpm run ci:parity --
+--quality` cho quality, no-flag cho quality + release tooling (legacy hook,
+rehearsal **Not run**), `pnpm run ci:parity -- --all` thêm real rehearsal trước
+push. `check-plan.mjs` sở hữu ordered commands; fast/release tooling hợp thành
+full inventory, không thay explicit Docker/PostgreSQL gate bằng test discovery.
+`--all` dùng current dirty snapshot, private fresh Linux workers1000:1000 với
+Node24.22.1/pnpm12.15.0 và owned privileged daemon riêng cho driver. Cần host12GiB
+evidence headroom/mạng/Docker Linux; prerequisite/fetch failure khác assertion.
+Public collector chỉ export `check-report.json`; raw logs/source/DB và retained
+failed resources giữ private. Exact owner cleanup và validation/status tại map.
+
 Deploy/account rehearsal: `pnpm run product:test:deploy-account` là explicit real
 gate; `deploy-account-rehearsal.test.mjs` mặc định chỉ chạy node:test ownership và
 prerequisite an toàn. `local-release-rehearsal.ps1` là thin Windows caller;
 `local-rehearsal-engine.mjs/runOwnedRehearsal` sở hữu UUID daemon, storage/Linux
 preflight, exact source tar/hash, copy/export và exact-owner cleanup cho cả hai OS.
+Derived worker/engine images được build không tag, nhận immutable ID qua iidfile
+và kiểm session/role/lock/Dockerfile labels. Không ghi đè hoặc xóa legacy tags
+theo task UUID. Cleanup từ chối image có alias/digest/share chưa chứng minh hoặc
+query thất bại; ownership/result giữ exact IDs và session để owner kiểm tra.
 `local-rehearsal-driver.mjs` chỉ chạy trong owned Linux engine có marker/hostname/
 actual daemon khớp; giữ setup/build/backup và lifecycle adapters cùng một owner.
 Fixture `tests/product-tooling/fixtures/deploy-account.mjs` sở hữu canonical inputs,
