@@ -1192,7 +1192,7 @@ test("R1-2 passed driver export failure preserves admitted facts and reports exp
   assert.equal(report.runtime.compose, "2.44.3");
 });
 
-test("workflow always collects only public evidence and upload success cannot mask a failed rehearsal", async (t) => {
+test("workflow always collects only public evidence and upload success cannot mask failed release tooling", async (t) => {
   const require = createRequire(import.meta.url);
   const { load, JSON_SCHEMA } = createRequire(
     require.resolve("eslint/package.json"),
@@ -1223,7 +1223,10 @@ test("workflow always collects only public evidence and upload success cannot ma
   assert.match(upload.uses, /^actions\/upload-artifact@[a-f0-9]{40}$/);
   assert.equal(upload.with["include-hidden-files"], undefined);
   assert.match(collect.run, /scripts\/ci\/collect-evidence.mjs/);
-  assert.match(rehearsal.run, /scripts\/ci\/parity.mjs --release/);
+  assert.match(
+    rehearsal.run,
+    /scripts\/ci\/parity.mjs --release-tooling(?:\s|$)/,
+  );
   assert.deepEqual(workflow.permissions, { contents: "read" });
   for (const step of steps) assert.equal(step["continue-on-error"], undefined);
   assert.equal(job["continue-on-error"], undefined);
@@ -1257,7 +1260,7 @@ test("workflow always collects only public evidence and upload success cannot ma
   assert.equal(failed.status, 1, failed.stderr);
   assert.equal(
     await readFile(argsFile, "utf8"),
-    `scripts/ci/parity.mjs\n--release\n--evidence-root\n${normalize(f.evidenceRoot)}\n--run-id\n${runId}\n`,
+    `scripts/ci/parity.mjs\n--release-tooling\n--evidence-root\n${normalize(f.evidenceRoot)}\n--run-id\n${runId}\n`,
   );
   // The workflow passes the actual runner output root, independent of cwd.
   const cliId = randomUUID();
@@ -1296,7 +1299,7 @@ test("workflow always collects only public evidence and upload success cannot ma
     });
     assert.equal(summarized.status, 0, summarized.stderr);
     const text = await readFile(summaryFile, "utf8");
-    assert.match(text, /Rehearsal gate: failure/);
+    assert.match(text, /Release tooling gate: failure/);
     assert.ok(text.includes(`Artifact upload: ${outcome}`));
     assert.match(
       text,

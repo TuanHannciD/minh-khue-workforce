@@ -27,16 +27,16 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.22.1
-      - name: Release tooling and owned rehearsal through shared runner
+      - name: Release tooling checks through shared runner
         id: rehearsal
         shell: bash
-        run: node scripts/ci/parity.mjs --release --evidence-root "$MKW_PARITY_EVIDENCE_ROOT" --run-id "$MKW_REHEARSAL_RUN_ID"
-      - name: Collect validated public rehearsal evidence
+        run: node scripts/ci/parity.mjs --release-tooling --evidence-root "$MKW_PARITY_EVIDENCE_ROOT" --run-id "$MKW_REHEARSAL_RUN_ID"
+      - name: Collect validated public check evidence
         id: collect-evidence
         if: always()
         shell: bash
         run: node scripts/ci/collect-evidence.mjs "$MKW_REHEARSAL_RUN_ID" "$MKW_PARITY_EVIDENCE_ROOT" "$MKW_PUBLIC_EVIDENCE"
-      - name: Upload public rehearsal evidence
+      - name: Upload public check evidence
         id: upload-evidence
         if: always()
         # Official actions/upload-artifact v4.6.2, git ls-remote verified 2026-11-19.
@@ -46,7 +46,7 @@ jobs:
           path: ${{ env.MKW_PUBLIC_EVIDENCE }}/check-report.json
           retention-days: 7
           if-no-files-found: error
-      - name: Summarize rehearsal and artifact availability
+      - name: Summarize release tooling and artifact availability
         id: evidence-summary
         if: always()
         shell: bash
@@ -55,7 +55,7 @@ jobs:
           COLLECT_OUTCOME: ${{ steps.collect-evidence.outcome }}
           UPLOAD_OUTCOME: ${{ steps.upload-evidence.outcome }}
         run: |
-          printf 'Rehearsal gate: %s\nPublic evidence collector: %s\nArtifact upload: %s\n' "$REHEARSAL_OUTCOME" "$COLLECT_OUTCOME" "$UPLOAD_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Release tooling gate: %s\nDeploy rehearsal: Not run\nPublic evidence collector: %s\nArtifact upload: %s\n' "$REHEARSAL_OUTCOME" "$COLLECT_OUTCOME" "$UPLOAD_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
           if [ -f "$MKW_PUBLIC_EVIDENCE/check-report.json" ]; then
             node --input-type=module -e 'import { readFileSync, appendFileSync } from "node:fs"; import { validatePublicReport, safeReportSummary } from "./scripts/ci/evidence.mjs"; const report = validatePublicReport(JSON.parse(readFileSync(process.env.MKW_PUBLIC_EVIDENCE + "/check-report.json", "utf8"))); appendFileSync(process.env.GITHUB_STEP_SUMMARY, safeReportSummary(report) + "\n");'
           else

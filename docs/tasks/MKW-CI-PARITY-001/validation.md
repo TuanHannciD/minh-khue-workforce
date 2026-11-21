@@ -1,4 +1,61 @@
-# MKW-CI-PARITY-001 — Validation local Task8
+# MKW-CI-PARITY-001 — Validation
+
+## Delta bỏ rehearsal khỏi Actions —21/11/2026
+
+Scope hiện hành tại [yêu cầu](approved/requirements.md) và [quyết định](decisions.md).
+Base `fd4ac959a0626b5fd847aa12ed14b550ff1d7741`, branch/worktree
+`fix/ci-environment-parity`; sole writer, fresh independent review pending primary.
+Evidence riêng dưới `.agent-runs/MKW-CI-PARITY-001/remove-actions-rehearsal-20261121-implementation/`.
+Full local rehearsal không chạy lại trong delta này; tests mode full dùng boundary
+fixtures để kiểm nhánh gọi, không tính actual deploy rehearsal PASS.
+
+RED host Node24.12.0/win32:13 focused tests failed đúng mode mới chưa có và workflow
+cũ còn `--release`. GREEN boundary100/100 và workflow evidence1/1, exit0; tests
+chứng minh chỉ release profile, không gọi rehearsal (adapter throw), counts/primary/
+cleanup/collector, CLI/list/help và main dependency gate. Host kết quả này chưa
+chứng nhận pinned runtime. Affected fast regressions161pass/1Windows signal skip,
+exit0. First GREEN attempt có2 lỗi giả định test (cleanup image chưa được gọi khi
+container cleanup fail; printf đặt flag trước path), đã sửa tests theo source và
+giữ log; không sửa production để khớp giả định.
+
+Actual shared worker Node24.22.1/pnpm12.15.0/Linuxx64/UID1000:
+
+- `--release-tooling`, UUID `ddcdc35b-34ec-4ec6-96d9-24dd201499e3`: exit0,
+  release558pass/2skip/0fail, report1 command/0 rehearsal assertions; duration
+  outer414660ms, inner210123ms. Chỉ release-tooling profile, rehearsal Not run.
+- `--quality`, UUID `78b1ff0e-47d2-41c9-803e-c99e60d6701f`: exit0, đủ10 commands;
+  fast758pass/2skip, sandbox32pass, web38files pass, API42pass; duration
+  outer583660ms, inner388581ms. Rehearsal Not run.
+- Cùng tested868-file source
+  `f1ddfa6fd042cac6a883eb3d93f8191ca2777e771517ec4246a0e7f485dc1d57`, archive
+  `9e885a787e5d1af13ced24ba14d6a5f64951d532a9c9fa8f3c512eddcd1ea399`;
+  pinned layers có thể cached, mỗi worker install frozen/private tree/store riêng.
+- Hai exact-file collectors/schema/runtime/counts đạt, không rehearsal directory;
+  cả2 reports Passed/OK, inner available, secondary empty. Fresh8 scoped Docker
+  container/image/session/network/volume absence queries exit0/output-empty; không
+  còn owned resources. Không tạo rehearsal engine/project/DB/port mới.
+- Touched lint/format, Actionlint1.7.7 `-shellcheck=`, Bash5.3.9 `-n`8 workflow
+  shell steps và diff-check đạt. Standalone Shellcheck Not run. Global docs checker
+  exit1 đúng19 historical missing links; targeted current docs UTF-8/links/fences/
+  whitespace/newline kiểm riêng, không nới baseline.
+
+Logs `pinned-release-tooling.log`, `pinned-quality.log`, per-UUID worker logs và
+`actual-run-audit.json` ở evidence root trên; exact commands/runtime/exit/log paths,
+old/new file hashes, delta và whole-branch patch trong report/handoff ignored ledger
+`remove-actions-rehearsal-{report.md,handoff.json}` cùng brief. INDEX/validation
+kết quả và hai operations docs coverage paragraphs là docs-only delta sau hai
+tested captures; final snapshot/hash ghi riêng, không claim cùng inventory.
+Fresh independent A/B reviewer pending primary; source local chưa commit/push.
+
+Các phần Task8 bên dưới là lịch sử19–20/11; không dùng làm acceptance của source mới.
+Bỏ coverage rehearsal Actions không root fix/B1 hoặc retrospective PASS của run
+44737481094 attempt1 (deploy/entrypoint-app-apply-api-bad,
+same_sha_new_backup_preserves_release_inode_bytes/REHEARSAL_ASSERTION).
+Local full-prefix probe PASS_NONREPRODUCTION vẫn không có causal fix. B1 Blocked,
+H1 Open, detailed parity Blocked, docs baseline Failed19, standalone Shellcheck
+Not run, prior strict postcheck Failed và overall chưa Done giữ nguyên.
+
+## Lịch sử local Task8
 
 Ngày19/11/2026. Scope: chuẩn bị operational docs và local acceptance trên interfaces
 Tasks1–5/7 đã accepted. Base/HEAD `c5f20e08d5f39e81186b9455ae037bba781e2273`, branch

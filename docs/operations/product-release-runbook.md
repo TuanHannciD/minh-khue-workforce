@@ -18,19 +18,20 @@ Quản lý account chạy riêng bằng shell tại `releases/<SHA>/scripts/prod
 
 Retry dùng operation ID mới. Cùng SHA với backup mới vẫn giữ nguyên release directory; inventory conflict/extra file dừng `78`, không merge/overwrite. Release legacy thiếu inventory phải có kế hoạch chuyển tiếp riêng trước live rollout, không tự adopt/xóa. Config/migration thất bại hoặc thiếu terminal cần [manual recovery](product-rollback-runbook.md); rollback ứng dụng và restore database là hai route riêng.
 
-Local gate `pnpm run product:test:deploy-account` tạo UUID Docker daemon riêng, build exact workspace tar, chạy PostgreSQL/HTTP/account và release lifecycle; evidence ở `.agent-runs/MKW-DEPLOY-ACCOUNT-001/<UUID>`. Default discovery của file rehearsal chỉ kiểm ownership/prerequisite. Release validation gọi explicit real gate sau quality. Local gate không xác minh live GitHub/GHCR/SSH/VPS/settings; xem task validation cho kết quả và giới hạn thật.
+Local gate `pnpm run product:test:deploy-account` tạo UUID Docker daemon riêng, build exact workspace tar, chạy PostgreSQL/HTTP/account và release lifecycle; evidence ở `.agent-runs/MKW-DEPLOY-ACCOUNT-001/<UUID>`. Default discovery của file rehearsal chỉ kiểm ownership/prerequisite. Actions release validation chỉ kiểm tooling sau quality, không gọi real rehearsal theo yêu cầu21/11/2026. Local gate không xác minh live GitHub/GHCR/SSH/VPS/settings; xem task validation cho kết quả và giới hạn thật.
 
 Pull request gọi shared runner `--quality`: lint/format/typecheck/build → fast
 tooling → sandbox → web → API → contract → boundaries. Release validation gọi
-`--release`: release tooling trong fresh pinned worker1000:1000, không host socket,
-rồi rehearsal thật trong owned privileged daemon UUID riêng. Local
+`--release-tooling`: release tooling trong fresh pinned worker1000:1000, không host
+socket; deploy rehearsal **Not run** trên mọi Actions path. Local `--release`/`--all`
+vẫn chạy rehearsal thật trong owned privileged daemon UUID riêng. Local
 `pnpm run ci:parity` giữ quality + release tooling nhưng rehearsal **Not run**;
 chạy `pnpm run ci:parity -- --all` để kiểm đủ local release scope trước push.
 `product:test:tooling` vẫn giữ legacy full suite. Xem [CI map](../../scripts/ci/README.md)
 cho prerequisite12GiB/mạng, source/current dirty bytes, diagnostics/public exact
 file và cleanup retained resources. Workflow release validation thủ công có thể
-kiểm nhánh không deploy khi có quyền remote riêng; Task MKW-CI-PARITY-001 hiện
-chưa có quyền activation. Local PASS không thay same-source Ubuntu/artifact
+kiểm nhánh không deploy khi có quyền remote riêng; xem quyền hiện hành tại
+[INDEX CI parity](../tasks/MKW-CI-PARITY-001/INDEX.md). Local PASS không thay same-source Ubuntu/artifact
 transport, historical causal B1 hoặc remote preflight/backup/migration/health/smoke.
 
 Các workflow/manual routes còn lại phục vụ bootstrap, backup theo lịch và recovery có approval. Thiết kế immutable CD cũ về current-state v2/LKG, schema fingerprint, gateway-only proofs, API reuse và automatic rollback được đánh dấu **superseded** cho normal path; báo cáo lịch sử không bị xóa.

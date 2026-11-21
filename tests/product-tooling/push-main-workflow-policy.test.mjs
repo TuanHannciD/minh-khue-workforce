@@ -16,7 +16,7 @@ const read = async (name) =>
 const expr = (value) => `\u0024{{ ${value} }}`;
 const needs = (job) => [].concat(job.needs ?? []);
 
-test("release fixtures use pinned container tooling without the host socket and rehearsal remains required", async () => {
+test("release gate retains shared container tooling without running deploy rehearsal", async () => {
   const workflow = await read("release-validation.yml");
   assert.deepEqual(Object.keys(workflow.on).sort(), [
     "workflow_call",
@@ -26,14 +26,46 @@ test("release fixtures use pinned container tooling without the host socket and 
   const job = workflow.jobs["release-validation"];
   const commands = job.steps.map((s) => s.run ?? "").join("\n");
   assert.match(commands, /scripts\/ci\/Dockerfile|scripts\/ci/);
-  assert.match(commands, /node scripts\/ci\/parity.mjs --release/);
+  assert.match(
+    commands,
+    /node scripts\/ci\/parity.mjs --release-tooling(?:\s|$)/,
+  );
   assert.doesNotMatch(commands, /docker\.sock|--privileged|continue-on-error/);
   assert.doesNotMatch(commands, /pnpm |docker (?:run|build)|\bssh\b|\bscp\b/);
   assert.equal(job["continue-on-error"], undefined);
   assert.equal(
-    job.steps.some((s) => s.run?.includes("parity.mjs --release") && s.if),
+    job.steps.some(
+      (s) => s.run?.includes("parity.mjs --release-tooling") && s.if,
+    ),
     false,
   );
+});
+
+test("all Actions paths exclude deploy rehearsal while keeping real release entrypoints", async () => {
+  for (const name of await readdir(".github/workflows")) {
+    const workflow = await read(name);
+    const commands = Object.values(workflow.jobs)
+      .flatMap((j) => j.steps ?? [])
+      .map((s) => s.run ?? "")
+      .join("\n");
+    assert.doesNotMatch(
+      commands,
+      /(?:ci:parity|scripts\/ci\/parity\.mjs)\s+(?:--\s+)?--(?:release|all)(?=\s|$)|local-rehearsal-(?:engine|driver)|product:test:deploy-account|deploy-account-rehearsal[^\n]*--rehearsal/,
+      name,
+    );
+  }
+  for (const name of ["deploy.yml", "rollback.yml"]) {
+    const workflow = await read(name);
+    const commands = Object.values(workflow.jobs)
+      .flatMap((j) => j.steps ?? [])
+      .map((s) => s.run ?? "")
+      .join("\n");
+    assert.match(
+      commands,
+      /printf -v remote_command [^\n]*--release[^\n]*deploy-entrypoint\.sh/,
+      name,
+    );
+  }
 });
 
 test("one push-main release producer, no paths filter or manual IDs, PR quality retained", async () => {

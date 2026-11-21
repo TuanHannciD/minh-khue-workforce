@@ -55,7 +55,10 @@ test("release-only tooling is removed from fast CI and retained in the release g
   const ci = await read(".github/workflows/ci.yml");
   const release = await read(".github/workflows/release-validation.yml");
   assert.doesNotMatch(ci, /production-account-script|deploy-account-rehearsal/);
-  assert.match(release, /node scripts\/ci\/parity.mjs --release/);
+  assert.match(
+    release,
+    /node scripts\/ci\/parity.mjs --release-tooling(?:\s|$)/,
+  );
   assert.deepEqual(getCheckPlan("release-tooling"), [
     {
       id: "tooling-release",
@@ -73,7 +76,10 @@ test("release tooling delegates worker preparation and gates to the shared runne
     (candidate) => candidate.id === "rehearsal",
   );
   assert.ok(step);
-  assert.match(step.run, /node scripts\/ci\/parity.mjs --release/);
+  assert.match(
+    step.run,
+    /node scripts\/ci\/parity.mjs --release-tooling(?:\s|$)/,
+  );
   assert.equal(step.if, undefined);
   assert.equal(step["continue-on-error"], undefined);
   assert.doesNotMatch(

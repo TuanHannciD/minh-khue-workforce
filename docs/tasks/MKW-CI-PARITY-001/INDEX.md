@@ -4,6 +4,36 @@
 
 `Blocked / incomplete overall — Tasks1–5 và Task7 accepted; Task8 local fix1/rebind accepted R2, không còn confirmed code-review finding; Task6 B1 và remote parity chưa đạt; H1 OPEN`.
 
+## Phạm vi hiện hành — bỏ deploy thử khỏi Actions,21/11/2026
+
+Người dùng xác nhận: “Bỏ toàn bộ deploy thử/Docker rehearsal, giữ kiểm tra tooling
+và các bước release thật”. [Yêu cầu delta](approved/requirements.md) và
+[quyết định](decisions.md) sở hữu thay đổi hiện hành; nội dung checkpoint19–20/11
+bên dưới giữ nguyên lịch sử theo thời điểm, bao gồm yêu cầu rehearsal cũ.
+
+Actions release-validation dùng explicit `--release-tooling`: chỉ profile
+release-tooling trong pinned worker, rehearsal **Not run**; vẫn failure-gating.
+Main DAG quality → release-validation → build+backup → deploy → verify → release-status
+và production/rollback policies giữ nguyên. Local `--release`, `--all`, no-flag/hook
+không đổi. Đây là user-requested coverage change, không root fix hoặc retrospective PASS.
+
+Lượt này sole implementation writer sửa/test local từ base
+`fd4ac959a0626b5fd847aa12ed14b550ff1d7741` trên worktree/branch hiện tại; không
+commit/push/dispatch/production/global/hooks. Evidence mới dưới
+`.agent-runs/MKW-CI-PARITY-001/remove-actions-rehearsal-20261121-implementation/`;
+report/handoff ở ignored ledger cùng brief. Primary giao fresh independent A/B reviewer
+trên snapshot cuối sau handoff; chưa có independent acceptance của delta này.
+Diagnostic v2 dormant/chưa được duyệt, không implementation. [Validation](validation.md)
+ghi kết quả/giới hạn riêng; B1 Blocked/H1 Open và historical failures giữ nguyên.
+
+Kết quả writer delta21/11: actual pinned release-tooling exit0 (558pass/2skip),
+actual quality exit0 (fast758pass/2skip, đủ10 commands), cùng tested source
+`f1ddfa6fd042cac6a883eb3d93f8191ca2777e771517ec4246a0e7f485dc1d57`.
+Collector hai reports và8 scoped Docker absence queries đạt; rehearsal Not run.
+INDEX/validation và hai operations coverage paragraphs được sửa sau tested capture,
+là docs-only delta có hashes riêng trong handoff. Next action: primary giao fresh
+read-only A/B review exact final snapshot; chưa commit/push/remote activation.
+
 ## Quyền xác minh remote hiện hành — 20/11/2026
 
 Sau báo cáo local/review và giải thích bước tiếp theo, người dùng trả lời “Approve” cho xác minh trên GitHub Actions. Quyền này bao gồm chuẩn bị/commit các file trong scope đã review, push nhánh riêng, tạo draft PR để chạy quality pull_request và dispatch release-validation trên đúng nhánh/SHA; đọc logs, tải/validate public artifact và đối chiếu local/Ubuntu. Không bao gồm merge, push main, build-release/deploy production, secrets/settings hoặc bypass hooks/global config. Các đoạn “remote chưa được phép” bên dưới là checkpoint lịch sử trước approval này; remote vẫn Not run cho đến khi thực thi và có evidence.
@@ -15,7 +45,7 @@ Ngày 19/11/2026, người dùng yêu cầu “Lên plan chi tiết để fix tr
 ## Mục tiêu, phạm vi và acceptance
 
 - Một nguồn lệnh/check inventory cho local và Actions; cùng source snapshot, Linux workspace, user và runtime ở từng profile.
-- Giữ CI nhanh riêng với release tooling + real Docker/PostgreSQL rehearsal; không giảm coverage hoặc bỏ gate release.
+- Giữ CI nhanh riêng với release tooling failure-gating; Actions không chạy real Docker/PostgreSQL rehearsal theo delta21/11. Các bước release thật giữ nguyên.
 - CI lỗi phải có phase/step/scenario/code đã lọc và public artifact có thể dùng để tái hiện; không upload source tar, raw command/env, credential hoặc database.
 - Pin/ghi nhận đầu vào môi trường; kiểm chứng từ checkout sạch, không dựa vào dist/dependency/cache local có sẵn.
 - Lỗi rehearsal hiện tại chỉ được xem là sửa sau khi có nguyên nhân, tái hiện RED, regression GREEN và real acceptance trên source cuối.

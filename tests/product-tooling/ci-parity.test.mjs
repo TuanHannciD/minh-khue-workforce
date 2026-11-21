@@ -1,3 +1,7 @@
+// File map: CLI/workflow subprocess routes; R1 boundary failure regressions;
+// alterWorker/renameFault provide Docker/report faults; mode matrix and
+// release-tooling collector cases cover selection, aggregation and cleanup.
+// Keep lifecycle matrices together to compare full/local and tooling-only modes.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -15,6 +19,7 @@ import { createRequire } from "node:module";
 import fsPromises from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import * as parity from "../../scripts/ci/parity.mjs";
+import { collectPublicReports } from "../../scripts/ci/collect-evidence.mjs";
 import { fixture, canary } from "./fixtures/parity-boundary.mjs";
 const root = resolve(import.meta.dirname, "../..");
 
@@ -67,9 +72,9 @@ for (const [workflow, job, mode, want, engines] of [
   [
     "release-validation.yml",
     "release-validation",
-    "--release",
+    "--release-tooling",
     ["release-tooling"],
-    1,
+    0,
   ],
 ]) {
   for (const [fault, exit] of [
@@ -653,6 +658,10 @@ test("invalid mutually exclusive/unknown options and invalid API mode fail64 bef
   for (const args of [
     ["--wat"],
     ["--quality", "--release"],
+    ["--release-tooling", "--quality"],
+    ["--release-tooling", "--release"],
+    ["--all", "--release-tooling"],
+    ["--release-tooling", "--release-tooling"],
     ["--all", "--all"],
     ["--run-id", "bad"],
     ["--evidence-root", ""],
@@ -677,10 +686,35 @@ test("list resolves catalog/environment inputs; help distinguishes hook tooling 
   assert.match(plan.environment.lock, /environment-lock.json$/);
   assert.equal(await parity.parityMain(["--help"], f.adapters), 0);
   assert.match(f.output.pop(), /--all[\s\S]*before push/);
+  assert.equal(
+    await parity.parityMain(["--release-tooling", "--list"], f.adapters),
+    0,
+  );
+  const tooling = JSON.parse(f.output.pop());
+  assert.equal(tooling.mode, "release-tooling");
+  assert.deepEqual(tooling.profiles, [
+    {
+      profile: "release-tooling",
+      steps: [
+        {
+          id: "tooling-release",
+          executable: "pnpm",
+          args: ["run", "product:test:tooling:release"],
+        },
+      ],
+    },
+  ]);
+  assert.equal(tooling.rehearsal, "Not run");
+  assert.equal(await parity.parityMain(["--help"], f.adapters), 0);
+  assert.match(
+    f.output.pop(),
+    /--release-tooling: release tooling only; rehearsal=Not run/,
+  );
   assert.equal(f.calls.length, 0);
 });
 for (const [mode, want, engine] of [
   ["quality", ["quality"], 0],
+  ["release-tooling", ["release-tooling"], 0],
   ["release", ["release-tooling"], 1],
   ["all", ["quality", "release-tooling"], 1],
   ["tooling", ["quality", "release-tooling"], 0],
@@ -723,6 +757,66 @@ for (const [mode, want, engine] of [
     }
     assert.equal(f.calls.filter((x) => x.args[0] === "rm").length, want.length);
     if (!engine) assert.match(f.output.join("\n"), /rehearsal=Not run/);
+  });
+}
+for (const fault of ["none", "exit", "cleanup"]) {
+  test(`release-tooling ${fault} exports only tooling facts and cleans up without calling rehearsal`, async (t) => {
+    const f = await fixture(t, fault);
+    let rehearsed = false;
+    f.adapters.rehearse = async () => {
+      rehearsed = true;
+      throw new Error("release-tooling must never invoke rehearsal");
+    };
+    alterWorker(f, (r) => ({ ...r, counts: { commands: 2, assertions: 3 } }));
+    const exit = await parity.parityMain(
+      [
+        "--release-tooling",
+        "--repo-root",
+        f.repoRoot,
+        "--evidence-root",
+        f.evidenceRoot,
+        "--run-id",
+        f.runId,
+      ],
+      f.adapters,
+    );
+    assert.equal(exit, fault === "none" ? 0 : fault === "exit" ? 17 : 1);
+    assert.equal(rehearsed, false);
+    assert.deepEqual(
+      f.profiles.map((p) => p.profile),
+      ["release-tooling"],
+    );
+    const report = await f.report();
+    assert.equal(report.profile, "release-tooling");
+    assert.equal(report.result, fault === "none" ? "Passed" : "Failed");
+    assert.deepEqual(report.counts, { commands: 2, assertions: 3 });
+    assert.equal(
+      report.primary.code,
+      fault === "none" ? "OK" : "REHEARSAL_COMMAND",
+    );
+    if (fault === "exit")
+      assert.equal(report.primary.stepId, "tooling-release");
+    if (fault === "cleanup")
+      assert.ok(report.secondaryErrors.includes("REHEARSAL_CLEANUP"));
+    assert.ok(f.calls.some((c) => c.args[0] === "rm"));
+    if (fault === "cleanup") assert.equal(f.beforeImageCleanup.length, 0);
+    else
+      assert.equal(
+        f.beforeImageCleanup[0].result,
+        fault === "none" ? "Not run" : "Failed",
+      );
+    assert.match(f.output.at(-1), /rehearsal=Not run/);
+    const collected = await collectPublicReports({
+      runId: f.runId,
+      evidenceRoot: f.evidenceRoot,
+      outputRoot: join(f.evidenceRoot, "collected"),
+    });
+    assert.equal(collected.status, report.result);
+    assert.equal(collected.files.length, 1);
+    assert.deepEqual(
+      JSON.parse(await readFile(collected.files[0], "utf8")),
+      report,
+    );
   });
 }
 for (const [fault, code, want] of [

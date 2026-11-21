@@ -12,6 +12,7 @@ và các gate còn thiếu. Local PASS không chứng minh remote parity hoặc 
 | `pnpm run product:lint` / `product:typecheck` | Feedback native nhanh, cần Node24.22.1/pnpm12.15.0 và dependency đúng lock; không chứng nhận Linux parity      |
 | `pnpm run ci:parity -- --quality`             | Worker quality: lint → format → typecheck → build → tooling-fast → sandbox → web → api → contract → boundaries |
 | `pnpm run ci:parity`                          | Legacy/hook: quality → release-tooling; **rehearsal Not run**                                                  |
+| `pnpm run ci:parity -- --release-tooling`     | Chỉ release-tooling trong pinned worker; **rehearsal Not run**                                                 |
 | `pnpm run ci:parity -- --release`             | release-tooling → real Docker/PostgreSQL rehearsal                                                             |
 | `pnpm run ci:parity -- --all`                 | quality → release-tooling → real rehearsal; chạy trước push để kiểm đủ release scope local                     |
 | `pnpm run ci:parity -- --all --list`          | Liệt kê plan/runtime, không acquire Docker hoặc chạy checks                                                    |
@@ -21,6 +22,16 @@ và các gate còn thiếu. Local PASS không chứng minh remote parity hoặc 
 hợp thành full inventory; dùng `node scripts/ci/run-product-tooling.mjs
 --list` (thêm `--release` hoặc `--full`) để xem filenames hiện tại. Discovery
 `deploy-account-rehearsal.test.mjs` không thay explicit real rehearsal.
+
+Theo phạm vi người dùng xác nhận21/11/2026, mọi GitHub Actions path bỏ deploy thử
+Docker/PostgreSQL. `release-validation.yml` gọi `--release-tooling`, vẫn failure-gating
+trước build/backup/deploy/verify thật trong `main-release.yml`. Tooling vẫn chạy
+trong pinned Docker worker; không chuyển sang pnpm/runtime host. Summary/report
+của mode này chỉ chứng nhận tooling, rehearsal **Not run**. `--release`/`--all`
+vẫn chạy full rehearsal khi được gọi local; no-flag/hook giữ nguyên coverage.
+Các mode chọn bằng flag loại trừ lẫn nhau; `--list` chỉ liệt kê và không acquire.
+Đây là thay đổi coverage đã được yêu cầu, không phải sửa nguyên nhân lỗi rehearsal
+lịch sử hoặc đổi Failed thành Passed. Diagnostic v2 chưa được duyệt, không triển khai.
 
 ## Prerequisites và source
 
@@ -103,7 +114,7 @@ Supplemental strict postcheck có thể Failed/REHEARSAL_SOURCE do generated
   boundary. `scripts/product/local-rehearsal-engine.mjs` sở hữu real rehearsal;
   driver/fixture sở hữu canonical scenario IDs và SQL/HTTP assertions.
 - Consumers: `.github/workflows/ci.yml` gọi `--quality`,
-  `release-validation.yml` gọi `--release`; `main-release.yml` chờ cả hai trước
+  `release-validation.yml` gọi `--release-tooling`; `main-release.yml` chờ cả hai trước
   build/backup/deploy. `.githooks/pre-commit` gọi no-flag; bật hooks là thao tác
   config riêng, không cần bật hoặc bypass để chạy lệnh manual.
 - Regression coverage: `tests/product-tooling/ci-{check-plan,environment,source-snapshot,evidence,parity,parity-failures}.test.mjs`,

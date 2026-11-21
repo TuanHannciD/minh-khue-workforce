@@ -45,12 +45,12 @@ jobs:
         id: rehearsal
         shell: bash
         run: node scripts/ci/parity.mjs --quality --evidence-root "$MKW_PARITY_EVIDENCE_ROOT" --run-id "$MKW_REHEARSAL_RUN_ID"
-      - name: Collect validated public rehearsal evidence
+      - name: Collect validated public check evidence
         id: collect-evidence
         if: always()
         shell: bash
         run: node scripts/ci/collect-evidence.mjs "$MKW_REHEARSAL_RUN_ID" "$MKW_PARITY_EVIDENCE_ROOT" "$MKW_PUBLIC_EVIDENCE"
-      - name: Upload public rehearsal evidence
+      - name: Upload public check evidence
         id: upload-evidence
         if: always()
         # Official actions/upload-artifact v4.6.2, git ls-remote verified 2026-11-19.
@@ -60,7 +60,7 @@ jobs:
           path: ${{ env.MKW_PUBLIC_EVIDENCE }}/check-report.json
           retention-days: 7
           if-no-files-found: error
-      - name: Summarize rehearsal and artifact availability
+      - name: Summarize quality and artifact availability
         id: evidence-summary
         if: always()
         shell: bash

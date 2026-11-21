@@ -22,11 +22,17 @@ import {
 import { createWorkerSession } from "./worker.mjs";
 
 const repository = resolve(fileURLToPath(new URL("../..", import.meta.url)));
-const modes = new Set(["quality", "release", "all", "tooling"]);
+const modes = new Set([
+  "quality",
+  "release-tooling",
+  "release",
+  "all",
+  "tooling",
+]);
 const profilesFor = (mode) =>
   mode === "quality"
     ? ["quality"]
-    : mode === "release"
+    : mode === "release" || mode === "release-tooling"
       ? ["release-tooling"]
       : ["quality", "release-tooling"];
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -351,6 +357,7 @@ export async function parityMain(args, adapters = {}) {
   const values = {},
     allowed = new Set([
       "--quality",
+      "--release-tooling",
       "--release",
       "--all",
       "--list",
@@ -367,7 +374,9 @@ export async function parityMain(args, adapters = {}) {
       if (!args[i + 1]?.trim() || args[i + 1].startsWith("--")) return 64;
       values[key] = args[++i];
     } else values[key] = true;
-    if (["--quality", "--release", "--all"].includes(key)) {
+    if (
+      ["--quality", "--release-tooling", "--release", "--all"].includes(key)
+    ) {
       if (mode) return 64;
       mode = key.slice(2);
     }
@@ -382,7 +391,7 @@ export async function parityMain(args, adapters = {}) {
   const output = adapters.output ?? console.log;
   if (values["--help"]) {
     output(
-      "Usage: node scripts/ci/parity.mjs [--quality | --release | --all] [--list]\nNo flag: quality + release tooling (hook coverage), rehearsal=Not run.\n--all: quality + release tooling + real rehearsal; run before push for release.\n--release: release tooling + real rehearsal. --quality: quality worker only.\nOptional: --repo-root ABSOLUTE --evidence-root ABSOLUTE --run-id UUIDv4",
+      "Usage: node scripts/ci/parity.mjs [--quality | --release-tooling | --release | --all] [--list]\nNo flag: quality + release tooling (hook coverage), rehearsal=Not run.\n--all: quality + release tooling + real rehearsal; run before push for release.\n--release: release tooling + real rehearsal. --quality: quality worker only.\n--release-tooling: release tooling only; rehearsal=Not run.\nOptional: --repo-root ABSOLUTE --evidence-root ABSOLUTE --run-id UUIDv4",
     );
     return 0;
   }
